@@ -60,7 +60,7 @@ Next:
 1. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 2. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
 3. ~~Coolify's own database isn't in the nightly backup yet.~~ Done: restic tag `coolify-db`, first snapshot taken, and a restore into a scratch PostgreSQL 15 container matched the live database.
-4. ~~The backup has no failure alert.~~ Done: Telegram alerts through n8n for backup, uptime, disk, memory, containers and server heartbeat (`docs/setup.md`, "Alerts"). Add the app's `/health` URL once it's deployed (pending, see below).
+4. ~~The backup has no failure alert.~~ Done: Telegram alerts through n8n for backup, uptime, disk, memory, containers and server heartbeat (`docs/setup.md`, "Alerts"). `https://kooche.taskpilot.dev/health` added on Oct 16, 2026.
 
 ## Oct 16, 2026: app shell on staging (start of phase 3)
 
@@ -75,11 +75,12 @@ Done:
 - Coolify: Valkey 9.0.6 (`classifieds-valkey`, 128 MB, `noeviction`, AOF), GitHub App `kooche-coolify`, applications `classifieds-web` and `classifieds-worker` deployed from `main` with auto-deploy. https://kooche.taskpilot.dev serves the page and `/health` returns OK. Details and API pitfalls in `docs/setup.md`, "App deployment".
 - 2 GB swap file for builds; Coolify limited to one build at a time.
 - Memory after the deploy: web 76 MB, worker 34 MB, Valkey 3 MB, PostgreSQL 69 MB, Coolify ~420 MB; server 1.95 GB used of 3.8 GB (table in `docs/setup.md`, "Memory budget").
+- Auto-deploy tested: pushing a commit to `main` redeployed both apps one after the other, and `/health` answered 200 throughout the rolling update.
+- `https://kooche.taskpilot.dev/health` is in the n8n alert workflow's `URLS` ("Kooche staging app").
 - The temporary Coolify API token is deleted and API access is off again.
 
 Next:
-1. Add `https://kooche.taskpilot.dev/health` to the n8n alert workflow's `URLS`.
-2. Run migrations as a deploy step (pre-deployment command as `classifieds_owner`) before the first feature that changes the schema.
-3. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
-4. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
-5. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+1. Run migrations as a deploy step (pre-deployment command as `classifieds_owner`) before the first feature that changes the schema.
+2. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
+3. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+4. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
