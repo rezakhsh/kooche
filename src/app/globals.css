@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+/* Only logical direction classes (ms-, pe-, start-, text-end…), so the layout follows dir="rtl".
+   `npm run check:rtl` rejects the physical ones. */
+
+@theme {
+  --font-sans: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
+}
