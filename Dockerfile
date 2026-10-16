@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
-# One Dockerfile, two targets (docs/setup.md, decision 8):
-#   docker build --target web .     Next.js standalone server on port 3000
-#   docker build --target worker .  background worker (outbox poller, BullMQ jobs)
+# One Dockerfile, three targets (docs/setup.md, decision 8 and "App deployment"):
+#   docker build --target web .      Next.js standalone server on port 3000
+#   docker build --target worker .   background worker (outbox poller, BullMQ jobs)
+#   docker build --target migrate .  applies migrations, then has Coolify deploy web and worker
 # Both run as the image's unprivileged `node` user. No secrets at build time: every setting is
 # read from the environment when the process starts.
 
@@ -23,6 +24,9 @@ RUN npm run build
 
 FROM source AS worker-build
 RUN npm run build:worker
+
+FROM source AS migrate-build
+RUN npm run build:migrate
 
 FROM ${NODE_IMAGE} AS web
 WORKDIR /app
@@ -46,3 +50,17 @@ USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node", "-e", "const s = require('node:fs').statSync('/tmp/worker-heartbeat'); process.exit(Date.now() - s.mtimeMs < 30000 ? 0 : 1)"]
 CMD ["node", "worker.js"]
+
+FROM ${NODE_IMAGE} AS migrate
+WORKDIR /app
+ENV NODE_ENV=production
+# Two bundled files and the SQL migrations (migrate.js reads ./migrations), no node_modules
+COPY --from=migrate-build /app/dist/migrate/ ./
+COPY --from=migrate-build /app/src/db/migrations ./migrations
+USER node
+# Healthy once the deploy of web and worker is queued (src/deploy/trigger.ts). A failed migration
+# or trigger exits, so Coolify never marks this deployment healthy and web and worker stay as they are.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --start-interval=2s --retries=3 \
+  CMD ["test", "-f", "/tmp/deploy-triggered"]
+# Then idle (sh with a TERM trap, so `docker stop` doesn't wait for the kill timeout).
+CMD ["sh", "-c", "node migrate.js && node trigger.js || exit 1; trap 'exit 0' TERM INT; sleep infinity & wait"]

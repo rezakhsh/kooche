@@ -21,8 +21,18 @@ const workerSchema = z.object({
   REDIS_URL: redisUrl,
 });
 
+// The `migrate` Docker target: after the migrations it asks Coolify to deploy web and worker.
+const deploySchema = z.object({
+  COOLIFY_API_URL: z.url({ protocol: /^https?$/ }),
+  // A Coolify API token with only the `deploy` ability.
+  COOLIFY_DEPLOY_TOKEN: z.string().min(1),
+  // Comma-separated Coolify application uuids, deployed in this order.
+  DEPLOY_APP_UUIDS: z.string().regex(/^[a-z0-9]+(,[a-z0-9]+)*$/),
+});
+
 export type WebEnv = z.infer<typeof webSchema>;
 export type WorkerEnv = z.infer<typeof workerSchema>;
+export type DeployEnv = z.infer<typeof deploySchema>;
 
 function parse<T extends z.ZodType>(schema: T, name: string): z.infer<T> {
   const result = schema.safeParse(process.env);
@@ -36,6 +46,7 @@ function parse<T extends z.ZodType>(schema: T, name: string): z.infer<T> {
 
 let web: WebEnv | undefined;
 let worker: WorkerEnv | undefined;
+let deploy: DeployEnv | undefined;
 
 /** Environment of the Next.js app. Server code only. */
 export function webEnv(): WebEnv {
@@ -45,4 +56,9 @@ export function webEnv(): WebEnv {
 /** Environment of the background worker. */
 export function workerEnv(): WorkerEnv {
   return (worker ??= parse(workerSchema, 'worker'));
+}
+
+/** Environment of the deploy trigger in the `migrate` image. */
+export function deployEnv(): DeployEnv {
+  return (deploy ??= parse(deploySchema, 'deploy'));
 }
