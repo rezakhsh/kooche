@@ -14,6 +14,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Coolify | 4.4.6 at https://coolify.taskpilot.dev (Let's Encrypt). Public registration disabled; one admin account |
 | DNS (temporary) | `kooche.taskpilot.dev` (app) and `coolify.taskpilot.dev` (dashboard), both A records to the server, not proxied by Cloudflare |
 | Backup storage | Hetzner Storage Box BX11 `classifieds-backups` (id 674924), 1 TB, Falkenstein `fsn1`, `u692990.your-storagebox.de`, SSH/SFTP on port 23 only |
+| Photo storage | Cloudflare R2, EU jurisdiction (data stays in the EU), account BerlinWedding. Buckets `classifieds-media-staging` (testing) and `classifieds-media` (production, starts empty at launch). Both private: public `r2.dev` access is off. S3 endpoint `https://fe5720006c80324ed7b6bdd00d63b774.eu.r2.cloudflarestorage.com`, region `auto` |
 | Secrets on server | `/root/.secrets/*.env` (root-only, never in Git) |
 | Code | https://github.com/rezakhsh/kooche (private). The server pushes with a deploy key (`/root/.ssh/github_deploy`, SSH host alias `github-kooche`) that has write access to this repo only |
 | Backups | `/usr/local/bin/classifieds-backup`, nightly at 03:15 UTC (`/etc/cron.d/classifieds-backup`), log in `/var/log/classifieds-backup.log` |
@@ -26,14 +27,14 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
 
 2. **PostgreSQL 18 + PostGIS 3.6** (`postgis/postgis:18-3.6`) instead of 17. Version 18 has a built-in `uuidv7()` function (decision 1 in the plan) and faster disk reads. No extension needed for IDs.
 
-3. **Listing photos on Cloudflare R2 (EU jurisdiction)** instead of Hetzner Object Storage. R2 is free up to 10 GB storage, 1 million writes and 10 million reads a month, has no traffic fees, and serves through the Cloudflare network we already use. The app talks plain S3, so switching to Hetzner Object Storage (€6.49/month) later is a configuration change. Hetzner Object Storage also cannot be created through the API, only in Hetzner Console. R2 is not set up yet (see open decisions).
+3. **Listing photos on Cloudflare R2 (EU jurisdiction)** instead of Hetzner Object Storage. R2 is free up to 10 GB storage, 1 million writes and 10 million reads a month, has no traffic fees, and serves through the Cloudflare network we already use. The app talks plain S3, so switching to Hetzner Object Storage (€6.49/month) later is a configuration change. Hetzner Object Storage also cannot be created through the API, only in Hetzner Console. R2 buckets were created on Oct 16, 2026. The app's upload key (an R2 API token limited to the media bucket, "Object Read & Write") is created when photo upload is built.
 
 4. **Backups on a Storage Box with restic** instead of an Object Storage bucket. A BX11 costs €3.20/month net for 1 TB and lives in Germany, a different region from the server, so one data-centre failure cannot take both. Coolify's built-in database backup only writes to S3, so backups run as a scheduled job instead:
    - `pg_dump` → restic → Storage Box over SFTP, nightly, encrypted and deduplicated.
    - Keep 7 daily, 4 weekly, 6 monthly.
    - Coolify's own config (`/data/coolify/source`, including `APP_KEY`, which decrypts every secret stored in Coolify) is backed up the same way.
    - Restore test once a month (as in the plan).
-   - Optional extra: Hetzner server backups (+20% of the server price, about €1.10/month), which restore the whole machine in one click.
+   - Hetzner server backups (whole-machine snapshots) are managed by the owner directly in Hetzner Console.
 
 5. **Phone verification: Telegram first, SMS as fallback.** Nearly every user in the target audience has Telegram. A Telegram bot's "share contact" button returns the phone number Telegram has already verified, at no cost. Accept it only when the shared contact's `user_id` equals the sender's own id; otherwise someone could share another person's contact. SMS stays for users without Telegram. This removes most of the €10–50/month SMS cost. The bot runs inside our worker, not in n8n, because it is part of login security.
 
@@ -83,19 +84,17 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
 | Cloudflare R2 (within free tier) | €0 | €0 |
 | **Total** | **€8.69** | **€10.34** |
 
-After the resize to CX33: +€3.00 net. Optional server backups: +€1.10 net.
+After the resize to CX33: +€3.00 net.
 
 ## Security notes
 
-- The Hetzner and Cloudflare API tokens were shared in chat. They are stored only in `/root/.secrets/infra.env`. Rotate both once the setup is finished.
+- The Hetzner and Cloudflare API tokens were shared in chat. They are stored only in `/root/.secrets/infra.env`. The owner chose to keep them as they are.
 - The Hetzner token covers the whole project, including the n8n and Supabase servers. Treat it as a key to all of them.
-- The Cloudflare token can edit DNS but cannot read zone settings or manage R2.
-- Coolify admin login: `/root/.secrets/coolify-admin.env`. Change the password after the first login and turn on two-factor authentication.
+- The Cloudflare token can edit DNS and manage R2, but cannot read zone settings or edit its own permissions.
+- Coolify admin login: `/root/.secrets/coolify-admin.env`. Turning on two-factor authentication in Coolify is recommended.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
 ## Open decisions
 
 1. **Coolify deployments from GitHub.** Install Coolify's GitHub App from the Coolify dashboard when the first app is ready to deploy.
-2. **R2 for photos.** Enable R2 in the Cloudflare dashboard (it asks for a payment method even for the free tier), then create a token with R2 edit permission.
-3. **Hetzner server backups** for about €1.10/month: yes or no.
-4. **Brand, then domain.** Nothing technical depends on it any more. Buy the domain into Cloudflare when decided.
+2. **Brand, then domain.** Nothing technical depends on it any more. Buy the domain into Cloudflare when decided.
