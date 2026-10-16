@@ -60,4 +60,26 @@ Next:
 1. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 2. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
 3. ~~Coolify's own database isn't in the nightly backup yet.~~ Done: restic tag `coolify-db`, first snapshot taken, and a restore into a scratch PostgreSQL 15 container matched the live database.
-4. ~~The backup has no failure alert.~~ Done: Telegram alerts through n8n for backup, uptime, disk, memory, containers and server heartbeat (`docs/setup.md`, "Alerts"). Add the app's `/health` URL once it's deployed.
+4. ~~The backup has no failure alert.~~ Done: Telegram alerts through n8n for backup, uptime, disk, memory, containers and server heartbeat (`docs/setup.md`, "Alerts"). Add the app's `/health` URL once it's deployed (pending, see below).
+
+## Oct 16, 2026: app shell on staging (start of phase 3)
+
+Done:
+- Next.js 16 (App Router) in the existing package. `<html lang="fa" dir="rtl">`, Vazirmatn variable font self-hosted and cut down to 69 KB (`scripts/subset-font.sh`), Tailwind 4, all text in `src/messages/fa.ts`, Jalali dates through `Intl` (`fa-IR-u-ca-persian`, zone from `APP_TIME_ZONE`). Placeholder home page and a Persian 404 page.
+- `npm run check:rtl` fails the build on physical-direction Tailwind classes (`ml-`, `pr-`, `left-`, `text-right`…).
+- `/health` checks PostgreSQL (as `classifieds_app`) and Valkey; 200 or 503.
+- Strict nonce-based CSP (`src/proxy.ts`), HSTS and the other security headers (`next.config.ts`). No CSP violations in Chrome.
+- Worker in `src/worker/`: Valkey connection for BullMQ, outbox poller following `docs/schema.md` section 13 with an empty handler list (events without a handler are logged and marked processed), heartbeat for the Docker health check, clean shutdown on SIGTERM. BullMQ rejects `:` in job ids, so the job id is `<outbox id>_<handler>` (schema doc updated).
+- One Dockerfile, targets `web` (standalone) and `worker` (esbuild bundle), non-root. Next's own type check is off because TypeScript 7 has no JavaScript API; `npm run typecheck` runs before every build instead.
+- 55 tests pass (new: outbox hand-off, Jalali formatting), run on a scratch PostgreSQL built like `compose.yaml`.
+- Coolify: Valkey 9.0.6 (`classifieds-valkey`, 128 MB, `noeviction`, AOF), GitHub App `kooche-coolify`, applications `classifieds-web` and `classifieds-worker` deployed from `main` with auto-deploy. https://kooche.taskpilot.dev serves the page and `/health` returns OK. Details and API pitfalls in `docs/setup.md`, "App deployment".
+- 2 GB swap file for builds; Coolify limited to one build at a time.
+- Memory after the deploy: web 76 MB, worker 34 MB, Valkey 3 MB, PostgreSQL 69 MB, Coolify ~420 MB; server 1.95 GB used of 3.8 GB (table in `docs/setup.md`, "Memory budget").
+- The temporary Coolify API token is deleted and API access is off again.
+
+Next:
+1. Add `https://kooche.taskpilot.dev/health` to the n8n alert workflow's `URLS`.
+2. Run migrations as a deploy step (pre-deployment command as `classifieds_owner`) before the first feature that changes the schema.
+3. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
+4. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+5. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.

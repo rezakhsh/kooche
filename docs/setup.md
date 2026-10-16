@@ -20,6 +20,9 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Backups | `/usr/local/bin/classifieds-backup`, nightly at 03:15 UTC (`/etc/cron.d/classifieds-backup`), log in `/var/log/classifieds-backup.log`. restic tags `config` (Coolify config, secrets), `postgres` (database dump) and `coolify-db` (Coolify's own database, dumped inside `coolify-db` with its PostgreSQL 15 `pg_dump`) |
 | Alerts | n8n workflow "Kooche – server alerts" (id `71k8LjIW2IJS5c8l`) at https://webhook.khodamehri.com sends to your Telegram (bot credential "Matrix", chat `148310113`). Server side: `/usr/local/bin/kooche-alert` (sender), `/usr/local/bin/kooche-healthcheck` (every 15 min, `/etc/cron.d/kooche-healthcheck`). Webhook path and shared secret in `/root/.secrets/alerts.env` |
 | Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
+| Staging Valkey | Coolify database `classifieds-valkey` (uuid and Docker hostname `cgrezwpbbepj0ulgn7wl5qc3`), Redis type with image `valkey/valkey:9.0.6-alpine`, 128 MB limit, `maxmemory 96mb`, `maxmemory-policy noeviction` (BullMQ needs it), AOF on, not public. Password in `/root/.secrets/valkey.env` |
+| Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://kooche.taskpilot.dev, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB), both from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. See "App deployment" |
+| Swap | 2 GB swap file `/swapfile` (in `/etc/fstab`), `vm.swappiness=10` (`/etc/sysctl.d/90-swap.conf`). A safety net for image builds on 4 GB, not working memory |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
 
@@ -118,6 +121,34 @@ For a local app login, run the `ALTER ROLE` lines above once with the passwords 
 - A new table needs its grants and, if it has `updated_at`, its `set_updated_at` trigger in the same migration. The tests fail otherwise.
 - Update `docs/schema.md` in the same change.
 
+## App deployment
+
+One Dockerfile, two targets (decision 8): `web` (Next.js standalone output, `node server.js`) and `worker` (esbuild bundle `dist/worker.js`, no `node_modules`). Both images are `node:24.22.0-bookworm-slim` and run as the `node` user. The build runs `npm run typecheck` and `npm run check:rtl` before anything else, and needs no secrets: every setting is read at runtime and checked with Zod (`src/lib/env.ts`).
+
+**Coolify settings.** Build pack Dockerfile, "Docker Build Stage Target" `web` or `worker`. Coolify finds the `HEALTHCHECK` in the Dockerfile and uses it instead of its own (which needs curl, and the slim image has none): `web` calls `/health`, `worker` checks a heartbeat file the outbox loop touches every second. Concurrent builds on the server: 1, so two Next.js builds never run at once. Building `web` takes about 30 seconds. Auto-deploy is on: every push to `main` rebuilds and redeploys both apps (through the GitHub App's webhook), including docs-only commits.
+
+**Environment variables** (runtime only, never build time):
+
+| App | Variables |
+| --- | --- |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL` |
+| `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL` |
+
+Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9ztopqs:5432` and `redis://default:<password>@cgrezwpbbepj0ulgn7wl5qc3:6379`. Other variables in `.env.example` are added with the features that use them. Migrations are not part of the deploy yet; they run by hand as in "Database setup".
+
+**`/health`** returns 200 `{"status":"ok"}` when PostgreSQL and Valkey both answer within 2 seconds, else 503. It never returns error details.
+
+**Security headers.** `src/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce per request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no `unsafe-inline`), so every page is rendered per request. `next.config.ts` sets HSTS (two years, `includeSubDomains`, no `preload` on the temporary domain), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and COOP. When Cloudflare starts caching logged-out pages, a cached page reuses one nonce; revisit then (hashes or SRI instead of nonces).
+
+**Coolify 4.4.6 API pitfalls** (found while setting this up):
+- Start, stop and deploy endpoints are `POST` now (`POST /api/v1/deploy?uuid=…`, `POST /api/v1/databases/<uuid>/start`). `GET` answers with a message, not an error status.
+- `redis_conf` must be base64-encoded. With a config file, `appendonly` must be in it (Coolify only adds `--appendonly yes` without one).
+- `dockerfile_target_build` can't be set when creating an application, only with a `PATCH` afterwards.
+- An application created without `domains` gets an `sslip.io` domain; clear it with `PATCH {"domains": ""}` (the worker has none).
+- An API token's value is `<id>|<secret>`. Quote it in an env file, or `source` treats the `|` as a pipe.
+
+**Fonts.** `src/app/fonts/Vazirmatn-subset.woff2` (69 KB, all weights) is cut from the pinned `vazirmatn` package by `scripts/subset-font.sh` (fonttools in a throwaway Python container). Rerun it when the package version changes.
+
 ## Alerts
 
 One n8n workflow, **Kooche – server alerts**, receives reports from the server and checks from outside. It sends a Telegram message only when something changes: one 🔴 when a check fails and one 🟢 when it recovers. Events, such as a failed backup, are always sent. Its memory between runs lives in the workflow's static data. Successful runs aren't stored, so the 5-minute timer doesn't fill the n8n database; failed runs are.
@@ -138,17 +169,19 @@ To add a check:
 
 ## Memory budget
 
-**Now (CX23, 4 GB, staging):**
+**Now (CX23, 4 GB, staging):** limits, and use measured on Oct 16, 2026 right after the first app deploy (idle, after 20 page loads).
 
-| Service | Limit |
-| --- | --- |
-| Coolify (measured ~450 MB idle) | 600 MB |
-| PostgreSQL + PostGIS | 768 MB |
-| Valkey | 128 MB |
-| Next.js app | 768 MB |
-| Worker | 384 MB |
-| imgproxy | 256 MB |
-| System reserve | ~1 GB |
+| Service | Limit | Measured |
+| --- | --- | --- |
+| Coolify (app, db, redis, proxy, sentinel) | 600 MB | ~420 MB |
+| PostgreSQL + PostGIS | 768 MB | 69 MB |
+| Valkey | 128 MB | 3 MB |
+| Next.js app | 768 MB | 76 MB |
+| Worker | 384 MB | 34 MB |
+| imgproxy | 256 MB | not deployed |
+| System reserve | ~1 GB | |
+
+Whole server at that moment: 1.95 GB used, 1.87 GB available, 214 MB of swap used (pushed out during the image builds). About 1 GB of the "used" figure was Claude Code sessions running on the server, not the product. Close idle sessions before heavy builds.
 
 **After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
 
@@ -174,5 +207,5 @@ After the resize to CX33: +€3.00 net.
 
 ## Open decisions
 
-1. **Coolify deployments from GitHub.** Install Coolify's GitHub App from the Coolify dashboard when the first app is ready to deploy.
+1. ~~**Coolify deployments from GitHub.**~~ Done Oct 16, 2026: GitHub App `kooche-coolify`, installed on `rezakhsh/kooche` only.
 2. **Brand, then domain.** Nothing technical depends on it any more. Buy the domain into Cloudflare when decided.
