@@ -184,6 +184,9 @@ One n8n workflow, **Kooche – server alerts**, receives reports from the server
 | Memory | server, every 15 min | under 300 MB available |
 | Containers | server, every 15 min | a container is unhealthy or restarting, or a Coolify-managed one stopped |
 | Nightly backup | backup script | it fails (immediately), or no successful run for 25 h |
+| Coolify deployments | server, every 15 min | a deployment of any Coolify application failed (once per failure) |
+
+**Failed deployments.** `kooche-healthcheck` reads failed rows from the last 24 hours in Coolify's `application_deployment_queues` table (read-only, `docker exec coolify-db psql`) and sends each one as a `deploy` event in the same batch: app, short commit, commit message and a link to the deployment log. For `classifieds-migrate` it adds that web and worker were not deployed. The uuids already sent are in `/var/lib/kooche/deploy-alerts-sent`. Only failures still inside the window are kept, so a lost file re-sends at most one day of failures. If `coolify-db` doesn't answer, the check is skipped and the file stays as it is (the containers check reports that case). The alert arrives up to 15 minutes after the failure. A separate, faster cron would race the healthcheck's n8n run and lose state.
 
 To add a check:
 - **A URL** (for example the app's `/health` once it's deployed): add it to `URLS` at the top of the workflow's "Check and decide" Code node.

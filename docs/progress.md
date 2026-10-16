@@ -98,6 +98,18 @@ Done:
 
 Next:
 1. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
-2. A Telegram alert when a deployment fails (today it only shows in Coolify).
+2. ~~A Telegram alert when a deployment fails (today it only shows in Coolify).~~ Done, see below.
 3. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 4. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+
+## Oct 16, 2026: alert on failed deployments
+
+Done:
+- `kooche-healthcheck` (every 15 min) now also reads failed deployments of the last 24 hours from Coolify's database (read-only) and sends each one once, as a `deploy` event in its existing batch, through n8n to Telegram. It covers every Coolify application (today `classifieds-migrate`, `classifieds-web`, `classifieds-worker`). For a failed `classifieds-migrate` the message says web and worker were not deployed. The n8n workflow is unchanged. Details in `docs/setup.md`, "Alerts".
+- Chosen over Coolify's own notifications so all alerts arrive in one chat in one style, with no bot token stored in Coolify.
+- Tested with a fake failed `classifieds-migrate` row in Coolify's database: dry runs showed the event once and nothing on the next run. A run with `coolify-db` unreachable skipped the check and left the sent file as it was. Then the 22:15 cron run sent exactly one Telegram alert, and a second run at 22:16 sent nothing new. The fake row is deleted.
+
+Next:
+1. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
+2. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+3. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
