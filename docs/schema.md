@@ -965,7 +965,7 @@ ORDER BY id LIMIT 100
 FOR UPDATE SKIP LOCKED
 ```
 
-For each row, it adds one BullMQ job per interested handler (search, notifications, n8n webhook, image cleanup) with job id `<outbox id>:<handler>`, so BullMQ drops duplicates. Then it sets `processed_at`. Retries of the handlers are BullMQ's job. The outbox only guarantees the hand-off from a committed transaction to the queue.
+For each row, it adds one BullMQ job per interested handler (search, notifications, n8n webhook, image cleanup) with job id `<outbox id>_<handler>`, so BullMQ drops duplicates (BullMQ rejects `:` in custom job ids). Then it sets `processed_at`. Retries of the handlers are BullMQ's job. The outbox only guarantees the hand-off from a committed transaction to the queue.
 
 Index: `(id) WHERE processed_at IS NULL`. Only unprocessed rows are in it, so it stays tiny however large the table gets.
 
