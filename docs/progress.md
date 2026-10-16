@@ -22,5 +22,25 @@ Done:
 - Must be set before the first `initdb`: `POSTGRES_INITDB_ARGS="--locale-provider=builtin --builtin-locale=C.UTF-8"` (section 1, decision 3).
 
 Next:
-1. Write the schema as Drizzle schema files and migrations in `src/db/` (custom SQL migrations for triggers, the deferrable constraint, `SECURITY DEFINER` functions, roles and grants), plus the seed files for countries, currencies, cities, categories and attributes.
+1. ~~Write the schema as Drizzle schema files and migrations in `src/db/`, plus the seed files.~~ Done, see below.
 2. Still open, decided with the posting feature: whether editing an active listing sends it back to review.
+
+## Oct 16, 2026: schema in code (migrations, seeds, tests)
+
+Done:
+- Tooling: one npm package (Node 24, TypeScript, Drizzle ORM 0.45 + drizzle-kit 0.31, postgres.js, Vitest). `compose.yaml` for local PostgreSQL 18 + PostGIS 3.6 with the built-in C.UTF-8 locale, and a superuser bootstrap script (`src/db/bootstrap/`). How it fits together is in `docs/setup.md`, "Database setup".
+- Drizzle schema for all 36 tables in `src/db/schema/`, one file per module, with every CHECK, partial index, composite FK and `NULLS NOT DISTINCT` index from `docs/schema.md`. Custom types for `geography(Point,4326)`, `ltree` and `bytea`.
+- Migrations `0000`–`0004`: extensions, tables, `set_updated_at()` triggers and the deferrable image-position constraint, roles and grants, and the `SECURITY DEFINER` functions (`erase_user`, `purge_audit_log`, `scrub_audit_ip`, `purge_moderation_records`). Choices made where the doc left room are in `docs/schema.md`, section 17.
+- `normalizePersian()` in `src/lib/normalize-persian.ts`, the one normalizer for every `*_normalized` column.
+- Seeds in `seed/`:
+  - 15 currencies (incl. USD, CAD, AUD, MYR).
+  - 36 countries: EU, EEA, Switzerland, UK, US, Canada, Australia, Malaysia. Only Germany is active.
+  - The 16 German Länder and 52 cities (GeoNames).
+  - Categories: 13 roots and 115 leaves merging Divar and Kleinanzeigen, with 118 attributes and 317 options in Persian.
+  - The loader can be rerun safely and runs the seed checks before it commits.
+- 48 tests, all passing: seed checks (including the three named in the doc), grants, schema guarantees and the retention functions. Each run starts from an empty database. Verified from an empty `compose.yaml` volume.
+
+Next:
+1. Set up the staging database on the server: `POSTGRES_INITDB_ARGS` before its first start, the bootstrap script, migrations, seed, role passwords in `/root/.secrets/`. Add its `pg_dump` (as `classifieds_readonly`) to the nightly backup.
+2. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+3. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.

@@ -59,6 +59,44 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
 
 11. **Development stays off the server.** Develop locally (WSL, as decided) or in Claude Code sessions. This server only runs what Coolify deploys from GitHub. A dev server here would compete with production for memory.
 
+## Database setup
+
+The schema is in code: Drizzle schema in `src/db/schema/`, migrations in `src/db/migrations/`, seeds in `seed/` (see `docs/schema.md` and `seed/README.md`).
+
+**Locale, before the very first start.** The PostgreSQL cluster must be initialized with `POSTGRES_INITDB_ARGS="--locale-provider=builtin --builtin-locale=C.UTF-8"` (`docs/schema.md`, decision 3). `initdb` reads it only when the data directory is empty, and it can't be changed later without a dump and restore. `compose.yaml` sets it locally. On Coolify, set it as an environment variable on the PostgreSQL service before its first deploy. Check with `SELECT datlocprovider, datlocale FROM pg_database` (expect `b`, `C.UTF-8`); the tests check it too.
+
+**One-time bootstrap, as the superuser.** `src/db/bootstrap/01-classifieds.sh` creates what migrations can't create for themselves:
+- `classifieds_owner`: runs migrations and seeds, owns every object. Not a superuser. It has `CREATEROLE`, so migration 0003 can create the other roles.
+- `classifieds_template` with `postgis`, which isn't a trusted extension, so only a superuser can install it. The application database is created from it.
+- The application database, owned by `classifieds_owner`.
+
+Locally the PostgreSQL image runs it on first start. On a server, run it once: `CLASSIFIEDS_OWNER_PASSWORD=... ./01-classifieds.sh` (leave `CLASSIFIEDS_OWNER_CREATEDB` unset; only local test runs need it).
+
+**Roles.** Migration 0003 creates `classifieds_app`, `classifieds_worker` and `classifieds_readonly` as `NOLOGIN`. Passwords are set per environment, outside Git (server: in `/root/.secrets/` and Coolify):
+
+```sql
+ALTER ROLE classifieds_app LOGIN PASSWORD '...';
+ALTER ROLE classifieds_worker LOGIN PASSWORD '...';
+ALTER ROLE classifieds_readonly LOGIN PASSWORD '...';  -- pg_dump backups
+```
+
+**Local development.**
+
+```bash
+docker compose up -d
+npm run db:migrate
+npm run db:seed
+npm test
+```
+
+For a local app login, run the `ALTER ROLE` lines above once with the passwords from `.env.example` (`docker compose exec postgres psql -U postgres -d classifieds`). `npm test` recreates `classifieds_test` on every run and grants the owner `SET` on the three roles, so the grant tests can switch roles.
+
+**Changing the schema.**
+- Edit `src/db/schema/`, then `npm run db:generate`. Custom SQL goes in `npx drizzle-kit generate --custom --name=<name>`. Never use `drizzle-kit push`: triggers, grants and the deferrable constraint live only in custom migrations.
+- drizzle-kit wraps `geography(Point,4326)` in double quotes. Unquote it in the generated file (see `src/db/types.ts`).
+- A new table needs its grants and, if it has `updated_at`, its `set_updated_at` trigger in the same migration. The tests fail otherwise.
+- Update `docs/schema.md` in the same change.
+
 ## Memory budget
 
 **Now (CX23, 4 GB, staging):**
