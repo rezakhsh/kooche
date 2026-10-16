@@ -1,12 +1,16 @@
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { Redis } from 'ioredis';
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import postgres from 'postgres';
+import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
 import { type OutboxHandlers, BATCH_SIZE, processOutboxBatch } from './outbox';
+import { runTelegramBot } from './telegram';
 
-// Background worker entry point: one process that polls the outbox and (as features arrive) runs
-// the BullMQ job processors. Bundled to dist/worker.js for the `worker` Docker target.
+// Background worker entry point: one process that polls the outbox, runs the phone verification
+// Telegram bot and (as features arrive) the BullMQ job processors. Bundled to dist/worker.js for
+// the `worker` Docker target.
 
 const POLL_INTERVAL_MS = 1_000;
 const ERROR_BACKOFF_MS = 5_000;
@@ -17,6 +21,7 @@ const env = workerEnv();
 
 // Direct connection, as classifieds_worker (never through a pooler: FOR UPDATE SKIP LOCKED).
 const sql = postgres(env.WORKER_DATABASE_URL, { max: 5, connect_timeout: 10, onnotice: () => {} });
+const db = drizzle(sql, { schema });
 
 // BullMQ requires maxRetriesPerRequest: null on the connections its workers use.
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
@@ -26,6 +31,7 @@ connection.on('error', (e) => console.error('valkey:', e.message));
 const handlers: OutboxHandlers = {};
 
 let stopping = false;
+const abort = new AbortController();
 
 async function pollOutbox(): Promise<void> {
   while (!stopping) {
@@ -49,12 +55,16 @@ async function main(): Promise<void> {
   console.log('worker: connected to PostgreSQL and Valkey, polling the outbox');
 
   const done = pollOutbox();
+  const bot = env.TELEGRAM_BOT_TOKEN
+    ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
+    : (console.log('telegram: TELEGRAM_BOT_TOKEN not set, bot disabled'), Promise.resolve());
 
   const shutdown = async (signal: string) => {
     if (stopping) return;
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
-    await done;
+    abort.abort();
+    await Promise.all([done, bot]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

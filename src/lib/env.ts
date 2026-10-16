@@ -5,6 +5,9 @@ import { z } from 'zod';
 
 const postgresUrl = z.url({ protocol: /^postgres(ql)?$/ });
 const redisUrl = z.url({ protocol: /^rediss?$/ });
+/** Optional, and an empty value (`NAME=` in an env file) counts as unset */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
 
 const webSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -13,12 +16,31 @@ const webSchema = z.object({
   APP_TIME_ZONE: z.string().default('Europe/Berlin'),
   DATABASE_URL: postgresUrl,
   REDIS_URL: redisUrl,
+  // Better Auth: signs session cookies and encrypts OAuth tokens. 32+ random characters.
+  AUTH_SECRET: z.string().min(32),
+  // Amazon SES SMTP in eu-central-1: smtps://<user>:<password>@email-smtp.eu-central-1.amazonaws.com:465
+  // Unset in development: login codes are printed to the terminal instead.
+  SMTP_URL: optional(z.url({ protocol: /^smtps?$/ })),
+  // "Display name <address>"; the address must be verified in SES
+  EMAIL_FROM: optional(z.string().min(3)),
+  // The bot's @username without @, for the t.me/<bot>?start=<token> link. The token itself is
+  // only in the worker.
+  TELEGRAM_BOT_USERNAME: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{3,31}$/),
+  // HMAC key for SMS codes stored in phone_verifications.code_hash. 32+ random characters.
+  PHONE_CODE_SECRET: z.string().min(32),
+  // `log` writes SMS codes to the log (development and staging). Real providers come later.
+  SMS_PROVIDER: z.enum(['log']).default('log'),
+}).refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
+  message: 'SMTP_URL and EMAIL_FROM are required in production',
+  path: ['SMTP_URL'],
 });
 
 const workerSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   WORKER_DATABASE_URL: postgresUrl,
   REDIS_URL: redisUrl,
+  // Phone verification bot (long polling). Unset: the bot doesn't run (local development).
+  TELEGRAM_BOT_TOKEN: optional(z.string().regex(/^[0-9]+:[A-Za-z0-9_-]{30,}$/)),
 });
 
 // The `migrate` Docker target: after the migrations it asks Coolify to deploy web and worker.

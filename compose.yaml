@@ -1,4 +1,4 @@
-# Local development stack. Valkey, Meilisearch, imgproxy and Garage are added with the features that need them.
+# Local development stack. Meilisearch, imgproxy and Garage are added with the features that need them.
 #
 #   docker compose up -d
 #   npm run db:migrate && npm run db:seed
@@ -28,6 +28,13 @@ services:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s
       retries: 10
+
+  # Rate limits and (later) BullMQ. noeviction like the server: BullMQ needs it.
+  valkey:
+    image: valkey/valkey:9.0.6-alpine
+    command: ["valkey-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
 
 volumes:
   pgdata:

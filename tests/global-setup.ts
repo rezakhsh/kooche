@@ -1,3 +1,4 @@
+import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { runMigrations } from '../src/db/migrate';
 import { runSeed } from '../src/db/seed';
@@ -41,5 +42,16 @@ export default async function setup() {
     );
   } finally {
     await db.end();
+  }
+
+  // Rate-limit counters live in Valkey: start every run from an empty test database there too
+  const redisUrl = process.env.TEST_REDIS_URL;
+  if (redisUrl) {
+    const redis = new Redis(redisUrl, { maxRetriesPerRequest: 1 });
+    try {
+      await redis.flushdb();
+    } finally {
+      await redis.quit();
+    }
   }
 }

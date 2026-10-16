@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
+import { SiteHeader } from '../components/site-header';
 import { messages } from '../messages/fa';
 import './globals.css';
 
@@ -29,7 +30,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
-      <body className="min-h-dvh bg-white font-sans text-neutral-900 antialiased">{children}</body>
+      <body className="min-h-dvh bg-white font-sans text-neutral-900 antialiased">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
