@@ -11,7 +11,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Server | Hetzner CX23 (2 vCPU, 4 GB RAM, 40 GB disk), Helsinki `hel1`, `135.181.253.129`, server id 170743334 |
 | Firewall | `classifieds-app` (id 11815492): inbound 22, 80, 443 (tcp) and 443 (udp, HTTP/3), ping. Everything else closed, including Coolify's raw ports 8000/6001/6002 and Traefik's 8080 |
 | SSH | Root login by key only (password login for root is off) |
-| Coolify | 4.4.6 at https://coolify.taskpilot.dev (Let's Encrypt). Public registration disabled; one admin account |
+| Coolify | 4.4.6 at https://coolify.taskpilot.dev (Let's Encrypt). Public registration disabled; one admin account. API on, but only for the `coolify` Docker network (see "App deployment") |
 | DNS (temporary) | `kooche.taskpilot.dev` (app) and `coolify.taskpilot.dev` (dashboard), both A records to the server, not proxied by Cloudflare |
 | Backup storage | Hetzner Storage Box BX11 `classifieds-backups` (id 674924), 1 TB, Falkenstein `fsn1`, `u692990.your-storagebox.de`, SSH/SFTP on port 23 only |
 | Photo storage | Cloudflare R2, EU jurisdiction (data stays in the EU), account BerlinWedding. Buckets `classifieds-media-staging` (testing) and `classifieds-media` (production, starts empty at launch). Both private: public `r2.dev` access is off. S3 endpoint `https://fe5720006c80324ed7b6bdd00d63b774.eu.r2.cloudflarestorage.com`, region `auto` |
@@ -21,7 +21,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Alerts | n8n workflow "Kooche – server alerts" (id `71k8LjIW2IJS5c8l`) at https://webhook.khodamehri.com sends to your Telegram (bot credential "Matrix", chat `148310113`). Server side: `/usr/local/bin/kooche-alert` (sender), `/usr/local/bin/kooche-healthcheck` (every 15 min, `/etc/cron.d/kooche-healthcheck`). Webhook path and shared secret in `/root/.secrets/alerts.env` |
 | Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
 | Staging Valkey | Coolify database `classifieds-valkey` (uuid and Docker hostname `cgrezwpbbepj0ulgn7wl5qc3`), Redis type with image `valkey/valkey:9.0.6-alpine`, 128 MB limit, `maxmemory 96mb`, `maxmemory-policy noeviction` (BullMQ needs it), AOF on, not public. Password in `/root/.secrets/valkey.env` |
-| Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://kooche.taskpilot.dev, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB), both from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. See "App deployment" |
+| Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://kooche.taskpilot.dev, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB) and `classifieds-migrate` (`2wewwswad9hpecrhvynz5tp0`, target `migrate`, no domain, 128 MB), all from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. A push deploys `classifieds-migrate`, which applies migrations and then deploys the other two. See "App deployment" |
 | Swap | 2 GB swap file `/swapfile` (in `/etc/fstab`), `vm.swappiness=10` (`/etc/sysctl.d/90-swap.conf`). A safety net for image builds on 4 GB, not working memory |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
@@ -90,7 +90,7 @@ ALTER ROLE classifieds_readonly LOGIN PASSWORD '...';  -- pg_dump backups
 - The "initdb args" field (`postgres_initdb_args`) is saved but never passed to the container. Set `POSTGRES_INITDB_ARGS` as a normal (not literal) environment variable on the database. As a literal variable, Coolify wraps the value in quotes and `initdb` fails with "unrecognized locale provider". Check `/data/coolify/databases/<uuid>/docker-compose.yml` before the first start.
 - The image's own init script also ran on Coolify (unlike locally), so the cluster has `template_postgis` and PostGIS extensions in the `postgres` database. `classifieds` is created from `classifieds_template` and is not affected.
 
-Steps: create the database without starting it; add `POSTGRES_INITDB_ARGS`; start; check the locale; `docker exec -i -e CLASSIFIEDS_OWNER_PASSWORD <uuid> bash -s < src/db/bootstrap/01-classifieds.sh`; migrations and seed from a throwaway `node:24-bookworm-slim` container on the `coolify` network with `MIGRATION_DATABASE_URL` pointing at `<uuid>:5432`; `ALTER ROLE ... LOGIN PASSWORD` with psql's `\getenv`, so passwords never appear in a command line. The host has no Node or psql; use containers (`postgis/postgis:18-3.6` for psql and pg_dump).
+Steps: create the database without starting it; add `POSTGRES_INITDB_ARGS`; start; check the locale; `docker exec -i -e CLASSIFIEDS_OWNER_PASSWORD <uuid> bash -s < src/db/bootstrap/01-classifieds.sh`; migrations and seed from a throwaway `node:24-bookworm-slim` container on the `coolify` network with `MIGRATION_DATABASE_URL` pointing at `<uuid>:5432` (only for this first setup; since then migrations run on every deploy, see "App deployment"); `ALTER ROLE ... LOGIN PASSWORD` with psql's `\getenv`, so passwords never appear in a command line. The host has no Node or psql; use containers (`postgis/postgis:18-3.6` for psql and pg_dump).
 
 `/root/.secrets/postgres.env` holds `POSTGRES_HOST`, the superuser password (also stored in Coolify) and the passwords of `classifieds_owner`, `classifieds_app`, `classifieds_worker` and `classifieds_readonly`. The app and worker get theirs as Coolify environment variables when they are deployed.
 
@@ -123,9 +123,29 @@ For a local app login, run the `ALTER ROLE` lines above once with the passwords 
 
 ## App deployment
 
-One Dockerfile, two targets (decision 8): `web` (Next.js standalone output, `node server.js`) and `worker` (esbuild bundle `dist/worker.js`, no `node_modules`). Both images are `node:24.22.0-bookworm-slim` and run as the `node` user. The build runs `npm run typecheck` and `npm run check:rtl` before anything else, and needs no secrets: every setting is read at runtime and checked with Zod (`src/lib/env.ts`).
+One Dockerfile, three targets (decision 8): `web` (Next.js standalone output, `node server.js`), `worker` (esbuild bundle `dist/worker.js`, no `node_modules`) and `migrate` (esbuild bundles `migrate.js` and `trigger.js` plus `src/db/migrations/`). Both images are `node:24.22.0-bookworm-slim` and run as the `node` user. The build runs `npm run typecheck` and `npm run check:rtl` before anything else, and needs no secrets: every setting is read at runtime and checked with Zod (`src/lib/env.ts`).
 
-**Coolify settings.** Build pack Dockerfile, "Docker Build Stage Target" `web` or `worker`. Coolify finds the `HEALTHCHECK` in the Dockerfile and uses it instead of its own (which needs curl, and the slim image has none): `web` calls `/health`, `worker` checks a heartbeat file the outbox loop touches every second. Concurrent builds on the server: 1, so two Next.js builds never run at once. Building `web` takes about 30 seconds. Auto-deploy is on: every push to `main` rebuilds and redeploys both apps (through the GitHub App's webhook), including docs-only commits.
+**Coolify settings.** Build pack Dockerfile, "Docker Build Stage Target" `web`, `worker` or `migrate`. Coolify finds the `HEALTHCHECK` in the Dockerfile and uses it instead of its own (which needs curl, and the slim image has none): `web` calls `/health`, `worker` checks a heartbeat file the outbox loop touches every second. Concurrent builds on the server: 1, so two Next.js builds never run at once. Building `web` takes about 30 seconds.
+
+**Deploy order: migrations first.** Auto-deploy is on only for `classifieds-migrate`; it is off for `classifieds-web` and `classifieds-worker`. Every push to `main` (docs-only commits too) goes:
+1. The GitHub App's webhook deploys `classifieds-migrate`. Its container runs `migrate.js` (pending migrations as `classifieds_owner`, logged by name, all in one transaction), then `trigger.js`, which calls `POST http://coolify:8080/api/v1/deploy?uuid=<web>,<worker>` with a deploy-only API token. It then idles (`sleep`, under 1 MB). The `HEALTHCHECK` passes once the deploy is queued.
+2. Coolify builds one image at a time, so the web and worker deployments queue behind the migrate deployment and start after it. Each one builds the newest commit on `main`. If a second push arrives in the meantime, its migrate deployment is already ahead of them in the queue, so no app ever starts before its migrations.
+3. If a migration or the deploy call fails, the container exits. Coolify never sees it healthy and marks the migrate deployment failed, the previous migrate container keeps running, and web and worker stay on the old version. Look at the failed deployment's log in Coolify, fix, push again.
+4. A restart of the same migrate container (server reboot) reruns the migrations, which is a no-op, but doesn't deploy again: a marker file in the container's own filesystem remembers the deploy call.
+
+Coolify health settings on `classifieds-migrate`: start period 5 s, interval 5 s, 24 retries, so Coolify waits up to about two minutes for the migrations. Raise them before a migration that takes longer.
+
+Rules that follow from this:
+- **Migrations must be backward compatible.** The old web and worker keep running until the new containers are healthy, and if the web build fails after the migrations, the old code runs on the new schema. Add first, remove later (expand and contract): a new column is nullable or has a default; a column is dropped one deploy after the code stopped using it.
+- **Deploying by hand:** redeploy `classifieds-migrate`, which deploys the other two. "Deploy" on web or worker alone skips the migrations; use it only when no migration is pending.
+- **Rolling back** web or worker in Coolify doesn't undo migrations. A schema change is undone with a new migration.
+
+Why this design (Coolify 4.4.6, checked in its source):
+- A **pre-deployment command** runs with `docker exec` in the **old**, still-running container, before the new image is even built. It would run the previous commit's migrations, and is skipped when no container runs. It would also put the owner password into the web app.
+- In a **Docker Compose** application, Coolify adds `env_file: .env` to every service, so a one-shot migrate service there would hand the owner password to web and worker. Compose deploys also replace rolling updates with a recreate.
+- The GitHub webhook queues all matching applications **in no defined order**, so a migrate app next to two auto-deploying apps can't be guaranteed to run first.
+
+**Coolify API (on since Oct 16, 2026).** Needed for step 1. "Allowed IPs" is the `coolify` Docker network `10.0.1.0/24` **without** `10.0.1.1`, written as `10.0.1.2/31,10.0.1.4/30,10.0.1.8/29,10.0.1.16/28,10.0.1.32/27,10.0.1.64/26,10.0.1.128/25`. The gateway must stay out: Docker's userland proxy forwards IPv6 connections (the server has IPv6 and listens on `[::]:443`), so every client reaching Coolify over IPv6 appears as `10.0.1.1`. Calls from outside, over IPv4, over IPv6 and with a forged `X-Forwarded-For`, answer "You are not allowed to access the API" (tested); `/api/health`, which n8n checks, is outside the allowlist and still answers. Coolify checks the token before the IP, so a wrong token gets 401 even from outside. The token `classifieds-deploy` has only the `deploy` ability; its value is in `/root/.secrets/coolify-api-tokens.env` and in the env of `classifieds-migrate`. For other API work, create a temporary token from a container on the `coolify` network (calls from the host itself are refused too) and delete it afterwards.
 
 **Environment variables** (runtime only, never build time):
 
@@ -133,8 +153,9 @@ One Dockerfile, two targets (decision 8): `web` (Next.js standalone output, `nod
 | --- | --- |
 | `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL` |
 | `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL` |
+| `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
 
-Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9ztopqs:5432` and `redis://default:<password>@cgrezwpbbepj0ulgn7wl5qc3:6379`. Other variables in `.env.example` are added with the features that use them. Migrations are not part of the deploy yet; they run by hand as in "Database setup".
+Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9ztopqs:5432` and `redis://default:<password>@cgrezwpbbepj0ulgn7wl5qc3:6379`. Other variables in `.env.example` are added with the features that use them.
 
 **`/health`** returns 200 `{"status":"ok"}` when PostgreSQL and Valkey both answer within 2 seconds, else 503. It never returns error details.
 
@@ -146,6 +167,8 @@ Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9zto
 - `dockerfile_target_build` can't be set when creating an application, only with a `PATCH` afterwards.
 - An application created without `domains` gets an `sslip.io` domain; clear it with `PATCH {"domains": ""}` (the worker has none).
 - An API token's value is `<id>|<secret>`. Quote it in an env file, or `source` treats the `|` as a pipe.
+- `POST /api/v1/deploy?uuid=a,b` answers 200 as long as one uuid exists and silently skips unknown ones. `trigger.js` checks that every uuid got a `deployment_uuid`.
+- Creating an application needs `ports_exposes` even without a domain (`classifieds-migrate` has `3000`, unused).
 
 **Fonts.** `src/app/fonts/Vazirmatn-subset.woff2` (69 KB, all weights) is cut from the pinned `vazirmatn` package by `scripts/subset-font.sh` (fonttools in a throwaway Python container). Rerun it when the package version changes.
 
@@ -178,6 +201,7 @@ To add a check:
 | Valkey | 128 MB | 3 MB |
 | Next.js app | 768 MB | 76 MB |
 | Worker | 384 MB | 34 MB |
+| Migrate (idle after the deploy call) | 128 MB | under 1 MB |
 | imgproxy | 256 MB | not deployed |
 | System reserve | ~1 GB | |
 
@@ -202,6 +226,8 @@ After the resize to CX33: +€3.00 net.
 - The Hetzner token covers the whole project, including the n8n and Supabase servers. Treat it as a key to all of them.
 - The Cloudflare token can edit DNS and manage R2, but cannot read zone settings or edit its own permissions.
 - Coolify admin login: `/root/.secrets/coolify-admin.env`. Turning on two-factor authentication in Coolify is recommended.
+- Coolify's API is on, limited to the `coolify` Docker network, with one deploy-only token (`/root/.secrets/coolify-api-tokens.env`). Whoever has it can start or cancel deployments of any application, nothing more.
+- The `classifieds_owner` password is in the env of `classifieds-migrate` (stored encrypted by Coolify), never in web or worker.
 - Database passwords: `/root/.secrets/postgres.env` (root-only, included in the nightly backup).
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 

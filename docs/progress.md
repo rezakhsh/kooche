@@ -80,7 +80,22 @@ Done:
 - The temporary Coolify API token is deleted and API access is off again.
 
 Next:
-1. Run migrations as a deploy step (pre-deployment command as `classifieds_owner`) before the first feature that changes the schema.
+1. ~~Run migrations as a deploy step before the first feature that changes the schema.~~ Done, see below.
 2. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
+3. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+4. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+
+## Oct 16, 2026: migrations on every deploy
+
+Done:
+- New Dockerfile target `migrate` and Coolify application `classifieds-migrate` (128 MB). A push to `main` now deploys only `classifieds-migrate` (auto-deploy is off for web and worker). It applies pending migrations as `classifieds_owner`, then has Coolify deploy `classifieds-web` and `classifieds-worker` through a deploy-only API token, and then idles at under 1 MB. If a migration fails, web and worker are not deployed. How it works, why not a pre-deployment command or a compose app, and the rules (backward-compatible migrations, deploy by hand through `classifieds-migrate`) are in `docs/setup.md`, "App deployment".
+- `runMigrations()` now returns the tags it applied; the deploy log lists them ("Migrations applied: …" or "No pending migrations").
+- Tested on a scratch PostGIS with a fake Coolify endpoint: empty database (0000–0005 applied, deploy called once), up-to-date database (no-op, deploy called), a new harmless migration (applied by name), a broken migration (exit 1, rolled back, no deploy call), a container restart (no-op, no second deploy call), an unknown app uuid and an invalid env (exit 1), `docker stop` in 0.1 s. 55 tests pass.
+- Coolify API turned on for good, limited to the `coolify` Docker network without its gateway (IPv6 clients appear as the gateway). Refusals from outside over IPv4, IPv6 and with a forged `X-Forwarded-For` tested. Token `classifieds-deploy` (deploy ability only) in `/root/.secrets/coolify-api-tokens.env`.
+- The owner password is only in `classifieds-migrate`'s env, not in web or worker.
+
+Next:
+1. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
+2. A Telegram alert when a deployment fails (today it only shows in Coolify).
 3. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 4. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
