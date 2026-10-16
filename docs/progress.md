@@ -93,6 +93,8 @@ Done:
 - Tested on a scratch PostGIS with a fake Coolify endpoint: empty database (0000–0005 applied, deploy called once), up-to-date database (no-op, deploy called), a new harmless migration (applied by name), a broken migration (exit 1, rolled back, no deploy call), a container restart (no-op, no second deploy call), an unknown app uuid and an invalid env (exit 1), `docker stop` in 0.1 s. 55 tests pass.
 - Coolify API turned on for good, limited to the `coolify` Docker network without its gateway (IPv6 clients appear as the gateway). Refusals from outside over IPv4, IPv6 and with a forged `X-Forwarded-For` tested. Token `classifieds-deploy` (deploy ability only) in `/root/.secrets/coolify-api-tokens.env`.
 - The owner password is only in `classifieds-migrate`'s env, not in web or worker.
+- Proven on staging with the push of `5f3b25c` (no new migration): `classifieds-migrate` logged "No pending migrations" and queued both apps; web started 1 s after the migrate deployment finished, worker after web, all three on the same commit. `/health` answered 200 on every one of 156 checks (one per second) through the whole chain, about 2.5 minutes from push to worker healthy. The migrate container idles at 660 KB.
+- The temporary setup token is deleted; only `classifieds-deploy` remains.
 
 Next:
 1. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
