@@ -59,5 +59,5 @@ Done:
 Next:
 1. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 2. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
-3. Coolify's own database (`coolify-db`, which stores every resource's settings) isn't in the nightly backup yet. Only its config files and `APP_KEY` are.
+3. ~~Coolify's own database isn't in the nightly backup yet.~~ Done: restic tag `coolify-db`, first snapshot taken, and a restore into a scratch PostgreSQL 15 container matched the live database.
 4. The backup has no failure alert. Add one with the n8n admin alerts.
