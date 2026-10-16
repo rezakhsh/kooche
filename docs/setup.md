@@ -17,7 +17,8 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Photo storage | Cloudflare R2, EU jurisdiction (data stays in the EU), account BerlinWedding. Buckets `classifieds-media-staging` (testing) and `classifieds-media` (production, starts empty at launch). Both private: public `r2.dev` access is off. S3 endpoint `https://fe5720006c80324ed7b6bdd00d63b774.eu.r2.cloudflarestorage.com`, region `auto` |
 | Secrets on server | `/root/.secrets/*.env` (root-only, never in Git) |
 | Code | https://github.com/rezakhsh/kooche (private). The server pushes with a deploy key (`/root/.ssh/github_deploy`, SSH host alias `github-kooche`) that has write access to this repo only |
-| Backups | `/usr/local/bin/classifieds-backup`, nightly at 03:15 UTC (`/etc/cron.d/classifieds-backup`), log in `/var/log/classifieds-backup.log` |
+| Backups | `/usr/local/bin/classifieds-backup`, nightly at 03:15 UTC (`/etc/cron.d/classifieds-backup`), log in `/var/log/classifieds-backup.log`. restic tags `config` (Coolify config, secrets) and `postgres` (database dump) |
+| Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
 
@@ -80,6 +81,25 @@ ALTER ROLE classifieds_worker LOGIN PASSWORD '...';
 ALTER ROLE classifieds_readonly LOGIN PASSWORD '...';  -- pg_dump backups
 ```
 
+**Staging on Coolify (set up Oct 16, 2026).** Done through the Coolify API, in this order. Two Coolify 4.4.6 behaviours matter:
+- Coolify picks the data volume's mount path from the image **when the database is created** (`/var/lib/postgresql` for 18+, `/var/lib/postgresql/data` before). Create it with `postgis/postgis:18-3.6` from the start. Creating it from the dashboard's default image and changing the image afterwards leaves PostgreSQL 18 writing outside the volume. Check under Storages that the mount path is `/var/lib/postgresql`.
+- The "initdb args" field (`postgres_initdb_args`) is saved but never passed to the container. Set `POSTGRES_INITDB_ARGS` as a normal (not literal) environment variable on the database. As a literal variable, Coolify wraps the value in quotes and `initdb` fails with "unrecognized locale provider". Check `/data/coolify/databases/<uuid>/docker-compose.yml` before the first start.
+- The image's own init script also ran on Coolify (unlike locally), so the cluster has `template_postgis` and PostGIS extensions in the `postgres` database. `classifieds` is created from `classifieds_template` and is not affected.
+
+Steps: create the database without starting it; add `POSTGRES_INITDB_ARGS`; start; check the locale; `docker exec -i -e CLASSIFIEDS_OWNER_PASSWORD <uuid> bash -s < src/db/bootstrap/01-classifieds.sh`; migrations and seed from a throwaway `node:24-bookworm-slim` container on the `coolify` network with `MIGRATION_DATABASE_URL` pointing at `<uuid>:5432`; `ALTER ROLE ... LOGIN PASSWORD` with psql's `\getenv`, so passwords never appear in a command line. The host has no Node or psql; use containers (`postgis/postgis:18-3.6` for psql and pg_dump).
+
+`/root/.secrets/postgres.env` holds `POSTGRES_HOST`, the superuser password (also stored in Coolify) and the passwords of `classifieds_owner`, `classifieds_app`, `classifieds_worker` and `classifieds_readonly`. The app and worker get theirs as Coolify environment variables when they are deployed.
+
+**Backup and restore.** `/usr/local/bin/classifieds-backup` runs `pg_dump -Fc -Z0` as `classifieds_readonly` (restic compresses and deduplicates) to `/var/backups/classifieds-db/` (root-only), backs that file up with tag `postgres` and deletes it. The dump goes through a file because restic 0.16 can't fail a `--stdin` backup when the dump fails. `classifieds_readonly` needs `SELECT` on sequences for this (migration 0005).
+
+Restore (tested Oct 16, 2026 into a scratch container; every row count, function, trigger, index and the locale matched):
+
+```bash
+restic dump --tag postgres latest /var/backups/classifieds-db/classifieds.dump > classifieds.dump
+```
+
+Then, on a cluster initialized with the builtin C.UTF-8 locale: run the bootstrap script, create `classifieds_app`, `classifieds_worker` and `classifieds_readonly` (`NOLOGIN`), `pg_restore --exit-on-error -U postgres -d classifieds classifieds.dump` as the superuser, and set the login passwords again.
+
 **Local development.**
 
 ```bash
@@ -130,6 +150,7 @@ After the resize to CX33: +€3.00 net.
 - The Hetzner token covers the whole project, including the n8n and Supabase servers. Treat it as a key to all of them.
 - The Cloudflare token can edit DNS and manage R2, but cannot read zone settings or edit its own permissions.
 - Coolify admin login: `/root/.secrets/coolify-admin.env`. Turning on two-factor authentication in Coolify is recommended.
+- Database passwords: `/root/.secrets/postgres.env` (root-only, included in the nightly backup).
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
 ## Open decisions

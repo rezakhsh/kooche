@@ -41,6 +41,23 @@ Done:
 - 48 tests, all passing: seed checks (including the three named in the doc), grants, schema guarantees and the retention functions. Each run starts from an empty database. Verified from an empty `compose.yaml` volume.
 
 Next:
-1. Set up the staging database on the server: `POSTGRES_INITDB_ARGS` before its first start, the bootstrap script, migrations, seed, role passwords in `/root/.secrets/`. Add its `pg_dump` (as `classifieds_readonly`) to the nightly backup.
+1. ~~Set up the staging database on the server.~~ Done, see below.
 2. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 3. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+
+## Oct 16, 2026: staging database on Coolify
+
+Done:
+- PostgreSQL 18.6 + PostGIS 3.6 (`postgis/postgis:18-3.6`) as Coolify database `classifieds-postgres` (project `classifieds`, environment `staging`). 768 MB limit, no public port. Initialized with the builtin `C.UTF-8` locale (`datlocprovider` `b`).
+- Bootstrap script run once as the superuser, migrations `0000`–`0005` and the seed applied as `classifieds_owner`.
+- `classifieds_app`, `classifieds_worker` and `classifieds_readonly` have LOGIN passwords, stored only in `/root/.secrets/postgres.env`. Logins tested over the network.
+- New migration `0005`: `classifieds_readonly` gets `SELECT` on sequences, without which `pg_dump` failed on Drizzle's migration sequence. New grants test; 49 tests pass.
+- Nightly backup now also dumps the database as `classifieds_readonly` (restic tag `postgres`). First snapshot taken, and a restore into a scratch container matched staging exactly.
+- Coolify pitfalls (volume path chosen at creation, ignored initdb-args field) and the restore procedure are in `docs/setup.md`, "Database setup".
+- The temporary Coolify API token used for this setup is deleted, and API access is off again.
+
+Next:
+1. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+2. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+3. Coolify's own database (`coolify-db`, which stores every resource's settings) isn't in the nightly backup yet. Only its config files and `APP_KEY` are.
+4. The backup has no failure alert. Add one with the n8n admin alerts.
