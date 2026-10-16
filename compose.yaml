@@ -1,0 +1,33 @@
+# Local development stack. Valkey, Meilisearch, imgproxy and Garage are added with the features that need them.
+#
+#   docker compose up -d
+#   npm run db:migrate && npm run db:seed
+#
+# The database cluster MUST be initialized with the built-in C.UTF-8 locale provider
+# (docs/schema.md, section 1, decision 3). POSTGRES_INITDB_ARGS is only read on the very
+# first start with an empty volume. It cannot be changed later without a dump and restore.
+services:
+  postgres:
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--locale-provider=builtin --builtin-locale=C.UTF-8"
+      # Read by src/db/bootstrap/01-classifieds.sh on first start
+      CLASSIFIEDS_DB: classifieds
+      CLASSIFIEDS_OWNER_PASSWORD: owner
+      CLASSIFIEDS_OWNER_CREATEDB: "true" # tests create their own throwaway database
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/18/docker
+      - pgdata:/var/lib/postgresql
+      # Replaces the image's own init script, which would also install postgis_topology and the tiger geocoder
+      - ./src/db/bootstrap:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
