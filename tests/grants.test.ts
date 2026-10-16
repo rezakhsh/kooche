@@ -59,6 +59,18 @@ describe('grants', () => {
     expect(writable).toEqual([]);
   });
 
+  it('let the readonly role read every sequence, so pg_dump works (migration 0005)', async () => {
+    const rows = await db.execute(sql`
+      SELECT n.nspname || '.' || c.relname AS seq
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname IN ('public', 'drizzle')
+        -- CASE, because the planner may evaluate the privilege check before the relkind filter
+        AND CASE WHEN c.relkind = 'S'
+          THEN NOT has_sequence_privilege('classifieds_readonly', c.oid, 'SELECT') ELSE false END
+      ORDER BY 1`);
+    expect((rows as unknown as { seq: string }[]).map((r) => r.seq)).toEqual([]);
+  });
+
   it('keep listing_events, moderation_decisions and audit_log append-only', async () => {
     const rewritable: string[] = [];
     for (const table of ['listing_events', 'moderation_decisions', 'audit_log']) {

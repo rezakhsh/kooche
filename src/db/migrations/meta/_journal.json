@@ -36,6 +36,13 @@
       "when": 1792153831449,
       "tag": "0004_retention_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792183288049,
+      "tag": "0005_readonly_sequences",
+      "breakpoints": true
     }
   ]
 }
