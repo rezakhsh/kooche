@@ -113,7 +113,7 @@ npm run db:seed
 npm test
 ```
 
-For a local app login, run the `ALTER ROLE` lines above once with the passwords from `.env.example` (`docker compose exec postgres psql -U postgres -d classifieds`). `npm test` recreates `classifieds_test` on every run and grants the owner `SET` on the three roles, so the grant tests can switch roles.
+For a local app login, run the `ALTER ROLE` lines above once with the passwords from `.env.example` (`docker compose exec postgres psql -U postgres -d classifieds`). `npm test` recreates `classifieds_test` on every run and grants the owner `SET` on the three roles, so the grant tests can switch roles (the account tests also connect as `classifieds_app` and `classifieds_worker` this way). It also empties the Valkey database in `TEST_REDIS_URL` (database 15 by default), which `compose.yaml` now starts.
 
 **Changing the schema.**
 - Edit `src/db/schema/`, then `npm run db:generate`. Custom SQL goes in `npx drizzle-kit generate --custom --name=<name>`. Never use `drizzle-kit push`: triggers, grants and the deferrable constraint live only in custom migrations.
@@ -151,8 +151,8 @@ Why this design (Coolify 4.4.6, checked in its source):
 
 | App | Variables |
 | --- | --- |
-| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL` |
-| `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL` |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER` |
+| `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN` |
 | `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
 
 Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9ztopqs:5432` and `redis://default:<password>@cgrezwpbbepj0ulgn7wl5qc3:6379`. Other variables in `.env.example` are added with the features that use them.
@@ -171,6 +171,41 @@ Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9zto
 - Creating an application needs `ports_exposes` even without a domain (`classifieds-migrate` has `3000`, unused).
 
 **Fonts.** `src/app/fonts/Vazirmatn-subset.woff2` (69 KB, all weights) is cut from the pinned `vazirmatn` package by `scripts/subset-font.sh` (fonttools in a throwaway Python container). Rerun it when the package version changes.
+
+## Accounts and phone verification
+
+Built Oct 16, 2026 (code in `src/modules/users/`, pages under `src/app/login/` and `src/app/account/`).
+
+**Sign-in: email one-time code only.** No passwords, no Google or Apple yet. Better Auth 1.7.10 on our own tables (`docs/schema.md`, section 6) with the `emailOTP` plugin: 6 digits, valid 10 minutes, locked after 5 wrong tries, stored as a SHA-256 hash, deleted when used. A first sign-in creates the account. Google is added later as a social provider with account linking (`trustedProviders: ['google']`): it links to the user with the same verified email through `auth_accounts`, so nobody is migrated. Better Auth's `/api/auth/*` route is not mounted yet; the forms are server actions that call `auth.api.*`. Mount it with Google, which needs the callback.
+
+**Sessions.** An HTTP-only cookie (`__Secure-better-auth.session_token` on HTTPS), `SameSite=Lax`, 30 days, extended at most once a day. The cookie cache is off, so every request checks `sessions` and a revoked device is out on its next request. "My devices" (`/account/devices`) lists the sessions with browser and system from the user agent and deletes them by id and owner; the session token never reaches the browser. Deactivated or deleted accounts get no new sessions (a Better Auth session hook). Known limit: a full page load can't write cookies in Next.js, so the cookie's own expiry is extended only when a server action runs; at worst a user signs in again 30 days after the last form they sent.
+
+**Email.** Amazon SES SMTP in eu-central-1 through nodemailer (`SMTP_URL`, `EMAIL_FROM`). Sent directly from the web process, not through the outbox, because the outbox would store the code in plain text. Persian, right-to-left, HTML and plain text. Without `SMTP_URL` (development only; `env.ts` requires it in production) the code is printed to the log.
+
+**Telegram verification** (decision 5). The bot runs in the worker with long polling (`getUpdates`); the worker has no public URL and the token is only in the worker's env. Flow:
+1. `/account/phone` creates a `phone_verifications` row (method `telegram`, 15 minutes) with the SHA-256 of a random 32-character token and shows `t.me/<TELEGRAM_BOT_USERNAME>?start=<token>`.
+2. `/start <token>` in the bot claims the row for that Telegram account (`telegram_user_id`); a second Telegram account can't use the same link. The bot shows a "share my phone number" button (`request_contact`).
+3. A shared contact is accepted only when `contact.user_id` equals `from.id`. Otherwise the row fails with `foreign_contact`.
+4. One transaction marks the row verified, stores the number, `phone_verification_method = 'telegram'` and `telegram_user_id` on the user and writes `audit_log` (`phone.verified`). A number another account has fails with `phone_in_use`; a Telegram account linked to another user fails with `telegram_in_use`.
+5. The page asks `/account/phone/status` every 3 seconds and refreshes when the number is verified.
+
+Only one process may poll a bot token. During a rolling deploy the old and new worker overlap for a few seconds; Telegram answers 409 to one of them and it retries after 5 seconds. **Each environment needs its own bot**: staging uses the bot in `/root/.secrets/auth.env`, production gets a new one at launch.
+
+**SMS fallback.** `SmsProvider` interface (`src/modules/users/sms.ts`). `SMS_PROVIDER=log` writes the message to the log, which is what development and staging use. Codes are HMAC-SHA256 with `PHONE_CODE_SECRET`, valid 10 minutes, failed after 5 wrong tries. SMS goes only to mobile numbers in the 36 seeded countries (`seed/countries.ts`) against SMS-pumping fraud; Telegram accepts any number. Provider when needed (nothing bought): **seven.io** (Berlin, German DPA, pay as you go, REST API); alternative GatewayAPI (Denmark). Adding one is an adapter plus its key in env.
+
+**Rate limits** (Valkey, fixed windows, every key with an expiry because of `noeviction`; `src/modules/users/limits.ts`):
+
+| What | Limit |
+| --- | --- |
+| Login code requests | 1 per minute and 5 per hour per email, 20 per hour per IP |
+| Login code checks | 10 per 15 minutes per email (cleared by a successful sign-in), 50 per hour per IP |
+| Phone verification starts (Telegram or SMS) | 5 per hour and 10 per day per user, 20 per hour per IP |
+| SMS | 3 per day per number; 10 code checks per 15 minutes per user |
+| Bot messages | 30 per hour per Telegram account (then ignored) |
+
+**Client IP.** Coolify's Traefik has no `forwardedHeaders.trustedIPs`, so it drops any `X-Forwarded-For` the client sends and writes the address it saw. The app takes that header. When Cloudflare proxies the real domain, switch to `CF-Connecting-IP` accepted only from Cloudflare's ranges.
+
+**Permissions.** Posting a listing and sending a message need a verified phone; browsing and favorites don't (decided Oct 16, 2026). `canPostListing()` and `canSendMessage()` in `src/modules/users/permissions.ts` must be called by the posting and chat features before they write anything.
 
 ## Alerts
 
@@ -232,6 +267,7 @@ After the resize to CX33: +€3.00 net.
 - Coolify's API is on, limited to the `coolify` Docker network, with one deploy-only token (`/root/.secrets/coolify-api-tokens.env`). Whoever has it can start or cancel deployments of any application, nothing more.
 - The `classifieds_owner` password is in the env of `classifieds-migrate` (stored encrypted by Coolify), never in web or worker.
 - Database passwords: `/root/.secrets/postgres.env` (root-only, included in the nightly backup).
+- Accounts: `/root/.secrets/auth.env` holds `AUTH_SECRET`, `PHONE_CODE_SECRET`, the SES SMTP credentials and the staging bot token, and the same values are in Coolify. A new `AUTH_SECRET` logs everyone out; a new `PHONE_CODE_SECRET` only invalidates SMS codes in flight.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
 ## Open decisions

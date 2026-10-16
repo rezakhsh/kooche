@@ -269,7 +269,7 @@ Indexes: the four `UNIQUE` constraints (`public_token`, `email`, `phone_e164`, `
 
 ### Better Auth tables
 
-These follow Better Auth's core model with snake_case column names. Better Auth is configured to let the database generate IDs. That option must be checked against the Better Auth version we install. If it doesn't work, Better Auth generates UUIDv7 in a custom `generateId`. Better Auth's admin and organization plugins are **not** used: bans are `user_sanctions`, businesses are our own `organizations`.
+These follow Better Auth's core model with snake_case column names. Better Auth is configured to let the database generate IDs (`advanced.database.generateId: false`, checked with Better Auth 1.7.10: the IDs are PostgreSQL's `uuidv7()`). Better Auth's admin and organization plugins are **not** used: bans are `user_sanctions`, businesses are our own `organizations`.
 
 **`sessions`** (device list: "logged-in devices, log out each one"). Standard columns, plus `user_id uuid` FK → `users` CASCADE, `token text UNIQUE`, `expires_at timestamptz`, `ip_address text null`, `user_agent text null`. `ip_address` is `text` because Better Auth writes whatever the request gives it.
 
@@ -281,7 +281,7 @@ These follow Better Auth's core model with snake_case column names. Better Auth 
 
 **`auth_accounts`** (Better Auth `account`: Google, Apple). Standard columns, plus `user_id` FK CASCADE, `provider_id text`, `account_id text` (the provider's user id), `access_token text null`, `refresh_token text null`, `id_token text null`, `access_token_expires_at`, `refresh_token_expires_at`, `scope text null`, `password text null` (always null: no passwords). Better Auth's OAuth-token encryption is turned on. Indexes: `UNIQUE (provider_id, account_id)` (login), `(user_id)`.
 
-**`verifications`** (Better Auth `verification`: email login codes). Standard columns, plus `identifier text`, `value text`, `expires_at`. Indexes: `(identifier)` (code check), `(expires_at)` (cleanup).
+**`verifications`** (Better Auth `verification`: email login codes). Standard columns, plus `identifier text`, `value text`, `expires_at`. A login code is one row with identifier `sign-in-otp-<email>` and value `<SHA-256 of the code>:<wrong attempts>`; the code itself is never stored. Indexes: `(identifier)` (code check), `(expires_at)` (cleanup).
 
 **`two_factors`** (Better Auth two-factor plugin, required for staff). Standard columns, plus `user_id` FK CASCADE `UNIQUE`, `secret text`, `backup_codes text`. Both are encrypted by Better Auth.
 
@@ -298,12 +298,12 @@ Standard columns (no `updated_at`; status changes are rare and timestamped), plu
 | `status` | `text DEFAULT 'pending'` | `CHECK IN ('pending','verified','failed','expired')` |
 | `phone_e164` | `text null` | SMS: the number typed in. Telegram: unknown until the contact is shared, then taken from it. |
 | `link_token_hash` | `bytea null UNIQUE` | Telegram: SHA-256 of the random token in the `t.me/<bot>?start=<token>` link. Ties the bot chat to this user. |
-| `telegram_user_id` | `bigint null` | From the shared contact. **Accepted only when `contact.user_id` equals the sender's `from.id`** (setup.md, decision 5). Otherwise status is `failed` with `failure_reason = 'foreign_contact'`. |
+| `telegram_user_id` | `bigint null` | Set when the link is opened (`/start <token>`): the first Telegram account to open it claims the attempt, and only that account's contact counts. **The contact is accepted only when `contact.user_id` equals the sender's `from.id`** (setup.md, decision 5). Otherwise status is `failed` with `failure_reason = 'foreign_contact'`. |
 | `code_hash` | `bytea null` | SMS: HMAC-SHA256 of the 6-digit code with a server secret. The code itself is never stored. |
 | `attempts` | `smallint DEFAULT 0` | Wrong SMS codes, `CHECK (attempts BETWEEN 0 AND 10)`. Fails at 5. |
 | `sms_provider` | `text null` | |
 | `provider_message_id` | `text null` | Delivery receipts, cost reconciliation |
-| `failure_reason` | `text null` | `foreign_contact`, `phone_in_use`, `too_many_attempts`, `undeliverable` |
+| `failure_reason` | `text null` | `foreign_contact`, `phone_in_use`, `telegram_in_use` (the Telegram account is linked to another user), `too_many_attempts`, `undeliverable` |
 | `ip_address` | `inet null` | Abuse investigations. Deleted with the row after 90 days. |
 | `expires_at` | `timestamptz` | SMS code: 10 minutes. Telegram link: 15 minutes. |
 | `verified_at` | `timestamptz null` | |
@@ -1076,3 +1076,4 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
 - **`erase_user`** also deletes the user's blocks, phone verification attempts, pending login codes and invitations addressed to them, and closes their open conversations. Listings posted for an organization stay with the organization (section 8); only private listings become `deleted`, each with a `listing_events` row and a `listing.deleted` outbox event. A `user.erased` outbox event carries the old avatar key so the worker can delete the file.
 - **Option values** use the attribute key pattern with hyphens: `^[a-z][a-z0-9_-]{0,39}$`.
 - **Seeds.** Countries: EU, EEA, Switzerland, UK, US, Canada, Australia, Malaysia (36), only Germany active. 15 currencies. Germany: 16 Länder and 52 cities from GeoNames. Categories: 13 roots and 115 leaves merging Divar and Kleinanzeigen (approved Oct 16, 2026). A row removed from a seed file is set inactive, never deleted.
+- **Accounts (Oct 16, 2026).** Better Auth's models map onto the Drizzle schema keys: `user` → `users` (`name` → `displayName`, `image` → `avatarKey`, plus `publicToken` and `displayNameNormalized` filled by a create hook), `session` → `sessions`, `account` → `authAccounts`, `verification` → `verifications`. Better Auth creates a user with an empty name, so the hook stores the placeholder «کاربر» until the profile feature asks for a name. An SMS code is stored as `HMAC-SHA256(PHONE_CODE_SECRET, "<attempt id>:<code>")`. Code in `src/modules/users/`.
