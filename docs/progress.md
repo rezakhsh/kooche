@@ -60,4 +60,4 @@ Next:
 1. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 2. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
 3. ~~Coolify's own database isn't in the nightly backup yet.~~ Done: restic tag `coolify-db`, first snapshot taken, and a restore into a scratch PostgreSQL 15 container matched the live database.
-4. The backup has no failure alert. Add one with the n8n admin alerts.
+4. ~~The backup has no failure alert.~~ Done: Telegram alerts through n8n for backup, uptime, disk, memory, containers and server heartbeat (`docs/setup.md`, "Alerts"). Add the app's `/health` URL once it's deployed.

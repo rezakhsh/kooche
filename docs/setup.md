@@ -18,6 +18,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Secrets on server | `/root/.secrets/*.env` (root-only, never in Git) |
 | Code | https://github.com/rezakhsh/kooche (private). The server pushes with a deploy key (`/root/.ssh/github_deploy`, SSH host alias `github-kooche`) that has write access to this repo only |
 | Backups | `/usr/local/bin/classifieds-backup`, nightly at 03:15 UTC (`/etc/cron.d/classifieds-backup`), log in `/var/log/classifieds-backup.log`. restic tags `config` (Coolify config, secrets), `postgres` (database dump) and `coolify-db` (Coolify's own database, dumped inside `coolify-db` with its PostgreSQL 15 `pg_dump`) |
+| Alerts | n8n workflow "Kooche – server alerts" (id `71k8LjIW2IJS5c8l`) at https://webhook.khodamehri.com sends to your Telegram (bot credential "Matrix", chat `148310113`). Server side: `/usr/local/bin/kooche-alert` (sender), `/usr/local/bin/kooche-healthcheck` (every 15 min, `/etc/cron.d/kooche-healthcheck`). Webhook path and shared secret in `/root/.secrets/alerts.env` |
 | Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
@@ -116,6 +117,24 @@ For a local app login, run the `ALTER ROLE` lines above once with the passwords 
 - drizzle-kit wraps `geography(Point,4326)` in double quotes. Unquote it in the generated file (see `src/db/types.ts`).
 - A new table needs its grants and, if it has `updated_at`, its `set_updated_at` trigger in the same migration. The tests fail otherwise.
 - Update `docs/schema.md` in the same change.
+
+## Alerts
+
+One n8n workflow, **Kooche – server alerts**, receives reports from the server and checks from outside. It sends a Telegram message only when something changes: one 🔴 when a check fails and one 🟢 when it recovers. Events, such as a failed backup, are always sent. Its memory between runs lives in the workflow's static data. Successful runs aren't stored, so the 5-minute timer doesn't fill the n8n database; failed runs are.
+
+| Check | Where | Alerts when |
+| --- | --- | --- |
+| Coolify dashboard reachable (`/api/health`) | n8n, every 5 min | 2 failed checks in a row |
+| Server alive | server heartbeat every 15 min | no heartbeat for 35 min (covers the whole server being down) |
+| Disk | server, every 15 min | `/` at 85% or more |
+| Memory | server, every 15 min | under 300 MB available |
+| Containers | server, every 15 min | a container is unhealthy or restarting, or a Coolify-managed one stopped |
+| Nightly backup | backup script | it fails (immediately), or no successful run for 25 h |
+
+To add a check:
+- **A URL** (for example the app's `/health` once it's deployed): add it to `URLS` at the top of the workflow's "Check and decide" Code node.
+- **A job on the server:** call `kooche-alert event|status|heartbeat`.
+- **Several reports at once:** send them as one `kooche-alert batch '[...]'`. Parallel n8n runs overwrite each other's memory, so separate requests sent at the same moment can lose state.
 
 ## Memory budget
 
