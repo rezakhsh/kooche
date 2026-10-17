@@ -167,5 +167,17 @@ Done:
 - 5 new tests (109 in total), run as `classifieds_worker`: rows past each cut-off are deleted, newer ones stay, batching and the per-run batch cap. The worker bundle was also run against a scratch database: it registered the schedule (next run 02:30 UTC) and a manually queued run deleted an expired session and kept a live one.
 
 Next:
-1. Retention for `outbox_events` (7 days after processing) and `webhook_events` (90 days), and scheduling `purge_audit_log`, `scrub_audit_ip` and `purge_moderation_records` on the same `retention` queue (`docs/schema.md`, section 14).
+1. ~~Retention for `outbox_events` (7 days after processing) and `webhook_events` (90 days), and scheduling `purge_audit_log`, `scrub_audit_ip` and `purge_moderation_records` on the same `retention` queue (`docs/schema.md`, section 14).~~ Done, see below.
 2. After the next deploy, check the worker log on 02:30 UTC for the first `retention:` line.
+
+## Oct 17, 2026: retention of events and history
+
+Done:
+- Daily worker job `event-retention`: deletes `outbox_events` 7 days after `processed_at` and processed `webhook_events` 90 days after `created_at`. Unprocessed webhook events are kept (approved Oct 17, 2026).
+- Daily worker job `history-retention`: calls `purge_audit_log('2 years')`, `scrub_audit_ip('90 days')` and `purge_moderation_records('2 years')` in batches of 5,000 until a call comes back short, at most 100 calls each per run.
+- Both run on queue `retention` at 02:30 UTC next to `account-retention`, as `classifieds_worker`, and each logs one line, `retention: <job>: …`. The `account-retention` line now has the same `retention: account-retention:` prefix.
+- No migration and no new index (reasons in `docs/schema.md`, section 17). Code in `src/db/retention.ts`.
+- 6 new tests (115 in total), run as `classifieds_worker`: rows past each cut-off are deleted, newer ones and unprocessed ones stay, batching and the per-run cap for both the deletes and the function calls. Run in Docker against a scratch PostgreSQL built like `compose.yaml` plus Valkey; typecheck and the worker bundle build pass.
+
+Next:
+1. After the next deploy, check the worker log after 02:30 UTC for three `retention:` lines (`account-retention`, `event-retention`, `history-retention`).

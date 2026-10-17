@@ -1,4 +1,5 @@
 import type postgres from 'postgres';
+import { type PurgeOptions, inBatches } from '../../db/retention';
 
 // Retention of account data (docs/schema.md, section 14), run daily by the worker as
 // classifieds_worker. Each table is deleted in bounded batches, oldest id first, like the purge
@@ -15,32 +16,10 @@ export const LOGIN_CODE_RETENTION = '1 day';
 /** Phone verification attempts are kept 90 days after created_at */
 export const PHONE_VERIFICATION_RETENTION = '90 days';
 
-export interface PurgeOptions {
-  /** Rows per DELETE */
-  batchSize?: number;
-  /** Batches per table per run; what's left goes in the next run */
-  maxBatches?: number;
-}
-
 export interface PurgeResult {
   sessions: number;
   verifications: number;
   phoneVerifications: number;
-}
-
-/** Repeats one batch until it comes back short or maxBatches is reached. Returns the rows deleted. */
-async function inBatches(
-  deleteBatch: (limit: number) => Promise<number>,
-  batchSize: number,
-  maxBatches: number,
-): Promise<number> {
-  let total = 0;
-  for (let i = 0; i < maxBatches; i++) {
-    const n = await deleteBatch(batchSize);
-    total += n;
-    if (n < batchSize) break;
-  }
-  return total;
 }
 
 /** Deletes expired sessions, old login codes and old phone verification attempts. */
