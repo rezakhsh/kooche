@@ -6,6 +6,7 @@ import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
 import { maxImages } from '../listings/listings';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
+import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from './limits';
 import type { ObjectStorage, PresignedPut } from './storage';
 
 // Listing photos, the web side (docs/schema.md, listing_images). The browser uploads the original
@@ -13,8 +14,7 @@ import type { ObjectStorage, PresignedPut } from './storage';
 // re-encodes it (./process.ts). Only the owner of the listing can add, move or remove its photos:
 // every query finds the listing by id and owner together.
 
-export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+export { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from './limits';
 const UPLOAD_URL_SECONDS = 300;
 
 export const IMAGE_OUTBOX = {

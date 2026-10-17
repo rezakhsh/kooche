@@ -8,6 +8,10 @@ import { webEnv } from './lib/env';
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const dev = process.env.NODE_ENV === 'development';
+  const env = webEnv();
+  // Photos come from imgproxy; the photo editor uploads straight to R2 (presigned PUT)
+  const imageOrigin = env.IMAGE_URL ? ` ${new URL(env.IMAGE_URL).origin}` : '';
+  const uploadOrigin = env.S3_ENDPOINT ? ` ${new URL(env.S3_ENDPOINT).origin}` : '';
 
   const csp = [
     "default-src 'self'",
@@ -15,9 +19,9 @@ export function proxy(request: NextRequest) {
     // React's dev tooling needs eval, so only in development.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'nonce-${nonce}'`,
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data:${imageOrigin}`,
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self'${uploadOrigin}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -31,7 +35,7 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
-  if (webEnv().SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return response;
 }
 

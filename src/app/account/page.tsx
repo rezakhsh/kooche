@@ -23,6 +23,9 @@ export default async function AccountPage() {
             {t.phone}
             {!actor?.phoneVerifiedAt && <span className="ms-2 text-xs text-amber-700">●</span>}
           </Link>
+          <Link href="/my/listings" className="rounded-xl px-3 py-2 hover:bg-neutral-50">
+            {t.myListings}
+          </Link>
           <Link href="/account/devices" className="rounded-xl px-3 py-2 hover:bg-neutral-50">
             {t.devices}
           </Link>

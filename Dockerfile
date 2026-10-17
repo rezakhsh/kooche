@@ -44,8 +44,13 @@ CMD ["node", "server.js"]
 FROM ${NODE_IMAGE} AS worker
 WORKDIR /app
 ENV NODE_ENV=production
-# One bundled file, no node_modules
+# One bundled file. The only node_modules are sharp's (photo processing): its native libvips
+# can't be bundled. sharp needs @img/colour, detect-libc and semver at runtime.
 COPY --from=worker-build /app/dist/worker.js ./worker.js
+COPY --from=deps /app/node_modules/sharp ./node_modules/sharp
+COPY --from=deps /app/node_modules/@img ./node_modules/@img
+COPY --from=deps /app/node_modules/detect-libc ./node_modules/detect-libc
+COPY --from=deps /app/node_modules/semver ./node_modules/semver
 USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node", "-e", "const s = require('node:fs').statSync('/tmp/worker-heartbeat'); process.exit(Date.now() - s.mtimeMs < 30000 ? 0 : 1)"]
