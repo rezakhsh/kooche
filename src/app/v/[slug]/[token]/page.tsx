@@ -5,19 +5,21 @@ import { notFound } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
+import { Icon } from '../../../../components/icons';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
-import { formatDate } from '../../../../lib/format';
+import { formatAgo, formatDate, formatMonth } from '../../../../lib/format';
 import { messages } from '../../../../messages/fa';
 import { ancestry, cachedCatalog, effectiveAttributes, type AttributeDef } from '../../../../modules/listings/catalog';
 import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
-import { publicListing } from '../../../../modules/listings/queries';
+import { activeCountries, publicListing } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from './contact';
+import { Gallery, type GalleryImage } from './gallery';
 
 // The public listing page, /v/{persian-title}/{token}, rendered on the server. The token finds the
 // listing; the title part is not checked, and the canonical link carries the current one.
@@ -101,6 +103,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const path = listingPath(l.title, l.publicToken);
   const nonce = (await headers()).get('x-nonce') ?? undefined;
   const { published } = await searchParams;
+  const country = l.countryCode ? (await activeCountries(appDb())).find((c) => c.code === l.countryCode) : undefined;
+  const countrySlug = country?.slug ?? null;
+  const countryName = country?.nameFa ?? '';
 
   // schema.org Product with an Offer. Price in major units as a decimal string, never a float.
   const jsonLd = {
@@ -138,96 +143,152 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     },
   };
 
-  const [cover, ...rest] = images;
+  const gallery: GalleryImage[] = images.map((img) => ({
+    id: img.id,
+    full: imageSources(img.key, 'full'),
+    thumb: imageUrl(img.key, 'thumb', 'webp'),
+    placeholder: img.blur ? thumbHashToDataURL(Buffer.from(img.blur, 'base64')) : null,
+    width: img.width,
+    height: img.height,
+  }));
+  const posted = l.publishedAt ?? l.createdAt;
+
+  const sellerBox = (
+    <Card className="space-y-4">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-saffron-50 text-lg font-extrabold text-saffron-700">
+          {[...seller.displayName][0]}
+        </span>
+        <div className="min-w-0">
+          <span className="block text-xs text-neutral-500">{t.seller}</span>
+          <span className="block truncate font-bold">{seller.displayName}</span>
+          <span className="block text-xs text-neutral-500">{t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}</span>
+        </div>
+      </div>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-brand-800">
+        <Icon name="shield" className="size-4" />
+        {t.phoneVerified}
+      </p>
+      {isOwner ? (
+        <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
+          {t.edit}
+        </LinkButton>
+      ) : l.status === 'active' ? (
+        <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} />
+      ) : null}
+    </Card>
+  );
+
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl pb-6 sm:px-6 sm:pt-6">
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <nav aria-label="breadcrumb" className="mb-4 flex flex-wrap gap-1 text-xs text-neutral-500">
-        <Link href="/" className="hover:underline">
-          {t.breadcrumbHome}
-        </Link>
-        {crumbs.map((c) => (
-          <span key={c.id}>› {c.nameFa}</span>
-        ))}
-      </nav>
-
-      <div className="space-y-4">
-        {published && <Alert tone="success">{messages.form.published}</Alert>}
-        {!PUBLIC.has(l.status) && <Alert tone="info">{t.ownerPreview}</Alert>}
-        {(l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && <Alert tone="info">{t.unavailable[l.status]}</Alert>}
-
-        {cover ? (
-          <div className="space-y-2">
-            <Photo image={cover} size="full" alt={l.title} priority />
-            {rest.length > 0 && (
-              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {rest.map((img, i) => (
-                  <li key={img.id}>
-                    <Photo image={img} size="card" alt={t.photo(i + 2, images.length)} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <div className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-neutral-100 text-sm text-neutral-500">{t.noPhotos}</div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-[1fr_16rem]">
-          <div className="space-y-4">
-            <div>
-              {l.kind === 'wanted' && <span className="mb-1 inline-block rounded-md bg-amber-50 px-2 py-0.5 text-xs text-amber-800">{t.wanted}</span>}
-              <h1 className="text-2xl font-bold leading-snug">{l.title}</h1>
-              {l.publishedAt && <p className="mt-1 text-xs text-neutral-500">{t.postedOn(formatDate(l.publishedAt, env.APP_TIME_ZONE))}</p>}
+      <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8">
+        <div className="min-w-0 space-y-5">
+          {(published || !PUBLIC.has(l.status) || l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && (
+            <div className="space-y-2 px-4 pt-4 sm:px-0 sm:pt-0">
+              {published && <Alert tone="success">{messages.form.published}</Alert>}
+              {!PUBLIC.has(l.status) && <Alert tone="info">{t.ownerPreview}</Alert>}
+              {(l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && <Alert tone="info">{t.unavailable[l.status]}</Alert>}
             </div>
-            <dl className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
-              {price && <Row label={t.price} value={<span className="font-semibold">{price}</span>} />}
-              {hasPlace && (
-                <Row
-                  label={t.location}
-                  value={
-                    <span className="flex flex-col items-end gap-0.5">
-                      {place.local && <bdi dir="ltr">{place.local}</bdi>}
-                      {place.city && <span className="text-neutral-600">{place.city}</span>}
-                      {place.district && <span className="text-neutral-600">{place.district}</span>}
-                    </span>
-                  }
-                />
-              )}
-              {details.map((d) => (
-                <Row key={d.label} label={d.label} value={d.text} />
-              ))}
-              {l.shippingOffered && <Row label={t.shipping} value="✓" />}
-            </dl>
+          )}
+
+          {gallery.length > 0 ? (
+            <Gallery images={gallery} title={l.title} />
+          ) : (
+            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-neutral-100 text-sm text-neutral-500 sm:rounded-2xl">
+              <Icon name="image" className="size-10 text-neutral-400" />
+              {t.noPhotos}
+            </div>
+          )}
+
+          <div className="space-y-5 px-4 sm:px-0">
+            <div className="space-y-2">
+              <nav aria-label="breadcrumb" className="flex flex-wrap gap-1 text-xs text-neutral-500">
+                {countrySlug ? (
+                  <Link href={`/${countrySlug}`} className="hover:underline">
+                    {countryName}
+                  </Link>
+                ) : (
+                  <Link href="/" className="hover:underline">
+                    {t.breadcrumbHome}
+                  </Link>
+                )}
+                {crumbs.map((c) => (
+                  <span key={c.id}>
+                    ›{' '}
+                    {countrySlug ? (
+                      <Link href={`/${countrySlug}?category=${c.slug}`} className="hover:underline">
+                        {c.nameFa}
+                      </Link>
+                    ) : (
+                      c.nameFa
+                    )}
+                  </span>
+                ))}
+              </nav>
+              <h1 className="text-xl leading-relaxed font-extrabold text-balance sm:text-2xl">
+                {l.kind === 'wanted' && <span className="me-2 inline-block rounded-full bg-saffron-50 px-2.5 py-0.5 align-middle text-xs font-bold text-saffron-700">{t.wanted}</span>}
+                {l.title}
+              </h1>
+              {price && <p className="text-2xl font-black text-brand-700">{price}</p>}
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+                {hasPlace && (
+                  <span className="flex items-center gap-1">
+                    <Icon name="pin" className="size-3.5" />
+                    {place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city}
+                    {place.district && <span>· {place.district}</span>}
+                  </span>
+                )}
+                {posted && (
+                  <span className="flex items-center gap-1">
+                    <Icon name="clock" className="size-3.5" />
+                    <span title={t.postedOn(formatDate(posted, env.APP_TIME_ZONE))}>{formatAgo(posted, env.APP_TIME_ZONE)}</span>
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="lg:hidden">{sellerBox}</div>
+
+            {(details.length > 0 || l.shippingOffered || (place.local && place.city)) && (
+              <section>
+                <h2 className="mb-2 font-bold">{t.details}</h2>
+                <dl className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
+                  {place.local && place.city && <Row label={t.location} value={place.city} />}
+                  {details.map((d) => (
+                    <Row key={d.label} label={d.label} value={d.text} />
+                  ))}
+                  {l.shippingOffered && (
+                    <Row
+                      label={t.shipping}
+                      value={
+                        <span className="inline-flex items-center gap-1 text-brand-800">
+                          <Icon name="truck" className="size-4" />
+                          {messages.form.yes}
+                        </span>
+                      }
+                    />
+                  )}
+                </dl>
+              </section>
+            )}
+            {l.description && (
+              <section>
+                <h2 className="mb-2 font-bold">{t.description}</h2>
+                <p className="leading-loose whitespace-pre-line text-neutral-800">{l.description}</p>
+              </section>
+            )}
             {l.point && l.countryCode && (
               <figure className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4">
                 <OutlineMap countryCode={l.countryCode} point={l.point} label={mapLabel} />
                 <figcaption className="text-xs text-neutral-500">{mapLabel}</figcaption>
               </figure>
             )}
-            {l.description && (
-              <section>
-                <h2 className="mb-2 font-semibold">{t.description}</h2>
-                <p className="whitespace-pre-line leading-relaxed text-neutral-800">{l.description}</p>
-              </section>
-            )}
           </div>
-          <aside>
-            <Card className="space-y-4">
-              <div>
-                <span className="block text-xs text-neutral-500">{t.seller}</span>
-                <span className="font-semibold">{seller.displayName}</span>
-              </div>
-              {isOwner ? (
-                <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
-                  {t.edit}
-                </LinkButton>
-              ) : l.status === 'active' ? (
-                <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} />
-              ) : null}
-            </Card>
-          </aside>
         </div>
+        <aside className="hidden lg:block">
+          <div className="sticky top-20">{sellerBox}</div>
+        </aside>
       </div>
     </main>
   );
@@ -242,41 +303,3 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-/**
- * AVIF with a WebP fallback from imgproxy, over the ThumbHash placeholder. The placeholder is a
- * data: image, not a style attribute: the CSP allows no inline styles.
- */
-function Photo({
-  image,
-  size,
-  alt,
-  priority,
-}: {
-  image: { key: string; width: number | null; height: number | null; blur: string | null };
-  size: 'full' | 'card';
-  alt: string;
-  priority?: boolean;
-}) {
-  const sources = imageSources(image.key, size);
-  const placeholder = image.blur ? thumbHashToDataURL(Buffer.from(image.blur, 'base64')) : null;
-  return (
-    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-neutral-100">
-      {placeholder && <img src={placeholder} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover blur-lg" />}
-      {sources && (
-        <picture>
-          <source srcSet={sources.avif} type="image/avif" />
-          <img
-            src={sources.webp}
-            alt={alt}
-            width={image.width ?? undefined}
-            height={image.height ?? undefined}
-            loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : undefined}
-            decoding="async"
-            className={`relative size-full ${size === 'full' ? 'object-contain' : 'object-cover'}`}
-          />
-        </picture>
-      )}
-    </div>
-  );
-}

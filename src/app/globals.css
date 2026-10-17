@@ -3,6 +3,55 @@
 /* Only logical direction classes (ms-, pe-, start-, text-end…), so the layout follows dir="rtl".
    `npm run check:rtl` rejects the physical ones. */
 
+/* Peydoo palette (approved Oct 17, 2026): Persian turquoise as the brand colour, saffron as the
+   accent, greys tinted towards the turquoise. brand-700 is the primary (#0B6E77, white text
+   5.98:1), saffron-500 takes dark text only. Text colours pass WCAG AA on white and neutral-50.
+   Light only for now; dark mode later redefines these tokens. */
 @theme {
   --font-sans: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #e6f2f1;
+  --color-brand-100: #cfe7e6;
+  --color-brand-200: #a6d3d2;
+  --color-brand-300: #73b8b9;
+  --color-brand-400: #3e989c;
+  --color-brand-500: #1c8790;
+  --color-brand-600: #12808a;
+  --color-brand-700: #0b6e77;
+  --color-brand-800: #095a62;
+  --color-brand-900: #084a50;
+  --color-brand-950: #06373b;
+
+  --color-saffron-50: #fdf4e1;
+  --color-saffron-100: #fbe6b8;
+  --color-saffron-400: #f0b53f;
+  --color-saffron-500: #e9a21a;
+  --color-saffron-600: #c7850b;
+  --color-saffron-700: #8a5a00;
+  --color-saffron-800: #6e4800;
+
+  --color-neutral-50: #f4f7f6;
+  --color-neutral-100: #ebf0ef;
+  --color-neutral-200: #dce4e2;
+  --color-neutral-300: #c7d2cf;
+  --color-neutral-400: #9aaba7;
+  --color-neutral-500: #616f6c;
+  --color-neutral-600: #5a6966;
+  --color-neutral-700: #44524f;
+  --color-neutral-800: #2c3836;
+  --color-neutral-900: #16211f;
+  --color-neutral-950: #0d1514;
+}
+
+/* The photo viewer's backdrop (a native <dialog>, so no inline styles are needed) */
+dialog.photo-viewer::backdrop {
+  background: rgb(13 21 20 / 0.92);
+}
+
+/* Horizontal rows that scroll by swipe (category chips, photo track) without a visible bar */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -22,8 +22,8 @@ export function OutlineMap({ countryCode, point, label }: { countryCode: string;
       {o.states.map((d, i) => (
         <path key={i} d={d} className="fill-neutral-100 stroke-neutral-300" strokeWidth={1.5} strokeLinejoin="round" />
       ))}
-      <circle cx={at.x} cy={at.y} r={18} className="fill-emerald-600/20" />
-      <circle cx={at.x} cy={at.y} r={6} className="fill-emerald-700 stroke-white" strokeWidth={2.5} />
+      <circle cx={at.x} cy={at.y} r={18} className="fill-brand-600/20" />
+      <circle cx={at.x} cy={at.y} r={6} className="fill-brand-700 stroke-white" strokeWidth={2.5} />
     </svg>
   );
 }

@@ -14,7 +14,7 @@ import { listingStatusAction } from './actions';
 export const metadata = { title: messages.my.title, robots: { index: false } };
 
 const STATUS_TONE: Record<string, string> = {
-  active: 'bg-emerald-50 text-emerald-800',
+  active: 'bg-brand-50 text-brand-800',
   draft: 'bg-neutral-100 text-neutral-700',
   pending_review: 'bg-amber-50 text-amber-800',
   paused: 'bg-neutral-100 text-neutral-700',

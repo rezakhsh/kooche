@@ -31,7 +31,7 @@ export function Field({
       <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
       <input
         {...props}
-        className={`block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 ${className}`}
+        className={`block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 ${className}`}
       />
       {hint && <span className="mt-1 block text-xs text-neutral-500">{hint}</span>}
     </label>
@@ -39,7 +39,7 @@ export function Field({
 }
 
 const buttonStyles = {
-  primary: 'bg-emerald-700 text-white hover:bg-emerald-800 disabled:bg-emerald-700/60',
+  primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/60',
   secondary: 'border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50',
   danger: 'border border-red-200 bg-white text-red-700 hover:bg-red-50',
 };
@@ -73,7 +73,7 @@ export function LinkButton({
 export function Alert({ tone, children }: { tone: 'error' | 'success' | 'info'; children: ReactNode }) {
   const styles = {
     error: 'border-red-200 bg-red-50 text-red-800',
-    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    success: 'border-brand-200 bg-brand-50 text-brand-800',
     info: 'border-neutral-200 bg-neutral-50 text-neutral-700',
   }[tone];
   return (

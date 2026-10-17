@@ -8,6 +8,7 @@ import { ownListing } from '../../../../modules/listings/listings';
 import { takeDownStatement } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
 import { requireSession } from '../../../../modules/users/server';
+import { chosenCountry } from '../../../country-choice';
 import { editorData } from '../editor-data';
 import { ListingEditor } from './editor';
 
@@ -26,7 +27,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
 
   const statement = listing.status === 'rejected' ? await takeDownStatement(db, listing.id) : null;
   const editable = ['draft', 'active', 'paused', 'expired', 'rejected'].includes(listing.status);
-  const editor = editable ? await editorData(db, user.id, categoryId, listing, images) : null;
+  const editor = editable ? await editorData(db, user.id, categoryId, listing, images, (await chosenCountry(db))?.code ?? null) : null;
 
   return (
     <PageShell title={listing.status === 'draft' ? t.draftTitle : t.editTitle}>
@@ -45,7 +46,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
         {listing.status === 'active' && <Alert tone="info">{t.liveNotice}</Alert>}
         {!editable && <Alert tone="error">{t.notEditable}</Alert>}
         {listing.status !== 'draft' && (
-          <Link href={listingPath(listing.title, listing.publicToken)} className="text-sm text-emerald-800 hover:underline">
+          <Link href={listingPath(listing.title, listing.publicToken)} className="text-sm text-brand-800 hover:underline">
             {t.view} ←
           </Link>
         )}

@@ -14,7 +14,7 @@ export function SmsVerify() {
     return (
       <div className="space-y-3">
         <Alert tone="success">{messages.phone.done}</Alert>
-        <Link href="/account/phone" className="text-sm text-emerald-800 underline">
+        <Link href="/account/phone" className="text-sm text-brand-800 underline">
           {messages.phone.title}
         </Link>
       </div>
@@ -44,7 +44,7 @@ export function SmsVerify() {
         <Button type="submit" disabled={pending} className="w-full">
           {t.submit}
         </Button>
-        <a href="/account/phone/sms" className="block text-center text-sm text-emerald-800 underline">
+        <a href="/account/phone/sms" className="block text-center text-sm text-brand-800 underline">
           {t.otherNumber}
         </a>
       </form>

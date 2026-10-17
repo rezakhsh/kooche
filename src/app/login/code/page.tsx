@@ -18,7 +18,7 @@ export default async function CodePage() {
           {t.intro('⁨' + email + '⁩')}
         </p>
         <CodeForm />
-        <Link href="/login" className="mt-4 block text-center text-sm text-emerald-800 underline">
+        <Link href="/login" className="mt-4 block text-center text-sm text-brand-800 underline">
           {t.changeEmail}
         </Link>
       </Card>

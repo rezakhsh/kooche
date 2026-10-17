@@ -6,14 +6,15 @@ import { ancestry, cachedCatalog, effectiveAttributes } from '../../../modules/l
 import { maxImages, priceTypesFor } from '../../../modules/listings/listings';
 import { amountInputValue } from '../../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
+import { postingCountry } from '../../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
 import { storage } from '../../../modules/media/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
 
 // What the listing editor needs, for a saved listing or for a new one that exists only in the
-// browser so far (`listing` null). Server code only. A new listing starts with the account's
-// saved place, else in the country the visitor chose on the home page (`preferredCountry`).
+// browser so far (`listing` null). Server code only. The country is the listing's own, else the
+// one the visitor chose on the home page (`preferredCountry`), else the saved place's.
 
 type Listing = typeof listings.$inferSelect;
 type Image = { id: string; status: PhotoView['status']; storageKey: string };
@@ -36,16 +37,24 @@ export async function editorData(
   const currency = listing?.currency ? catalog.currencies.get(listing.currency) : undefined;
   const open = (code: string | null | undefined) => (code && countries.some((c) => c.code === code) ? code : null);
 
+  // The country is fixed (decided Oct 17, 2026, src/modules/listings/posting-country.ts). The
+  // saved place fills in a new listing only when it is in that country.
+  const countryCode = postingCountry({
+    listingCountry: listing?.countryCode ?? null,
+    chosen: preferredCountry,
+    saved: saved?.place.countryCode ?? null,
+    open: countries.map((c) => c.code),
+  });
   let place: Place | null = null;
   let district = '';
   if (listing) {
     place = await placeOfListing(db, listing);
     district = listing.district ?? '';
-  } else if (saved && open(saved.place.countryCode)) {
+  } else if (saved && saved.place.countryCode === countryCode) {
     place = saved.place;
     district = saved.district;
   }
-  const countryCode = open(place?.countryCode) ?? open(listing?.countryCode) ?? open(preferredCountry) ?? countries[0]?.code ?? '';
+  const country = countries.find((c) => c.code === countryCode);
 
   return {
     form: {
@@ -55,7 +64,9 @@ export async function editorData(
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       defs: effectiveAttributes(catalog, category.id).filter((d) => d.isActive),
       priceTypes: [...priceTypesFor(category.priceMode)],
-      countries: countries.map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
+      country: country ? { code: country.code, nameFa: country.nameFa, currencySymbol: country.currency.symbol, currencyName: country.currency.nameFa } : null,
+      // Only a listing that has no country yet may still take another one
+      countryChangeable: !listing?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
       values: {
         kind: listing?.kind ?? 'offer',
@@ -65,7 +76,7 @@ export async function editorData(
         priceType: listing?.priceType ?? 'fixed',
         amount: listing?.priceMinor != null && currency ? amountInputValue(listing.priceMinor, currency.minorUnit) : '',
         place: {
-          countryCode,
+          countryCode: countryCode ?? '',
           place: place ? placeLabel(place) : '',
           placeValue: place ? placeValue(place) : '',
           district,

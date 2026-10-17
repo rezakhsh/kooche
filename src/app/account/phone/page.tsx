@@ -40,7 +40,7 @@ export default async function PhonePage() {
 
         <Card>
           <h2 className="mb-2 font-semibold">{t.smsTitle}</h2>
-          <Link href="/account/phone/sms" className="text-sm text-emerald-800 underline">
+          <Link href="/account/phone/sms" className="text-sm text-brand-800 underline">
             {t.smsLink}
           </Link>
         </Card>

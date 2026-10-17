@@ -23,8 +23,13 @@ export type FormProps = {
   categoryPath: string[];
   defs: AttributeDef[];
   priceTypes: PriceType[];
-  /** Open countries; a listing's currency is its country's (decided Oct 17, 2026) */
-  countries: { code: string; nameFa: string; currencySymbol: string }[];
+  /**
+   * The listing's country, fixed (decided Oct 17, 2026; src/modules/listings/posting-country.ts),
+   * null when the visitor hasn't chosen one yet. Its currency is the listing's currency.
+   */
+  country: { code: string; nameFa: string; currencySymbol: string; currencyName: string } | null;
+  /** False once the listing has a country: then "change country" isn't offered */
+  countryChangeable: boolean;
   needsName: boolean;
   values: {
     kind: 'offer' | 'wanted';
@@ -48,7 +53,7 @@ function ErrorText({ code }: { code?: FieldError }) {
 }
 
 const selectClass =
-  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20';
+  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20';
 
 export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: string) => void }) {
   const [state, dispatch, pending] = useActionState<SaveState, FormData>(saveListingAction, undefined);
@@ -62,8 +67,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );
-  const [countryCode, setCountryCode] = useState(v.place.countryCode || props.countries[0]?.code || '');
-  const currencySymbol = props.countries.find((c) => c.code === countryCode)?.currencySymbol ?? '';
+  const currencySymbol = props.country?.currencySymbol ?? '';
   const placeError = (k: string) => (errors[k] ? (t.errors[errors[k]] ?? t.errors.invalid) : undefined);
 
   const draft = props.status === 'draft';
@@ -87,7 +91,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             <span className="text-sm text-neutral-600">{props.categoryPath.join(' › ')}</span>
           </div>
           {draft && (
-            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="text-sm text-emerald-800 hover:underline">
+            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="text-sm text-brand-800 hover:underline">
               {t.changeCategory}
             </Link>
           )}
@@ -114,7 +118,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             defaultValue={v.description}
             rows={6}
             maxLength={5000}
-            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
           />
           <span className="mt-1 block text-xs text-neutral-500">{t.descriptionHint}</span>
           <ErrorText code={errors.description} />
@@ -163,17 +167,29 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
 
       <Card className="space-y-4">
         <h2 className="font-semibold">{t.location}</h2>
-        <PlaceField
-          countries={props.countries}
-          initial={v.place}
-          onCountryChange={setCountryCode}
-          errors={{
-            countryCode: placeError('countryCode'),
-            place: placeError('place'),
-            district: placeError('district'),
-            area: placeError('area'),
-          }}
-        />
+        {props.country ? (
+          <PlaceField
+            countries={[props.country]}
+            initial={v.place}
+            fixed={{
+              hint: props.countryChangeable ? t.countryFixed(props.country.currencyName) : t.countryFixedEdit,
+              changeHref: props.countryChangeable ? '/?choose' : null,
+            }}
+            errors={{
+              countryCode: placeError('countryCode'),
+              place: placeError('place'),
+              district: placeError('district'),
+              area: placeError('area'),
+            }}
+          />
+        ) : (
+          <Alert tone="info">
+            {t.chooseCountryFirst}{' '}
+            <Link href="/?choose" className="font-bold underline">
+              {t.changeCountry}
+            </Link>
+          </Alert>
+        )}
         <label className="flex items-center gap-3 text-sm">
           <input type="checkbox" name="rememberPlace" defaultChecked={v.rememberPlace} className="size-5" />
           {t.rememberPlace}

@@ -23,7 +23,7 @@ export function Contact({ token, allowPhone, returnTo }: { token: string; allowP
       </p>
       {allowPhone &&
         (state?.phone ? (
-          <a href={`tel:${state.phone.replace(/\s/g, '')}`} dir="ltr" className="block rounded-xl border border-emerald-600 px-4 py-3 text-center font-semibold text-emerald-800">
+          <a href={`tel:${state.phone.replace(/\s/g, '')}`} dir="ltr" className="block rounded-xl border border-brand-600 px-4 py-3 text-center font-semibold text-brand-800">
             {state.phone}
           </a>
         ) : state?.signIn ? (

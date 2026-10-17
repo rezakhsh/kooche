@@ -126,12 +126,12 @@ export function PhotoEditor({
                 </span>
               )}
               {i === 0 && p.status === 'ready' && (
-                <span className="absolute start-1 top-1 rounded-md bg-emerald-700 px-1.5 py-0.5 text-[10px] text-white">{t.cover}</span>
+                <span className="absolute start-1 top-1 rounded-md bg-brand-700 px-1.5 py-0.5 text-[10px] text-white">{t.cover}</span>
               )}
             </div>
             <div className="flex flex-wrap gap-x-2 text-[11px]">
               {i > 0 && (
-                <button type="button" className="text-emerald-800 underline" onClick={() => act(() => moveImageAction(p.id, 'first'))}>
+                <button type="button" className="text-brand-800 underline" onClick={() => act(() => moveImageAction(p.id, 'first'))}>
                   {t.makeCover}
                 </button>
               )}
@@ -172,7 +172,7 @@ export function PhotoEditor({
         ))}
       </ul>
       {enabled && !full && (
-        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-emerald-600 px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-brand-600 px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50">
           {t.addPhotos}
           <input
             ref={input}

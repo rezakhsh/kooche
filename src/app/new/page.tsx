@@ -60,7 +60,7 @@ export default async function NewListingPage({
         {error && <Alert tone="error">{error}</Alert>}
         {parent && (
           <div className="flex items-center gap-2 text-sm">
-            <Link href={up ? `/new?c=${up.slug}${keep}` : `/new?${keep.slice(1)}`} className="text-emerald-800 hover:underline">
+            <Link href={up ? `/new?c=${up.slug}${keep}` : `/new?${keep.slice(1)}`} className="text-brand-800 hover:underline">
               → {up ? up.nameFa : t.all}
             </Link>
             <span className="text-neutral-400">/</span>

@@ -89,6 +89,8 @@ export type FieldError =
   | 'too_far'
   | 'not_found'
   | 'ambiguous'
+  /** A listing's country never changes once it has one (decided Oct 17, 2026) */
+  | 'locked'
   | AttributeErrorCode;
 /** Field name (`title`, `amount`, `attr.fuel`…) → error code */
 export type FieldErrors = Record<string, FieldError>;
@@ -172,12 +174,17 @@ async function prepare(
   // the browser's position. The point is never the seller's exact position: the browser location
   // snapped to the ~500 m grid (here again), else the centre of the postal-code area, else the
   // city centre. The listing joins the city its postal code leads to.
+  // The country is fixed (decided Oct 17, 2026): the one the visitor chose, set by the posting
+  // page (postingCountry), and once the listing has one, never another.
   let country: { code: string; defaultCurrency: string } | undefined;
-  if (input.countryCode) {
+  const wanted = input.countryCode.toUpperCase();
+  if (current.countryCode && wanted && wanted !== current.countryCode) {
+    errors.countryCode = 'locked';
+  } else if (wanted || current.countryCode) {
     [country] = await tx
       .select({ code: countries.code, defaultCurrency: countries.defaultCurrency })
       .from(countries)
-      .where(and(eq(countries.code, input.countryCode.toUpperCase()), eq(countries.isActive, true)));
+      .where(and(eq(countries.code, wanted || current.countryCode!), eq(countries.isActive, true)));
     if (!country) errors.countryCode = 'invalid';
   } else if (publish) {
     errors.countryCode = 'required';
