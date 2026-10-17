@@ -9,10 +9,10 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Item | Value |
 | --- | --- |
 | Server | Hetzner CX23 (2 vCPU, 4 GB RAM, 40 GB disk), Helsinki `hel1`, `135.181.253.129`, server id 170743334 |
-| Firewall | `classifieds-app` (id 11815492): inbound 22, 80, 443 (tcp) and 443 (udp, HTTP/3), ping. Everything else closed, including Coolify's raw ports 8000/6001/6002 and Traefik's 8080 |
+| Firewall | `classifieds-app` (id 11815492): inbound 22 (tcp) and ping from anywhere; 80 and 443 (tcp) only from Cloudflare's IP ranges (see "Domain and Cloudflare"). Everything else closed, including 443/udp, Coolify's raw ports 8000/6001/6002 and Traefik's 8080 |
 | SSH | Root login by key only (password login for root is off) |
-| Coolify | 4.4.6 at https://coolify.taskpilot.dev (Let's Encrypt). Public registration disabled; one admin account. API on, but only for the `coolify` Docker network (see "App deployment") |
-| DNS (temporary) | `kooche.taskpilot.dev` (app) and `coolify.taskpilot.dev` (dashboard), both A records to the server, not proxied by Cloudflare |
+| Coolify | 4.4.6 at https://coolify.peydoo.com (behind the Cloudflare proxy, Let's Encrypt at the server). Public registration disabled; one admin account. API on, but only for the `coolify` Docker network (see "App deployment") |
+| Domain | `peydoo.com`, bought Oct 17, 2026, Cloudflare zone (Free plan). `staging.peydoo.com` (app) and `coolify.peydoo.com` (dashboard) are proxied A records to the server; `peydoo.com` and `www` have no records until launch. See "Domain and Cloudflare" |
 | Backup storage | Hetzner Storage Box BX11 `classifieds-backups` (id 674924), 1 TB, Falkenstein `fsn1`, `u692990.your-storagebox.de`, SSH/SFTP on port 23 only |
 | Photo storage | Cloudflare R2, EU jurisdiction (data stays in the EU), account BerlinWedding. Buckets `classifieds-media-staging` (testing) and `classifieds-media` (production, starts empty at launch). Both private: public `r2.dev` access is off. S3 endpoint `https://fe5720006c80324ed7b6bdd00d63b774.eu.r2.cloudflarestorage.com`, region `auto` |
 | Secrets on server | `/root/.secrets/*.env` (root-only, never in Git) |
@@ -21,7 +21,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Alerts | n8n workflow "Kooche – server alerts" (id `71k8LjIW2IJS5c8l`) at https://webhook.khodamehri.com sends to your Telegram (bot credential "Matrix", chat `148310113`). Server side: `/usr/local/bin/kooche-alert` (sender), `/usr/local/bin/kooche-healthcheck` (every 15 min, `/etc/cron.d/kooche-healthcheck`). Webhook path and shared secret in `/root/.secrets/alerts.env` |
 | Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
 | Staging Valkey | Coolify database `classifieds-valkey` (uuid and Docker hostname `cgrezwpbbepj0ulgn7wl5qc3`), Redis type with image `valkey/valkey:9.0.6-alpine`, 128 MB limit, `maxmemory 96mb`, `maxmemory-policy noeviction` (BullMQ needs it), AOF on, not public. Password in `/root/.secrets/valkey.env` |
-| Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://kooche.taskpilot.dev, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB) and `classifieds-migrate` (`2wewwswad9hpecrhvynz5tp0`, target `migrate`, no domain, 128 MB), all from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. A push deploys `classifieds-migrate`, which applies migrations and then deploys the other two. See "App deployment" |
+| Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://staging.peydoo.com, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB) and `classifieds-migrate` (`2wewwswad9hpecrhvynz5tp0`, target `migrate`, no domain, 128 MB), all from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. A push deploys `classifieds-migrate`, which applies migrations and then deploys the other two. See "App deployment" |
 | Swap | 2 GB swap file `/swapfile` (in `/etc/fstab`), `vm.swappiness=10` (`/etc/sysctl.d/90-swap.conf`). A safety net for image builds on 4 GB, not working memory |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
@@ -54,11 +54,10 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
 
 8. **One package, not a monorepo.** The Next.js app and the worker live in the same package with two entry points and one Dockerfile with two build targets. Domain code lives in `src/modules/<module>/` (listings, users, chat, payments, moderation…), shared by both entry points. This is the simplest layout that still allows splitting a module out later.
 
-9. **Hostnames only from configuration.** `kooche.taskpilot.dev` is temporary until the real domain is bought. Rules until then:
+9. **Hostnames only from configuration.** The domain is `peydoo.com` (Oct 17, 2026); the temporary `kooche.taskpilot.dev` and `coolify.taskpilot.dev` are gone. Rules:
    - Every URL comes from `.env` (`APP_URL`, `IMAGE_URL`…). The database stores storage keys, never full URLs (as the plan says).
-   - On the temporary domain, use one-level names such as `img-kooche.taskpilot.dev`, not `img.kooche.taskpilot.dev`. Cloudflare's free certificate covers only one subdomain level.
-   - Don't change zone-wide settings of `taskpilot.dev` (for example the SSL mode), because they would affect your other sites on that domain. Full Cloudflare hardening (proxy, Full (strict) SSL, firewall rules, Turnstile, cache rules) happens on the new domain's own zone.
-   - Storage names are brand-neutral (`classifieds-…`), so the brand decision doesn't block anything.
+   - Use one-level names such as `img-staging.peydoo.com`, not `img.staging.peydoo.com`. Cloudflare's free edge certificate covers only one subdomain level.
+   - Storage names stay brand-neutral (`classifieds-…`); bucket names can't be changed.
 
 10. **Environments.** Until launch this server is staging. At launch it becomes production, and staging moves to its own small CX23 (€5.49/month). Staging and production never share a database.
 
@@ -151,7 +150,7 @@ Why this design (Coolify 4.4.6, checked in its source):
 
 | App | Variables |
 | --- | --- |
-| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER` |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER` (`SEARCH_INDEXING` unset on staging, which means `off`) |
 | `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN` |
 | `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
 
@@ -159,7 +158,7 @@ Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9zto
 
 **`/health`** returns 200 `{"status":"ok"}` when PostgreSQL and Valkey both answer within 2 seconds, else 503. It never returns error details.
 
-**Security headers.** `src/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce per request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no `unsafe-inline`), so every page is rendered per request. `next.config.ts` sets HSTS (two years, `includeSubDomains`, no `preload` on the temporary domain), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and COOP. When Cloudflare starts caching logged-out pages, a cached page reuses one nonce; revisit then (hashes or SRI instead of nonces).
+**Security headers.** `src/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce per request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no `unsafe-inline`), so every page is rendered per request. `next.config.ts` sets HSTS (two years, `includeSubDomains`; `preload` is decided at launch, once production serves `peydoo.com` itself, because it is hard to undo and covers every subdomain), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and COOP. When Cloudflare starts caching logged-out pages, a cached page reuses one nonce; revisit then (hashes or SRI instead of nonces). `SEARCH_INDEXING=off` (the default, so staging sets nothing) adds `X-Robots-Tag: noindex, nofollow` to every page in `src/proxy.ts`; production sets `on`.
 
 **Coolify 4.4.6 API pitfalls** (found while setting this up):
 - Start, stop and deploy endpoints are `POST` now (`POST /api/v1/deploy?uuid=…`, `POST /api/v1/databases/<uuid>/start`). `GET` answers with a message, not an error status.
@@ -171,6 +170,40 @@ Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9zto
 - Creating an application needs `ports_exposes` even without a domain (`classifieds-migrate` has `3000`, unused).
 
 **Fonts.** `src/app/fonts/Vazirmatn-subset.woff2` (69 KB, all weights) is cut from the pinned `vazirmatn` package by `scripts/subset-font.sh` (fonttools in a throwaway Python container). Rerun it when the package version changes.
+
+## Domain and Cloudflare
+
+Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
+
+| Record | Points to | Proxy |
+| --- | --- | --- |
+| `staging.peydoo.com` A | `135.181.253.129` | on |
+| `coolify.peydoo.com` A | `135.181.253.129` | on |
+| SES records (DKIM, `bounce`, `_dmarc`) | see "Accounts and phone verification" | DNS only |
+
+`peydoo.com` and `www` have no records until launch.
+
+**Zone settings.** SSL Full (strict), minimum TLS 1.2, TLS 1.3 and HTTP/3 at the edge on. Two settings are off on purpose:
+- **Always Use HTTPS is off.** Traefik already redirects HTTP to HTTPS for every Coolify domain and leaves `/.well-known/acme-challenge/` alone. Let's Encrypt (HTTP-01, through Cloudflare) renews the server's certificates that way. In Full (strict), Cloudflare reaches the server over HTTP for HTTP requests, so the challenge gets through.
+- **Bot Fight Mode is off.** It would challenge GitHub's webhooks to Coolify and the n8n uptime checks.
+
+**Certificates.** Cloudflare's Universal SSL at the edge covers `peydoo.com` and `*.peydoo.com`, one level only. The server keeps its own Let's Encrypt certificates from Traefik, which Full (strict) requires.
+
+**A records only, no AAAA.** Cloudflare reaches the server over IPv4. Over IPv6, Docker's userland proxy would show every connection as coming from `10.0.1.1` (see "Coolify API"), and the app could no longer tell Cloudflare apart from anyone else. Visitors still get IPv6 from Cloudflare.
+
+**Origin lock.** The Hetzner firewall allows 80 and 443 only from Cloudflare's ranges (https://www.cloudflare.com/ips/), so nobody can bypass Cloudflare by calling the server's IP. Every hostname served from this server must therefore be proxied. The same list is in `src/lib/client-ip.ts`; if Cloudflare changes it, update both.
+
+**Client IP.** See "Accounts and phone verification".
+
+**Moving a hostname in Coolify 4.4.6.** Two traps:
+- **Dashboard domain.** When the instance domain changes, the GitHub App's webhook URL must follow, or pushes stop deploying. On Oct 17, 2026 it was changed with the App's own key, which Coolify stores (`PATCH https://api.github.com/app/hook/config`). The App's homepage and callback URLs can only be changed in GitHub's App settings.
+- **Application domain.** Coolify keeps the generated Traefik labels in the app's `custom_labels`. It regenerates them only when the domain is changed in its UI, so a domain changed any other way keeps routing the old host. Regenerate them ("Reset to default labels" in the UI) and restart the app.
+
+**At launch** (decision 10):
+- This server's app gets `peydoo.com` and `www.peydoo.com` (www redirects to the apex), with `APP_URL=https://peydoo.com`, `SEARCH_INDEXING=on` and a new Telegram bot.
+- `staging.peydoo.com` moves to the new staging server.
+- Decide on HSTS `preload`.
+- Turnstile comes with the login and posting features, and cache rules with caching of logged-out pages.
 
 ## Accounts and phone verification
 
@@ -205,7 +238,7 @@ Only one process may poll a bot token. During a rolling deploy the old and new w
 | SMS | 3 per day per number; 10 code checks per 15 minutes per user |
 | Bot messages | 30 per hour per Telegram account (then ignored) |
 
-**Client IP.** Coolify's Traefik has no `forwardedHeaders.trustedIPs`, so it drops any `X-Forwarded-For` the client sends and writes the address it saw. The app takes that header. When Cloudflare proxies the real domain, switch to `CF-Connecting-IP` accepted only from Cloudflare's ranges.
+**Client IP** (`clientIp()` in `src/lib/client-ip.ts`). Coolify's Traefik has no `forwardedHeaders.trustedIPs`, so it drops any `X-Forwarded-For` the client sends and writes the address it saw. That address is a Cloudflare server when Cloudflare proxies the hostname. Only then does the app take `CF-Connecting-IP`; otherwise it takes Traefik's address, so a header sent straight to the server is ignored. Better Auth reads no IP header itself (`disableIpTracking`); its session hook stores `clientIp()` in `sessions.ip_address`, and the rate limits use the same value.
 
 **Permissions.** Posting a listing and sending a message need a verified phone; browsing and favorites don't (decided Oct 16, 2026). `canPostListing()` and `canSendMessage()` in `src/modules/users/permissions.ts` must be called by the posting and chat features before they write anything.
 
@@ -215,7 +248,8 @@ One n8n workflow, **Kooche – server alerts**, receives reports from the server
 
 | Check | Where | Alerts when |
 | --- | --- | --- |
-| Coolify dashboard reachable (`/api/health`) | n8n, every 5 min | 2 failed checks in a row |
+| Coolify dashboard reachable (`https://coolify.peydoo.com/api/health`) | n8n, every 5 min | 2 failed checks in a row |
+| Staging app (`https://staging.peydoo.com/health`) | n8n, every 5 min | 2 failed checks in a row |
 | Server alive | server heartbeat every 15 min | no heartbeat for 35 min (covers the whole server being down) |
 | Disk | server, every 15 min | `/` at 85% or more |
 | Memory | server, every 15 min | under 300 MB available |
@@ -226,7 +260,7 @@ One n8n workflow, **Kooche – server alerts**, receives reports from the server
 **Failed deployments.** `kooche-healthcheck` reads failed rows from the last 24 hours in Coolify's `application_deployment_queues` table (read-only, `docker exec coolify-db psql`) and sends each one as a `deploy` event in the same batch: app, short commit, commit message and a link to the deployment log. For `classifieds-migrate` it adds that web and worker were not deployed. The uuids already sent are in `/var/lib/kooche/deploy-alerts-sent`. Only failures still inside the window are kept, so a lost file re-sends at most one day of failures. If `coolify-db` doesn't answer, the check is skipped and the file stays as it is (the containers check reports that case). The alert arrives up to 15 minutes after the failure. A separate, faster cron would race the healthcheck's n8n run and lose state.
 
 To add a check:
-- **A URL** (for example the app's `/health` once it's deployed): add it to `URLS` at the top of the workflow's "Check and decide" Code node.
+- **A URL:** add it to `URLS` at the top of the workflow's "Check and decide" Code node.
 - **A job on the server:** call `kooche-alert event|status|heartbeat`.
 - **Several reports at once:** send them as one `kooche-alert batch '[...]'`. Parallel n8n runs overwrite each other's memory, so separate requests sent at the same moment can lose state.
 
@@ -264,7 +298,7 @@ After the resize to CX33: +€3.00 net.
 
 - The Hetzner and Cloudflare API tokens were shared in chat. They are stored only in `/root/.secrets/infra.env`. The owner chose to keep them as they are.
 - The Hetzner token covers the whole project, including the n8n and Supabase servers. Treat it as a key to all of them.
-- The Cloudflare token can edit DNS and manage R2, but cannot read zone settings or edit its own permissions.
+- The Cloudflare token can edit DNS and manage R2. Since Oct 17, 2026 it can also edit zone settings and WAF rules on `peydoo.com`. It can read `taskpilot.dev`'s zone settings too, so check its zone scope in Cloudflare if it should only cover `peydoo.com`. It cannot edit its own permissions.
 - Coolify admin login: `/root/.secrets/coolify-admin.env`. Turning on two-factor authentication in Coolify is recommended.
 - Coolify's API is on, limited to the `coolify` Docker network, with one deploy-only token (`/root/.secrets/coolify-api-tokens.env`). Whoever has it can start or cancel deployments of any application, nothing more.
 - The `classifieds_owner` password is in the env of `classifieds-migrate` (stored encrypted by Coolify), never in web or worker.
@@ -275,4 +309,4 @@ After the resize to CX33: +€3.00 net.
 ## Open decisions
 
 1. ~~**Coolify deployments from GitHub.**~~ Done Oct 16, 2026: GitHub App `kooche-coolify`, installed on `rezakhsh/kooche` only.
-2. **Brand, then domain.** Nothing technical depends on it any more. Buy the domain into Cloudflare when decided.
+2. ~~**Brand, then domain.**~~ Done Oct 17, 2026: Peydoo, `peydoo.com` (see "Domain and Cloudflare").

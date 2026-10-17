@@ -136,3 +136,24 @@ Next:
 5. Production gets its own Telegram bot at launch (one bot per environment).
 6. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 7. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+
+## Oct 17, 2026: move to peydoo.com
+
+Done:
+- Everything that ran on `taskpilot.dev` now runs on `peydoo.com`.
+  - The app is at https://staging.peydoo.com. `peydoo.com` and `www` stay empty until launch, when this server becomes production.
+  - The Coolify dashboard is at https://coolify.peydoo.com.
+  - Both are proxied by Cloudflare and have Let's Encrypt certificates at the server.
+  - The `kooche.taskpilot.dev` and `coolify.taskpilot.dev` records are deleted; nothing depends on `taskpilot.dev` any more.
+- Cloudflare zone: SSL Full (strict) and minimum TLS 1.2. Always Use HTTPS and Bot Fight Mode are off on purpose (`docs/setup.md`, "Domain and Cloudflare").
+- Hetzner firewall: 80 and 443 only from Cloudflare's IP ranges, so nobody can bypass Cloudflare. 443/udp is closed.
+- Client IP: the app takes `CF-Connecting-IP` only when Traefik saw a Cloudflare address. Better Auth no longer reads IP headers itself; sessions store the same value as the rate limits. Tests for both. Checked live: a sign-in through Cloudflare at 10:42 UTC stored the visitor's own IPv6 address in `sessions.ip_address`, not a Cloudflare address.
+- `SEARCH_INDEXING` (default `off`) sends `X-Robots-Tag: noindex` on staging.
+- The GitHub App's webhook follows the dashboard. Proven by the push of `2a7d0d8`, which deployed through `classifieds-migrate` as usual.
+- n8n checks `https://coolify.peydoo.com/api/health` and `https://staging.peydoo.com/health`.
+- Pitfall found: an app domain changed outside Coolify's UI keeps its old Traefik labels until they are regenerated (`docs/setup.md`).
+
+Next:
+1. The `kooche-coolify` GitHub App's homepage and callback URLs still name `coolify.taskpilot.dev`. They aren't used after installation, but should be changed in GitHub's App settings.
+2. At launch: `peydoo.com` and `www` for production, `SEARCH_INDEXING=on`, the HSTS `preload` decision, a production Telegram bot, and staging moving to its own server (`docs/setup.md`, "Domain and Cloudflare").
+3. Turnstile on sign-in and posting, Cloudflare cache rules with caching of logged-out pages.
