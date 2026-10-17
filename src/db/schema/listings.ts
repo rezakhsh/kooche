@@ -286,10 +286,11 @@ export const listings = pgTable(
     ),
     check('listings_location_precision_check', isIn(t.locationPrecision, LOCATION_PRECISIONS)),
     check('listings_status_check', isIn(t.status, LISTING_STATUSES)),
-    // What a non-draft listing must have
+    // What a listing that is or was out must have. A draft never published can be deleted as it
+    // is, so `deleted` is exempt too (migration 0007).
     check(
       'listings_publishable_check',
-      sql`${t.status} = 'draft' OR (
+      sql`${t.status} IN ('draft', 'deleted') OR (
         ${t.categoryId} IS NOT NULL AND ${t.countryCode} IS NOT NULL AND ${t.locationId} IS NOT NULL
         AND ${t.point} IS NOT NULL AND ${t.locationPrecision} IS NOT NULL
         AND char_length(${t.title}) >= 3)`,
@@ -298,7 +299,7 @@ export const listings = pgTable(
     check('listings_price_currency_check', sql`(${t.priceMinor} IS NULL) = (${t.currency} IS NULL)`),
     check(
       'listings_price_required_check',
-      sql`${t.status} = 'draft' OR (${t.priceType} IN ('fixed', 'negotiable')) = (${t.priceMinor} IS NOT NULL)`,
+      sql`${t.status} IN ('draft', 'deleted') OR (${t.priceType} IN ('fixed', 'negotiable')) = (${t.priceMinor} IS NOT NULL)`,
     ),
     // An active listing is fully dated
     check(

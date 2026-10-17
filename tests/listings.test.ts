@@ -280,6 +280,19 @@ describe('pause, sold, delete', () => {
   });
 });
 
+describe('deleting drafts (bug found on staging, Oct 17, 2026)', () => {
+  it('an empty draft and a half-finished one can be deleted', async () => {
+    const u = await user();
+    const empty = await draftFor(u.id);
+    expect(await changeListingStatus(appDb, { userId: u.id, listingId: empty, action: 'delete' })).toEqual({ ok: true, status: 'deleted' });
+
+    const half = await draftFor(u.id);
+    await saveListing(appDb, { userId: u.id, listingId: half, input: await input({ title: 'دوچ', amount: '', locationId: null }), intent: 'save' });
+    expect(await changeListingStatus(appDb, { userId: u.id, listingId: half, action: 'delete' })).toEqual({ ok: true, status: 'deleted' });
+    expect((await listing(half)).deletedAt).not.toBeNull();
+  });
+});
+
 describe('expiry and renewal', () => {
   it('the worker expires listings whose time is up, and only those', async () => {
     const u = await user();

@@ -50,6 +50,13 @@
       "when": 1792235650090,
       "tag": "0006_listing_district",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792265749580,
+      "tag": "0007_deleted_drafts",
+      "breakpoints": true
     }
   ]
 }

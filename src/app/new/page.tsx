@@ -91,6 +91,15 @@ function CategoryRow({ category, keep, listingId }: { category: CategoryNode; ke
       </Link>
     );
   }
+  // Picking a category only opens its empty form; changing an existing draft's category moves it
+  if (!listingId) {
+    return (
+      <Link href={category.businessOnly ? '#' : `/new/${category.slug}`} aria-disabled={category.businessOnly} className={row}>
+        <span>{category.nameFa}</span>
+        {category.businessOnly && <span className="text-xs text-neutral-500">{messages.post.businessOnly}</span>}
+      </Link>
+    );
+  }
   return (
     <form action={pickCategory}>
       <input type="hidden" name="categoryId" value={category.id} />

@@ -22,7 +22,21 @@ const POLL_MS = 2_000;
 
 type Local = { tempId: string; preview: string; error?: string };
 
-export function PhotoEditor({ listingId, max, initial, enabled }: { listingId: string; max: number; initial: PhotoView[]; enabled: boolean }) {
+export function PhotoEditor({
+  listingId,
+  ensureListing,
+  max,
+  initial,
+  enabled,
+}: {
+  /** null until the listing is saved or gets its first photo */
+  listingId: string | null;
+  /** Starts the draft for a listing nobody saved yet and returns its id */
+  ensureListing: () => Promise<string>;
+  max: number;
+  initial: PhotoView[];
+  enabled: boolean;
+}) {
   const [photos, setPhotos] = useState(initial);
   const [uploading, setUploading] = useState<Local[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +44,7 @@ export function PhotoEditor({ listingId, max, initial, enabled }: { listingId: s
 
   const busy = photos.some((p) => p.status === 'pending_upload' || p.status === 'processing');
   useEffect(() => {
-    if (!busy) return;
+    if (!busy || !listingId) return;
     const timer = setInterval(async () => {
       try {
         setPhotos(await photosAction(listingId));
@@ -41,12 +55,12 @@ export function PhotoEditor({ listingId, max, initial, enabled }: { listingId: s
     return () => clearInterval(timer);
   }, [busy, listingId]);
 
-  async function refresh() {
-    setPhotos(await photosAction(listingId));
+  async function refresh(id = listingId) {
+    if (id) setPhotos(await photosAction(id));
   }
 
-  async function uploadOne(file: File, local: Local) {
-    const ticket = await requestUploadAction({ listingId, contentType: file.type, size: file.size });
+  async function uploadOne(id: string, file: File, local: Local) {
+    const ticket = await requestUploadAction({ listingId: id, contentType: file.type, size: file.size });
     if (!ticket.ok) throw new Error(ticket.error);
     const res = await fetch(ticket.url, { method: 'PUT', body: file, headers: ticket.headers });
     if (!res.ok) throw new Error(t.photoUploadFailed);
@@ -61,6 +75,14 @@ export function PhotoEditor({ listingId, max, initial, enabled }: { listingId: s
     const chosen = Array.from(files).slice(0, Math.max(0, room));
     if (files.length > chosen.length) setError(t.photoTooMany);
 
+    if (chosen.length === 0) return;
+    let id: string;
+    try {
+      id = listingId ?? (await ensureListing());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : messages.genericError);
+      return;
+    }
     const locals = chosen.map((f) => ({ tempId: crypto.randomUUID(), preview: URL.createObjectURL(f) }));
     setUploading((u) => [...u, ...locals]);
     // One after another: phones on mobile data do better than with parallel uploads
@@ -69,12 +91,12 @@ export function PhotoEditor({ listingId, max, initial, enabled }: { listingId: s
       try {
         if (!(ACCEPTED_TYPES as readonly string[]).includes(file.type)) throw new Error(t.photoBadType);
         if (file.size > MAX_UPLOAD_BYTES) throw new Error(t.photoTooLarge);
-        await uploadOne(file, local);
+        await uploadOne(id, file, local);
         setUploading((u) => u.filter((x) => x.tempId !== local.tempId));
       } catch (e) {
         setUploading((u) => u.map((x) => (x.tempId === local.tempId ? { ...x, error: e instanceof Error ? e.message : t.photoUploadFailed } : x)));
       }
-      await refresh();
+      await refresh(id);
     }
     if (input.current) input.current.value = '';
   }

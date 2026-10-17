@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { startTransition, useActionState, useState, type FormEvent, type ReactNode } from 'react';
+import { startTransition, useActionState, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
 import type { Point } from '../../../../db/types';
 import { snapToGrid } from '../../../../lib/geo';
@@ -17,7 +17,9 @@ import { saveListingAction, type SaveState } from '../actions';
 type PriceType = 'fixed' | 'negotiable' | 'free' | 'exchange' | 'on_request';
 
 export type FormProps = {
-  listingId: string;
+  /** null: a new listing nobody saved yet; the first save starts the draft */
+  listingId: string | null;
+  categoryId: string;
   status: string;
   categoryPath: string[];
   defs: AttributeDef[];
@@ -51,9 +53,12 @@ function ErrorText({ code }: { code?: FieldError }) {
 const selectClass =
   'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20';
 
-export function ListingForm(props: FormProps) {
-  const action = saveListingAction.bind(null, props.listingId);
-  const [state, dispatch, pending] = useActionState<SaveState, FormData>(action, undefined);
+export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: string) => void }) {
+  const [state, dispatch, pending] = useActionState<SaveState, FormData>(saveListingAction, undefined);
+  const { onDraftCreated } = props;
+  useEffect(() => {
+    if (state?.listingId) onDraftCreated?.(state.listingId);
+  }, [state?.listingId, onDraftCreated]);
   const v = props.values;
   const errors = state?.errors ?? {};
   const [priceType, setPriceType] = useState<PriceType>(props.priceTypes.includes(v.priceType) ? v.priceType : (props.priceTypes[0] ?? 'on_request'));
@@ -86,6 +91,8 @@ export function ListingForm(props: FormProps) {
 
   return (
     <form action={dispatch} onSubmit={onSubmit} className="space-y-6" noValidate>
+      {props.listingId && <input type="hidden" name="listingId" value={props.listingId} />}
+      <input type="hidden" name="categoryId" value={props.categoryId} />
       <Card className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -93,7 +100,7 @@ export function ListingForm(props: FormProps) {
             <span className="text-sm text-neutral-600">{props.categoryPath.join(' › ')}</span>
           </div>
           {draft && (
-            <Link href={`/new?listing=${props.listingId}`} className="text-sm text-emerald-800 hover:underline">
+            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="text-sm text-emerald-800 hover:underline">
               {t.changeCategory}
             </Link>
           )}

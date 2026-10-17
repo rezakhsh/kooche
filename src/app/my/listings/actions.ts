@@ -11,6 +11,7 @@ import { cachedCatalog, effectiveAttributes } from '../../../modules/listings/ca
 import { LISTING_LIMITS } from '../../../modules/listings/limits';
 import {
   changeListingStatus,
+  createDraft,
   listingInputSchema,
   ownListing,
   saveListing,
@@ -23,7 +24,8 @@ import { storage } from '../../../modules/media/server';
 import { photoView, type PhotoView } from './photo-view';
 import { requireSession } from '../../../modules/users/server';
 
-export type SaveState = { errors?: FieldErrors; error?: string; notice?: string } | undefined;
+/** `listingId`: the draft this save created, so the editor uses it from now on */
+export type SaveState = { errors?: FieldErrors; error?: string; notice?: string; listingId?: string } | undefined;
 
 const uuid = z.uuid();
 
@@ -49,9 +51,38 @@ function number(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** The posting form. `intent` (the button pressed) is `save` or `publish`. */
-export async function saveListingAction(listingId: string, _: SaveState, form: FormData): Promise<SaveState> {
-  const { user } = await requireSession(`/my/listings/${listingId}`);
+/**
+ * Starts a draft in a category (rate-limited). Called only when there is something to keep: the
+ * first save or the first photo. Opening a category creates nothing.
+ */
+async function startDraft(userId: string, categoryId: unknown): Promise<{ ok: true; listingId: string } | { ok: false; error: string }> {
+  const id = uuid.safeParse(categoryId);
+  if (!id.success) return { ok: false, error: messages.genericError };
+  const limited = await hit(valkey(), [[LISTING_LIMITS.draftsPerUserDay, userId]]);
+  if (!limited.ok) return { ok: false, error: messages.post.tooManyDrafts };
+  const r = await createDraft(appDb(), { userId, categoryId: id.data });
+  return r.ok ? r : { ok: false, error: refusal(r.reason) };
+}
+
+/** The photo editor's first photo on a listing that isn't saved yet */
+export async function startDraftAction(categoryId: string): Promise<{ ok: true; listingId: string } | { ok: false; error: string }> {
+  const { user } = await requireSession('/new');
+  return startDraft(user.id, categoryId);
+}
+
+/**
+ * The posting form. `intent` (the button pressed) is `save` or `publish`. Without `listingId`
+ * (a new listing nobody saved yet) it first starts the draft in `categoryId`.
+ */
+export async function saveListingAction(_: SaveState, form: FormData): Promise<SaveState> {
+  const { user } = await requireSession('/my/listings');
+  let listingId = String(form.get('listingId') ?? '');
+  let created: string | undefined;
+  if (!listingId) {
+    const draft = await startDraft(user.id, form.get('categoryId'));
+    if (!draft.ok) return { error: draft.error };
+    listingId = created = draft.listingId;
+  }
   if (!uuid.safeParse(listingId).success) return { error: messages.genericError };
   const own = await ownListing(appDb(), user.id, listingId);
   if (!own?.listing.categoryId) return { error: messages.genericError };
@@ -75,19 +106,19 @@ export async function saveListingAction(listingId: string, _: SaveState, form: F
     shippingOffered: form.get('shippingOffered') === 'on',
     displayName: typeof form.get('displayName') === 'string' ? String(form.get('displayName')) : undefined,
   });
-  if (!parsed.success) return { error: messages.form.fixErrors };
+  if (!parsed.success) return { error: messages.form.fixErrors, listingId: created };
 
   const intent = form.get('intent') === 'publish' ? 'publish' : 'save';
   const r = await saveListing(appDb(), { userId: user.id, listingId, input: parsed.data, intent });
   if (!r.ok) {
-    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors };
-    return { error: refusal(r.reason) };
+    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created };
+    return { error: refusal(r.reason), listingId: created };
   }
   if (intent === 'publish' && r.status === 'active' && own.listing.status === 'draft') {
     redirect(`${listingPath(parsed.data.title, r.publicToken)}?published=1`);
   }
   const t = messages.form;
-  return { notice: r.status === 'pending_review' ? t.submitted : t.saved };
+  return { notice: r.status === 'pending_review' ? t.submitted : t.saved, listingId: created };
 }
 
 const statusSchema = z.object({

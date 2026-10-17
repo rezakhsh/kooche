@@ -7,7 +7,7 @@ const HOUR = 3_600;
 const DAY = 86_400;
 
 export const LISTING_LIMITS = {
-  draftsPerUserDay: { name: 'listing-draft:user:1d', max: 10, windowSeconds: DAY },
+  draftsPerUserDay: { name: 'listing-draft:user:1d', max: 20, windowSeconds: DAY },
   uploadsPerUserHour: { name: 'listing-upload:user:1h', max: 60, windowSeconds: HOUR },
   // "Show number": per viewer and per IP, so numbers can't be harvested
   phoneRevealPerUserHour: { name: 'phone-reveal:user:1h', max: 20, windowSeconds: HOUR },
