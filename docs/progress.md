@@ -230,8 +230,15 @@ Done:
 - **Local end-to-end run** in headless Chromium against the real R2 staging bucket and imgproxy: category → photos → form error keeps the input → name → publish → public page (JSON-LD, no phone, bucket or coordinates in the HTML; a forged image size gets 403) → pause, resume, edit live, sold, delete (404). The stored masters in R2 have no EXIF, XMP or ICC.
 - Details: `docs/setup.md` ("Photos and imgproxy"), `docs/schema.md` (section 17, "Posting").
 
+Deployed to staging Oct 17, 2026 (`2af67ac`). Memory right after: web 95 MB, worker 64 MB, imgproxy 15 MB (idle), PostgreSQL 29 MB, Valkey 3 MB; 1.78 GB available on the server.
+
+Fixed after the owner tried it (`52bd5f9`, migration `0007`):
+- Opening a category created a draft each time, which also filled the daily draft limit. Now `/new/{category}` shows an empty form and stores nothing; the draft is created on the first save or the first photo (the address bar then moves to `/my/listings/{id}` without a reload). The limit is 20 real drafts a day.
+- Deleting an unfinished draft failed: `listings_publishable_check` and `listings_price_required_check` applied to `deleted` too. Migration 0007 exempts `deleted` like `draft`. New test.
+- The owner's 10 empty drafts were deleted through the normal delete path, and today's draft counter in Valkey was cleared.
+
 Next:
-1. Deploy to staging and check it there with a real account; memory after the deploy.
+1. Countries (Germany and Austria), address entry with a map, and currency taken from the country: planned in its own session (branch `countries-address-map`), to be approved by the owner first.
 2. Persian terms of use, so `policy_ground` can name real sections instead of `terms-prohibited-items`.
 3. Draft clean-up (drafts untouched for months) and the 12-month purge of deleted listings with their R2 files.
 4. Turnstile on posting; new-account limits (phase 4).
