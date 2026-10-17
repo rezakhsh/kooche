@@ -113,3 +113,26 @@ Next:
 1. Phase 3 features: Better Auth login (email code, Google, Apple) and phone verification through the Telegram bot.
 2. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
 3. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
+
+## Oct 16–17, 2026: user accounts (phase 3, first feature)
+
+Done:
+- Sign-in by email one-time code only (decided Oct 16, 2026: no passwords, Google later without migrating users). Better Auth 1.7.10 on our own tables with database-made `uuidv7()` ids, 6-digit codes valid 10 minutes, locked after 5 wrong tries, stored hashed. HTTP-only, Secure, SameSite=Lax session cookie, 30 days, no cookie cache so a revoked device is out on its next request.
+- Login emails through Amazon SES (eu-central-1, identity `peydoo.com` with DKIM, custom MAIL FROM and DMARC, out of the sandbox) from `noreply@peydoo.com`, in Persian.
+- Phone verification through @Peydoo_bot, which runs in the worker with long polling: one-time deep-link token, contact accepted only when `contact.user_id` equals the sender, number already used by another account refused (`phone_in_use`), Telegram account linked elsewhere refused (`telegram_in_use`), method stored on the user, `audit_log` entry.
+- SMS fallback behind an `SmsProvider` interface; `log` provider on staging. Recommended provider when needed: seven.io (alternative GatewayAPI); nothing bought. SMS only to the 36 seeded countries.
+- Rate limits in Valkey on code requests, code checks, phone attempts, SMS per number and bot messages.
+- `canPostListing()` / `canSendMessage()` need a verified phone; favorites only need a session. The posting and chat features must call them.
+- Persian RTL pages: `/login`, `/login/code`, `/account`, `/account/phone`, `/account/phone/sms`, `/account/devices`. All text in `src/messages/fa.ts`.
+- 42 new tests (104 in total with the domain session's), run as the app and worker database roles. A no-JavaScript end-to-end run against the built image passed locally.
+- Deployed to https://staging.peydoo.com (commit `2a7d0d8`, the first deploy on the new domain). The owner signed in by email code, verified their phone through Telegram and logged out a device; the database rows match (Oct 17, 2026).
+- Settings in Coolify and `/root/.secrets/auth.env`, details in `docs/setup.md`, "Accounts and phone verification".
+
+Next:
+1. Clean-up jobs in the worker: expired sessions (30 days), login codes (1 day), phone verification attempts (90 days) (`docs/schema.md`, section 14).
+2. A "your name" field (accounts start as «کاربر») with the profile or posting feature.
+3. Staff two-factor login before the first moderator account.
+4. Turnstile on the login form once the Cloudflare proxy is on.
+5. Production gets its own Telegram bot at launch (one bot per environment).
+6. Persian names of the cities and categories: a quick read-through by a native speaker before launch.
+7. Product rows (bump, featured, Pro) go into a seed once Stripe prices exist.
