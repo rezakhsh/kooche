@@ -3,7 +3,8 @@ import type { NextConfig } from 'next';
 // Static security headers for every response. The Content-Security-Policy needs a per-request
 // nonce, so it is set in src/proxy.ts instead.
 const securityHeaders = [
-  // Two years. No `preload` while the app runs on the temporary taskpilot.dev hostname.
+  // Two years. `preload` only once the production app serves peydoo.com itself (decided at launch:
+  // it is hard to undo and covers every subdomain).
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

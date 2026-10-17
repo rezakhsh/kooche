@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { webEnv } from './lib/env';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
 // request's CSP header and puts it on its own scripts. The other security headers are static and
-// live in next.config.ts.
+// live in next.config.ts, except X-Robots-Tag, which depends on the environment at runtime.
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
@@ -30,6 +31,7 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
+  if (webEnv().SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return response;
 }
 

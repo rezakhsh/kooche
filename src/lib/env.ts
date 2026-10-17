@@ -30,6 +30,9 @@ const webSchema = z.object({
   PHONE_CODE_SECRET: z.string().min(32),
   // `log` writes SMS codes to the log (development and staging). Real providers come later.
   SMS_PROVIDER: z.enum(['log']).default('log'),
+  // `off` sends X-Robots-Tag: noindex on every page, so search engines skip staging and test
+  // data. Set to `on` in production only.
+  SEARCH_INDEXING: z.enum(['on', 'off']).default('off'),
 }).refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
   message: 'SMTP_URL and EMAIL_FROM are required in production',
   path: ['SMTP_URL'],

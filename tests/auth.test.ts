@@ -39,6 +39,22 @@ describe('sign-in by email code', () => {
     expect(session!.userAgent).toContain('iPhone');
   });
 
+  it('records the visitor address behind Cloudflare, and ignores a forged one', async () => {
+    const viaCloudflare = visitor();
+    viaCloudflare.headers.set('x-forwarded-for', '172.71.10.20'); // a Cloudflare server
+    viaCloudflare.headers.set('cf-connecting-ip', '2001:db8::42');
+    const a = await signIn(viaCloudflare.email, viaCloudflare.headers);
+
+    const direct = visitor();
+    direct.headers.set('cf-connecting-ip', '198.51.100.1');
+    const b = await signIn(direct.email, direct.headers);
+
+    const [sa] = await db.select().from(sessions).where(eq(sessions.userId, a.user.id));
+    const [sb] = await db.select().from(sessions).where(eq(sessions.userId, b.user.id));
+    expect(sa!.ipAddress).toBe('2001:db8::42');
+    expect(sb!.ipAddress).toBe(direct.headers.get('x-forwarded-for'));
+  });
+
   it('signs an existing email into the same account', async () => {
     const v = visitor();
     const first = await signIn(v.email, v.headers);

@@ -100,7 +100,9 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
     advanced: {
       // IDs come from PostgreSQL's uuidv7() default
       database: { generateId: false },
-      ipAddress: { ipAddressHeaders: ['x-forwarded-for'] },
+      // Better Auth would read a header as given; sessions get clientIp() in the hook below,
+      // which accepts CF-Connecting-IP only from Cloudflare.
+      ipAddress: { disableIpTracking: true },
       useSecureCookies: baseURL.startsWith('https://'),
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax' },
     },
@@ -125,7 +127,7 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
       session: {
         create: {
           // Deactivated and deleted accounts get no new sessions, whichever way they sign in
-          before: async (session) => {
+          before: async (session, ctx) => {
             const [user] = await db
               .select({ status: users.status })
               .from(users)
@@ -133,6 +135,8 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
             if (user?.status !== 'active') {
               throw new APIError('FORBIDDEN', { code: 'ACCOUNT_DISABLED', message: 'Account disabled' });
             }
+            const ip = ctx?.headers ? clientIp(ctx.headers) : null;
+            return { data: { ...session, ipAddress: ip } };
           },
         },
       },
