@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
+import { OutlineMap } from '../../../../components/outline-map';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatDate } from '../../../../lib/format';
 import { messages } from '../../../../messages/fa';
 import { ancestry, cachedCatalog, effectiveAttributes, type AttributeDef } from '../../../../modules/listings/catalog';
+import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
 import { publicListing } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
@@ -19,7 +21,8 @@ import { Contact } from './contact';
 
 // The public listing page, /v/{persian-title}/{token}, rendered on the server. The token finds the
 // listing; the title part is not checked, and the canonical link carries the current one.
-// Never shown: the exact location (only city and district), the phone number (fetched on
+// Never shown: the exact location (only postal code, place, district, and a dot on an outline of
+// the country drawn from the stored point, which is never exact), the phone number (fetched on
 // request), internal ids.
 
 type Params = { slug: string; token: string };
@@ -77,7 +80,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
 
-  const { listing: l, images, seller, cityFa } = data;
+  const { listing: l, images, seller, cityFa, cityLocal } = data;
   const env = webEnv();
   const t = messages.listing;
   const catalog = await cachedCatalog(appDb());
@@ -92,7 +95,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       : l.categoryId && catalog.byId.get(l.categoryId)?.priceMode === 'none'
         ? null
         : messages.priceType[l.priceType];
-  const place = [l.district, cityFa].filter(Boolean).join('، ');
+  const place = placeParts({ ...l, cityFa, cityLocal }, t.near);
+  const hasPlace = !!(place.local || place.city || place.district);
+  const mapLabel = l.locationPrecision === 'area' ? t.mapArea : l.locationPrecision === 'postal_code' ? t.mapPostal : t.mapCity;
   const path = listingPath(l.title, l.publicToken);
   const nonce = (await headers()).get('x-nonce') ?? undefined;
   const { published } = await searchParams;
@@ -122,7 +127,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             : 'https://schema.org/Discontinued',
       ...(typeof attrs.condition === 'string' && CONDITION[attrs.condition] ? { itemCondition: CONDITION[attrs.condition] } : {}),
       ...(l.expiresAt ? { priceValidUntil: l.expiresAt.toISOString().slice(0, 10) } : {}),
-      availableAtOrFrom: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: cityFa ?? undefined, addressCountry: l.countryCode ?? undefined } },
+      availableAtOrFrom: { '@type': 'Place', address: {
+          '@type': 'PostalAddress',
+          addressLocality: l.placeName ?? cityLocal ?? undefined,
+          postalCode: l.postalCode ?? undefined,
+          addressCountry: l.countryCode ?? undefined,
+        },
+      },
       seller: { '@type': 'Person', name: seller.displayName },
     },
   };
@@ -171,12 +182,29 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             </div>
             <dl className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
               {price && <Row label={t.price} value={<span className="font-semibold">{price}</span>} />}
-              {place && <Row label={t.location} value={place} />}
+              {hasPlace && (
+                <Row
+                  label={t.location}
+                  value={
+                    <span className="flex flex-col items-end gap-0.5">
+                      {place.local && <bdi dir="ltr">{place.local}</bdi>}
+                      {place.city && <span className="text-neutral-600">{place.city}</span>}
+                      {place.district && <span className="text-neutral-600">{place.district}</span>}
+                    </span>
+                  }
+                />
+              )}
               {details.map((d) => (
                 <Row key={d.label} label={d.label} value={d.text} />
               ))}
               {l.shippingOffered && <Row label={t.shipping} value="✓" />}
             </dl>
+            {l.point && l.countryCode && (
+              <figure className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4">
+                <OutlineMap countryCode={l.countryCode} point={l.point} label={mapLabel} />
+                <figcaption className="text-xs text-neutral-500">{mapLabel}</figcaption>
+              </figure>
+            )}
             {l.description && (
               <section>
                 <h2 className="mb-2 font-semibold">{t.description}</h2>

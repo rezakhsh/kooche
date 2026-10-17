@@ -22,16 +22,17 @@ import { categoryBySlug, city, events, listing, outbox, user } from './listings-
 
 const DAY = 86_400_000;
 
+// The place is Berlin by its Persian name: the city itself, so the point is the city centre.
+// Postal codes, the browser position and the currency rules are in tests/places.test.ts.
 async function input(over: Partial<ListingInput> = {}): Promise<ListingInput> {
-  const berlin = await city();
   return listingInputSchema.parse({
     title: 'آیفون ۱۳ در حد نو',
     description: 'باتری سالم، جعبه و شارژر دارد. فقط تحویل حضوری.',
     attributes: { condition: 'like_new', brand: 'apple', storage_gb: 128 },
     priceType: 'fixed',
     amount: '۴۵۰',
-    currency: 'EUR',
-    locationId: berlin.id,
+    countryCode: 'DE',
+    place: 'برلین',
     district: 'شارلوتنبورگ',
     ...over,
   });
@@ -147,7 +148,7 @@ describe('publishing', () => {
   it('a draft saves half-finished, but publishing needs everything', async () => {
     const u = await user();
     const id = await draftFor(u.id);
-    const partial = await input({ title: 'آیفون', description: '', attributes: {}, amount: '', locationId: null });
+    const partial = await input({ title: 'آیفون', description: '', attributes: {}, amount: '', place: '' });
     expect(await saveListing(appDb, { userId: u.id, listingId: id, input: partial, intent: 'save' })).toMatchObject({ ok: true, status: 'draft' });
 
     const r = await saveListing(appDb, { userId: u.id, listingId: id, input: partial, intent: 'publish' });
@@ -157,7 +158,7 @@ describe('publishing', () => {
         description: 'required',
         'attr.condition': 'required',
         amount: 'required',
-        locationId: 'required',
+        place: 'required',
       });
     }
     expect((await listing(id)).status).toBe('draft');
@@ -174,7 +175,7 @@ describe('publishing', () => {
     expect(row!.displayName).toBe('سارا');
   });
 
-  it('a position is snapped to the ~500 m grid and must be near the city', async () => {
+  it('a position is snapped to the ~500 m grid and must be near the place', async () => {
     const u = await user();
     const id = await draftFor(u.id);
     const exact = { lat: 52.516_275, lng: 13.377_704 };
@@ -287,7 +288,7 @@ describe('deleting drafts (bug found on staging, Oct 17, 2026)', () => {
     expect(await changeListingStatus(appDb, { userId: u.id, listingId: empty, action: 'delete' })).toEqual({ ok: true, status: 'deleted' });
 
     const half = await draftFor(u.id);
-    await saveListing(appDb, { userId: u.id, listingId: half, input: await input({ title: 'دوچ', amount: '', locationId: null }), intent: 'save' });
+    await saveListing(appDb, { userId: u.id, listingId: half, input: await input({ title: 'دوچ', amount: '', place: '' }), intent: 'save' });
     expect(await changeListingStatus(appDb, { userId: u.id, listingId: half, action: 'delete' })).toEqual({ ok: true, status: 'deleted' });
     expect((await listing(half)).deletedAt).not.toBeNull();
   });

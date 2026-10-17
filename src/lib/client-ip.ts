@@ -57,3 +57,14 @@ export function clientIp(headers: Headers): string | null {
   if (peer && isCloudflare(peer)) return valid(headers.get('cf-connecting-ip')) ?? peer;
   return peer;
 }
+
+/**
+ * The visitor's country as Cloudflare sees it (CF-IPCountry, ISO code), only when the request
+ * really came through Cloudflare. Used to highlight a country on the home page, nothing more.
+ */
+export function visitorCountry(headers: Headers): string | null {
+  const peer = valid(headers.get('x-forwarded-for')?.split(',').at(-1)) ?? valid(headers.get('x-real-ip'));
+  if (!peer || !isCloudflare(peer)) return null;
+  const code = headers.get('cf-ipcountry')?.toUpperCase() ?? '';
+  return /^[A-Z]{2}$/.test(code) ? code : null;
+}

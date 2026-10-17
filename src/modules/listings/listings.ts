@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
-import { countries, listingImages, listings, locations, users, type PRICE_TYPES } from '../../db/schema';
+import { countries, listingImages, listings, users, type PRICE_TYPES } from '../../db/schema';
 import type { Point } from '../../db/types';
 import { distanceMeters, snapToGrid } from '../../lib/geo';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -12,6 +12,7 @@ import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
 import { cachedCatalog, effectiveAttributes, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { LISTING_OUTBOX, recordChange } from './events';
+import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
 import { MAX_PRICE_MINOR, parseAmount } from './price';
 
 // Posting and managing listings (docs/schema.md, section 8). Every function takes the owner's
@@ -26,8 +27,6 @@ type PriceType = (typeof PRICE_TYPES)[number];
 export const MAX_IMAGES_PER_LISTING = 10;
 /** Listing duration, renewable with one tap (decided Oct 17, 2026); categories may set their own */
 export const RENEW_WINDOW_DAYS = 3;
-/** "Use my location" must land within this distance of the chosen city's centre */
-const MAX_AREA_DISTANCE_M = 40_000;
 const MIN_TITLE = 3;
 const MAX_TITLE = 90;
 const MIN_DESCRIPTION = 10;
@@ -63,11 +62,17 @@ export const listingInputSchema = z.object({
   attributes: z.record(z.string(), z.unknown()).default({}),
   priceType: z.enum(['fixed', 'negotiable', 'free', 'exchange', 'on_request']).default('fixed'),
   amount: z.string().max(40).default(''),
-  currency: z.string().max(3).default(''),
-  locationId: z.uuid().nullable().default(null),
+  /** The listing's country (ISO code). Its default currency is the listing's currency. */
+  countryCode: z.string().max(2).default(''),
+  /** A suggestion the seller picked (`p:<postal place id>` or `c:<city id>`), if any */
+  placeValue: z.string().max(40).default(''),
+  /** What is in the place field: a postal code or a town, resolved here when nothing was picked */
+  place: z.string().max(200).default(''),
   district: z.string().max(500).default(''),
-  /** Already snapped by the browser; snapped again here */
+  /** "Use my location": already snapped by the browser; snapped again here */
   area: z.object({ lat: z.number(), lng: z.number() }).nullable().default(null),
+  /** Save this place on the account for the next listings */
+  rememberPlace: z.boolean().default(false),
   allowPhoneContact: z.boolean().default(false),
   shippingOffered: z.boolean().default(false),
   /** Asked only while the account still has the placeholder name */
@@ -82,6 +87,8 @@ export type FieldError =
   | 'invalid'
   | 'not_allowed'
   | 'too_far'
+  | 'not_found'
+  | 'ambiguous'
   | AttributeErrorCode;
 /** Field name (`title`, `amount`, `attr.fuel`…) → error code */
 export type FieldErrors = Record<string, FieldError>;
@@ -99,6 +106,8 @@ type Prepared = {
     currency: string | null;
     countryCode: string | null;
     locationId: string | null;
+    postalCode: string | null;
+    placeName: string | null;
     district: string | null;
     districtNormalized: string | null;
     point: Point | null;
@@ -107,6 +116,8 @@ type Prepared = {
     shippingOffered: boolean;
   };
   displayName: string | null;
+  /** The place as resolved, for "remember for my next listings" */
+  place: Place | null;
 };
 
 const clean = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').trim();
@@ -157,7 +168,65 @@ async function prepare(
     ...(attrs.ok ? attrs.value : {}),
   };
 
-  // Price: the allowed types depend on the category; fixed and negotiable need an amount
+  // Location (decided Oct 17, 2026): a country, then a postal code or town from our own data, or
+  // the browser's position. The point is never the seller's exact position: the browser location
+  // snapped to the ~500 m grid (here again), else the centre of the postal-code area, else the
+  // city centre. The listing joins the city its postal code leads to.
+  let country: { code: string; defaultCurrency: string } | undefined;
+  if (input.countryCode) {
+    [country] = await tx
+      .select({ code: countries.code, defaultCurrency: countries.defaultCurrency })
+      .from(countries)
+      .where(and(eq(countries.code, input.countryCode.toUpperCase()), eq(countries.isActive, true)));
+    if (!country) errors.countryCode = 'invalid';
+  } else if (publish) {
+    errors.countryCode = 'required';
+  }
+
+  let snapped: Point | null = null;
+  if (input.area) {
+    try {
+      snapped = snapToGrid(input.area);
+    } catch {
+      errors.area = 'invalid';
+    }
+  }
+
+  let place: Place | null = null;
+  if (country) {
+    const text = clean(input.place);
+    const picked = input.placeValue ? await placeByValue(tx, country.code, input.placeValue) : null;
+    if (picked) place = picked;
+    else if (text) {
+      const r = await resolvePlace(tx, country.code, text);
+      if (typeof r === 'string') errors.place = r;
+      else place = r;
+    } else if (snapped) {
+      place = await nearestPostalPlace(tx, country.code, snapped);
+      if (!place) errors.area = 'too_far';
+    }
+    if (place && snapped && distanceMeters(snapped, place.center) > MAX_AREA_DISTANCE_M) errors.area = 'too_far';
+    if (!place && publish && !errors.place && !errors.area) errors.place = 'required';
+  }
+
+  const countryCode: string | null = country?.code ?? null;
+  let locationId: string | null = null;
+  let postalCode: string | null = null;
+  let placeName: string | null = null;
+  let point: Point | null = null;
+  let locationPrecision: Listing['locationPrecision'] = null;
+  if (place && !errors.area) {
+    locationId = place.locationId;
+    if (place.kind === 'postal') {
+      postalCode = place.postalCode;
+      placeName = place.placeName;
+    }
+    point = snapped ?? place.center;
+    locationPrecision = snapped ? 'area' : place.kind === 'postal' ? 'postal_code' : 'city';
+  }
+
+  // Price: the allowed types depend on the category; fixed and negotiable need an amount. The
+  // currency is always the country's (decided Oct 17, 2026), never the seller's choice.
   const allowed = priceTypesFor(category.priceMode);
   let priceType: PriceType = input.priceType;
   let priceMinor: number | null = null;
@@ -168,11 +237,12 @@ async function prepare(
   } else if (!allowed.includes(priceType)) {
     errors.priceType = 'not_allowed';
   } else if (priceType === 'fixed' || priceType === 'negotiable') {
-    const cur = catalog.currencies.get(input.currency);
-    if (!cur) {
-      if (publish || input.amount.trim()) errors.currency = 'invalid';
-    } else if (input.amount.trim() === '') {
+    const cur = country ? catalog.currencies.get(country.defaultCurrency) : undefined;
+    if (input.amount.trim() === '') {
       if (publish) errors.amount = 'required';
+    } else if (!cur) {
+      // An amount needs a country to know its currency
+      errors.countryCode ??= 'required';
     } else {
       const minor = parseAmount(input.amount, cur.minorUnit);
       if (minor === null || minor > MAX_PRICE_MINOR) errors.amount = 'invalid';
@@ -181,49 +251,6 @@ async function prepare(
         currency = cur.code;
       }
     }
-  }
-
-  // Location: an active city in an active country, plus an optional district name. The point is
-  // the city centre, or the seller's position snapped to the ~500 m grid.
-  let countryCode: string | null = null;
-  let locationId: string | null = null;
-  let point: Point | null = null;
-  let locationPrecision: Listing['locationPrecision'] = null;
-  if (input.locationId) {
-    const [city] = await tx
-      .select({ id: locations.id, countryCode: locations.countryCode, center: locations.center })
-      .from(locations)
-      .innerJoin(countries, eq(countries.code, locations.countryCode))
-      .where(
-        and(
-          eq(locations.id, input.locationId),
-          eq(locations.kind, 'city'),
-          eq(locations.isActive, true),
-          eq(countries.isActive, true),
-        ),
-      );
-    if (!city) errors.locationId = 'invalid';
-    else {
-      countryCode = city.countryCode;
-      locationId = city.id;
-      point = city.center;
-      locationPrecision = 'city';
-      if (input.area) {
-        let snapped: Point | null = null;
-        try {
-          snapped = snapToGrid(input.area);
-        } catch {
-          errors.area = 'invalid';
-        }
-        if (snapped && distanceMeters(snapped, city.center) > MAX_AREA_DISTANCE_M) errors.area = 'too_far';
-        else if (snapped) {
-          point = snapped;
-          locationPrecision = 'area';
-        }
-      }
-    }
-  } else if (publish) {
-    errors.locationId = 'required';
   }
 
   const district = clean(input.district);
@@ -253,6 +280,8 @@ async function prepare(
         currency,
         countryCode,
         locationId,
+        postalCode,
+        placeName,
         district: district || null,
         districtNormalized: district ? normalizePersian(district) : null,
         point,
@@ -261,6 +290,7 @@ async function prepare(
         shippingOffered: input.shippingOffered,
       },
       displayName,
+      place,
     },
   };
 }
@@ -280,6 +310,16 @@ async function lockOwn(tx: Queryable, userId: string, listingId: string): Promis
     .where(and(eq(listings.id, listingId), eq(listings.userId, userId), ne(listings.status, 'deleted')))
     .for('update');
   return row ?? null;
+}
+
+/** Columns of the account's saved place (users.home_*) for a place and district */
+export function savedPlaceColumns(place: Place, district: string | null) {
+  return {
+    homeLocationId: place.locationId,
+    homePostalCode: place.kind === 'postal' ? place.postalCode : null,
+    homePlaceName: place.kind === 'postal' ? place.placeName : null,
+    homeDistrict: district,
+  };
 }
 
 async function needsDisplayName(tx: Queryable, userId: string): Promise<boolean> {
@@ -359,6 +399,8 @@ const CONTENT_FIELDS = [
   'priceMinor',
   'currency',
   'locationId',
+  'postalCode',
+  'placeName',
   'district',
   'point',
   'locationPrecision',
@@ -415,7 +457,7 @@ export async function saveListing(
     const needsName = await needsDisplayName(tx, opts.userId);
     const result = await prepare(tx, catalog, category, listing, opts.input, mode, needsName);
     if (!result.ok) return { ok: false, reason: 'invalid', errors: result.errors };
-    const { values, displayName } = result.prepared;
+    const { values, displayName, place } = result.prepared;
 
     if (displayName) {
       await tx
@@ -423,6 +465,8 @@ export async function saveListing(
         .set({ displayName, displayNameNormalized: normalizePersian(displayName) })
         .where(eq(users.id, opts.userId));
     }
+    // "Remember for my next listings": the postal code, place and district, never the position
+    if (opts.input.rememberPlace && place) await tx.update(users).set(savedPlaceColumns(place, values.district)).where(eq(users.id, opts.userId));
 
     const diff = changedFields(listing, values);
     const changed = Object.keys(diff).length > 0;

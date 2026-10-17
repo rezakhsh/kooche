@@ -7,9 +7,13 @@ import { normalizePersian } from '../../lib/normalize-persian';
 /**
  * SMS goes only to numbers in the countries we know (seed/countries.ts), against SMS-pumping fraud
  * (bots sending codes to premium numbers abroad). Telegram numbers are accepted from anywhere:
- * Telegram has already verified them and they cost nothing.
+ * Telegram has already verified them and they cost nothing. Turkey is seeded but closed, and a
+ * common SMS-pumping target: no SMS there until it opens for listings.
  */
-export const SMS_COUNTRIES: ReadonlySet<string> = new Set(countries.map((c) => c.code));
+const SMS_CLOSED = new Set(['TR']);
+export const SMS_COUNTRIES: ReadonlySet<string> = new Set(
+  countries.map((c) => c.code).filter((code) => !SMS_CLOSED.has(code)),
+);
 
 const E164 = /^\+[1-9][0-9]{6,14}$/;
 

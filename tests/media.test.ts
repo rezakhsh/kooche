@@ -14,7 +14,7 @@ import { sendExpiryReminders } from '../src/modules/notifications/expiry-reminde
 import type { Mail } from '../src/modules/notifications/mailer';
 import { appDb, redis, workerDb } from './accounts';
 import { db } from './db';
-import { categoryBySlug, city, events, listing, outbox, user } from './listings-fixtures';
+import { categoryBySlug, events, listing, outbox, user } from './listings-fixtures';
 
 // Photos (decided Oct 17, 2026: up to 10 per listing, EXIF removed), the automatic post-checks and
 // the expiry reminder. Web functions run as classifieds_app, worker functions as
@@ -32,15 +32,14 @@ async function draft(userId: string, slug = 'mobile-phones') {
 }
 
 async function publish(userId: string, listingId: string, over: Record<string, unknown> = {}) {
-  const berlin = await city();
   const input = listingInputSchema.parse({
     title: 'گوشی سامسونگ',
     description: 'سالم و بدون خط و خش، با شارژر.',
     attributes: { condition: 'used' },
     priceType: 'fixed',
     amount: '120',
-    currency: 'EUR',
-    locationId: berlin.id,
+    countryCode: 'DE',
+    place: 'برلین',
     ...over,
   });
   const r = await saveListing(appDb, { userId, listingId, input, intent: 'publish' });

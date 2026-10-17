@@ -1,9 +1,15 @@
 import type { CountrySeed } from './types';
 
-// EU, EEA, Switzerland and the UK, plus the US, Canada, Australia and Malaysia.
-// Only Germany is open for listings at launch. Opening another country: seed its regions and
-// cities in seed/locations/, set isActive, and run `npm run db:seed`.
-// sortOrder: Germany first, the rest are sorted by Persian name in the app (Intl.Collator('fa')).
+// EU, EEA, Switzerland and the UK, plus Turkey, the US, Canada, Australia and Malaysia.
+// Germany and Austria are open for listings (Oct 17, 2026); Turkey is listed but closed until
+// it opens. Opening another country: the checklist in docs/setup.md, "Countries".
+// sortOrder: Germany, then Austria; the rest are sorted by Persian name in the app
+// (Intl.Collator('fa')).
+// slug: the country's web address (/germany). Never a two-letter code: those clash with our own
+// routes (/my is Malaysia).
+
+const ACTIVE = new Set(['DE', 'AT']);
+const SORT: Record<string, number> = { DE: 0, AT: 1 };
 
 const c = (
   code: string,
@@ -11,54 +17,59 @@ const c = (
   nameLocal: string,
   defaultCurrency: string,
   phonePrefix: string,
+  slug: string,
 ): CountrySeed => ({
   code,
+  slug,
   nameFa,
   nameLocal,
   defaultCurrency,
   phonePrefix,
-  isActive: code === 'DE',
-  sortOrder: code === 'DE' ? 0 : 100,
+  isActive: ACTIVE.has(code),
+  sortOrder: SORT[code] ?? 100,
 });
 
 export const countries: CountrySeed[] = [
-  c('DE', 'آلمان', 'Deutschland', 'EUR', '+49'),
+  c('DE', 'آلمان', 'Deutschland', 'EUR', '+49', 'germany'),
   // Euro area
-  c('AT', 'اتریش', 'Österreich', 'EUR', '+43'),
-  c('BE', 'بلژیک', 'België', 'EUR', '+32'),
-  c('BG', 'بلغارستان', 'България', 'EUR', '+359'),
-  c('HR', 'کرواسی', 'Hrvatska', 'EUR', '+385'),
-  c('CY', 'قبرس', 'Κύπρος', 'EUR', '+357'),
-  c('EE', 'استونی', 'Eesti', 'EUR', '+372'),
-  c('FI', 'فنلاند', 'Suomi', 'EUR', '+358'),
-  c('FR', 'فرانسه', 'France', 'EUR', '+33'),
-  c('GR', 'یونان', 'Ελλάδα', 'EUR', '+30'),
-  c('IE', 'ایرلند', 'Ireland', 'EUR', '+353'),
-  c('IT', 'ایتالیا', 'Italia', 'EUR', '+39'),
-  c('LV', 'لتونی', 'Latvija', 'EUR', '+371'),
-  c('LT', 'لیتوانی', 'Lietuva', 'EUR', '+370'),
-  c('LU', 'لوکزامبورگ', 'Lëtzebuerg', 'EUR', '+352'),
-  c('MT', 'مالت', 'Malta', 'EUR', '+356'),
-  c('NL', 'هلند', 'Nederland', 'EUR', '+31'),
-  c('PT', 'پرتغال', 'Portugal', 'EUR', '+351'),
-  c('SK', 'اسلواکی', 'Slovensko', 'EUR', '+421'),
-  c('SI', 'اسلوونی', 'Slovenija', 'EUR', '+386'),
-  c('ES', 'اسپانیا', 'España', 'EUR', '+34'),
+  c('AT', 'اتریش', 'Österreich', 'EUR', '+43', 'austria'),
+  c('BE', 'بلژیک', 'België', 'EUR', '+32', 'belgium'),
+  c('BG', 'بلغارستان', 'България', 'EUR', '+359', 'bulgaria'),
+  c('HR', 'کرواسی', 'Hrvatska', 'EUR', '+385', 'croatia'),
+  c('CY', 'قبرس', 'Κύπρος', 'EUR', '+357', 'cyprus'),
+  c('EE', 'استونی', 'Eesti', 'EUR', '+372', 'estonia'),
+  c('FI', 'فنلاند', 'Suomi', 'EUR', '+358', 'finland'),
+  c('FR', 'فرانسه', 'France', 'EUR', '+33', 'france'),
+  c('GR', 'یونان', 'Ελλάδα', 'EUR', '+30', 'greece'),
+  c('IE', 'ایرلند', 'Ireland', 'EUR', '+353', 'ireland'),
+  c('IT', 'ایتالیا', 'Italia', 'EUR', '+39', 'italy'),
+  c('LV', 'لتونی', 'Latvija', 'EUR', '+371', 'latvia'),
+  c('LT', 'لیتوانی', 'Lietuva', 'EUR', '+370', 'lithuania'),
+  c('LU', 'لوکزامبورگ', 'Lëtzebuerg', 'EUR', '+352', 'luxembourg'),
+  c('MT', 'مالت', 'Malta', 'EUR', '+356', 'malta'),
+  c('NL', 'هلند', 'Nederland', 'EUR', '+31', 'netherlands'),
+  c('PT', 'پرتغال', 'Portugal', 'EUR', '+351', 'portugal'),
+  c('SK', 'اسلواکی', 'Slovensko', 'EUR', '+421', 'slovakia'),
+  c('SI', 'اسلوونی', 'Slovenija', 'EUR', '+386', 'slovenia'),
+  c('ES', 'اسپانیا', 'España', 'EUR', '+34', 'spain'),
   // Other currencies in Europe
-  c('CH', 'سوئیس', 'Schweiz', 'CHF', '+41'),
-  c('LI', 'لیختن‌اشتاین', 'Liechtenstein', 'CHF', '+423'),
-  c('GB', 'بریتانیا', 'United Kingdom', 'GBP', '+44'),
-  c('SE', 'سوئد', 'Sverige', 'SEK', '+46'),
-  c('NO', 'نروژ', 'Norge', 'NOK', '+47'),
-  c('DK', 'دانمارک', 'Danmark', 'DKK', '+45'),
-  c('PL', 'لهستان', 'Polska', 'PLN', '+48'),
-  c('CZ', 'چک', 'Česko', 'CZK', '+420'),
-  c('HU', 'مجارستان', 'Magyarország', 'HUF', '+36'),
-  c('RO', 'رومانی', 'România', 'RON', '+40'),
-  c('IS', 'ایسلند', 'Ísland', 'ISK', '+354'),
+  c('CH', 'سوئیس', 'Schweiz', 'CHF', '+41', 'switzerland'),
+  c('LI', 'لیختن‌اشتاین', 'Liechtenstein', 'CHF', '+423', 'liechtenstein'),
+  c('GB', 'بریتانیا', 'United Kingdom', 'GBP', '+44', 'united-kingdom'),
+  c('SE', 'سوئد', 'Sverige', 'SEK', '+46', 'sweden'),
+  c('NO', 'نروژ', 'Norge', 'NOK', '+47', 'norway'),
+  c('DK', 'دانمارک', 'Danmark', 'DKK', '+45', 'denmark'),
+  c('PL', 'لهستان', 'Polska', 'PLN', '+48', 'poland'),
+  c('CZ', 'چک', 'Česko', 'CZK', '+420', 'czechia'),
+  c('HU', 'مجارستان', 'Magyarország', 'HUF', '+36', 'hungary'),
+  c('RO', 'رومانی', 'România', 'RON', '+40', 'romania'),
+  c('IS', 'ایسلند', 'Ísland', 'ISK', '+354', 'iceland'),
+  // Turkey: listed but closed; SMS to Turkish numbers stays off until it opens
+  // (src/modules/users/phone-number.ts)
+  c('TR', 'ترکیه', 'Türkiye', 'TRY', '+90', 'turkey'),
   // Outside Europe
-  c('US', 'آمریکا', 'United States', 'USD', '+1'),
-  c('CA', 'کانادا', 'Canada', 'CAD', '+1'),
-  c('AU', 'استرالیا', 'Australia', 'AUD', '+61'),
-  c('MY', 'مالزی', 'Malaysia', 'MYR', '+60'),
+  c('US', 'آمریکا', 'United States', 'USD', '+1', 'united-states'),
+  c('CA', 'کانادا', 'Canada', 'CAD', '+1', 'canada'),
+  c('AU', 'استرالیا', 'Australia', 'AUD', '+61', 'australia'),
+  c('MY', 'مالزی', 'Malaysia', 'MYR', '+60', 'malaysia'),
 ];

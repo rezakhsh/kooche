@@ -44,6 +44,8 @@ export const PATTERNS = {
   /** 10 characters of lowercase Crockford base32 */
   publicToken: '^[0-9a-hjkmnp-tv-z]{10}$',
   slug: '^[a-z0-9]+(-[a-z0-9]+)*$',
+  /** Postal codes as GeoNames writes them: 12045 (DE), 1100 (AT), SW1A 1AA (GB) */
+  postalCode: '^[0-9A-Z][0-9A-Z -]{1,9}$',
   phone: '^\\+[1-9][0-9]{6,14}$',
   attributeKey: '^[a-z][a-z0-9_]{0,39}$',
   /** Same as attributeKey, hyphens allowed */

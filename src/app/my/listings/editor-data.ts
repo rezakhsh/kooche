@@ -5,13 +5,15 @@ import { messages } from '../../../messages/fa';
 import { ancestry, cachedCatalog, effectiveAttributes } from '../../../modules/listings/catalog';
 import { maxImages, priceTypesFor } from '../../../modules/listings/listings';
 import { amountInputValue } from '../../../modules/listings/price';
-import { activeCities } from '../../../modules/listings/queries';
+import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
+import { activeCountries, savedPlace } from '../../../modules/listings/queries';
 import { storage } from '../../../modules/media/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
 
 // What the listing editor needs, for a saved listing or for a new one that exists only in the
-// browser so far (`listing` null). Server code only.
+// browser so far (`listing` null). Server code only. A new listing starts with the account's
+// saved place, else in the country the visitor chose on the home page (`preferredCountry`).
 
 type Listing = typeof listings.$inferSelect;
 type Image = { id: string; status: PhotoView['status']; storageKey: string };
@@ -22,15 +24,28 @@ export async function editorData(
   categoryId: string,
   listing: Listing | null,
   images: Image[] = [],
+  preferredCountry: string | null = null,
 ): Promise<{ form: FormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
-  const [catalog, cities, [me]] = await Promise.all([
+  const [catalog, countries, saved, [me]] = await Promise.all([
     cachedCatalog(db),
-    activeCities(db),
+    activeCountries(db),
+    savedPlace(db, userId),
     db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)),
   ]);
   const category = catalog.byId.get(categoryId)!;
   const currency = listing?.currency ? catalog.currencies.get(listing.currency) : undefined;
-  const city = cities.find((c) => c.id === listing?.locationId);
+  const open = (code: string | null | undefined) => (code && countries.some((c) => c.code === code) ? code : null);
+
+  let place: Place | null = null;
+  let district = '';
+  if (listing) {
+    place = await placeOfListing(db, listing);
+    district = listing.district ?? '';
+  } else if (saved && open(saved.place.countryCode)) {
+    place = saved.place;
+    district = saved.district;
+  }
+  const countryCode = open(place?.countryCode) ?? open(listing?.countryCode) ?? open(preferredCountry) ?? countries[0]?.code ?? '';
 
   return {
     form: {
@@ -40,8 +55,7 @@ export async function editorData(
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       defs: effectiveAttributes(catalog, category.id).filter((d) => d.isActive),
       priceTypes: [...priceTypesFor(category.priceMode)],
-      currencies: [...catalog.currencies.values()].map((c) => ({ code: c.code, label: `${c.nameFa} (${c.symbol})` })),
-      cities: cities.map((c) => ({ id: c.id, label: c.regionFa ? `${c.nameFa}، ${c.regionFa}` : c.nameFa, currency: c.defaultCurrency })),
+      countries: countries.map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
       needsName: me?.displayName === messages.account.defaultDisplayName,
       values: {
         kind: listing?.kind ?? 'offer',
@@ -50,10 +64,16 @@ export async function editorData(
         attributes: (listing?.attributes as Record<string, unknown>) ?? {},
         priceType: listing?.priceType ?? 'fixed',
         amount: listing?.priceMinor != null && currency ? amountInputValue(listing.priceMinor, currency.minorUnit) : '',
-        currency: listing?.currency ?? city?.defaultCurrency ?? cities[0]?.defaultCurrency ?? 'EUR',
-        locationId: listing?.locationId ?? '',
-        district: listing?.district ?? '',
-        area: listing?.locationPrecision === 'area' && listing.point ? listing.point : null,
+        place: {
+          countryCode,
+          place: place ? placeLabel(place) : '',
+          placeValue: place ? placeValue(place) : '',
+          district,
+          area: listing?.locationPrecision === 'area' && listing.point ? listing.point : null,
+          center: place?.center ?? null,
+        },
+        // Ticked until the account has a saved place, so the first listing's place is remembered
+        rememberPlace: !saved,
         allowPhoneContact: listing?.allowPhoneContact ?? false,
         shippingOffered: listing?.shippingOffered ?? false,
       },

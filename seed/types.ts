@@ -4,6 +4,8 @@ export type CurrencySeed = { code: string; minorUnit: number; nameFa: string; sy
 
 export type CountrySeed = {
   code: string;
+  /** Web address: /germany. Lowercase Latin, unique, never one of our own route names. */
+  slug: string;
   nameFa: string;
   nameLocal: string;
   defaultCurrency: string;
@@ -27,6 +29,9 @@ export type RegionSeed = {
 export type CitySeed = RegionSeed & { region: string };
 
 export type LocationsSeed = { countryCode: string; regions: RegionSeed[]; cities: CitySeed[] };
+
+/** One row of seed/postal/<cc>.tsv */
+export type PostalPlaceSeed = { postalCode: string; placeName: string; lat: number; lng: number };
 
 export type AttributeType = 'number' | 'select' | 'multi_select' | 'boolean' | 'text';
 

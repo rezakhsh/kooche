@@ -205,8 +205,8 @@ describe('locations', () => {
         tx.execute(sql`
           INSERT INTO locations (kind, country_code, parent_id, slug, name_fa, name_fa_normalized,
                                  name_local, center, timezone)
-          VALUES ('city', 'AT', ${bayern.id}, 'salzburg', 'سالزبورگ', 'سالزبورگ', 'Salzburg',
-                  'SRID=4326;POINT(13.04 47.8)', 'Europe/Vienna')`),
+          VALUES ('city', 'AT', ${bayern.id}, 'saalfelden', 'زالفلدن', 'زالفلدن', 'Saalfelden',
+                  'SRID=4326;POINT(12.85 47.43)', 'Europe/Vienna')`),
         FOREIGN_KEY_VIOLATION,
       );
     });

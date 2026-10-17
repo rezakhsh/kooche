@@ -64,8 +64,14 @@ export const countries = pgTable(
     phonePrefix: text('phone_prefix').notNull(),
     isActive: boolean('is_active').notNull().default(false),
     sortOrder: smallint('sort_order').notNull().default(0),
+    // Latin name in web addresses: /germany, /austria (migration 0008). Filled by the seed; a
+    // name, not the code, because two-letter codes clash with our own routes (/my is Malaysia).
+    slug: text('slug').unique('countries_slug_key'),
   },
-  (t) => [check('countries_code_check', matches(t.code, '^[A-Z]{2}$'))],
+  (t) => [
+    check('countries_code_check', matches(t.code, '^[A-Z]{2}$')),
+    check('countries_slug_check', matches(t.slug, PATTERNS.slug)),
+  ],
 );
 
 export const LOCATION_KINDS = ['region', 'city'] as const;
@@ -107,6 +113,44 @@ export const locations = pgTable(
       .where(sql`${t.kind} = 'region'`),
     index('locations_parent_id_idx').on(t.parentId),
     index('locations_center_idx').using('gist', t.center),
+  ],
+);
+
+/**
+ * Postal codes and their places (GeoNames, migration 0008). The posting form searches them, and a
+ * listing copies the postal code and place name it was given. `location_id` is the nearest seeded
+ * city in the same country, worked out by the seed: the city a listing joins. Rows that leave the
+ * source are set inactive, never deleted.
+ */
+export const postalPlaces = pgTable(
+  'postal_places',
+  {
+    id: id(),
+    countryCode: text('country_code')
+      .notNull()
+      .references(() => countries.code),
+    postalCode: text('postal_code').notNull(),
+    placeName: text('place_name').notNull(),
+    /** Lowercase, umlauts written out (ä→ae, ß→ss), other accents removed: foldLatin() */
+    placeSearch: text('place_search').notNull(),
+    center: geographyPoint('center').notNull(),
+    locationId: uuid('location_id'),
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (t) => [
+    check('postal_places_postal_code_check', matches(t.postalCode, PATTERNS.postalCode)),
+    check('postal_places_place_name_check', sql`char_length(${t.placeName}) BETWEEN 1 AND 100`),
+    foreignKey({
+      name: 'postal_places_location_fkey',
+      columns: [t.locationId, t.countryCode],
+      foreignColumns: [locations.id, locations.countryCode],
+    }),
+    unique('postal_places_country_code_postal_code_place_name_key').on(t.countryCode, t.postalCode, t.placeName),
+    // Prefix search on the code ("120…") and on the place name ("muen…")
+    index('postal_places_postal_code_idx').on(t.countryCode, t.postalCode.op('text_pattern_ops')),
+    index('postal_places_place_search_idx').on(t.countryCode, t.placeSearch.op('text_pattern_ops')),
+    // Nearest postal code to the seller's ~500 m point
+    index('postal_places_center_idx').using('gist', t.center),
   ],
 );
 
@@ -227,7 +271,8 @@ export const categoryAttributeOptions = pgTable(
 
 export const LISTING_KINDS = ['offer', 'wanted'] as const;
 export const PRICE_TYPES = ['fixed', 'negotiable', 'free', 'exchange', 'on_request'] as const;
-export const LOCATION_PRECISIONS = ['city', 'area'] as const;
+/** city: the city centre; postal_code: the centre of the postal-code area; area: the seller's ~500 m cell */
+export const LOCATION_PRECISIONS = ['city', 'postal_code', 'area'] as const;
 
 const active = sql`status = 'active'`;
 
@@ -258,6 +303,9 @@ export const listings = pgTable(
     // address: the page shows the city plus this name only.
     district: text('district'),
     districtNormalized: text('district_normalized'),
+    // Postal code and place name copied from postal_places (migration 0008). Never a street.
+    postalCode: text('postal_code'),
+    placeName: text('place_name'),
     point: geographyPoint('point'),
     locationPrecision: text('location_precision', { enum: LOCATION_PRECISIONS }),
     shippingOffered: boolean('shipping_offered').notNull().default(false),
@@ -284,6 +332,8 @@ export const listings = pgTable(
       'listings_district_normalized_check',
       sql`(${t.district} IS NULL) = (${t.districtNormalized} IS NULL)`,
     ),
+    check('listings_postal_code_check', matches(t.postalCode, PATTERNS.postalCode)),
+    check('listings_place_name_check', sql`char_length(${t.placeName}) BETWEEN 1 AND 100`),
     check('listings_location_precision_check', isIn(t.locationPrecision, LOCATION_PRECISIONS)),
     check('listings_status_check', isIn(t.status, LISTING_STATUSES)),
     // What a listing that is or was out must have. A draft never published can be deleted as it
@@ -316,6 +366,10 @@ export const listings = pgTable(
     // Browse indexes: partial on active, ending in id DESC for keyset pagination
     index('listings_country_category_ranked_idx')
       .on(t.countryCode, t.categoryId, t.rankedAt.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(active),
+    // Country page: the newest listings of one country, all categories (migration 0008)
+    index('listings_country_ranked_idx')
+      .on(t.countryCode, t.rankedAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(active),
     index('listings_location_category_ranked_idx')
       .on(t.locationId, t.categoryId, t.rankedAt.desc().nullsFirst(), t.id.desc().nullsFirst())

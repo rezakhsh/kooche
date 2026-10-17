@@ -81,9 +81,9 @@ describe('seeded data', () => {
     expect(leaves!.n).toBe(115);
   });
 
-  it('opens only Germany, with its 16 regions and every city under one of them', async () => {
-    const active = await db.select().from(countries).where(eq(countries.isActive, true));
-    expect(active.map((c) => c.code)).toEqual(['DE']);
+  it('opens Germany and Austria, with their regions and every city under one of them', async () => {
+    const active = await db.select().from(countries).where(eq(countries.isActive, true)).orderBy(countries.sortOrder);
+    expect(active.map((c) => c.code)).toEqual(['DE', 'AT']);
     const [regions] = await db
       .select({ n: count() })
       .from(locations)
@@ -108,7 +108,7 @@ describe('seeded data', () => {
       (SELECT count(*) FROM category_attribute_options) AS o, (SELECT count(*) FROM locations) AS l`;
     const before = await db.execute(counts);
     const summary = await runSeed(process.env.TEST_DATABASE_URL!);
-    expect(summary).toMatchObject({ countries: 36, currencies: 15, regions: 16, cities: 52 });
+    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25, cities: 81, postalPlaces: 15_050 + 18_998 });
     expect(await db.execute(counts)).toEqual(before);
   });
 });

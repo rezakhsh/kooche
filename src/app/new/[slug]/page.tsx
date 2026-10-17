@@ -7,6 +7,7 @@ import { canPostListing, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { ListingEditor } from '../../my/listings/[id]/editor';
 import { editorData } from '../../my/listings/editor-data';
+import { chosenCountry } from '../../country-choice';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -23,7 +24,7 @@ export default async function NewInCategoryPage({ params }: { params: Promise<{ 
   if (!category || !isPostable(catalog, category.id)) notFound();
   if (category.businessOnly) redirect('/new?error=business_only');
 
-  const editor = await editorData(db, user.id, category.id, null);
+  const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null);
   return (
     <PageShell title={messages.form.draftTitle}>
       <div className="space-y-6">

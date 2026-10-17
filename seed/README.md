@@ -20,16 +20,18 @@ The loader (`src/db/seed.ts`) runs in one transaction and can be run again at an
 | File | Contents |
 | --- | --- |
 | `currencies.ts` | ISO 4217 currencies with Persian names |
-| `countries.ts` | EU, EEA, Switzerland, UK, US, Canada, Australia, Malaysia. Only Germany is open (`isActive`). |
+| `countries.ts` | EU, EEA, Switzerland, UK, Turkey, US, Canada, Australia, Malaysia, each with its web address (`slug`). Germany and Austria are open (`isActive`); Turkey is listed but closed. |
 | `locations/de.ts` | The 16 German Länder and the first set of German cities |
+| `locations/at.ts` | The 9 Austrian Bundesländer and 29 cities (the largest and every state capital) |
+| `postal/de.tsv`, `postal/at.tsv` | Postal codes and their places (code, place, latitude, longitude), written by `scripts/import-postal-codes.mjs`; never edit by hand |
 | `categories.ts` | 13 root categories, 115 leaf categories, attributes and options (Persian) |
 
-To open a country: add `seed/locations/<code>.ts`, list it in `index.ts`, set `isActive` in
-`countries.ts`, and run the seed.
+To open a country, follow the checklist in `docs/setup.md`, "Countries, places and the map".
 
 ## Sources
 
 City and region coordinates, population, time zones and IDs (`geonamesId`) come from
-[GeoNames](https://www.geonames.org/) (`cities15000` and `DE` dumps, downloaded Oct 16, 2026),
+[GeoNames](https://www.geonames.org/) (`cities15000`, `DE` and `AT` dumps, downloaded Oct 16–17, 2026; postal codes from
+`export/zip/DE.zip` and `AT.zip`, Oct 17, 2026),
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The Persian names and
 the slugs are our own.

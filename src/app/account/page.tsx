@@ -26,6 +26,9 @@ export default async function AccountPage() {
           <Link href="/my/listings" className="rounded-xl px-3 py-2 hover:bg-neutral-50">
             {t.myListings}
           </Link>
+          <Link href="/account/place" className="rounded-xl px-3 py-2 hover:bg-neutral-50">
+            {t.place}
+          </Link>
           <Link href="/account/devices" className="rounded-xl px-3 py-2 hover:bg-neutral-50">
             {t.devices}
           </Link>

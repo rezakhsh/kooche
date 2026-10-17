@@ -11,7 +11,9 @@ import {
   countries,
   currencies,
   locations,
+  postalPlaces,
 } from './schema';
+import { foldLatin } from '../lib/fold-latin';
 import { runSeedChecks } from './seed-checks';
 
 // Loads seed/ into the database as classifieds_owner, in one transaction (see seed/README.md).
@@ -32,6 +34,7 @@ export type SeedSummary = {
   countries: number;
   regions: number;
   cities: number;
+  postalPlaces: number;
   categories: number;
   leafCategories: number;
   attributes: number;
@@ -48,6 +51,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         countries: await seedCountries(tx),
         regions: 0,
         cities: 0,
+        postalPlaces: 0,
         categories: 0,
         leafCategories: 0,
         attributes: 0,
@@ -58,6 +62,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         summary.regions += regions;
         summary.cities += cities;
       }
+      for (const code of seed.POSTAL_COUNTRIES) summary.postalPlaces += await seedPostalPlaces(tx, code);
       Object.assign(summary, await seedCategories(tx, seed.categories));
 
       const failures = await runSeedChecks(tx);
@@ -149,6 +154,44 @@ async function seedLocations(tx: Tx, country: LocationsSeed) {
     .where(and(eq(locations.countryCode, country.countryCode), not(inArray(locations.id, seededIds))));
 
   return { regions: country.regions.length, cities: country.cities.length };
+}
+
+const POSTAL_BATCH = 1000;
+
+/**
+ * Postal codes of one country (seed/postal/). Rows no longer in the file are set inactive, never
+ * deleted. Each place then joins the nearest active city of its country: the city a listing with
+ * that postal code belongs to.
+ */
+async function seedPostalPlaces(tx: Tx, countryCode: string): Promise<number> {
+  const rows = seed.postalPlaces(countryCode);
+  await tx.update(postalPlaces).set({ isActive: false }).where(eq(postalPlaces.countryCode, countryCode));
+  for (let i = 0; i < rows.length; i += POSTAL_BATCH) {
+    await tx
+      .insert(postalPlaces)
+      .values(
+        rows.slice(i, i + POSTAL_BATCH).map((r) => ({
+          countryCode,
+          postalCode: r.postalCode,
+          placeName: r.placeName,
+          placeSearch: foldLatin(r.placeName),
+          center: { lng: r.lng, lat: r.lat },
+          isActive: true,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [postalPlaces.countryCode, postalPlaces.postalCode, postalPlaces.placeName],
+        set: { placeSearch: sql`excluded.place_search`, center: sql`excluded.center`, isActive: true },
+      });
+  }
+  await tx.execute(sql`
+    UPDATE postal_places p SET location_id = (
+      SELECT l.id FROM locations l
+      WHERE l.kind = 'city' AND l.is_active AND l.country_code = p.country_code
+      ORDER BY l.center <-> p.center
+      LIMIT 1)
+    WHERE p.country_code = ${countryCode}`);
+  return rows.length;
 }
 
 type Inherited = Required<

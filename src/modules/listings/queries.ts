@@ -1,35 +1,130 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { countries, listingImages, listings, locations, moderationDecisions, users } from '../../db/schema';
+import { countries, currencies, listingImages, listings, locations, moderationDecisions, postalPlaces, users } from '../../db/schema';
+import type { Place } from './places';
 
 // Reads for the posting pages, "my listings" and the public listing page.
 
-export type City = { id: string; nameFa: string; regionFa: string | null; countryCode: string; defaultCurrency: string };
+export type Country = {
+  code: string;
+  slug: string;
+  nameFa: string;
+  nameLocal: string;
+  currency: { code: string; symbol: string; minorUnit: number };
+};
 
-const globalForCities = globalThis as typeof globalThis & { cities?: { value: Promise<City[]>; at: number } };
+const globalForCountries = globalThis as typeof globalThis & { countries?: { value: Promise<Country[]>; at: number } };
 
-/** Active cities in active countries, largest first; reference data, kept 10 minutes */
-export function activeCities(db: Queryable): Promise<City[]> {
-  const cached = globalForCities.cities;
+/** Countries open for listings, in seed order; reference data, kept 10 minutes */
+export function activeCountries(db: Queryable): Promise<Country[]> {
+  const cached = globalForCountries.countries;
   if (cached && Date.now() - cached.at < 10 * 60_000) return cached.value;
-  const regions = sql`(SELECT r.name_fa FROM locations r WHERE r.id = ${locations.parentId})`;
   const value = db
     .select({
-      id: locations.id,
-      nameFa: locations.nameFa,
-      regionFa: sql<string | null>`${regions}`,
-      countryCode: locations.countryCode,
-      defaultCurrency: countries.defaultCurrency,
+      code: countries.code,
+      slug: countries.slug,
+      nameFa: countries.nameFa,
+      nameLocal: countries.nameLocal,
+      currency: { code: currencies.code, symbol: currencies.symbol, minorUnit: currencies.minorUnit },
     })
-    .from(locations)
-    .innerJoin(countries, eq(countries.code, locations.countryCode))
-    .where(and(eq(locations.kind, 'city'), eq(locations.isActive, true), eq(countries.isActive, true)))
-    .orderBy(desc(sql`coalesce(${locations.population}, 0)`), asc(locations.nameFa));
-  globalForCities.cities = { value, at: Date.now() };
+    .from(countries)
+    .innerJoin(currencies, eq(currencies.code, countries.defaultCurrency))
+    .where(and(eq(countries.isActive, true), sql`${countries.slug} IS NOT NULL`))
+    .orderBy(asc(countries.sortOrder), asc(countries.code))
+    .then((rows) => rows.map((r) => ({ ...r, slug: r.slug! })));
+  globalForCountries.countries = { value, at: Date.now() };
   value.catch(() => {
-    if (globalForCities.cities?.value === value) globalForCities.cities = undefined;
+    if (globalForCountries.countries?.value === value) globalForCountries.countries = undefined;
   });
   return value;
+}
+
+/**
+ * The account's saved place (users.home_*), pre-filled in new listings. The postal code and place
+ * are looked up again, so a place that left the postal data is simply not offered any more.
+ */
+export async function savedPlace(db: Queryable, userId: string): Promise<{ place: Place; district: string } | null> {
+  const [u] = await db
+    .select({
+      locationId: users.homeLocationId,
+      postalCode: users.homePostalCode,
+      placeName: users.homePlaceName,
+      district: users.homeDistrict,
+      countryCode: locations.countryCode,
+      nameFa: locations.nameFa,
+      nameLocal: locations.nameLocal,
+      center: locations.center,
+    })
+    .from(users)
+    .innerJoin(locations, and(eq(locations.id, users.homeLocationId), eq(locations.isActive, true)))
+    .where(eq(users.id, userId));
+  if (!u?.locationId) return null;
+  const district = u.district ?? '';
+  if (!u.postalCode || !u.placeName) {
+    return { place: { kind: 'city', id: u.locationId, locationId: u.locationId, countryCode: u.countryCode, nameFa: u.nameFa, nameLocal: u.nameLocal, center: u.center }, district };
+  }
+  const [p] = await db
+    .select({ id: postalPlaces.id, locationId: postalPlaces.locationId, center: postalPlaces.center })
+    .from(postalPlaces)
+    .where(
+      and(
+        eq(postalPlaces.countryCode, u.countryCode),
+        eq(postalPlaces.postalCode, u.postalCode),
+        eq(postalPlaces.placeName, u.placeName),
+        eq(postalPlaces.isActive, true),
+      ),
+    );
+  if (!p?.locationId) return null;
+  return {
+    place: { kind: 'postal', id: p.id, countryCode: u.countryCode, postalCode: u.postalCode, placeName: u.placeName, locationId: p.locationId, center: p.center },
+    district,
+  };
+}
+
+export const COUNTRY_PAGE_SIZE = 24;
+
+/**
+ * Active listings of one country, newest first (listings_country_ranked_idx), one page at a time
+ * with a keyset cursor: the ranked_at and id of the last listing on the previous page.
+ */
+export async function countryListings(
+  db: Queryable,
+  countryCode: string,
+  after: { rankedAt: Date; id: string } | null,
+) {
+  const rows = await db
+    .select({
+      id: listings.id,
+      publicToken: listings.publicToken,
+      title: listings.title,
+      priceType: listings.priceType,
+      priceMinor: listings.priceMinor,
+      currency: listings.currency,
+      categoryId: listings.categoryId,
+      postalCode: listings.postalCode,
+      placeName: listings.placeName,
+      district: listings.district,
+      cityFa: locations.nameFa,
+      rankedAt: listings.rankedAt,
+    })
+    .from(listings)
+    .leftJoin(locations, eq(locations.id, listings.locationId))
+    .where(
+      and(
+        eq(listings.status, 'active'),
+        eq(listings.countryCode, countryCode),
+        after ? sql`(${listings.rankedAt}, ${listings.id}) < (${after.rankedAt.toISOString()}::timestamptz, ${after.id}::uuid)` : undefined,
+      ),
+    )
+    .orderBy(desc(listings.rankedAt), desc(listings.id))
+    .limit(COUNTRY_PAGE_SIZE + 1);
+  const page = rows.slice(0, COUNTRY_PAGE_SIZE);
+  const covers = await coverKeys(db, page.map((r) => r.id));
+  const last = page.at(-1);
+  return {
+    items: page.map((r) => ({ ...r, coverKey: covers.get(r.id) ?? null })),
+    next: rows.length > COUNTRY_PAGE_SIZE && last?.rankedAt ? { rankedAt: last.rankedAt, id: last.id } : null,
+  };
 }
 
 /** The owner's listings, newest first, with the cover photo's key */
@@ -72,6 +167,7 @@ export async function publicListing(db: Queryable, token: string) {
     .select({
       listing: listings,
       cityFa: locations.nameFa,
+      cityLocal: locations.nameLocal,
       seller: { displayName: users.displayName, publicToken: users.publicToken, createdAt: users.createdAt },
     })
     .from(listings)

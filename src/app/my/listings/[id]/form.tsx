@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { startTransition, useActionState, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
-import type { Point } from '../../../../db/types';
-import { snapToGrid } from '../../../../lib/geo';
+import { PlaceField, type PlaceFieldValue } from '../../../../components/place-field';
 import { messages } from '../../../../messages/fa';
 import type { AttributeDef } from '../../../../modules/listings/catalog';
 import type { FieldError } from '../../../../modules/listings/listings';
@@ -24,8 +23,8 @@ export type FormProps = {
   categoryPath: string[];
   defs: AttributeDef[];
   priceTypes: PriceType[];
-  currencies: { code: string; label: string }[];
-  cities: { id: string; label: string; currency: string }[];
+  /** Open countries; a listing's currency is its country's (decided Oct 17, 2026) */
+  countries: { code: string; nameFa: string; currencySymbol: string }[];
   needsName: boolean;
   values: {
     kind: 'offer' | 'wanted';
@@ -34,10 +33,8 @@ export type FormProps = {
     attributes: Record<string, unknown>;
     priceType: PriceType;
     amount: string;
-    currency: string;
-    locationId: string;
-    district: string;
-    area: Point | null;
+    place: PlaceFieldValue;
+    rememberPlace: boolean;
     allowPhoneContact: boolean;
     shippingOffered: boolean;
   };
@@ -65,9 +62,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );
-  const [area, setArea] = useState<Point | null>(v.area);
-  const [areaError, setAreaError] = useState(false);
-  const [currency, setCurrency] = useState(v.currency);
+  const [countryCode, setCountryCode] = useState(v.place.countryCode || props.countries[0]?.code || '');
+  const currencySymbol = props.countries.find((c) => c.code === countryCode)?.currencySymbol ?? '';
+  const placeError = (k: string) => (errors[k] ? (t.errors[errors[k]] ?? t.errors.invalid) : undefined);
 
   const draft = props.status === 'draft';
   const rejected = props.status === 'rejected';
@@ -77,16 +74,6 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const data = new FormData(e.currentTarget, submitter);
     startTransition(() => dispatch(data));
-  }
-
-  function locate() {
-    setAreaError(false);
-    navigator.geolocation?.getCurrentPosition(
-      // Snapped here already: the exact position never leaves the browser
-      (pos) => setArea(snapToGrid({ lat: pos.coords.latitude, lng: pos.coords.longitude })),
-      () => setAreaError(true),
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
-    );
   }
 
   return (
@@ -165,22 +152,10 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             <ErrorText code={errors.priceType} />
           </label>
           {(priceType === 'fixed' || priceType === 'negotiable') && (
-            <div className="grid grid-cols-[1fr_auto] gap-3">
-              <div>
-                <Field label={t.amount} hint={t.amountHint} name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="text-end" />
-                <ErrorText code={errors.amount} />
-              </div>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">{t.currency}</span>
-                <select name="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className={selectClass}>
-                  {props.currencies.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                <ErrorText code={errors.currency} />
-              </label>
+            <div>
+              <Field label={t.amount} hint={t.amountHint} name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="text-end" />
+              {currencySymbol && <span className="mt-1 block text-xs text-neutral-500">{t.currencyOf(currencySymbol)}</span>}
+              <ErrorText code={errors.amount} />
             </div>
           )}
         </Card>
@@ -188,52 +163,21 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
 
       <Card className="space-y-4">
         <h2 className="font-semibold">{t.location}</h2>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-neutral-700">{t.city}</span>
-          <select
-            name="locationId"
-            defaultValue={v.locationId}
-            className={selectClass}
-            onChange={(e) => {
-              const c = props.cities.find((x) => x.id === e.target.value);
-              if (c && !v.amount) setCurrency(c.currency);
-            }}
-          >
-            <option value="">{t.choose}</option>
-            {props.cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <ErrorText code={errors.locationId} />
+        <PlaceField
+          countries={props.countries}
+          initial={v.place}
+          onCountryChange={setCountryCode}
+          errors={{
+            countryCode: placeError('countryCode'),
+            place: placeError('place'),
+            district: placeError('district'),
+            area: placeError('area'),
+          }}
+        />
+        <label className="flex items-center gap-3 text-sm">
+          <input type="checkbox" name="rememberPlace" defaultChecked={v.rememberPlace} className="size-5" />
+          {t.rememberPlace}
         </label>
-        <div>
-          <Field label={t.district} hint={t.districtHint} name="district" defaultValue={v.district} maxLength={60} />
-          <ErrorText code={errors.district} />
-        </div>
-        {area && (
-          <>
-            <input type="hidden" name="areaLat" value={area.lat} />
-            <input type="hidden" name="areaLng" value={area.lng} />
-          </>
-        )}
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          {area ? (
-            <>
-              <span className="text-emerald-800">{t.locationSet}</span>
-              <button type="button" onClick={() => setArea(null)} className="text-neutral-600 underline">
-                {t.locationClear}
-              </button>
-            </>
-          ) : (
-            <button type="button" onClick={locate} className="text-emerald-800 underline">
-              {t.useMyLocation}
-            </button>
-          )}
-          {areaError && <span className="text-red-700">{t.locationFailed}</span>}
-        </div>
-        <ErrorText code={errors.area} />
       </Card>
 
       <Card className="space-y-3">

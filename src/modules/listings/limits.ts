@@ -9,6 +9,8 @@ const DAY = 86_400;
 export const LISTING_LIMITS = {
   draftsPerUserDay: { name: 'listing-draft:user:1d', max: 20, windowSeconds: DAY },
   uploadsPerUserHour: { name: 'listing-upload:user:1h', max: 60, windowSeconds: HOUR },
+  // The place field's suggestions (own data, but each one is a query)
+  placeSearchPerUserHour: { name: 'place-search:user:1h', max: 600, windowSeconds: HOUR },
   // "Show number": per viewer and per IP, so numbers can't be harvested
   phoneRevealPerUserHour: { name: 'phone-reveal:user:1h', max: 20, windowSeconds: HOUR },
   phoneRevealPerIpHour: { name: 'phone-reveal:ip:1h', max: 40, windowSeconds: HOUR },

@@ -9,6 +9,9 @@ type Db = PgDatabase<PgQueryResultHKT, any>;
 
 export type SeedCheck = { name: string; query: ReturnType<typeof sql> };
 
+/** First path segments the app uses itself, so no country may take them as its slug */
+export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search'];
+
 export const SEED_CHECKS: SeedCheck[] = [
   {
     // A child can't redefine its parent's attribute (e.g. a second `condition` under electronics)
@@ -28,6 +31,40 @@ export const SEED_CHECKS: SeedCheck[] = [
       FROM locations c
       JOIN locations p ON p.id = c.parent_id
       WHERE c.kind = 'city' AND p.kind <> 'region'`,
+  },
+  {
+    // An open country needs places to post in: cities, and postal codes that lead to them
+    name: 'an active country has a web address, active cities and postal codes',
+    query: sql`
+      SELECT c.code || CASE
+               WHEN c.slug IS NULL THEN ' has no slug'
+               WHEN NOT EXISTS (SELECT 1 FROM locations l
+                                WHERE l.country_code = c.code AND l.kind = 'city' AND l.is_active)
+                 THEN ' has no active city'
+               ELSE ' has no postal codes' END AS problem
+      FROM countries c
+      WHERE c.is_active AND (
+        c.slug IS NULL
+        OR NOT EXISTS (SELECT 1 FROM locations l
+                       WHERE l.country_code = c.code AND l.kind = 'city' AND l.is_active)
+        OR NOT EXISTS (SELECT 1 FROM postal_places p WHERE p.country_code = c.code AND p.is_active))`,
+  },
+  {
+    // Country pages live at /{slug} next to the app's own routes (src/app/)
+    name: 'country slugs are not route names',
+    query: sql`
+      SELECT c.code || ' has the reserved slug ' || c.slug AS problem
+      FROM countries c
+      WHERE c.slug IN (${sql.join(RESERVED_SLUGS.map((r) => sql`${r}`), sql`, `)})`,
+  },
+  {
+    name: 'every active postal code leads to an active city of its country',
+    query: sql`
+      SELECT p.country_code || ' ' || p.postal_code || ' ' || p.place_name || ' has no city' AS problem
+      FROM postal_places p
+      LEFT JOIN locations l ON l.id = p.location_id
+      WHERE p.is_active AND (l.id IS NULL OR NOT l.is_active OR l.kind <> 'city')
+      LIMIT 20`,
   },
   {
     // allows_listings is true exactly for leaves

@@ -14,6 +14,7 @@ export const currencies: CurrencySeed[] = [
   { code: 'RON', minorUnit: 2, nameFa: 'لئو رومانی', symbol: 'lei' },
   // ISO 4217 gives the Icelandic króna no minor unit
   { code: 'ISK', minorUnit: 0, nameFa: 'کرون ایسلند', symbol: 'kr' },
+  { code: 'TRY', minorUnit: 2, nameFa: 'لیر ترکیه', symbol: '₺' },
   { code: 'USD', minorUnit: 2, nameFa: 'دلار آمریکا', symbol: '$' },
   { code: 'CAD', minorUnit: 2, nameFa: 'دلار کانادا', symbol: 'CA$' },
   { code: 'AUD', minorUnit: 2, nameFa: 'دلار استرالیا', symbol: 'A$' },
