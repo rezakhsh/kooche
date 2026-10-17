@@ -1,7 +1,7 @@
 import { createTransport, type Transporter } from 'nodemailer';
 import { messages } from '../../messages/fa';
 
-// Login code emails through Amazon SES SMTP (eu-central-1). Sent directly from the web process,
+// Login code emails through Amazon SES SMTP (eu-central-1, port 587 with STARTTLS). Sent directly from the web process,
 // not through the outbox: the outbox would store the code in plain text.
 
 export type LoginCodeMailer = (email: string, code: string) => Promise<void>;
@@ -19,6 +19,8 @@ export function smtpMailer({ smtpUrl, from }: MailConfig): LoginCodeMailer {
   }
   transport ??= createTransport({
     url: smtpUrl,
+    // SES on port 587 starts plain and upgrades with STARTTLS: refuse to send if it can't
+    requireTLS: true,
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 15_000,

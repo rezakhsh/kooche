@@ -18,7 +18,8 @@ const webSchema = z.object({
   REDIS_URL: redisUrl,
   // Better Auth: signs session cookies and encrypts OAuth tokens. 32+ random characters.
   AUTH_SECRET: z.string().min(32),
-  // Amazon SES SMTP in eu-central-1: smtps://<user>:<password>@email-smtp.eu-central-1.amazonaws.com:465
+  // Amazon SES SMTP in eu-central-1: smtp://<user>:<url-encoded password>@email-smtp.eu-central-1.amazonaws.com:587
+  // (STARTTLS is required by the mailer)
   // Unset in development: login codes are printed to the terminal instead.
   SMTP_URL: optional(z.url({ protocol: /^smtps?$/ })),
   // "Display name <address>"; the address must be verified in SES
