@@ -181,3 +181,58 @@ Done:
 
 Next:
 1. After the next deploy, check the worker log after 02:30 UTC for three `retention:` lines (`account-retention`, `event-retention`, `history-retention`).
+
+## Oct 17, 2026: posting (phase 3, core feature)
+
+Decided by the owner (Oct 17, 2026):
+- Listings go live at once.
+- Automatic checks in the worker can take a listing down afterwards.
+- Editing an active listing keeps it live and runs the same checks. This settles the open question from phase 2.
+- Up to 10 photos per listing.
+- 30 days, renewable with one tap.
+- City plus an optional district; the stored point is snapped to ~500 m.
+
+Done:
+- **Posting.**
+  - `/new` has a category picker over the seeded tree that works without JavaScript.
+  - `/my/listings/[id]` is one form for drafts and edits:
+    - the category's attributes, validated with Zod against `category_attributes`, inherited fields and dependent selects included;
+    - title, description, price type and amount in Persian or Latin digits, stored in minor units;
+    - city, optional district and an optional "use my location" (snapped in the browser and again on the server, at most 40 km from the city);
+    - phone contact on/off and shipping.
+  - Text is stored with `normalizePersian()`.
+  - Posting needs a verified phone (`canPostListing()`).
+  - An account still named «کاربر» is asked for a name before publishing.
+- **Photos.**
+  - The browser uploads straight to R2 through 5-minute presigned PUTs with size and type signed in (15 MB; JPEG, PNG or WebP).
+  - The worker re-encodes every photo with sharp to a WebP master: EXIF and GPS gone, rotation applied, non-images rejected. It stores width, height, ThumbHash, pHash and SHA-256. The database holds storage keys only.
+  - Photos can be reordered, made the cover or removed.
+  - Abandoned uploads are cleaned after 24 hours, with an R2 lifecycle rule as backup.
+  - Two R2 tokens limited to the staging bucket: read-write for web and worker, read-only for imgproxy.
+- **imgproxy.** v4.0.16 as Coolify app `classifieds-imgproxy` (256 MB) at https://img-staging.peydoo.com behind Cloudflare. Signed URLs in three sizes, as AVIF and WebP, cached by Cloudflare for a year.
+- **Listing page** `/v/{persian-title}/{token}`:
+  - server-rendered, with schema.org Product/Offer JSON-LD and a canonical URL;
+  - photos over a ThumbHash placeholder;
+  - city and district only;
+  - the phone number fetched on request for signed-in visitors, rate-limited and never in the HTML;
+  - chat as a "coming soon" placeholder.
+  - Paused, sold and expired listings show a notice and are `noindex`. Deleted ones are 404, and drafts are visible only to their owner.
+- **"My listings".** Edit, pause/resume, mark sold, renew (expired, or in the last 3 days), delete (soft, with confirmation).
+- **Post-checks** in the worker:
+  - Banned terms (weapons, drugs, currency exchange and money transfers to Iran) and an exact copy of another seller's photo take a listing down. Each take-down writes a `moderation_decisions` row by rule with the DSA statement and a `rejected` event.
+  - Near-duplicate photos are flagged as `escalate` for the phase-4 queue.
+  - A taken-down listing can be fixed and sent again; it is checked before it goes live.
+  - The AI review and human queue plug in at `reviewPolicy()` and `CHECKS`.
+- **Expiry.** A worker job every 15 minutes, plus a daily reminder email through SES (09:00 Berlin) for listings expiring in 2–3 days, sent once.
+- **Outbox events** for every change of a published listing and for photo uploads and removals. Search sync subscribes later.
+- **Migration `0006`:** `listings.district` and `district_normalized`. No grant changes.
+- **Tests.** 69 new (184 in total): permissions (only verified users post, only owners edit, pause, sell, renew, delete or touch photos), attribute validation, the 10-photo and per-category limits, expiry and renewal, EXIF and GPS removal with rotation, non-images rejected, the post-checks, the reminder and imgproxy signing. They run as the app and worker roles.
+- **Local end-to-end run** in headless Chromium against the real R2 staging bucket and imgproxy: category → photos → form error keeps the input → name → publish → public page (JSON-LD, no phone, bucket or coordinates in the HTML; a forged image size gets 403) → pause, resume, edit live, sold, delete (404). The stored masters in R2 have no EXIF, XMP or ICC.
+- Details: `docs/setup.md` ("Photos and imgproxy"), `docs/schema.md` (section 17, "Posting").
+
+Next:
+1. Deploy to staging and check it there with a real account; memory after the deploy.
+2. Persian terms of use, so `policy_ground` can name real sections instead of `terms-prohibited-items`.
+3. Draft clean-up (drafts untouched for months) and the 12-month purge of deleted listings with their R2 files.
+4. Turnstile on posting; new-account limits (phase 4).
+5. Production at launch: its own two R2 tokens for `classifieds-media`, CORS for `peydoo.com`, `img.peydoo.com`.

@@ -22,6 +22,7 @@ This file records the infrastructure as it actually exists and the decisions tak
 | Staging database | Coolify project `classifieds`, environment `staging`, database `classifieds-postgres` (uuid and Docker hostname `pitchwmhavjj8wl2a9ztopqs`), `postgis/postgis:18-3.6`, 768 MB limit, not public (no published port; reachable only on the `coolify` Docker network). Database `classifieds`, locale `b` / `C.UTF-8`. Passwords in `/root/.secrets/postgres.env` |
 | Staging Valkey | Coolify database `classifieds-valkey` (uuid and Docker hostname `cgrezwpbbepj0ulgn7wl5qc3`), Redis type with image `valkey/valkey:9.0.6-alpine`, 128 MB limit, `maxmemory 96mb`, `maxmemory-policy noeviction` (BullMQ needs it), AOF on, not public. Password in `/root/.secrets/valkey.env` |
 | Staging app | Coolify applications `classifieds-web` (`jc0kgkjqmzxgdccrf0hn93tk`, Dockerfile target `web`, https://staging.peydoo.com, 768 MB) and `classifieds-worker` (`bvhgg5spgjwcwjfnkirvoyvu`, target `worker`, no domain, 384 MB) and `classifieds-migrate` (`2wewwswad9hpecrhvynz5tp0`, target `migrate`, no domain, 128 MB), all from `rezakhsh/kooche` `main` through the GitHub App `kooche-coolify`. A push deploys `classifieds-migrate`, which applies migrations and then deploys the other two. See "App deployment" |
+| Staging imgproxy | Coolify application `classifieds-imgproxy` (`ikoznawkb4jv8knhphh2qpf5`, image `ghcr.io/imgproxy/imgproxy:v4.0.16`, 256 MB) at https://img-staging.peydoo.com (proxied by Cloudflare). Reads the R2 staging bucket with a read-only token. See "Photos and imgproxy" |
 | Swap | 2 GB swap file `/swapfile` (in `/etc/fstab`), `vm.swappiness=10` (`/etc/sysctl.d/90-swap.conf`). A safety net for image builds on 4 GB, not working memory |
 
 The Coolify install had failed: Docker had created the `coolify` network with a malformed IPv6 gateway, so `docker compose up` refused to start. The network was recreated IPv4-only and Coolify started cleanly. If a Coolify upgrade ever fails the same way, the cause is in `/data/coolify/source/upgrade-*.log`.
@@ -150,8 +151,9 @@ Why this design (Coolify 4.4.6, checked in its source):
 
 | App | Variables |
 | --- | --- |
-| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER` (`SEARCH_INDEXING` unset on staging, which means `off`) |
-| `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN` |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_MEDIA`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT` (`SEARCH_INDEXING` unset on staging, which means `off`) |
+| `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN`, `S3_*` (same five as web), `APP_URL`, `SMTP_URL`, `EMAIL_FROM` (expiry reminders) |
+| `classifieds-imgproxy` | `IMGPROXY_KEY`, `IMGPROXY_SALT`, `IMGPROXY_USE_S3`, `IMGPROXY_S3_ENDPOINT`, `IMGPROXY_S3_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (read-only token), `IMGPROXY_BASE_URL`, `IMGPROXY_S3_ALLOWED_BUCKETS`, `IMGPROXY_WORKERS`, `IMGPROXY_MAX_SRC_RESOLUTION`, `IMGPROXY_MAX_SRC_FILE_SIZE`, `IMGPROXY_TTL`, `IMGPROXY_STRIP_METADATA`, `IMGPROXY_ALLOW_SECURITY_OPTIONS` |
 | `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
 
 Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9ztopqs:5432` and `redis://default:<password>@cgrezwpbbepj0ulgn7wl5qc3:6379`. Other variables in `.env.example` are added with the features that use them.
@@ -242,6 +244,28 @@ Only one process may poll a bot token. During a rolling deploy the old and new w
 
 **Permissions.** Posting a listing and sending a message need a verified phone; browsing and favorites don't (decided Oct 16, 2026). `canPostListing()` and `canSendMessage()` in `src/modules/users/permissions.ts` must be called by the posting and chat features before they write anything.
 
+## Photos and imgproxy
+
+Built Oct 17, 2026 with the posting feature (code in `src/modules/media/`).
+
+**R2 tokens.** Two Account API tokens, created through the Cloudflare API on Oct 17, 2026 (the owner gave the infra token permission to create tokens), both limited to `classifieds-media-staging` in the EU jurisdiction:
+- `classifieds-staging-rw` (Object Read & Write): web and worker.
+- `classifieds-staging-imgproxy` (Object Read): imgproxy.
+
+The S3 credentials of an R2 token are its id (access key id) and the SHA-256 of its value (secret). They are only in `/root/.secrets/r2.env` and Coolify. Tested: the read-only token can't write, and neither token can reach `classifieds-media`. Production gets its own two tokens for `classifieds-media` at launch.
+
+**Bucket settings** (Cloudflare API, `cf-r2-jurisdiction: eu`):
+- CORS: `PUT` from `https://staging.peydoo.com` with the `content-type` header, max age 1 hour. Production adds its origin at launch.
+- Lifecycle: objects under `uploads/` are deleted after 1 day (originals that were never processed), next to R2's default rule that aborts multipart uploads after 7 days.
+
+**Upload.** The web reserves a `listing_images` row (`pending_upload`, key `uploads/<listing>/<random>`) and returns a presigned `PUT` URL valid for 5 minutes. R2 has no presigned POST with a size range, so `Content-Type` and `Content-Length` are signed into the URL (aws4fetch with `allHeaders`); R2 answers 403 to any other size or type (tested). Limits: JPEG, PNG or WebP, at most 15 MB, at most 10 photos per listing (fewer where `categories.max_images` says so). The browser then confirms, which writes the `listing_image.uploaded` outbox event.
+
+**Processing (worker, queue `media`, one image at a time).** sharp 0.35 (libvips 8.18) decodes the file (anything else is `rejected` and deleted), applies the EXIF rotation, scales to at most 2560 px, re-encodes to WebP quality 85 without any metadata (EXIF and GPS, XMP, IPTC, ICC), and stores width, height, size, ThumbHash, a 64-bit pHash and SHA-256. The master is `listings/<2 hex>/<image id>.webp`; the original is deleted. libvips' cache is off and at most 40 megapixels are decoded. The worker image ships `node_modules` for sharp only (about 20 MB); the rest stays one bundled file.
+
+**imgproxy.** Coolify application `classifieds-imgproxy`, Docker image `ghcr.io/imgproxy/imgproxy:v4.0.16`, 256 MB, 2 workers. It has no published port: Traefik routes `img-staging.peydoo.com` to it, and the firewall lets only Cloudflare reach Traefik. `IMGPROXY_BASE_URL=s3://classifieds-media-staging/`, so a URL carries only the base64 storage key, never the bucket. Every URL is signed (`IMGPROXY_KEY`/`IMGPROXY_SALT`, in `/root/.secrets/imgproxy.env` and in Coolify for imgproxy and web); unsigned or changed URLs get 403. Only three sizes exist (`src/modules/media/imgproxy.ts`: thumb 160², card 480×360, full 1280), each as AVIF and WebP. URLs end in `.avif`/`.webp`, so Cloudflare caches them by extension: `Cache-Control: public, max-age=31536000`, second request `cf-cache-status: HIT` (tested). Masters never change (a new photo is a new key), so nothing needs purging. imgproxy v4 renamed `IMGPROXY_CONCURRENCY` to `IMGPROXY_WORKERS`.
+
+**CSP.** `src/proxy.ts` adds the R2 endpoint's origin to `connect-src` (uploads) and `IMAGE_URL`'s origin to `img-src`. `Permissions-Policy` allows geolocation for our own origin ("use my location", snapped to ~500 m in the browser and again on the server).
+
 ## Alerts
 
 One n8n workflow, **Kooche – server alerts**, receives reports from the server and checks from outside. It sends a Telegram message only when something changes: one 🔴 when a check fails and one 🟢 when it recovers. Events, such as a failed backup, are always sent. Its memory between runs lives in the workflow's static data. Successful runs aren't stored, so the 5-minute timer doesn't fill the n8n database; failed runs are.
@@ -276,7 +300,7 @@ To add a check:
 | Next.js app | 768 MB | 76 MB |
 | Worker | 384 MB | 34 MB |
 | Migrate (idle after the deploy call) | 128 MB | under 1 MB |
-| imgproxy | 256 MB | not deployed |
+| imgproxy | 256 MB | see "Posting" below |
 | System reserve | ~1 GB | |
 
 Whole server at that moment: 1.95 GB used, 1.87 GB available, 214 MB of swap used (pushed out during the image builds). About 1 GB of the "used" figure was Claude Code sessions running on the server, not the product. Close idle sessions before heavy builds.
@@ -304,6 +328,8 @@ After the resize to CX33: +€3.00 net.
 - The `classifieds_owner` password is in the env of `classifieds-migrate` (stored encrypted by Coolify), never in web or worker.
 - Database passwords: `/root/.secrets/postgres.env` (root-only, included in the nightly backup).
 - Accounts: `/root/.secrets/auth.env` holds `AUTH_SECRET`, `PHONE_CODE_SECRET`, the SES SMTP credentials and the staging bot token, and the same values are in Coolify. A new `AUTH_SECRET` logs everyone out; a new `PHONE_CODE_SECRET` only invalidates SMS codes in flight.
+- R2: `/root/.secrets/r2.env` (staging read-write and read-only S3 credentials) and `/root/.secrets/imgproxy.env` (URL signing key and salt), both also in Coolify. A new imgproxy key or salt breaks every image URL in cached pages until they are rendered again.
+- Since Oct 17, 2026 the Cloudflare token can also create API tokens (granted by the owner to create the R2 tokens). That makes it able to mint tokens with any permission in the account; narrow it again in Cloudflare if that isn't wanted.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
 ## Open decisions
