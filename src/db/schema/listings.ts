@@ -254,6 +254,10 @@ export const listings = pgTable(
     currency: text('currency').references(() => currencies.code),
     countryCode: text('country_code').references(() => countries.code),
     locationId: uuid('location_id'),
+    // Optional district or neighbourhood, free text typed by the seller (migration 0006). Never an
+    // address: the page shows the city plus this name only.
+    district: text('district'),
+    districtNormalized: text('district_normalized'),
     point: geographyPoint('point'),
     locationPrecision: text('location_precision', { enum: LOCATION_PRECISIONS }),
     shippingOffered: boolean('shipping_offered').notNull().default(false),
@@ -275,6 +279,11 @@ export const listings = pgTable(
     check('listings_attributes_check', isObject(t.attributes)),
     check('listings_price_type_check', isIn(t.priceType, PRICE_TYPES)),
     check('listings_price_minor_check', sql`${t.priceMinor} >= 0`),
+    check('listings_district_check', sql`char_length(${t.district}) BETWEEN 1 AND 60`),
+    check(
+      'listings_district_normalized_check',
+      sql`(${t.district} IS NULL) = (${t.districtNormalized} IS NULL)`,
+    ),
     check('listings_location_precision_check', isIn(t.locationPrecision, LOCATION_PRECISIONS)),
     check('listings_status_check', isIn(t.status, LISTING_STATUSES)),
     // What a non-draft listing must have

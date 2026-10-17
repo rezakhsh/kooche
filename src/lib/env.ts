@@ -9,6 +9,20 @@ const redisUrl = z.url({ protocol: /^rediss?$/ });
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
 
+// Photo storage over the S3 API: Cloudflare R2 with EU jurisdiction on the server
+// (https://<account>.eu.r2.cloudflarestorage.com, region auto). Optional in development: without
+// it, photo upload is switched off.
+const s3Fields = {
+  S3_ENDPOINT: optional(z.url({ protocol: /^https?$/ })),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET_MEDIA: optional(z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/)),
+  S3_ACCESS_KEY_ID: optional(z.string().min(1)),
+  S3_SECRET_ACCESS_KEY: optional(z.string().min(1)),
+};
+const hasS3 = (e: { S3_ENDPOINT?: string; S3_BUCKET_MEDIA?: string; S3_ACCESS_KEY_ID?: string; S3_SECRET_ACCESS_KEY?: string }) =>
+  !!(e.S3_ENDPOINT && e.S3_BUCKET_MEDIA && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY);
+const hex = z.string().regex(/^([0-9a-f]{2}){16,}$/, 'hex, at least 16 bytes');
+
 const webSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_URL: z.url(),
@@ -34,10 +48,20 @@ const webSchema = z.object({
   // `off` sends X-Robots-Tag: noindex on every page, so search engines skip staging and test
   // data. Set to `on` in production only.
   SEARCH_INDEXING: z.enum(['on', 'off']).default('off'),
-}).refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
-  message: 'SMTP_URL and EMAIL_FROM are required in production',
-  path: ['SMTP_URL'],
-});
+  ...s3Fields,
+  // imgproxy behind Cloudflare (https://img-staging.peydoo.com), with its signing key and salt
+  IMAGE_URL: optional(z.url({ protocol: /^https?$/ })),
+  IMGPROXY_KEY: optional(hex),
+  IMGPROXY_SALT: optional(hex),
+})
+  .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
+    message: 'SMTP_URL and EMAIL_FROM are required in production',
+    path: ['SMTP_URL'],
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.IMAGE_URL && e.IMGPROXY_KEY && e.IMGPROXY_SALT), {
+    message: 'S3_*, IMAGE_URL, IMGPROXY_KEY and IMGPROXY_SALT are required in production',
+    path: ['S3_ENDPOINT'],
+  });
 
 const workerSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -45,6 +69,15 @@ const workerSchema = z.object({
   REDIS_URL: redisUrl,
   // Phone verification bot (long polling). Unset: the bot doesn't run (local development).
   TELEGRAM_BOT_TOKEN: optional(z.string().regex(/^[0-9]+:[A-Za-z0-9_-]{30,}$/)),
+  ...s3Fields,
+  // Expiry reminders: the links in the email, and the same SES SMTP as the login codes. Without
+  // SMTP_URL the reminder is printed to the log (development).
+  APP_URL: z.url(),
+  SMTP_URL: optional(z.url({ protocol: /^smtps?$/ })),
+  EMAIL_FROM: optional(z.string().min(3)),
+}).refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
+  message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
+  path: ['S3_ENDPOINT'],
 });
 
 // The `migrate` Docker target: after the migrations it asks Coolify to deploy web and worker.

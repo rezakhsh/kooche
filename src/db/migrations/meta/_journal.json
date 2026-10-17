@@ -43,6 +43,13 @@
       "when": 1792183288049,
       "tag": "0005_readonly_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792235650090,
+      "tag": "0006_listing_district",
+      "breakpoints": true
     }
   ]
 }

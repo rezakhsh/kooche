@@ -20,7 +20,17 @@ export type OutboxHandlers = Readonly<Record<string, readonly OutboxHandler[]>>;
 interface OutboxRow {
   id: string;
   event_type: string;
+  aggregate_id: string;
+  payload: Record<string, unknown>;
 }
+
+/** What every outbox job carries: the event's ids and small facts. Handlers re-read the rest. */
+export type OutboxJobData = {
+  outboxId: string;
+  eventType: string;
+  aggregateId: string;
+  payload: Record<string, unknown>;
+};
 
 /**
  * Hands one batch of due events to BullMQ and marks them processed, in one transaction.
@@ -29,7 +39,7 @@ interface OutboxRow {
 export async function processOutboxBatch(sql: postgres.Sql, handlers: OutboxHandlers): Promise<number> {
   return sql.begin(async (tx) => {
     const rows = await tx<OutboxRow[]>`
-      SELECT id, event_type FROM outbox_events
+      SELECT id, event_type, aggregate_id, payload FROM outbox_events
       WHERE processed_at IS NULL AND available_at <= now()
       ORDER BY id
       LIMIT ${BATCH_SIZE}
@@ -39,13 +49,20 @@ export async function processOutboxBatch(sql: postgres.Sql, handlers: OutboxHand
 
     for (const row of rows) {
       const targets = handlers[row.event_type] ?? [];
-      if (targets.length === 0) {
+      // A type registered with no handlers is known and needs nothing yet; an unknown one is logged
+      if (!(row.event_type in handlers)) {
         console.warn(`outbox: no handler for ${row.event_type} (${row.id}), marking it processed`);
       }
       for (const handler of targets) {
         // The job id makes a retried hand-off idempotent: BullMQ drops a job whose id it already
         // has. BullMQ rejects ":" in custom ids, hence "_".
-        await handler.queue.add(handler.name, { outboxId: row.id }, { jobId: `${row.id}_${handler.name}` });
+        const data: OutboxJobData = {
+          outboxId: row.id,
+          eventType: row.event_type,
+          aggregateId: row.aggregate_id,
+          payload: row.payload,
+        };
+        await handler.queue.add(handler.name, data, { jobId: `${row.id}_${handler.name}` });
       }
     }
 

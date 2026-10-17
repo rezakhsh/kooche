@@ -1,5 +1,5 @@
 import type { Queue } from 'bullmq';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { processOutboxBatch } from '../src/worker/outbox';
 import { client } from './db';
 
@@ -25,6 +25,10 @@ async function processedAt(id: string) {
   return row!.processed_at;
 }
 
+// Other test files leave unprocessed events behind (the posting tests write real ones)
+beforeEach(async () => {
+  await client`DELETE FROM outbox_events`;
+});
 afterEach(async () => {
   await client`DELETE FROM outbox_events`;
 });
@@ -43,8 +47,8 @@ describe('processOutboxBatch', () => {
     });
 
     expect(handled).toBe(1);
-    expect(search.add).toHaveBeenCalledWith('search', { outboxId: id }, { jobId: `${id}_search` });
-    expect(notify.add).toHaveBeenCalledWith('notify', { outboxId: id }, { jobId: `${id}_notify` });
+    expect(search.add).toHaveBeenCalledWith('search', expect.objectContaining({ outboxId: id, eventType: 'listing.published' }), { jobId: `${id}_search` });
+    expect(notify.add).toHaveBeenCalledWith('notify', expect.objectContaining({ outboxId: id, eventType: 'listing.published' }), { jobId: `${id}_notify` });
     expect(await processedAt(id)).not.toBeNull();
   });
 

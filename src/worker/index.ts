@@ -6,6 +6,7 @@ import postgres from 'postgres';
 import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
 import { type OutboxHandlers, BATCH_SIZE, processOutboxBatch } from './outbox';
+import { startListingJobs } from './listings';
 import { startRetention } from './retention';
 import { runTelegramBot } from './telegram';
 
@@ -28,8 +29,8 @@ const db = drizzle(sql, { schema });
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 connection.on('error', (e) => console.error('valkey:', e.message));
 
-// Event type → handlers. Empty until the first feature that writes outbox events.
-const handlers: OutboxHandlers = {};
+// Event type → handlers, registered by the features in main()
+let handlers: OutboxHandlers = {};
 
 let stopping = false;
 const abort = new AbortController();
@@ -56,6 +57,8 @@ async function main(): Promise<void> {
   console.log('worker: connected to PostgreSQL and Valkey, polling the outbox');
 
   const retention = await startRetention(sql, connection);
+  const listingJobs = await startListingJobs(db, connection);
+  handlers = { ...listingJobs.handlers };
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
     ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
@@ -66,7 +69,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };
