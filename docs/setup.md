@@ -264,7 +264,7 @@ The S3 credentials of an R2 token are its id (access key id) and the SHA-256 of 
 
 **imgproxy.** Coolify application `classifieds-imgproxy`, Docker image `ghcr.io/imgproxy/imgproxy:v4.0.16`, 256 MB, 2 workers. It has no published port: Traefik routes `img-staging.peydoo.com` to it, and the firewall lets only Cloudflare reach Traefik. `IMGPROXY_BASE_URL=s3://classifieds-media-staging/`, so a URL carries only the base64 storage key, never the bucket. Every URL is signed (`IMGPROXY_KEY`/`IMGPROXY_SALT`, in `/root/.secrets/imgproxy.env` and in Coolify for imgproxy and web); unsigned or changed URLs get 403. Only three sizes exist (`src/modules/media/imgproxy.ts`: thumb 160², card 480×360, full 1280), each as AVIF and WebP. URLs end in `.avif`/`.webp`, so Cloudflare caches them by extension: `Cache-Control: public, max-age=31536000`, second request `cf-cache-status: HIT` (tested). Masters never change (a new photo is a new key), so nothing needs purging. imgproxy v4 renamed `IMGPROXY_CONCURRENCY` to `IMGPROXY_WORKERS`.
 
-**CSP.** `src/proxy.ts` adds the R2 endpoint's origin to `connect-src` (uploads) and `IMAGE_URL`'s origin to `img-src`. `Permissions-Policy` allows geolocation for our own origin ("use my location", snapped to ~500 m in the browser and again on the server).
+**CSP.** `src/proxy.ts` adds the R2 endpoint's origin to `connect-src` (uploads) and `IMAGE_URL`'s origin to `img-src`. `Permissions-Policy` allows geolocation for our own origin ("use my location", snapped to ~500 m in the browser and again on the server). The outline map is inline SVG with class attributes only, so the CSP needs nothing new.
 
 ## Alerts
 
@@ -288,6 +288,28 @@ To add a check:
 - **A job on the server:** call `kooche-alert event|status|heartbeat`.
 - **Several reports at once:** send them as one `kooche-alert batch '[...]'`. Parallel n8n runs overwrite each other's memory, so separate requests sent at the same moment can lose state.
 
+## Countries, places and the map
+
+Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify, MapTiler, Stadia), self-hosted address search (Photon, Nominatim: several GB of data and 1–2 GB of memory, too heavy for this server) and our own map tiles (PMTiles: 2.6 GB for Germany and Austria, 11 GB for Europe, on R2):
+
+- **No outside address or map service.** The seller types a postal code or town, with suggestions from our own GeoNames postal codes (`postal_places`, about 34,000 rows for DE and AT, a few MB), or taps "use my location" (the browser's own geolocation, free; the position is snapped to ~500 m before it leaves the browser and again on the server). No street is asked for or stored.
+- **The map is an outline of the country** with a dot (`src/components/outline-map.tsx`): SVG drawn from Natural Earth (public domain), inside our own pages, no tiles, no storage, no third party. A real street map can replace it later without any change to stored data: either MapLibre with our own PMTiles extract on R2 (~€0.05/month for DE+AT) or a hosted style.
+- **Home page:** the list of open countries; `/{slug}` (`/germany`, `/austria`) shows that country's newest listings. The choice is kept in the `country` cookie (slug, one year, set by the browser on the country page) and the header links back to the list (`/?choose`). Cloudflare's `CF-IPCountry` highlights the visitor's country when the request really came through Cloudflare. City pages go under the country later (`/germany/berlin`).
+- **Currency:** always the country's `default_currency`; no currency field in the form.
+- **Open now:** Germany and Austria (EUR). **Seeded, closed:** Turkey (TRY), with SMS to Turkish numbers off.
+
+**Opening another country** (checklist):
+1. Regions and cities in `seed/locations/<cc>.ts` (GeoNames ids, coordinates, time zones; Persian names read by a native speaker; city slugs unique across all countries).
+2. Postal codes: download `https://download.geonames.org/export/zip/<CC>.zip` and run `node scripts/import-postal-codes.mjs <CC>.txt <cc>`; add the code to `POSTAL_COUNTRIES` in `seed/postal/index.ts`. Check odd place-name formats first (Austria's city districts needed a rewrite).
+3. Outline: `node scripts/build-country-outlines.mjs ne_10m_admin_1_states_provinces.geojson DE AT <CC>`.
+4. Currency in `seed/currencies.ts` with its minor unit; prices and Stripe products in that currency.
+5. Banned terms in the local language (`src/modules/moderation/`).
+6. Terms and privacy cover the country. Outside the EU (UK, Switzerland, Turkey): their own data-protection law (UK GDPR, FADP, KVKK) and VAT on Pro payments.
+7. If the country was kept out of SMS (`SMS_CLOSED` in `src/modules/users/phone-number.ts`), take it out.
+8. Set it active in `seed/countries.ts` (and a `sortOrder`), run the tests, deploy, then run the seed on the server (below).
+
+**Seeding on staging.** The seed is not part of the deploy. After a deploy whose migrations need new reference data (like 0008), run it once as `classifieds_owner` from a throwaway container on the `coolify` network, the same way as the first setup ("Database setup"): `npm run db:seed` with `MIGRATION_DATABASE_URL`. It runs in one transaction with the seed checks, and can be rerun. Until it has run, the country list is empty and posting finds no postal codes; old listings keep working.
+
 ## Memory budget
 
 **Now (CX23, 4 GB, staging):** limits, and use measured on Oct 16, 2026 right after the first app deploy (idle, after 20 page loads).
@@ -304,6 +326,8 @@ To add a check:
 | System reserve | ~1 GB | |
 
 Whole server at that moment: 1.95 GB used, 1.87 GB available, 214 MB of swap used (pushed out during the image builds). About 1 GB of the "used" figure was Claude Code sessions running on the server, not the product. Close idle sessions before heavy builds.
+
+Places (Oct 17, 2026): `postal_places` adds a few MB to PostgreSQL; no new service, and the outline map is part of the pages.
 
 **After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
 

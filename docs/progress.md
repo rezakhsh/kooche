@@ -238,8 +238,35 @@ Fixed after the owner tried it (`52bd5f9`, migration `0007`):
 - The owner's 10 empty drafts were deleted through the normal delete path, and today's draft counter in Valkey was cleared.
 
 Next:
-1. Countries (Germany and Austria), address entry with a map, and currency taken from the country: planned in its own session (branch `countries-address-map`), to be approved by the owner first.
+1. ~~Countries (Germany and Austria), address entry with a map, and currency taken from the country.~~ Done, see below.
 2. Persian terms of use, so `policy_ground` can name real sections instead of `terms-prohibited-items`.
 3. Draft clean-up (drafts untouched for months) and the 12-month purge of deleted listings with their R2 files.
 4. Turnstile on posting; new-account limits (phase 4).
 5. Production at launch: its own two R2 tokens for `classifieds-media`, CORS for `peydoo.com`, `img.peydoo.com`.
+
+## Oct 17, 2026: countries, places and currency
+
+Decided by the owner (Oct 17, 2026), after a plan with hosted geocoders, self-hosted address search and own map tiles compared:
+- No outside address or map service. Sellers give a postal code or town, or use the browser's location (free). No street.
+- Like Kleinanzeigen, the place is saved on the account and pre-fills the next listings; each listing keeps its own place and can change it.
+- The rounded ~500 m point is kept when the browser location is used ("near me" search later).
+- The map is a drawn outline of the country with a dot, not a street map.
+- The home page lists the countries (like Divar's list of cities); Germany and Austria open; Turkey added but closed.
+- The currency comes from the country; sellers no longer choose it.
+
+Done (branch `location-map`):
+- **Home page** `/`: the open countries, the visitor's own highlighted (Cloudflare's country header). **Country pages** `/germany`, `/austria`: newest listings, 24 at a time with a "more" link. The choice is remembered in a cookie and shown in the header with a link back to the list.
+- **Posting form:** country, "postal code or town" with suggestions from our own GeoNames postal codes and our cities (Persian names too), optional district text, "use my location" (snapped in the browser and on the server; fills in the nearest postal code), the outline map as a preview, and "remember for my next listings". The currency select is gone; the amount shows the country's currency. Works without JavaScript (the server resolves what was typed).
+- **"My location"** at `/account/place`: set or remove the saved place (postal code, place, district; never a position).
+- **Listing page:** "12045 Berlin", the city (or "near Frankfurt" for a town that isn't the city), the district, and the outline map with a caption saying how exact it is. JSON-LD carries the postal code and place.
+- **Data:** Austria's 9 states and 29 cities; postal codes for Germany (15,050 places) and Austria (18,998); country web addresses; Turkey and the lira (closed; no SMS to Turkish numbers yet). Three new seed checks.
+- **Migration `0008`:** `postal_places`, `countries.slug`, `listings.postal_code` and `place_name`, the `postal_code` precision, the saved place on `users`, an index for the country page, and `erase_user` clearing the saved place. Additive only.
+- **Tests:** 22 new (207 in total), all passing: the stored point is never the exact one and never in the row, positions abroad or far from the place refused, the currency always follows the country (a forged currency is ignored; no listing in the database differs), Austria and the postal codes seeded with a city each, Turkey closed and without SMS, place search and resolution, the saved place (and `erase_user` clearing it), the country page's paging. The production build passes, and the pages were checked in headless Chromium against the test data (home, Austria page, listing page, posting form with suggestions, "my location").
+- Docs: `docs/setup.md` ("Countries, places and the map", with the checklist for opening a country), `docs/schema.md` (sections 4, 6, 8 and 17), `seed/README.md`.
+
+Next:
+1. Merge into `main` (deploys migration 0008), then run the seed once on staging as `classifieds_owner` (`docs/setup.md`, "Seeding on staging"). Until then the country list is empty.
+2. A native speaker reads the Persian names of the Austrian states and cities.
+3. City pages under the country (`/germany/berlin`) and category filters on the country page.
+4. "Near me" search on the stored ~500 m points.
+5. Later, if wanted: street-level address search and a real street map (both possible without changing stored data).

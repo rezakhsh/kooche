@@ -109,10 +109,11 @@ Seeded from files in Git (`seed/`). The app reads them from a Valkey cache, so t
 | `code` | `text` PK | ISO 3166-1 alpha-2, `CHECK (code ~ '^[A-Z]{2}$')` |
 | `name_fa` | `text` | «آلمان» |
 | `name_local` | `text` | Deutschland |
-| `default_currency` | `text` FK → `currencies` | Preselected when posting |
+| `default_currency` | `text` FK → `currencies` | The currency of every listing in the country; the seller doesn't choose it (decided Oct 17, 2026) |
 | `phone_prefix` | `text` | `+49`. Only for the phone input. Users' phones may be from any country, so there is no FK from phone numbers. |
 | `is_active` | `boolean DEFAULT false` | Countries open for listings |
 | `sort_order` | `smallint DEFAULT 0` | |
+| `slug` | `text null UNIQUE` | Web address of the country page: `/germany`, `/austria` (migration 0008). A name, never the two-letter code, which clashes with our own routes (`/my` is Malaysia). Filled by the seed; a seed check keeps it out of the route names. |
 
 ### `locations`
 
@@ -253,7 +254,9 @@ Standard columns, plus:
 | `staff_role` | `text null` | `CHECK IN ('moderator','admin')`. Null for normal users. |
 | `two_factor_enabled` | `boolean DEFAULT false` | Better Auth `twoFactorEnabled`. Staff without it are refused at login. That rule is in the app, so a role can be granted before the person enrolls. |
 | `trust_score` | `smallint DEFAULT 50` | `CHECK (BETWEEN 0 AND 100)`. Computed by the worker (account age, verified phone, upheld reports, sanctions). |
-| `home_location_id` | `uuid null` FK → `locations` | Default city for browsing and posting |
+| `home_location_id` | `uuid null` FK → `locations` | The city of the seller's saved place, pre-filled in new listings |
+| `home_postal_code`, `home_place_name` | `text null` | The saved place's postal code and place name, as on a listing (migration 0008). Same CHECKs as `listings`. |
+| `home_district` | `text null` | The saved district text, `CHECK (char_length BETWEEN 1 AND 60)`. `erase_user` clears all four `home_*` columns. No position is ever saved on the account. |
 | `notification_prefs` | `jsonb DEFAULT '{}'` | Channels and quiet hours, validated by Zod |
 | `status` | `text DEFAULT 'active'` | `CHECK IN ('active','deactivated','deleted')` |
 | `last_seen_at` | `timestamptz null` | Written at most once an hour |
@@ -392,6 +395,28 @@ Standard columns, plus `organization_id` FK CASCADE, `email text null`, `phone_e
 
 Indexes: `UNIQUE (token_hash)` (accepting the link), and `(organization_id) WHERE accepted_at IS NULL AND revoked_at IS NULL` (pending invitations list).
 
+### `postal_places`
+
+Postal codes and their places from GeoNames (migration 0008), reference data like `locations`: written only by the seed, `SELECT` for the app, worker and readonly roles. The posting form searches them, and "use my location" finds the nearest one. 15,050 places for Germany (8,172 codes; the codes of large recipients such as companies and PO boxes are left out) and 18,998 for Austria (2,501 codes).
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK `DEFAULT uuidv7()` | |
+| `country_code` | `text` FK → `countries` | |
+| `postal_code` | `text` | `CHECK (~ '^[0-9A-Z][0-9A-Z -]{1,9}$')` |
+| `place_name` | `text` | As written locally: `Berlin`, `Gießen`, `Graz, Innere Stadt`. `CHECK (char_length BETWEEN 1 AND 100)` |
+| `place_search` | `text` | `foldLatin(place_name)`: lowercase, ä→ae, ö→oe, ü→ue, ß→ss, other accents removed |
+| `center` | `geography(Point,4326)` | Centre of the place (GeoNames) |
+| `location_id` | `uuid null` | Nearest active seeded city of the same country, set by the seed (composite FK `(location_id, country_code)`). The city a listing with this postal code joins. A seed check requires it on every active row. |
+| `is_active` | `boolean DEFAULT true` | Rows that leave the source are set inactive, never deleted |
+
+| Index | Serves |
+| --- | --- |
+| `UNIQUE (country_code, postal_code, place_name)` | Seed upserts; finding a listing's place again |
+| `(country_code, postal_code text_pattern_ops)` | Suggestions by code prefix ("120…") |
+| `(country_code, place_search text_pattern_ops)` | Suggestions by name prefix ("muen…") |
+| `GIST (center)` | Nearest postal code to a ~500 m point |
+
 ---
 
 ## 8. Listings
@@ -414,13 +439,15 @@ Standard columns, plus:
 | `attributes` | `jsonb DEFAULT '{}'` | Category fields, validated against `category_attributes` (section 5) |
 | `price_type` | `text DEFAULT 'fixed'` | `CHECK IN ('fixed','negotiable','free','exchange','on_request')`. «مقطوع», «قابل مذاکره», «رایگان», «معاوضه», «توافقی» |
 | `price_minor` | `bigint null` | `CHECK (price_minor >= 0)` |
-| `currency` | `text null` FK → `currencies` | Usually the country's default, but can be changed (EUR in Switzerland) |
+| `currency` | `text null` FK → `currencies` | Always the country's `default_currency`, set by the listings module (decided Oct 17, 2026); the seller can't choose it. A test checks that no listing differs. |
 | `country_code` | `text null` FK → `countries` | Null only in drafts |
 | `location_id` | `uuid null` | City. Composite FK `(location_id, country_code) → locations (id, country_code)`. The app checks that it is a city. |
 | `district` | `text null` | Optional district or neighbourhood typed by the seller (migration 0006), `CHECK (char_length BETWEEN 1 AND 60)`. Shown next to the city; never an address. |
 | `district_normalized` | `text null` | `CHECK ((district IS NULL) = (district_normalized IS NULL))` |
+| `postal_code` | `text null` | Copied from `postal_places` (migration 0008). Null when the seller chose a city by its Persian name, and for listings from before. Same CHECK as `postal_places.postal_code`. |
+| `place_name` | `text null` | Copied from `postal_places`: the town shown next to the code ("12045 Berlin"), and "near <city>" when it isn't the city. Never a street. |
 | `point` | `geography(Point,4326) null` | **Never the exact point.** Either the city centre, or the seller's point snapped by the app to the centre of a ~500 m grid cell (latitude step 0.0045°, longitude step 0.0045°/cos(latitude)) before it is written. The exact coordinates are never sent to the database. |
-| `location_precision` | `text null` | `CHECK IN ('city','area')`. The page shows either the city or a ~500 m circle. |
+| `location_precision` | `text null` | `CHECK IN ('city','postal_code','area')` (`postal_code` since migration 0008): the city centre, the centre of the postal-code area, or the seller's ~500 m cell. The page shows it as a dot on an outline of the country, with a caption saying which. |
 | `shipping_offered` | `boolean DEFAULT false` | "Ships" filter for country-wide browsing (the audience is spread out) |
 | `allow_phone_contact` | `boolean DEFAULT false` | Phone hidden by default. Chat is always available. |
 | `status` | `text DEFAULT 'draft'` | `CHECK IN ('draft','pending_review','active','paused','sold','expired','rejected','deleted')` |
@@ -463,6 +490,7 @@ Storage: `WITH (fillfactor = 90)`, so the frequent `view_count` updates (on an u
 | Index | Serves |
 | --- | --- |
 | `UNIQUE (public_token)` | Listing page |
+| `(country_code, ranked_at DESC, id DESC) WHERE status = 'active'` | The country page (`/germany`), all categories, newest first (migration 0008) |
 | `(country_code, category_id, ranked_at DESC, id DESC) WHERE status = 'active'` | Country-wide category pages ("cars in Germany"). For a parent category, `category_id = ANY($leaf_ids)`. **(Plan index 1.)** |
 | `(location_id, category_id, ranked_at DESC, id DESC) WHERE status = 'active'` | `/{city}/{category}`, the main browse page in a city-first site |
 | `(location_id, ranked_at DESC, id DESC) WHERE status = 'active'` | `/{city}` with all categories: the city home page, the most visited page |
@@ -1088,3 +1116,11 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Expiry** (`expireDueListings`, worker queue `listings`, every 15 minutes): one statement per batch of 500 sets `expired` and writes the event and the outbox row. **Reminder** (`sendExpiryReminders`, daily 09:00 Europe/Berlin): one email per seller about listings expiring in 2–3 days, through SES; a Valkey key per listing and expiry stops repeats. **Abandoned uploads** (daily 02:45 UTC): photo rows still `pending_upload` or `processing` after 24 hours are deleted with their objects and positions close up.
   - **Outbox event types:** `listing.created|published|updated|submitted|paused|resumed|sold|expired|renewed|rejected|deleted`, `listing_image.uploaded` and `listing_image.deleted` (the payload carries the storage key, since the row is gone). Outbox jobs now carry `eventType`, `aggregateId` and `payload` besides `outboxId`. Types registered with no handler yet (search sync comes later) are marked processed without a warning.
   - **Grants:** none changed. The app writes listings, images, events and outbox; the worker expires, processes photos, writes decisions and deletes image rows.
+- **Countries, places and currency (Oct 17, 2026).** Decided by the owner: no outside address or map service; the seller gives a postal code or town (our own data) or uses the browser's location; the home page lists the countries; Germany and Austria open, Turkey seeded but closed; the currency comes from the country. Migration `0008`: `postal_places` (with its grants), `countries.slug`, `listings.postal_code`, `listings.place_name`, `'postal_code'` in `listings_location_precision_check`, `users.home_postal_code`, `home_place_name`, `home_district`, the index `listings_country_ranked_idx`, and `erase_user` replaced to clear the saved place. All additive, so the old code runs on the new schema.
+  - **Resolving a place** (`src/modules/listings/places.ts`). A picked suggestion (`p:<postal place>` or `c:<city>`) is used as it is, in its own country only. Typed text is resolved on the server: a postal code ("8010", "12045 Berlin", Persian digits too) takes the place whose name matches the rest, else the one nearest its city's centre, then by name; a Persian or local city name gives the city; a town name gives its postal place, or `ambiguous` when the name exists in places that lead to different cities (Schönberg). The browser position is snapped in the browser and again on the server; without text it finds the nearest postal code within 40 km in the chosen country, so a position abroad is refused (`too_far`), and with a place it must lie within 40 km of it.
+  - **Point stored:** the snapped position (`area`), else the postal-code centre (`postal_code`), else the city centre (`city`). The exact position never reaches the database or the HTML (tests).
+  - **Currency:** `prepare()` reads the country's `default_currency`; a `currency` field in the input is ignored. An amount without a country is refused (`countryCode: required`).
+  - **Saved place:** "remember for my next listings" (ticked until the account has one) writes `home_*` in the same transaction as the listing; `/account/place` sets or clears it. A new listing starts with the saved place, else in the country chosen on the home page (cookie `country`, the country slug, one year).
+  - **Seed:** `seed/postal/<cc>.tsv` written by `scripts/import-postal-codes.mjs` from GeoNames' postal-code files; the loader upserts in batches of 1,000, deactivates rows no longer in the file and sets `location_id` to the nearest active city with one `UPDATE` (KNN on `locations_center_idx`). New seed checks: an active country has a slug, an active city and postal codes; country slugs are not route names; every active postal code leads to an active city of its country.
+  - **SMS:** Turkey is in `seed/countries.ts` but excluded from `SMS_COUNTRIES` until it opens.
+  - **Outline map:** `scripts/build-country-outlines.mjs` turns Natural Earth's admin-1 borders (public domain) into simplified SVG paths per country (`src/modules/listings/outline-data.ts`, about 20 KB for Germany and 5 KB for Austria), drawn by `src/components/outline-map.tsx` with the listing's point as a dot. No map tiles.
