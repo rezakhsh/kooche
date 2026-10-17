@@ -264,8 +264,10 @@ Done (branch `location-map`):
 - **Tests:** 22 new (207 in total), all passing: the stored point is never the exact one and never in the row, positions abroad or far from the place refused, the currency always follows the country (a forged currency is ignored; no listing in the database differs), Austria and the postal codes seeded with a city each, Turkey closed and without SMS, place search and resolution, the saved place (and `erase_user` clearing it), the country page's paging. The production build passes, and the pages were checked in headless Chromium against the test data (home, Austria page, listing page, posting form with suggestions, "my location").
 - Docs: `docs/setup.md` ("Countries, places and the map", with the checklist for opening a country), `docs/schema.md` (sections 4, 6, 8 and 17), `seed/README.md`.
 
+Deployed to staging Oct 17, 2026 (`2782e7d`): `classifieds-migrate` applied `0008_location_places`, then web and worker came up healthy. The seed was run once as `classifieds_owner` from a throwaway container on the `coolify` network (16 currencies, 37 countries, 25 regions, 81 cities, 34,048 postal places; seed checks passed). `/` lists Germany and Austria, `/germany` and `/austria` answer 200, `/turkey` 404. Staging has no live listings yet (only deleted test drafts), so both country pages are empty. Memory right after: web 70 MB, worker 65 MB, PostgreSQL 85 MB, Valkey 5 MB; 1.71 GB available on the server.
+
 Next:
-1. Merge into `main` (deploys migration 0008), then run the seed once on staging as `classifieds_owner` (`docs/setup.md`, "Seeding on staging"). Until then the country list is empty.
+1. The owner tries posting with a postal code, a town and "use my location" on staging.
 2. A native speaker reads the Persian names of the Austrian states and cities.
 3. City pages under the country (`/germany/berlin`) and category filters on the country page.
 4. "Near me" search on the stored ~500 m points.
