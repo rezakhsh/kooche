@@ -129,7 +129,7 @@ Done:
 - Settings in Coolify and `/root/.secrets/auth.env`, details in `docs/setup.md`, "Accounts and phone verification".
 
 Next:
-1. Clean-up jobs in the worker: expired sessions (30 days), login codes (1 day), phone verification attempts (90 days) (`docs/schema.md`, section 14).
+1. ~~Clean-up jobs in the worker: expired sessions (30 days), login codes (1 day), phone verification attempts (90 days) (`docs/schema.md`, section 14).~~ Done, see below.
 2. A "your name" field (accounts start as «کاربر») with the profile or posting feature.
 3. Staff two-factor login before the first moderator account.
 4. Turnstile on the login form once the Cloudflare proxy is on.
@@ -157,3 +157,15 @@ Next:
 1. The `kooche-coolify` GitHub App's homepage and callback URLs still name `coolify.taskpilot.dev`. They aren't used after installation, but should be changed in GitHub's App settings.
 2. At launch: `peydoo.com` and `www` for production, `SEARCH_INDEXING=on`, the HSTS `preload` decision, a production Telegram bot, and staging moving to its own server (`docs/setup.md`, "Domain and Cloudflare").
 3. Turnstile on sign-in and posting, Cloudflare cache rules with caching of logged-out pages.
+
+## Oct 17, 2026: retention of account data
+
+Done:
+- Daily worker job `account-retention` (BullMQ job scheduler on queue `retention`, 02:30 UTC): deletes expired sessions 30 days after `expires_at`, login codes 1 day after `expires_at` and phone verification attempts 90 days after `created_at`, as `classifieds_worker`, in batches of 5,000 (at most 100 per table per run). Logs one line with the three counts. Details in `docs/schema.md`, section 17.
+- No migration: the worker's grants and the existing indexes were already enough.
+- First BullMQ queue and `Worker` in the worker; it closes cleanly on SIGTERM. The job scheduler keeps the schedule in Valkey, so restarts and rolling deploys don't run it twice.
+- 5 new tests (109 in total), run as `classifieds_worker`: rows past each cut-off are deleted, newer ones stay, batching and the per-run batch cap. The worker bundle was also run against a scratch database: it registered the schedule (next run 02:30 UTC) and a manually queued run deleted an expired session and kept a live one.
+
+Next:
+1. Retention for `outbox_events` (7 days after processing) and `webhook_events` (90 days), and scheduling `purge_audit_log`, `scrub_audit_ip` and `purge_moderation_records` on the same `retention` queue (`docs/schema.md`, section 14).
+2. After the next deploy, check the worker log on 02:30 UTC for the first `retention:` line.

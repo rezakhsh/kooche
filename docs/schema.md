@@ -1016,9 +1016,9 @@ Proposed periods. They go into the privacy policy and get checked by the lawyer.
 
 | Data | Kept | How |
 | --- | --- | --- |
-| Expired `sessions` | 30 days after expiry | Worker job |
-| `verifications` | 1 day after expiry | Worker job |
-| `phone_verifications` | 90 days | Worker job |
+| Expired `sessions` | 30 days after expiry | Worker job `account-retention`, daily |
+| `verifications` | 1 day after expiry | Worker job `account-retention`, daily |
+| `phone_verifications` | 90 days after creation | Worker job `account-retention`, daily |
 | `outbox_events` | 7 days after processing | Worker job |
 | `webhook_events` | 90 days | Worker job |
 | `audit_log` | 2 years; IP and user agent 90 days | `SECURITY DEFINER` functions |
@@ -1073,6 +1073,7 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - Nobody but the owner deletes `users`, `organizations`, `reports` or `user_sanctions`. Only the worker deletes `listings` (purge), `conversations`, `messages`, `phone_verifications`, `outbox_events` and `webhook_events` (retention).
   - The worker may update only `applied_at`, `revoked_at` and `revoke_reason` on `entitlements`.
 - **Retention functions.** `purge_audit_log(older_than, max_rows)`, `scrub_audit_ip(older_than, max_rows)` and `purge_moderation_records(older_than, max_rows)` work in batches and refuse ages below the periods in section 14 (2 years, 90 days, 2 years). `purge_moderation_records` deletes resolved or dismissed reports, then decisions that no report, sanction, listing event or appeal references any more.
+- **Account data retention (Oct 17, 2026).** `purgeAccountData()` in `src/modules/users/retention.ts` deletes sessions whose `expires_at` is more than 30 days ago, login codes (`verifications`) whose `expires_at` is more than 1 day ago and `phone_verifications` whose `created_at` is more than 90 days ago. The periods are constants in code, not parameters. Like the functions above it deletes in batches (5,000 rows, oldest id first, at most 100 batches per table per run; the rest waits for the next run). Ids are UUIDv7, so `ORDER BY id` walks the primary key from the oldest row and `phone_verifications` needs no `created_at` index. The worker runs it as `classifieds_worker` (the grants in `0003` already allow it, no migration) through a BullMQ job scheduler, `account-retention` on queue `retention`, daily at 02:30 UTC, before the backup at 03:15. The schedule lives in Valkey, so a restart doesn't reset it and overlapping workers during a rolling deploy run it once. Each run logs one line with the three counts (`retention: deleted … expired sessions, … login codes, … phone verification attempts`).
 - **`erase_user`** also deletes the user's blocks, phone verification attempts, pending login codes and invitations addressed to them, and closes their open conversations. Listings posted for an organization stay with the organization (section 8); only private listings become `deleted`, each with a `listing_events` row and a `listing.deleted` outbox event. A `user.erased` outbox event carries the old avatar key so the worker can delete the file.
 - **Option values** use the attribute key pattern with hyphens: `^[a-z][a-z0-9_-]{0,39}$`.
 - **Seeds.** Countries: EU, EEA, Switzerland, UK, US, Canada, Australia, Malaysia (36), only Germany active. 15 currencies. Germany: 16 Länder and 52 cities from GeoNames. Categories: 13 roots and 115 leaves merging Divar and Kleinanzeigen (approved Oct 16, 2026). A row removed from a seed file is set inactive, never deleted.

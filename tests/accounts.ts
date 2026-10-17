@@ -16,16 +16,22 @@ const redisUrl = process.env.TEST_REDIS_URL;
 if (!url) throw new Error('TEST_DATABASE_URL is not set');
 if (!redisUrl) throw new Error('TEST_REDIS_URL is not set (a Valkey database the tests may empty)');
 
-function asRole(role: 'classifieds_app' | 'classifieds_worker'): { db: Db; end: () => Promise<void> } {
+function asRole(role: 'classifieds_app' | 'classifieds_worker'): {
+  db: Db;
+  sql: postgres.Sql;
+  end: () => Promise<void>;
+} {
   // `role` as a startup parameter: every session of this pool runs as that role
   const client = postgres(url!, { max: 2, onnotice: () => {}, connection: { role } });
-  return { db: drizzle(client, { schema }), end: () => client.end() };
+  return { db: drizzle(client, { schema }), sql: client, end: () => client.end() };
 }
 
 const app = asRole('classifieds_app');
 const worker = asRole('classifieds_worker');
 export const appDb = app.db;
 export const workerDb = worker.db;
+/** postgres.js client as classifieds_worker, for code that takes raw SQL (outbox, retention) */
+export const workerSql = worker.sql;
 export const redis = new Redis(redisUrl, { maxRetriesPerRequest: 1 });
 
 afterAll(async () => {
