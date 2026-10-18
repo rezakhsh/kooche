@@ -7,10 +7,12 @@ import { publish } from './realtime';
 // from the session of the caller.
 
 /** Marks a conversation read and tells the other side (the "seen" ticks) and the reader's other tabs */
-export async function markReadAndPublish(userId: string, conversationId: string): Promise<void> {
+/** Returns whether anything was unread */
+export async function markReadAndPublish(userId: string, conversationId: string): Promise<boolean> {
   const result = await markRead(appDb(), { userId, conversationId });
-  if (!result.ok || !result.readAt) return;
+  if (!result.ok || !result.readAt) return false;
   const redis = valkey();
   await publish(redis, [result.otherId], { type: 'read', conversationId, readerId: userId, at: result.readAt.toISOString() });
   await publish(redis, [userId], { type: 'unread' });
+  return true;
 }

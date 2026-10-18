@@ -35,7 +35,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   const view = await conversationFor(db, user.id, id);
   if (!view) notFound();
   // Opening the conversation reads it (the other side sees "seen")
-  await markReadAndPublish(user.id, id);
+  const wasUnread = await markReadAndPublish(user.id, id);
 
   const before = sp.before && /^[0-9a-f-]{36}$/.test(sp.before) ? sp.before : undefined;
   const [page, actor, sanctions] = await Promise.all([
@@ -162,6 +162,7 @@ export default async function ConversationPage({ params, searchParams }: { param
         canWrite={readOnly === null}
         readOnly={readOnly}
         timeZone={env.APP_TIME_ZONE}
+        refreshBadge={wasUnread}
       />
     </main>
   );

@@ -26,6 +26,8 @@ type Props = {
   canWrite: boolean;
   readOnly: ReactNode;
   timeZone: string;
+  /** The page just read unread messages: the header, rendered alongside, still counts them */
+  refreshBadge?: boolean;
 };
 
 const t = messages.chat;
@@ -63,6 +65,12 @@ export function Thread(props: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const lastId = list.at(-1)?.id ?? null;
+
+  useEffect(() => {
+    if (props.refreshBadge) router.refresh();
+    // Once, after the first render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A server re-render (after an action or a reload) brings newer props: keep what we have too
   useEffect(() => setList((l) => merge(l, props.initial)), [props.initial]);

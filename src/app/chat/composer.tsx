@@ -28,13 +28,21 @@ export function Composer({
   const [text, setText] = useState('');
   // Without JavaScript the button must stay usable, so it is only disabled once hydrated
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    // Keep what was typed before the page finished loading
+    if (area.current?.value) setText(area.current.value);
+    setHydrated(true);
+  }, []);
   const form = useRef<HTMLFormElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
 
+  // What was sent: when the answer comes, only that is cleared, not something typed since
+  const sentBody = useRef<string | null>(null);
   useEffect(() => {
     if (state?.message) {
-      setText('');
+      const sent = sentBody.current;
+      sentBody.current = null;
+      setText((current) => (current === sent ? '' : current));
       onSent?.(state.message);
       area.current?.focus();
     }
@@ -73,7 +81,7 @@ export function Composer({
           {state.error}
         </p>
       )}
-      <form ref={form} action={action} className="flex items-end gap-2">
+      <form ref={form} action={action} onSubmit={() => (sentBody.current = text)} className="flex items-end gap-2">
         {hidden.conversationId && <input type="hidden" name="conversationId" value={hidden.conversationId} />}
         {hidden.listingToken && <input type="hidden" name="listingToken" value={hidden.listingToken} />}
         <label className="min-w-0 flex-1">
