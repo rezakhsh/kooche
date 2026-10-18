@@ -164,7 +164,9 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
       connection: connections[2]!,
       ...prefix,
       concurrency: 5,
-      limiter: { max: TELEGRAM_PER_SECOND, duration: 1_000 },
+      // One message every 40 ms rather than 25 at once each second: any one-second span then holds
+      // at most 26, well under Telegram's ~30 (a fixed window could let 50 through at its edge)
+      limiter: { max: 1, duration: Math.floor(1_000 / TELEGRAM_PER_SECOND) },
     },
   );
 
@@ -176,7 +178,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
       await opts.mailer(emailNotice(content));
       return 'sent';
     },
-    { connection: connections[3]!, ...prefix, concurrency: 2, limiter: { max: EMAIL_PER_SECOND, duration: 1_000 } },
+    { connection: connections[3]!, ...prefix, concurrency: 2, limiter: { max: 1, duration: Math.floor(1_000 / EMAIL_PER_SECOND) } },
   );
 
   const onFailed = (job: Job | undefined, e: Error) => {
