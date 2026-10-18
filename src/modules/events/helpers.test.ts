@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cardDate, formatEventWhen, formatJalaliDate } from './format';
 import { buildIcs } from './ics';
 import { eventInputSchema, prepareEventFields, type EventInput } from './input';
 import { checkLink } from './links';
@@ -182,5 +183,15 @@ describe('calendar file', () => {
     expect(ics).toContain('LOCATION:Bürgerhaus\\, Köln');
     expect(ics).toContain('SEQUENCE:3');
     for (const line of ics.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+  });
+});
+
+describe('how dates read', () => {
+  it('Gregorian (miladi) in Persian with the weekday, Jalali only as the second line', () => {
+    const start = new Date('2026-12-19T19:00:00Z');
+    expect(formatEventWhen(start, new Date('2026-12-20T01:00:00Z'), BERLIN)).toBe('شنبه ۱۹ دسامبر ۲۰۲۶، ۲۰:۰۰ تا ۰۲:۰۰');
+    expect(formatEventWhen(start, new Date('2026-12-21T17:00:00Z'), BERLIN)).toBe('شنبه ۱۹ دسامبر ۲۰۲۶، ۲۰:۰۰ تا دوشنبه ۲۱ دسامبر ۲۰۲۶، ۱۸:۰۰');
+    expect(cardDate(start, BERLIN)).toEqual({ day: '۱۹ دسامبر', weekday: 'شنبه', time: '۲۰:۰۰' });
+    expect(formatJalaliDate(start, BERLIN)).toBe('شنبه ۲۸ آذر ۱۴۰۵');
   });
 });

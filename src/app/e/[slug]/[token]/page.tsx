@@ -8,7 +8,7 @@ import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { messages } from '../../../../messages/fa';
-import { eventPriceText, formatEventWhen, formatGregorianDate, zoneName } from '../../../../modules/events/format';
+import { eventPriceText, formatEventWhen, formatJalaliDate, zoneName } from '../../../../modules/events/format';
 import { publicEvent } from '../../../../modules/events/queries';
 import { eventPath } from '../../../../modules/events/slug';
 import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
@@ -196,7 +196,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                     <span className="flex flex-col items-end gap-0.5">
                       <span className="font-semibold">{formatEventWhen(next.startsAt, next.endsAt, d.timeZone)}</span>
                       <span className="text-xs text-neutral-500">
-                        {t.gregorian} {formatGregorianDate(next.startsAt, d.timeZone)}
+                        {t.jalali} {formatJalaliDate(next.startsAt, d.timeZone)}
                       </span>
                       <span className="text-xs text-neutral-500">{t.timeZone(zoneName(next.startsAt, d.timeZone))}</span>
                     </span>

@@ -9,7 +9,7 @@ import { saveEventAction, type EventSaveState } from './actions';
 
 // The event form (mobile first). Plain fields, so it also posts without JavaScript; with
 // JavaScript the submit is intercepted so React keeps what was typed when the server sends errors
-// back. Dates are typed as the browser's Gregorian date fields, with the Jalali date shown below.
+// back. Dates are typed and shown in the Gregorian calendar, with the weekday under each date.
 
 type Attendance = 'in_person' | 'online' | 'hybrid';
 type EventPrice = 'free' | 'fixed' | 'on_request';
@@ -66,22 +66,22 @@ function ErrorText({ code }: { code?: FieldError }) {
   return <span className="mt-1 block text-xs text-red-700">{t.errors[code] ?? t.errors.invalid}</span>;
 }
 
-/** The Jalali reading of a typed Gregorian day, under the date field */
-function JalaliHint({ value }: { value: string }) {
+/** The typed day with its weekday, under the date field ("شنبه ۱۹ دسامبر ۲۰۲۶") */
+function DayHint({ value }: { value: string }) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!m) return null;
   const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
   // Weekday and date apart: asked for both, Intl puts the weekday after the year
-  const weekday = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long', timeZone: 'UTC' }).format(date);
-  const text = `${weekday} ${new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'long', timeZone: 'UTC' }).format(date)}`;
-  return <span className="mt-1 block text-xs text-brand-800">{e.jalali(text)}</span>;
+  const weekday = new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { weekday: 'long', timeZone: 'UTC' }).format(date);
+  const text = `${weekday} ${new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { dateStyle: 'long', timeZone: 'UTC' }).format(date)}`;
+  return <span className="mt-1 block text-xs text-brand-800">{e.dayCheck(text)}</span>;
 }
 
 function DateField({ label, name, value, onChange, error, hint }: { label: string; name: string; value: string; onChange: (v: string) => void; error?: FieldError; hint?: ReactNode }) {
   return (
     <div>
       <Field label={label} name={name} type="date" value={value} onChange={(ev) => onChange(ev.target.value)} min="2020-01-01" max="2100-12-31" dir="ltr" className="text-end" />
-      <JalaliHint value={value} />
+      <DayHint value={value} />
       {hint}
       <ErrorText code={error} />
     </div>

@@ -3,7 +3,7 @@ import { messages } from '../messages/fa';
 import { cardDate } from '../modules/events/format';
 import { eventPath } from '../modules/events/slug';
 
-// One event in a list: poster, a date badge (Jalali day and month, weekday and time at the venue),
+// One event in a list: poster, a date badge (Gregorian day and month, weekday and time at the venue),
 // title, where, price, and a label when it is online, postponed or cancelled. Plain styles; the
 // brand's design replaces them.
 

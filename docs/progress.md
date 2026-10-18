@@ -360,3 +360,7 @@ Not done:
 - 262 tests pass; the production build and the headless Chromium check (all pages above, plus the events list and the event form) pass with no CSP errors.
 
 Deployed to staging Oct 18, 2026 (`652bf93`): `classifieds-migrate` applied `0009_attribute_date` and `0010_events`, then web and worker came up healthy. The seed was run once as `classifieds_owner` from a throwaway container on the `coolify` network (141 categories, 127 leaves, 289 fields, 1,257 options; seed checks passed). Checked live: `/`, `/germany` with a category and list view, `/austria`, `/germany/events`, the icons, the share image and the manifest answer 200, `/turkey` 404, the CSP header is in place. Memory right after: web 93 MB, worker 71 MB, PostgreSQL 162 MB, Valkey 4 MB; 1.5 GB available on the server.
+
+Changed after the owner tried it (Oct 18, 2026):
+- Photos: the photo box came before the event type, and a new event can't take photos until it has a type. The box now follows the type (`9a56e98`).
+- Dates: event dates are shown in the Gregorian calendar (miladi), in Persian, everywhere: cards, the event page, "my events" and the form's day check under each date field. The event page keeps the Jalali date as a small second line. The owner's reason: Iranians outside Iran, and the venues and tickets, use the Gregorian calendar. Listings keep Jalali dates.
