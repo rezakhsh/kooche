@@ -46,6 +46,19 @@ describe('seed checks', () => {
     }
   });
 
+  it('keep browse addresses apart: an active category named events is caught, a retired one is not', async () => {
+    await rollback(async (tx) => {
+      const community = await category(tx, 'community');
+      const [retired] = await tx
+        .insert(categories)
+        .values({ parentId: community.id, path: 'community.events', slug: 'events', nameFa: 'رویداد', nameFaNormalized: 'رویداد', isActive: false })
+        .returning();
+      expect(await failingChecks(tx)).not.toContain(check('stay apart in browse addresses'));
+      await tx.update(categories).set({ isActive: true }).where(eq(categories.id, retired!.id));
+      expect(await failingChecks(tx)).toContain(check('stay apart in browse addresses'));
+    });
+  });
+
   it("catch a city whose parent isn't a region", async () => {
     await rollback(async (tx) => {
       const berlin = await location(tx, 'berlin');
