@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
+import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon } from '../../../../components/icons';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -16,7 +17,10 @@ import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
 import { isEventListing } from '../../../../modules/events/queries';
 import { eventPath } from '../../../../modules/events/slug';
+import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
 import { activeCountries, publicListing } from '../../../../modules/listings/queries';
+import { browsePath } from '../../../../modules/search/paths';
+import { allCities } from '../../../../modules/search/places';
 import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
@@ -131,6 +135,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const country = l.countryCode ? (await activeCountries(appDb())).find((c) => c.code === l.countryCode) : undefined;
   const countrySlug = country?.slug ?? null;
   const countryName = country?.nameFa ?? '';
+  const city = countrySlug && l.locationId ? ((await allCities(appDb())).find((c) => c.id === l.locationId) ?? null) : null;
+  // The ♡ for visitors; the seller sees how many saved it instead (nobody else does)
+  const [savedByMe, favCount] = await Promise.all([
+    session && !isOwner ? savedAmong(appDb(), session.user.id, [l.id]).then((s) => s.has(l.id)) : Promise.resolve(false),
+    isOwner ? favoriteCounts(appDb(), session!.user.id, [l.id]).then((m) => m.get(l.id) ?? 0) : Promise.resolve(null),
+  ]);
 
   // schema.org Product with an Offer. Price in major units as a decimal string, never a float.
   const jsonLd = {
@@ -194,6 +204,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         <Icon name="shield" className="size-4" />
         {t.phoneVerified}
       </p>
+      {isOwner && favCount !== null && (
+        <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
+          <Icon name="heart" className="size-4 text-red-600" />
+          {messages.favorites.count(favCount)}
+          <span className="sr-only">{messages.favorites.countHint}</span>
+        </p>
+      )}
       {isOwner ? (
         <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
           {t.edit}
@@ -238,11 +255,19 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                     {t.breadcrumbHome}
                   </Link>
                 )}
+                {countrySlug && city && (
+                  <span>
+                    ›{' '}
+                    <Link href={browsePath(countrySlug, city.slug, null)} className="hover:underline">
+                      {city.nameFa}
+                    </Link>
+                  </span>
+                )}
                 {crumbs.map((c) => (
                   <span key={c.id}>
                     ›{' '}
                     {countrySlug ? (
-                      <Link href={`/${countrySlug}?category=${c.slug}`} className="hover:underline">
+                      <Link href={browsePath(countrySlug, city?.slug ?? null, c.slug)} className="hover:underline">
                         {c.nameFa}
                       </Link>
                     ) : (
@@ -266,6 +291,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   {t.warmRent}: <span className="font-bold">{warmRent}</span>
                 </p>
               )}
+              {!isOwner && l.status === 'active' && <FavoriteButton token={l.publicToken} saved={savedByMe} back={path} variant="page" />}
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
                 {hasPlace && (
                   <span className="flex items-center gap-1">

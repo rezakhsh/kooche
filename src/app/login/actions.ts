@@ -11,6 +11,7 @@ import { messages } from '../../messages/fa';
 import { authErrorCode, rateLimitMessage } from '../../modules/users/errors';
 import { loadActor } from '../../modules/users/permissions';
 import { auth, safeNext } from '../../modules/users/server';
+import { savePendingFavorite } from '../favorites/pending';
 
 // Sign-in by email code. The email and the page to return to travel between the two steps in
 // short-lived HTTP-only cookies, never in the URL.
@@ -101,6 +102,8 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   const next = safeNext(jar.get(NEXT_COOKIE)?.value);
   jar.delete({ name: EMAIL_COOKIE, path: '/login' });
   jar.delete({ name: NEXT_COOKIE, path: '/login' });
+  // A ♡ tapped before signing in
+  await savePendingFavorite(userId);
 
   // New and unverified users go to phone verification first, unless they came from somewhere
   const actor = await loadActor(appDb(), userId);

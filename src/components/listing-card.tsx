@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { messages } from '../messages/fa';
 import { Icon } from './icons';
 
@@ -19,7 +20,8 @@ export type CardData = {
   distance?: string | null;
 };
 
-export function ListingCard({ card, view }: { card: CardData; view: 'grid' | 'list' }) {
+/** `favorite`: the ♡ button, laid over the card next to the link (a button can't sit inside a link) */
+export function ListingCard({ card, view, favorite }: { card: CardData; view: 'grid' | 'list'; favorite?: ReactNode }) {
   const t = messages.country;
   const photo = (
     <div className={`relative overflow-hidden bg-neutral-100 ${view === 'grid' ? 'aspect-[4/3]' : 'aspect-[4/3] w-28 shrink-0 rounded-xl sm:w-40'}`}>
@@ -58,15 +60,23 @@ export function ListingCard({ card, view }: { card: CardData; view: 'grid' | 'li
       </p>
     </div>
   );
-  return view === 'grid' ? (
-    <Link href={card.href} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
-      {photo}
-      {body}
-    </Link>
-  ) : (
-    <Link href={card.href} className="flex gap-3 border-b border-neutral-200 py-3 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-brand-700">
-      {photo}
-      {body}
-    </Link>
+  const link =
+    view === 'grid' ? (
+      <Link href={card.href} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
+        {photo}
+        {body}
+      </Link>
+    ) : (
+      <Link href={card.href} className="flex gap-3 border-b border-neutral-200 py-3 pe-11 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-brand-700">
+        {photo}
+        {body}
+      </Link>
+    );
+  if (!favorite) return link;
+  return (
+    <div className="relative h-full">
+      {link}
+      <div className={`absolute z-10 ${view === 'grid' ? 'top-2 end-2' : 'top-3 end-0'}`}>{favorite}</div>
+    </div>
   );
 }

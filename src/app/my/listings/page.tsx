@@ -5,6 +5,7 @@ import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { formatDate } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
+import { favoriteCounts } from '../../../modules/listings/favorites';
 import { canApply, type StatusAction } from '../../../modules/listings/listings';
 import { myListings } from '../../../modules/listings/queries';
 import { listingPath } from '../../../modules/listings/slug';
@@ -31,6 +32,8 @@ const tabOf = (status: string) => (status === 'pending_review' ? 'active' : stat
 export default async function MyListingsPage({ searchParams }: { searchParams: Promise<{ done?: string; error?: string; tab?: string }> }) {
   const { user } = await requireSession('/my/listings');
   const rows = await myListings(appDb(), user.id);
+  // How many people saved each listing: only the seller sees it
+  const saves = await favoriteCounts(appDb(), user.id, rows.map((r) => r.listing.id));
   const params = await searchParams;
   const zone = webEnv().APP_TIME_ZONE;
   const t = messages.my;
@@ -95,6 +98,12 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                     <Pill tone={ending ? 'warning' : (STATUS_TONE[l.status] ?? 'neutral')}>{messages.status[l.status]}</Pill>
                     {l.status === 'active' && days !== null && <span title={t.expires(formatDate(l.expiresAt!, zone))}>{t.daysLeft(days)}</span>}
                     {l.expiresAt && l.status === 'expired' && <span>{t.expiredOn(formatDate(l.expiresAt, zone))}</span>}
+                    {(saves.get(l.id) ?? 0) > 0 && (
+                      <span className="flex items-center gap-1" title={messages.favorites.countHint}>
+                        <Icon name="heart" className="size-3.5 text-red-600" />
+                        {messages.favorites.count(saves.get(l.id)!)}
+                      </span>
+                    )}
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {actions.map((a) => (

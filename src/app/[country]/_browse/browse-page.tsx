@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { cache } from 'react';
+import { FavoriteButton } from '../../../components/favorite-button';
 import { categoryIcon, Icon } from '../../../components/icons';
 import { ListingCard, type CardData } from '../../../components/listing-card';
 import { appDb } from '../../../db/drizzle';
@@ -9,10 +10,12 @@ import { webEnv } from '../../../lib/env';
 import { formatAgo } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
+import { savedAmong } from '../../../modules/listings/favorites';
 import { placeParts } from '../../../modules/listings/place-text';
 import { formatPrice } from '../../../modules/listings/price';
 import { listingPath } from '../../../modules/listings/slug';
 import { imageUrl } from '../../../modules/media/server';
+import { currentSession } from '../../../modules/users/server';
 import { searchListings } from '../../../modules/search';
 import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP, type BrowseItem } from '../../../modules/search/browse';
 import { browseQuery, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
@@ -117,6 +120,10 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const t = messages.country;
   const tb = messages.browse;
   const remembered = (await cookies()).get(VIEW_COOKIE)?.value;
+  // Filled hearts for a signed-in visitor; logged-out pages are the same for everyone
+  const session = await currentSession();
+  const saved = session ? await savedAmong(appDb(), session.user.id, result.items.map((l) => l.id)) : new Set<string>();
+  const here = `${b.path}${browseQuery(state, ctx.minorUnit)}`;
   const view: View = state.view ?? (remembered === 'list' ? 'list' : 'grid');
 
   // A listing counts for its category and every category above it
@@ -135,7 +142,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const eventsHref = eventsPath(country.slug, city?.slug ?? null);
   const withState = (s: Partial<BrowseState>) => `${b.path}${browseQuery({ ...state, after: null, ...s }, ctx.minorUnit)}`;
 
-  const cards = result.items.map((l) => cardOf(b, l, env.APP_TIME_ZONE));
+  const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: cardOf(b, l, env.APP_TIME_ZONE) }));
   const filtered = isFiltered(state);
   const filterCount = filterChips(b).length;
   const sorts = SORTS.filter((s) => (s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));
@@ -308,9 +315,9 @@ export async function BrowsePage({ b }: { b: Browse }) {
             </div>
           )}
           <ul className={view === 'grid' ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4' : 'flex flex-col'}>
-            {cards.map((card) => (
-              <li key={card.href}>
-                <ListingCard card={card} view={view} />
+            {cards.map(({ id, token, card }) => (
+              <li key={id}>
+                <ListingCard card={card} view={view} favorite={<FavoriteButton token={token} saved={saved.has(id)} back={here} />} />
               </li>
             ))}
           </ul>

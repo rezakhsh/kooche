@@ -3,6 +3,8 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
+import { FavoriteButton } from '../../../../components/favorite-button';
+import { Icon } from '../../../../components/icons';
 import { OutlineMap } from '../../../../components/outline-map';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -13,6 +15,7 @@ import { publicEvent } from '../../../../modules/events/queries';
 import { eventPath } from '../../../../modules/events/slug';
 import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
 import { amountInputValue } from '../../../../modules/listings/price';
+import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
 import { activeCountries } from '../../../../modules/listings/queries';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
@@ -83,6 +86,9 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const path = eventPath(l.title, l.publicToken);
   // The seller sees no chat button on their own listing
   const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
+  // The ♡ for visitors; the organizer sees how many saved it instead (nobody else does)
+  const savedByMe = session && !isOwner ? (await savedAmong(appDb(), session.user.id, [l.id])).has(l.id) : false;
+  const favCount = isOwner ? ((await favoriteCounts(appDb(), session!.user.id, [l.id])).get(l.id) ?? 0) : null;
   const url = `${env.APP_URL}${path}`;
   const inPerson = d.attendance !== 'online';
   const placeLine = [l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : null, cityFa && cityLocal !== l.placeName ? cityFa : null].filter(Boolean).join('، ');
@@ -189,6 +195,11 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             <div>
               {type && <span className="mb-1 inline-block rounded-md bg-brand-50 px-2 py-0.5 text-xs text-brand-800">{type.nameFa}</span>}
               <h1 className="text-2xl font-bold leading-snug">{l.title}</h1>
+              {!isOwner && l.status === 'active' && (
+                <div className="mt-2">
+                  <FavoriteButton token={l.publicToken} saved={savedByMe} back={path} variant="page" />
+                </div>
+              )}
             </div>
 
             <dl className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
@@ -303,6 +314,13 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <span className="block text-xs text-neutral-500">{t.organizer}</span>
                 <span className="font-semibold">{organizer}</span>
               </div>
+              {isOwner && favCount !== null && (
+                <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
+                  <Icon name="heart" className="size-4 text-red-600" />
+                  {messages.favorites.count(favCount)}
+                  <span className="sr-only">{messages.favorites.countHint}</span>
+                </p>
+              )}
               {isOwner ? (
                 <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="w-full">
                   {t.edit}

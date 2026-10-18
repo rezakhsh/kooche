@@ -40,6 +40,7 @@ export default async function AccountPage() {
           <Row href="/account/place" icon="pin" label={t.place} value={saved ? <bdi dir="auto">{placeLabel(saved.place)}</bdi> : t.placeNotSet} />
           <Row href="/account/notifications" icon="bell" label={t.notifications} value={chatNoticesOn(prefs?.prefs) ? t.notificationsOn : t.notificationsOff} />
           <Row href="/my/listings" icon="doc" label={t.myListings} />
+          <Row href="/my/favorites" icon="heart" label={messages.favorites.title} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
         </ul>
         <form action={signOut}>

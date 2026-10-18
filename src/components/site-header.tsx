@@ -49,6 +49,11 @@ export async function SiteHeader() {
               </Link>
             )}
             {session && (
+              <Link href="/my/favorites" aria-label={messages.favorites.title} title={messages.favorites.title} className="flex items-center rounded-xl px-2.5 py-2 hover:bg-neutral-50">
+                <Icon name="heart" className="size-[18px]" />
+              </Link>
+            )}
+            {session && (
               <Link href="/my/listings" className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
                 <Icon name="doc" className="size-4" />
                 {t.myListings}
