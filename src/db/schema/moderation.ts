@@ -87,6 +87,12 @@ export const reports = pgTable(
       .where(
         sql`status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND listing_id IS NOT NULL`,
       ),
+    // One open report per person per chat message (migration 0011)
+    uniqueIndex('reports_open_per_reporter_message_key')
+      .on(t.reporterUserId, t.messageId)
+      .where(
+        sql`status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND message_id IS NOT NULL`,
+      ),
   ],
 );
 

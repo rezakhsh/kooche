@@ -4,31 +4,39 @@ import { headers } from 'next/headers';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
 import { appDb } from '../../../../db/drizzle';
 import { clientIp } from '../../../../lib/client-ip';
-import { hit } from '../../../../lib/rate-limit';
 import { valkey } from '../../../../lib/valkey';
 import { messages } from '../../../../messages/fa';
-import { LISTING_LIMITS } from '../../../../modules/listings/limits';
-import { listingPhone } from '../../../../modules/listings/queries';
+import { revealPhone } from '../../../../modules/listings/phone-reveal';
 import { currentSession } from '../../../../modules/users/server';
 
-export type PhoneState = { phone?: string; error?: string; signIn?: boolean } | undefined;
+export type PhoneState = { phone?: string; error?: string; signIn?: boolean; verify?: boolean } | undefined;
 
 /**
- * "Show number": only for signed-in visitors, rate-limited per visitor and per IP, and only when
- * the listing is active and its seller allows phone contact. The number is never in the page.
+ * "Show number": only for signed-in visitors with a verified phone, rate-limited per visitor and
+ * per IP, logged, and only when the listing is active and its seller shows the number
+ * (src/modules/listings/phone-reveal.ts). The number is never in the page.
  */
 export async function revealPhoneAction(token: string): Promise<PhoneState> {
   const session = await currentSession();
   if (!session) return { signIn: true };
-  if (!/^[0-9a-hjkmnp-tv-z]{10}$/.test(token)) return { error: messages.genericError };
-  const ip = clientIp(await headers());
-  const limited = await hit(valkey(), [
-    [LISTING_LIMITS.phoneRevealPerUserHour, session.user.id],
-    ...(ip ? ([[LISTING_LIMITS.phoneRevealPerIpHour, ip]] as const) : []),
-  ]);
-  if (!limited.ok) return { error: messages.rateLimited(Math.ceil(limited.retryAfterSeconds / 60)) };
-
-  const phone = await listingPhone(appDb(), token);
-  if (!phone) return { error: messages.listing.phoneHidden };
-  return { phone: parsePhoneNumberFromString(phone)?.formatInternational() ?? phone };
+  const h = await headers();
+  const result = await revealPhone(appDb(), valkey(), {
+    userId: session.user.id,
+    token: String(token),
+    ip: clientIp(h),
+    userAgent: h.get('user-agent'),
+  });
+  if (result.ok) return { phone: parsePhoneNumberFromString(result.phone)?.formatInternational() ?? result.phone };
+  switch (result.reason) {
+    case 'phone_required':
+      return { verify: true };
+    case 'sign_in_required':
+      return { signIn: true };
+    case 'rate_limited':
+      return { error: messages.rateLimited(Math.ceil((result.retryAfterSeconds ?? 60) / 60)) };
+    case 'hidden':
+      return { error: messages.listing.phoneHidden };
+    default:
+      return { error: messages.genericError };
+  }
 }

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { createdAt, id, isIn, standardColumns, textArrayWithin, tstz } from './_columns';
 import { listings } from './listings';
 import { organizations } from './organizations';
@@ -79,6 +79,11 @@ export const messages = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     hiddenAt: tstz('hidden_at'),
+    /**
+     * Sent while the recipient had blocked the sender (migration 0011): never shown to the
+     * recipient, not counted as unread, no notice. The sender sees it like any other message.
+     */
+    withheld: boolean('withheld').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

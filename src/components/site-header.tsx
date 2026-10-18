@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { chosenCountry } from '../app/country-choice';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
+import { unreadConversations } from '../modules/chat/queries';
 import { activeCountries } from '../modules/listings/queries';
 import { currentSession } from '../modules/users/server';
 import { BottomNav } from './bottom-nav';
@@ -16,6 +17,8 @@ export async function SiteHeader() {
   const [session, country] = await Promise.all([currentSession(), chosenCountry(appDb())]);
   const t = messages.nav;
   const home = country ? `/${country.slug}` : '/';
+  // Conversations with unread messages, for the badge (one small query on the inbox indexes)
+  const unread = session ? await unreadConversations(appDb(), session.user.id) : 0;
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
@@ -38,6 +41,13 @@ export async function SiteHeader() {
             </Link>
           )}
           <nav aria-label={t.label} className="ms-auto hidden items-center gap-2 sm:flex">
+            {session && (
+              <Link href="/chat" className="relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
+                <Icon name="chat" className="size-4" />
+                {t.chat}
+                <UnreadBadge count={unread} />
+              </Link>
+            )}
             {session && (
               <Link href="/my/listings" className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
                 <Icon name="doc" className="size-4" />
@@ -63,8 +73,18 @@ export async function SiteHeader() {
           )}
         </div>
       </header>
-      <BottomNav home={home} signedIn={!!session} />
+      <BottomNav home={home} signedIn={!!session} unread={unread} />
     </>
+  );
+}
+
+export function UnreadBadge({ count, className = '' }: { count: number; className?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron-500 px-1 text-[11px] font-bold text-neutral-900 ${className}`}>
+      <span aria-hidden>{count > 99 ? '۹۹+' : count.toLocaleString('fa-IR')}</span>
+      <span className="sr-only">{messages.nav.unread(count)}</span>
+    </span>
   );
 }
 

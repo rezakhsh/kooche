@@ -6,7 +6,10 @@ import { appDb } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
 import { placeLabel } from '../../modules/listings/places';
 import { savedPlace } from '../../modules/listings/queries';
+import { chatNoticesOn } from '../../modules/users/notification-prefs';
 import { loadActor } from '../../modules/users/permissions';
+import { eq } from 'drizzle-orm';
+import { users } from '../../db/schema';
 import { requireSession } from '../../modules/users/server';
 import { signOut } from './actions';
 
@@ -17,7 +20,11 @@ export const metadata = { title: messages.account.title, robots: { index: false 
 export default async function AccountPage() {
   const { user } = await requireSession('/account');
   const db = appDb();
-  const [actor, saved] = await Promise.all([loadActor(db, user.id), savedPlace(db, user.id)]);
+  const [actor, saved, [prefs]] = await Promise.all([
+    loadActor(db, user.id),
+    savedPlace(db, user.id),
+    db.select({ prefs: users.notificationPrefs }).from(users).where(eq(users.id, user.id)),
+  ]);
   const t = messages.account;
   return (
     <PageShell title={t.title}>
@@ -31,6 +38,7 @@ export default async function AccountPage() {
             value={actor?.phoneVerifiedAt ? <Pill tone="success">{t.verified}</Pill> : <Pill tone="warning">{t.notVerified}</Pill>}
           />
           <Row href="/account/place" icon="pin" label={t.place} value={saved ? <bdi dir="auto">{placeLabel(saved.place)}</bdi> : t.placeNotSet} />
+          <Row href="/account/notifications" icon="bell" label={t.notifications} value={chatNoticesOn(prefs?.prefs) ? t.notificationsOn : t.notificationsOff} />
           <Row href="/my/listings" icon="doc" label={t.myListings} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
         </ul>

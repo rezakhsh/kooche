@@ -1,0 +1,2 @@
+ALTER TABLE "messages" ADD COLUMN "withheld" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "reports_open_per_reporter_message_key" ON "reports" USING btree ("reporter_user_id","message_id") WHERE status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND message_id IS NOT NULL;

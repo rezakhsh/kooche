@@ -70,3 +70,12 @@ export async function processOutboxBatch(sql: postgres.Sql, handlers: OutboxHand
     return rows.length;
   });
 }
+
+/** Handlers of several features in one map; handlers for the same event type are all kept */
+export function mergeHandlers(...maps: OutboxHandlers[]): OutboxHandlers {
+  const out: Record<string, OutboxHandler[]> = {};
+  for (const map of maps) {
+    for (const [type, list] of Object.entries(map)) out[type] = [...(out[type] ?? []), ...list];
+  }
+  return out;
+}

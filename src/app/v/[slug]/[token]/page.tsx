@@ -19,6 +19,7 @@ import { eventPath } from '../../../../modules/events/slug';
 import { activeCountries, publicListing } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
+import { chatEntry } from '../../../../modules/chat/entry';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from './contact';
 import { Gallery, type GalleryImage } from './gallery';
@@ -123,6 +124,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const hasPlace = !!(place.local || place.city || place.district);
   const mapLabel = l.locationPrecision === 'area' ? t.mapArea : l.locationPrecision === 'postal_code' ? t.mapPostal : t.mapCity;
   const path = listingPath(l.title, l.publicToken);
+  // The seller sees no chat button on their own listing
+  const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
   const nonce = (await headers()).get('x-nonce') ?? undefined;
   const { published } = await searchParams;
   const country = l.countryCode ? (await activeCountries(appDb())).find((c) => c.code === l.countryCode) : undefined;
@@ -195,8 +198,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
           {t.edit}
         </LinkButton>
-      ) : l.status === 'active' ? (
-        <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} />
+      ) : chat && l.status === 'active' ? (
+        <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
       ) : null}
     </Card>
   );

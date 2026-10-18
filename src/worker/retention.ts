@@ -2,6 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type postgres from 'postgres';
 import { purgeEventData, purgeHistory } from '../db/retention';
+import { purgeChatsOfDeletedUsers } from '../modules/chat/retention';
 import { purgeAccountData } from '../modules/users/retention';
 
 // Daily retention jobs (docs/schema.md, section 14). A BullMQ job scheduler keeps the schedule in
@@ -32,6 +33,10 @@ const JOBS: Record<string, (sql: postgres.Sql) => Promise<string>> = {
       `deleted ${n.auditRows} audit log rows, scrubbed ${n.auditIpsScrubbed} audit IP addresses, ` +
       `deleted ${n.reports} reports, ${n.moderationDecisions} moderation decisions`
     );
+  },
+  'chat-retention': async (sql) => {
+    const n = await purgeChatsOfDeletedUsers(sql);
+    return `deleted ${n} conversations of accounts deleted more than 90 days ago`;
   },
 };
 

@@ -55,3 +55,8 @@ dialog.photo-viewer::backdrop {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* A conversation fills the screen like a messaging app: no footer below it (src/app/chat/[id]) */
+body:has([data-chat-thread]) > footer {
+  display: none;
+}

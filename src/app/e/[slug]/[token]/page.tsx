@@ -15,6 +15,7 @@ import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
 import { amountInputValue } from '../../../../modules/listings/price';
 import { activeCountries } from '../../../../modules/listings/queries';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
+import { chatEntry } from '../../../../modules/chat/entry';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from '../../../v/[slug]/[token]/contact';
 import { ShareButtons } from './share';
@@ -80,6 +81,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const next = upcoming[0] ?? dates.at(-1);
   const ended = l.status === 'expired' || upcoming.length === 0;
   const path = eventPath(l.title, l.publicToken);
+  // The seller sees no chat button on their own listing
+  const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
   const url = `${env.APP_URL}${path}`;
   const inPerson = d.attendance !== 'online';
   const placeLine = [l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : null, cityFa && cityLocal !== l.placeName ? cityFa : null].filter(Boolean).join('، ');
@@ -304,8 +307,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="w-full">
                   {t.edit}
                 </LinkButton>
-              ) : l.status === 'active' ? (
-                <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} />
+              ) : chat && l.status === 'active' ? (
+                <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
               ) : null}
             </Card>
           </div>

@@ -2,6 +2,7 @@ import type { Redis } from 'ioredis';
 import type { Queryable } from '../../db/drizzle';
 import { hit } from '../../lib/rate-limit';
 import { messages } from '../../messages/fa';
+import { clearUnreachable, markUnreachable } from '../notifications/telegram-reach';
 import { acceptTelegramContact, bindTelegramLink } from './phone';
 import { telegramNumberToE164 } from './phone-number';
 
@@ -18,6 +19,12 @@ export type TelegramUpdate = {
     text?: string;
     contact?: { phone_number: string; user_id?: number };
   };
+  /** The person blocked ("kicked") or unblocked ("member") the bot in their private chat */
+  my_chat_member?: {
+    chat: { id: number; type: string };
+    from: { id: number };
+    new_chat_member: { status: string };
+  };
 };
 
 export type ReplyMarkup =
@@ -27,7 +34,8 @@ export type ReplyMarkup =
       one_time_keyboard: true;
       is_persistent?: boolean;
     }
-  | { remove_keyboard: true };
+  | { remove_keyboard: true }
+  | { inline_keyboard: Array<Array<{ text: string; url: string }>> };
 
 export interface BotApi {
   sendMessage(chatId: number, text: string, replyMarkup?: ReplyMarkup): Promise<void>;
@@ -42,9 +50,19 @@ export async function handleUpdate(
   api: BotApi,
   update: TelegramUpdate,
 ): Promise<void> {
+  const member = update.my_chat_member;
+  if (member && member.chat.type === 'private') {
+    // Chat notices fall back to email while the bot is blocked (src/worker/chat.ts)
+    if (member.new_chat_member.status === 'kicked') await markUnreachable(redis, member.from.id);
+    else if (member.new_chat_member.status === 'member') await clearUnreachable(redis, member.from.id);
+    return;
+  }
+
   const msg = update.message;
   const from = msg?.from;
   if (!msg || !from || from.is_bot || msg.chat.type !== 'private') return;
+  // Writing to the bot means it can reach this person again
+  await clearUnreachable(redis, from.id);
   const t = messages.bot;
 
   const limit = await hit(redis, [[BOT_LIMIT, String(from.id)]]);
