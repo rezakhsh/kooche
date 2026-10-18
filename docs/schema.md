@@ -51,7 +51,7 @@ The ten decisions from the plan are kept. These are the additional choices this 
 | listings (incl. reference data) | `countries`, `currencies`, `locations`, `categories`, `category_attributes`, `category_attribute_options`, `listings`, `listing_events`, `favorites` |
 | events (since Oct 18, 2026) | `event_details`, `event_dates` |
 | media | `listing_images` |
-| search | `saved_searches` |
+| search | `saved_searches`, `sitemap_files` (migration 0012) |
 | users | `users`, `sessions`, `auth_accounts`, `verifications`, `two_factors`, `phone_verifications`, `user_blocks` |
 | organizations | `organizations`, `organization_members`, `organization_invitations` |
 | chat | `conversations`, `messages` |
@@ -197,7 +197,7 @@ Standard columns, plus:
 | `label_fa` | `text` | «کارکرد» |
 | `unit_fa` | `text null` | «کیلومتر» |
 | `help_fa` | `text null` | |
-| `validation` | `jsonb DEFAULT '{}'` | Per type: `{min, max, integer}` for numbers, plus `{money: true}` for an amount; `{max_length}` for text; `{max_items}` for multi-select; `{month: true}` for a date with month and year only. Any type: `{optional_in: [slugs]}` makes a required field optional in those categories below it. |
+| `validation` | `jsonb DEFAULT '{}'` | Per type: `{min, max, integer}` for numbers, plus `{money: true}` for an amount; `{max_length}` for text; `{max_items}` for multi-select; `{month: true}` for a date with month and year only; `{filter: 'all'}` on a filterable multi-select whose filter needs every chosen value (a checklist), otherwise any. Any type: `{optional_in: [slugs]}` makes a required field optional in those categories below it. |
 | `depends_on_attribute_id` | `uuid null` FK → `category_attributes` | Dependent selects: `model` depends on `brand` |
 | `is_required` | `boolean DEFAULT false` | Required to publish (drafts may lack it) |
 | `is_filterable` | `boolean DEFAULT false` | Shown as a filter, sent to Meilisearch as a filterable field |
@@ -495,6 +495,7 @@ Storage: `WITH (fillfactor = 90)`, so the frequent `view_count` updates (on an u
 | `(country_code, category_id, ranked_at DESC, id DESC) WHERE status = 'active'` | Country-wide category pages ("cars in Germany"). For a parent category, `category_id = ANY($leaf_ids)`. **(Plan index 1.)** |
 | `(location_id, category_id, ranked_at DESC, id DESC) WHERE status = 'active'` | `/{city}/{category}`, the main browse page in a city-first site |
 | `(location_id, ranked_at DESC, id DESC) WHERE status = 'active'` | `/{city}` with all categories: the city home page, the most visited page |
+| `(country_code, postal_code) WHERE status = 'active' AND postal_code IS NOT NULL` | "This postal code only" on browse pages (migration 0012; 17 ms → 0.05 ms at 50,000 listings) |
 | `GIST (point) WHERE status = 'active'` | Radius search, `ST_DWithin(point, $p, $meters)`, and "nearest first" (`ORDER BY point <-> $p`). **(Plan index 2.)** |
 | `GIN (attributes jsonb_path_ops) WHERE status = 'active'` | Attribute filters such as `attributes @> '{"fuel":"diesel","gearbox":"automatic"}'`. `jsonb_path_ops` is about a third the size of the default operator class and serves exactly `@>`. Range filters (`mileage_km < 100000`) aren't served by GIN: within a city and category the row set is small enough to filter, and Meilisearch takes over range filters when search arrives. If measurements show a hot numeric field, add a single expression index for it. **(Plan index 3.)** |
 | `(user_id, created_at DESC)` | "My listings", new-account limits ("posts in the last 24 hours"), "other listings by this user" in moderation |
@@ -666,6 +667,19 @@ WHERE notify_frequency = 'instant' AND country_code = $country
 | --- | --- |
 | `UNIQUE (user_id, filters_hash)` | No duplicate saved searches. Also "my saved searches". |
 | `(country_code, category_id) WHERE notify_frequency <> 'off'` | The candidate query above. The B-tree serves both `category_id IS NULL` and `= ANY(…)` (bitmap OR). |
+
+### `sitemap_files`
+
+Migration 0012, Oct 18, 2026. The XML sitemaps, rebuilt by the worker every hour (`src/modules/search/sitemap.ts`) and served by the app at `/sitemap.xml` and `/sitemaps/<name>.xml`. A table rather than Valkey (96 MB, no eviction), because the files grow with the listings; PostgreSQL compresses the text itself.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `name` | `text` PK | `index`, `<country>`, `<country>-listings-<n>`. `CHECK (name ~ '^[a-z0-9-]{1,80}$')` |
+| `body` | `text` | The XML |
+| `url_count` | `integer` | `CHECK (BETWEEN 0 AND 50000)`, the sitemap protocol's limit per file |
+| `generated_at` | `timestamptz DEFAULT now()` | |
+
+Grants: the worker writes (all four), the app and the backup role only read. The worker replaces every file in one transaction and deletes files it no longer writes.
 
 ---
 
@@ -1194,3 +1208,10 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Following the listing** (worker queue `chat`): `listing.sold|deleted|expired|rejected` close open conversations with a system message (`body` is a code: `listing_sold`, `listing_deleted`, `listing_expired`, `listing_removed`; reopening writes `listing_active`) and `conversation.closed`; `listing.renewed|published|resumed` reopen closed ones when the listing is active and both participants are. System messages don't count as unread.
   - **Outbox event types:** `conversation.started`, `message.sent` (handler: chat notices), `conversation.closed`, `conversation.reopened`, `report.created` (no handler yet). `src/worker/outbox.ts` now merges the handler maps of all features, so a listing event can have both the post-checks and the chat as handlers.
   - **The 12-month purge of deleted listings** (not built yet) must delete the listing's conversations first: `conversations.listing_id` is `RESTRICT`.
+- **Browsing, filters, "near me" and favorites (Oct 18, 2026).** Decided by the owner: filters on price, place and the category's filterable fields, "near me" at 5 / 10 / 25 / 50 km, favorites for signed-in users. Details in `docs/setup.md`, "Browsing and favorites".
+  - **Migration `0012`:** `sitemap_files` with its grants, and the partial index `listings_country_postal_idx`. Additive only. The other browse indexes from section 8 were already there and served every page in the measurements, including the GIN index for attribute filters across a country.
+  - **`SearchFilters`** (`src/modules/search/browse.ts`) is the resolved form the query takes: country, category subtree, city, postal code, a radius around a point, price in minor units, shipping, attribute filters, sort. The address form (`BrowseState`, `src/modules/search/filters.ts`) is validated with a Zod schema built from the definitions. Saved searches store the address form later; the radius point is never stored for "near me".
+  - **Attribute filters:** selects and yes/no fields with `attributes @> $json` (the key comes from a validated definition and the value is a bound JSON parameter); numbers with `CASE WHEN jsonb_typeof(attributes -> $key) = 'number' THEN (attributes -> $key)::numeric END`, so a stray string can't break the cast; dates as text, which sorts like the date for `YYYY-MM-DD` and `YYYY-MM`.
+  - **Keyset cursors** carry the sort key with full precision: `ranked_at` as text with microseconds (a JavaScript `Date` would cut them and skip rows that share a millisecond), the price sentinel as an integer, the KNN distance as a double.
+  - **Favorites:** the table from section 8, unchanged. `addFavorite()` takes a per-user advisory lock for the 1,000 limit; removing works whatever state the listing is in; `erase_user` already deletes them.
+  - **Seed:** `validation.filter = 'all'` on `features` and `car_extras`. Four new seed checks: city slugs, category slugs and `events` stay apart; free-text fields are not filters; attribute keys stay clear of the browse parameters (`sort`, `price`, `ship`, `postal`, `near`, `r`, `after`, `view`, `q`, `page`, `category`, `city`, and another key or `price` plus `_min`, `_max`, `_from`, `_to`); `filter` only on a filterable multi-select. `chat`, `favorites` and `sitemaps` joined the reserved country slugs.

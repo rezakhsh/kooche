@@ -399,3 +399,30 @@ Not checked live yet:
 - Block and report on staging (no rows yet). Covered by the tests and the local two-browser run.
 - Chat images, the business inbox (organization managers answering), the n8n alert for new reports, the 12-month purge of deleted listings (it must delete conversations first), and the data-export job.
 
+
+## Oct 18, 2026: city and category pages, filters, "near me" and favorites
+
+Decided by the owner (Oct 18, 2026), plan approved with the four open points as recommended:
+- Filters on price, place (city or postal code with radius) and each category's own filterable fields, from the definitions, validated with Zod on the server; a "ships" filter too.
+- "Near me" at 5 / 10 / 25 / 50 km, only after a tap and the browser's permission, never stored or logged, as a 2-hour encrypted token in the address.
+- Favorites for signed-in users; a ♡ tapped while logged out is saved after sign-in.
+- Every filtered page `noindex`; Google gets the plain country, city and category pages.
+- Cloudflare: cache headers now, the Cache Rule and the CSP nonce decision before launch.
+- Keyword search (Meilisearch) waits for a CX33; all of this runs on PostgreSQL + PostGIS behind the `search` module.
+
+Done (branch `browse`, details in `docs/setup.md`, "Browsing and favorites"):
+- **Pages:** `/germany/cars`, `/germany/berlin`, `/germany/berlin/cars` and `/germany/berlin/events`; one server-rendered browse page for all of them, with categories (with counts for the city), the filter form in a phone sheet or the computer sidebar (first when a category is chosen), removable chips, sort links (newest, cheapest, most expensive, nearest), the most active cities as links on country pages, grid or list, "more" with a keyset cursor. Old `?category=` and `?city=` addresses redirect. Listing pages link back through the city and category pages. Works without JavaScript, except "near me".
+- **Search module** (`src/modules/search/`): the filter address and its Zod schema built from `category_attributes`, the PostgreSQL query behind `searchListings()`, places, the "near me" token, sitemaps and paths.
+- **Favorites:** ♡ on cards, listing and event pages; `pending_favorite` cookie through sign-in; «نشان‌شده‌ها» at `/my/favorites` with listings that went away marked; the seller's count on "my listings" and their own pages.
+- **SEO:** Persian titles and descriptions, canonical URLs, `noindex` for filters, sorting, paging, places and empty pages, `BreadcrumbList` and `ItemList` JSON-LD, hourly sitemaps from the worker (`seo` queue) in `sitemap_files`, `robots.txt`; sitemaps answer 404 and `robots.txt` disallows everything while `SEARCH_INDEXING` is off.
+- **Caching:** `Cache-Control: public, s-maxage=60` on logged-out browse pages, `private, no-store` with a session, the `view` cookie, another country's cookie, a postal code or "near me". No Cloudflare rule yet, so nothing is cached at the edge.
+- **Migration `0012`:** `sitemap_files` and the partial index for "this postal code only". Additive. The seed adds `filter: 'all'` to the two equipment checklists and four seed checks.
+- **Speed:** measured with `scripts/generate-listings.ts` and `scripts/explain-browse.ts` on 5,000 and 50,000 generated listings in a scratch database: browse pages under 1 ms on their indexes, GIN for attribute filters across a country (4–7 ms at 50,000), a radius by distance 3 ms (5,000) to about 20 ms (50,000); postal code only 17 ms → 0.05 ms with the new index; counts cached for a minute (30 ms at 50,000).
+- **Tests:** 34 new (358 in total), all passing: filter validation against the definitions (unknown, forged, retired, out-of-range, reversed, other categories' fields, models without their make, `__proto__`, SQL in values), each filter type in the query, events, paused listings and other countries left out, keyset paging with ties in time and price and listings added between pages for all four sorts, price order with free and priceless listings, the "near me" token (encrypted, cell only, expiry, any changed character refused, another secret refused), radius results measured to the stored point with whole kilometres and no coordinates and nothing logged, places outside the country, postal codes, favorites permissions (active only, not own, idempotent, only your own removed, the 1,000 limit, 60 a minute, counts only for the seller, "my favorites" paging and gone listings, the logged-out cookie saved once after sign-in, a forged back address, `erase_user`), sitemap contents (only non-empty plain pages, active listings and events, no filtered addresses, no closed country, escaping, splitting at the limit, worker writes and app reads, 404 with indexing off) and the cache header rules.
+- **Checked in headless Chromium** on the production build against the 50,000-listing scratch database, phone and computer: 42 checks passed, among them every page answering 200 with no sideways scroll and no CSP or console errors; the no-JavaScript form landing on the canonical address, chips removing their filter, and the ♡ going to sign-in with the HTTP-only cookie; "near me" with a browser position in Berlin ending on the canonical address with a token, no coordinates in the address or page, the position sent already rounded, kilometres on the cards; signed in, the ♡ filling and staying after a reload, «نشان‌شده‌ها» listing and removing it, and the page turning `private, no-store`.
+
+Not done:
+- Deploy (waiting for the owner's approval). After the push, `classifieds-migrate` applies `0012`; then run the seed once on staging as `classifieds_owner` (only the `filter: 'all'` flags change; until then the two checklists match any chosen value).
+- The Cloudflare Cache Rule and the nonce decision (see setup); a worker purge doesn't fit cleanly on the Free plan.
+- Facet counts per option, saved searches and alerts, keyword search: with Meilisearch. Cards still don't show `show_on_card` fields.
+- An expression index for price order over all categories, if that sort is ever used much.
