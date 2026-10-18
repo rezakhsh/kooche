@@ -15,6 +15,8 @@ export type CardData = {
   cover: string | null;
   photoCount: number;
   wanted: boolean;
+  /** "حدود ۳ کیلومتر" when the page measures from a place; never more exact than the stored point */
+  distance?: string | null;
 };
 
 export function ListingCard({ card, view }: { card: CardData; view: 'grid' | 'list' }) {
@@ -51,8 +53,8 @@ export function ListingCard({ card, view }: { card: CardData; view: 'grid' | 'li
             <span className="truncate">{card.place.latin ? <bdi dir="ltr">{card.place.text}</bdi> : card.place.text}</span>
           </>
         )}
-        {card.place && card.ago && <span aria-hidden>·</span>}
-        {card.ago && <span className="shrink-0">{card.ago}</span>}
+        {card.place && (card.distance || card.ago) && <span aria-hidden>·</span>}
+        {card.distance ? <span className="shrink-0 font-bold text-brand-700">{card.distance}</span> : card.ago && <span className="shrink-0">{card.ago}</span>}
       </p>
     </div>
   );

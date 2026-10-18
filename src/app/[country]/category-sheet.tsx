@@ -2,13 +2,25 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Icon } from '../../components/icons';
+import { Icon, type IconName } from '../../components/icons';
 
-// "All categories" on phones: a sheet from the bottom. A plain <details>, so it opens without
-// JavaScript too; with JavaScript a tap outside the sheet, the close button and choosing a
-// category close it.
+// "All categories" and "filters" on phones: a sheet from the bottom. A plain <details>, so it opens
+// without JavaScript too; with JavaScript a tap outside the sheet, the close button and choosing a
+// category or applying filters (the address changes) close it.
 
-export function CategorySheet({ label, title, closeLabel, children }: { label: string; title: string; closeLabel: string; children: ReactNode }) {
+export function CategorySheet({
+  label,
+  title,
+  closeLabel,
+  icon = 'grid',
+  children,
+}: {
+  label: string;
+  title: string;
+  closeLabel: string;
+  icon?: IconName;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDetailsElement>(null);
   const path = usePathname();
   const query = useSearchParams().toString();
@@ -21,7 +33,7 @@ export function CategorySheet({ label, title, closeLabel, children }: { label: s
   return (
     <details ref={ref} className="shrink-0">
       <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 [&::-webkit-details-marker]:hidden">
-        <Icon name="grid" className="size-4" />
+        <Icon name={icon} className="size-4" />
         {label}
       </summary>
       <div className="fixed inset-0 z-40 flex items-end bg-neutral-900/45" onClick={(e) => e.target === e.currentTarget && close()}>
