@@ -12,13 +12,13 @@ export default async function CodePage() {
   if (!email) redirect('/login');
   const t = messages.code;
   return (
-    <PageShell title={t.title}>
+    <PageShell title={t.title} logo>
       <Card>
         <p className="mb-5 text-sm leading-relaxed text-neutral-600">
           {t.intro('⁨' + email + '⁩')}
         </p>
         <CodeForm />
-        <Link href="/login" className="mt-4 block text-center text-sm text-emerald-800 underline">
+        <Link href="/login" className="mt-4 block text-center text-sm text-brand-800 underline">
           {t.changeEmail}
         </Link>
       </Card>

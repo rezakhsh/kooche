@@ -27,7 +27,7 @@ export default async function NewInCategoryPage({ params }: { params: Promise<{ 
 
   const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null);
   return (
-    <PageShell title={messages.form.draftTitle}>
+    <PageShell title={messages.form.draftTitle} wide>
       <div className="space-y-6">
         <ListingEditor {...editor} />
       </div>

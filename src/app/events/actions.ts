@@ -13,7 +13,10 @@ import { eventPath } from '../../modules/events/slug';
 import { cachedCatalog, isEventCategory } from '../../modules/listings/catalog';
 import { LISTING_LIMITS } from '../../modules/listings/limits';
 import { changeDraftCategory, changeListingStatus, listingInputSchema, type FieldErrors } from '../../modules/listings/listings';
+import { postingCountry } from '../../modules/listings/posting-country';
+import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { requireSession } from '../../modules/users/server';
+import { chosenCountry } from '../country-choice';
 
 // The event form and the buttons on "my events". The listing part of the form has the same
 // field names as the listing form; the event's own fields are read here too.
@@ -69,6 +72,11 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   const { user } = await requireSession('/my/events');
   let listingId = String(form.get('listingId') ?? '');
   let created: string | undefined;
+  // The country is decided here, never taken from the form (decided Oct 17, 2026), as for listings
+  const [chosen, saved, open] = await Promise.all([chosenCountry(appDb()), savedPlace(appDb(), user.id), activeCountries(appDb())]);
+  const country = (listingCountry: string | null) =>
+    postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: open.map((c) => c.code) });
+  if (!listingId && !country(null)) return { error: messages.form.chooseCountryFirst };
   if (!listingId) {
     const draft = await startDraft(user.id, form.get('categoryId'));
     if (!draft.ok) return { error: draft.error, errors: form.get('categoryId') ? undefined : { categoryId: 'required' } };
@@ -78,6 +86,10 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   const db = appDb();
   const own = await ownEvent(db, user.id, listingId);
   if (!own) return { error: messages.genericError, listingId: created };
+  const countryCode = country(own.listing.countryCode);
+  if (!countryCode) return { error: messages.form.chooseCountryFirst, listingId: created };
+  const sent = (str(form, 'countryCode') ?? '').toUpperCase();
+  if (sent && sent !== countryCode) return { errors: { countryCode: 'locked' }, error: messages.form.fixErrors, listingId: created };
 
   // A draft may still change its type
   const categoryId = String(form.get('categoryId') ?? '');
@@ -93,7 +105,7 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
     description: str(form, 'description'),
     priceType: str(form, 'priceType'),
     amount: str(form, 'amount'),
-    countryCode: str(form, 'countryCode'),
+    countryCode,
     placeValue: str(form, 'placeValue'),
     place: str(form, 'place'),
     area: lat !== null && lng !== null ? { lat, lng } : null,

@@ -6,6 +6,8 @@ import { snapToGrid } from '../lib/geo';
 import { messages } from '../messages/fa';
 import type { PlaceSuggestion } from '../modules/listings/places';
 import { nearestPlaceAction, searchPlacesAction } from '../app/place-actions';
+import { Flag } from './flag';
+import { Icon } from './icons';
 import { Field } from './ui';
 import { OutlineMap } from './outline-map';
 
@@ -27,7 +29,7 @@ export type PlaceFieldValue = {
 const t = messages.form;
 
 const selectClass =
-  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20';
+  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20';
 
 function ErrorLine({ text }: { text?: string }) {
   return text ? <span className="mt-1 block text-xs text-red-700">{text}</span> : null;
@@ -39,6 +41,7 @@ export function PlaceField({
   errors = {},
   allowArea = true,
   showDistrict = true,
+  fixed,
   onCountryChange,
 }: {
   countries: { code: string; nameFa: string }[];
@@ -49,6 +52,11 @@ export function PlaceField({
   allowArea?: boolean;
   /** Events give a venue and street instead of a district */
   showDistrict?: boolean;
+  /**
+   * The posting form: the country is shown as fixed text, not a select (decided Oct 17, 2026).
+   * `changeHref` leads to the list of countries; null when the listing's country can't change.
+   */
+  fixed?: { hint: string; changeHref: string | null };
   onCountryChange?: (code: string) => void;
 }) {
   const [country, setCountry] = useState(initial.countryCode || countries[0]?.code || '');
@@ -126,7 +134,24 @@ export function PlaceField({
 
   return (
     <div className="space-y-4">
-      {countries.length > 1 ? (
+      {fixed ? (
+        <div>
+          <span className="mb-1 block text-sm font-medium text-neutral-700">{t.country}</span>
+          <input type="hidden" name="countryCode" value={country} />
+          <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <Flag code={country} />
+            <span className="font-bold">{countries.find((c) => c.code === country)?.nameFa}</span>
+            <Icon name="lock" className="size-4 text-neutral-500" />
+            {fixed.changeHref && (
+              <a href={fixed.changeHref} className="ms-auto text-sm font-medium text-brand-800 hover:underline">
+                {t.changeCountry}
+              </a>
+            )}
+          </div>
+          <span className="mt-1 block text-xs text-neutral-500">{fixed.hint}</span>
+          <ErrorLine text={errors.countryCode} />
+        </div>
+      ) : countries.length > 1 ? (
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-neutral-700">{t.country}</span>
           <select
@@ -220,13 +245,13 @@ export function PlaceField({
           <div className="flex flex-wrap items-center gap-3 text-sm">
             {area ? (
               <>
-                <span className="text-emerald-800">{t.locationSet}</span>
+                <span className="text-brand-800">{t.locationSet}</span>
                 <button type="button" onClick={() => setArea(null)} className="text-neutral-600 underline">
                   {t.locationClear}
                 </button>
               </>
             ) : (
-              <button type="button" onClick={locate} className="text-emerald-800 underline">
+              <button type="button" onClick={locate} className="text-brand-800 underline">
                 {t.useMyLocation}
               </button>
             )}

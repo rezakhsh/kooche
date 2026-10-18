@@ -18,11 +18,14 @@ import {
   type FieldErrors,
   type StatusAction,
 } from '../../../modules/listings/listings';
+import { postingCountry } from '../../../modules/listings/posting-country';
+import { activeCountries, savedPlace } from '../../../modules/listings/queries';
 import { listingPath } from '../../../modules/listings/slug';
 import { confirmUpload, moveImage, removeImage, requestUpload } from '../../../modules/media/images';
 import { storage } from '../../../modules/media/server';
 import { photoView, type PhotoView } from './photo-view';
 import { requireSession } from '../../../modules/users/server';
+import { chosenCountry } from '../../country-choice';
 
 /** `listingId`: the draft this save created, so the editor uses it from now on */
 export type SaveState = { errors?: FieldErrors; error?: string; notice?: string; listingId?: string } | undefined;
@@ -78,6 +81,12 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   const { user } = await requireSession('/my/listings');
   let listingId = String(form.get('listingId') ?? '');
   let created: string | undefined;
+  // The country is decided here, never taken from the form (decided Oct 17, 2026). A form that
+  // names another one (an old page, a forged request) is refused.
+  const [chosen, saved, open] = await Promise.all([chosenCountry(appDb()), savedPlace(appDb(), user.id), activeCountries(appDb())]);
+  const country = (listingCountry: string | null) =>
+    postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: open.map((c) => c.code) });
+  if (!listingId && !country(null)) return { error: messages.form.chooseCountryFirst };
   if (!listingId) {
     const draft = await startDraft(user.id, form.get('categoryId'));
     if (!draft.ok) return { error: draft.error };
@@ -86,6 +95,11 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   if (!uuid.safeParse(listingId).success) return { error: messages.genericError };
   const own = await ownListing(appDb(), user.id, listingId);
   if (!own?.listing.categoryId) return { error: messages.genericError };
+
+  const countryCode = country(own.listing.countryCode);
+  if (!countryCode) return { error: messages.form.chooseCountryFirst, listingId: created };
+  const sent = String(form.get('countryCode') ?? '').toUpperCase();
+  if (sent && sent !== countryCode) return { errors: { countryCode: 'locked' }, error: messages.form.fixErrors, listingId: created };
 
   const catalog = await cachedCatalog(appDb());
   const defs = effectiveAttributes(catalog, own.listing.categoryId);
@@ -98,7 +112,7 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
     attributes: attributesFromForm(defs, form),
     priceType: form.get('priceType') ?? undefined,
     amount: form.get('amount') ?? undefined,
-    countryCode: form.get('countryCode') ?? undefined,
+    countryCode,
     placeValue: form.get('placeValue') ?? undefined,
     place: form.get('place') ?? undefined,
     district: form.get('district') ?? undefined,

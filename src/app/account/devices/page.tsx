@@ -41,7 +41,7 @@ export default async function DevicesPage({
                     </span>
                   </p>
                   {d.current && (
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                    <span className="rounded-full bg-brand-50 px-2 py-1 text-xs text-brand-800">
                       {t.current}
                     </span>
                   )}

@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { SiteHeader } from '../components/site-header';
+import { SiteFooter, SiteHeader } from '../components/site-header';
+import { webEnv } from '../lib/env';
 import { messages } from '../messages/fa';
 import './globals.css';
 
@@ -14,13 +15,20 @@ const vazirmatn = localFont({
   variable: '--font-vazirmatn',
 });
 
-export const metadata: Metadata = {
-  title: messages.site.name,
-  description: messages.site.description,
-};
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(webEnv().APP_URL),
+    title: messages.site.title,
+    description: messages.site.description,
+    applicationName: messages.site.name,
+    // Icons and the share image are files next to this one: icon.svg, icon.png, apple-icon.png,
+    // favicon.ico, opengraph-image.png (drawn by scripts/brand-assets.mjs), and manifest.ts
+    openGraph: { siteName: messages.site.name, locale: 'fa_IR' },
+  };
+}
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: '#0b6e77',
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -30,9 +38,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
-      <body className="min-h-dvh bg-white font-sans text-neutral-900 antialiased">
+      <body className="flex min-h-dvh flex-col bg-white font-sans text-neutral-900 antialiased">
         <SiteHeader />
-        {children}
+        <div className="flex-1">{children}</div>
+        <SiteFooter />
       </body>
     </html>
   );

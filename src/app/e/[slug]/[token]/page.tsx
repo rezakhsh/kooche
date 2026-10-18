@@ -184,7 +184,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
 
           <div className="space-y-4">
             <div>
-              {type && <span className="mb-1 inline-block rounded-md bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">{type.nameFa}</span>}
+              {type && <span className="mb-1 inline-block rounded-md bg-brand-50 px-2 py-0.5 text-xs text-brand-800">{type.nameFa}</span>}
               <h1 className="text-2xl font-bold leading-snug">{l.title}</h1>
             </div>
 
@@ -216,7 +216,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                           href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(addressText)}`}
                           target="_blank"
                           rel="noopener noreferrer nofollow"
-                          className="text-xs text-emerald-800 hover:underline"
+                          className="text-xs text-brand-800 hover:underline"
                         >
                           {t.openMap}
                         </a>
@@ -231,12 +231,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                   value={
                     session ? (
                       d.onlineUrl && (
-                        <a href={d.onlineUrl} target="_blank" rel="noopener noreferrer nofollow ugc" dir="ltr" className="break-all text-emerald-800 hover:underline">
+                        <a href={d.onlineUrl} target="_blank" rel="noopener noreferrer nofollow ugc" dir="ltr" className="break-all text-brand-800 hover:underline">
                           {d.onlineUrl}
                         </a>
                       )
                     ) : (
-                      <Link href={`/login?next=${encodeURIComponent(path)}`} className="text-emerald-800 hover:underline">
+                      <Link href={`/login?next=${encodeURIComponent(path)}`} className="text-brand-800 hover:underline">
                         {t.onlineSignIn}
                       </Link>
                     )

@@ -93,10 +93,10 @@ export default async function CountryEventsPage({ params, searchParams }: { para
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-bold">{city ? t.cityTitle(city.nameFa, country.nameFa) : t.title(country.nameFa)}</h1>
         <div className="flex gap-4 text-sm">
-          <Link href="/events/new" className="font-semibold text-emerald-800 hover:underline">
+          <Link href="/events/new" className="font-semibold text-brand-800 hover:underline">
             {t.post}
           </Link>
-          <Link href="/my/events" className="text-emerald-800 hover:underline">
+          <Link href="/my/events" className="text-brand-800 hover:underline">
             {t.mine}
           </Link>
         </div>
@@ -108,7 +108,7 @@ export default async function CountryEventsPage({ params, searchParams }: { para
             key={w}
             href={query({ when: w === 'all' ? undefined : w, after: undefined })}
             aria-current={w === when ? 'page' : undefined}
-            className={`rounded-full border px-3 py-1 text-sm ${w === when ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-neutral-300 hover:bg-neutral-50'}`}
+            className={`rounded-full border px-3 py-1 text-sm ${w === when ? 'border-brand-700 bg-brand-700 text-white' : 'border-neutral-300 hover:bg-neutral-50'}`}
           >
             {t.when[w]}
           </Link>
@@ -157,7 +157,7 @@ export default async function CountryEventsPage({ params, searchParams }: { para
           <p>{t.empty}</p>
           <p className="text-sm">
             {t.emptyHint}{' '}
-            <Link href="/events/new" className="text-emerald-800 hover:underline">
+            <Link href="/events/new" className="text-brand-800 hover:underline">
               {t.post}
             </Link>
           </p>

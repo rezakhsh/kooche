@@ -21,7 +21,10 @@ export type EventFormProps = {
   status: string;
   /** The event types (leaf categories of the events section) */
   types: { id: string; nameFa: string }[];
+  /** The event's country only (fixed, like every listing's); empty until the visitor chose one */
   countries: { code: string; nameFa: string; currencySymbol: string }[];
+  /** False once the event has a country: then "change country" isn't offered */
+  countryChangeable: boolean;
   needsName: boolean;
   values: {
     categoryId: string;
@@ -54,7 +57,7 @@ const t = messages.form;
 const e = messages.events.form;
 
 const selectClass =
-  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20';
+  'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20';
 
 const AGES = ['', '6', '12', '16', '18', '21'];
 
@@ -71,7 +74,7 @@ function JalaliHint({ value }: { value: string }) {
   // Weekday and date apart: asked for both, Intl puts the weekday after the year
   const weekday = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long', timeZone: 'UTC' }).format(date);
   const text = `${weekday} ${new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'long', timeZone: 'UTC' }).format(date)}`;
-  return <span className="mt-1 block text-xs text-emerald-800">{e.jalali(text)}</span>;
+  return <span className="mt-1 block text-xs text-brand-800">{e.jalali(text)}</span>;
 }
 
 function DateField({ label, name, value, onChange, error, hint }: { label: string; name: string; value: string; onChange: (v: string) => void; error?: FieldError; hint?: ReactNode }) {
@@ -101,8 +104,7 @@ export function EventForm(
   const [startDate, setStartDate] = useState(v.startDate);
   const [endDate, setEndDate] = useState(v.endDate);
   const [repeatUntil, setRepeatUntil] = useState(v.repeatUntil);
-  const [countryCode, setCountryCode] = useState(v.place.countryCode || props.countries[0]?.code || '');
-  const currencySymbol = props.countries.find((c) => c.code === countryCode)?.currencySymbol ?? '';
+  const currencySymbol = props.countries[0]?.currencySymbol ?? '';
   const placeError = (k: string) => (errors[k] ? (t.errors[errors[k]] ?? t.errors.invalid) : undefined);
 
   const draft = props.status === 'draft';
@@ -149,7 +151,7 @@ export function EventForm(
             defaultValue={v.description}
             rows={6}
             maxLength={5000}
-            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
           />
           <span className="mt-1 block text-xs text-neutral-500">{e.descriptionHint}</span>
           <ErrorText code={errors.description} />
@@ -220,13 +222,25 @@ export function EventForm(
             </div>
           </>
         )}
-        <PlaceField
-          countries={props.countries}
-          initial={v.place}
-          showDistrict={false}
-          onCountryChange={setCountryCode}
-          errors={{ countryCode: placeError('countryCode'), place: placeError('place'), area: placeError('area') }}
-        />
+        {props.countries[0] ? (
+          <PlaceField
+            countries={props.countries}
+            initial={v.place}
+            showDistrict={false}
+            fixed={{
+              hint: props.countryChangeable ? messages.form.countryFixedEvent : messages.form.countryFixedEdit,
+              changeHref: props.countryChangeable ? '/?choose' : null,
+            }}
+            errors={{ countryCode: placeError('countryCode'), place: placeError('place'), area: placeError('area') }}
+          />
+        ) : (
+          <Alert tone="info">
+            {messages.form.chooseCountryFirst}{' '}
+            <a href="/?choose" className="font-bold underline">
+              {messages.form.changeCountry}
+            </a>
+          </Alert>
+        )}
         <p className="text-xs text-neutral-500">{e.placeHint}</p>
         {attendance !== 'in_person' && (
           <div>

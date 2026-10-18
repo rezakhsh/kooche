@@ -332,3 +332,29 @@ Not done yet:
 - The n8n webhook for channel posting.
 
 Merge order: `listing-fields` first (or together), because 0010 follows 0009. Expect small conflicts with `design-brand` in `src/app/[country]/page.tsx`, `src/app/v/[slug]/[token]/page.tsx`, `src/app/new/page.tsx`, `src/app/my/listings/[id]/page.tsx`, `src/components/place-field.tsx`, `src/modules/listings/queries.ts` and `src/messages/fa.ts`. Each of these got only a few added lines.
+
+## Oct 17–18, 2026: brand, design and the listing experience
+
+Asked by the owner (Oct 17): the listing page was too plain and photos could not be enlarged; the country should not change on the posting page; a site name line and slogan; a logo to choose from; a colour palette; categories on the side and a grid or list switch. A plan with four logos, the palette and page mockups was approved the same day (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK): logo A, «نیازمندی‌های ایرانیان خارج از کشور», «هر چی بخوای، تو پیدو پیداست», turquoise and saffron, a bottom bar on phones, dark mode later.
+
+Done (branch `design-brand`, details in `docs/setup.md`, "Brand and design"):
+- **Brand:** logo, favicon, app icons, share image and manifest; colour tokens in `globals.css` (every `emerald-` class is now `brand-`); own line icons; flags for Germany and Austria.
+- **Every page:** new header (logo with its line, the chosen country), bottom bar on phones, footer. Home page with the slogan, countries with flags and listing counts, and three reasons to trust the site. Country page with the category sidebar (computers) or a swipeable row and a bottom sheet (phones), filtering by category (`?category=`), counts per category, grid or list (remembered), photo count and "2 hours ago" on cards. Listing page with the photo viewer, large price, seller box (member since, phone verified), details table, breadcrumb links back into the country page. Category picker with icons and the country it posts into. "My listings" with tabs by status, days left, coloured status. Account as a list of settings with their values. Login with the logo.
+- **Country fixed when posting:** shown as fixed text in the form; decided and enforced on the server (see setup).
+- **Tests:** 9 new (216 in total), all passing: which country a listing gets (own, chosen, saved, closed ones skipped), the server refusing another country for a live listing and a saved draft (also in lower case) with nothing changed, a draft without a country taking one, the category filter and counts, relative dates and the member-since month.
+- **Checked in headless Chromium** (production build, scratch database, a stand-in for imgproxy) on an iPhone 13 size and 1280 px: no CSP errors and no sideways scrolling on any page; the view switch is remembered; the category sheet opens and closes after a choice; the viewer opens on the tapped photo, moves by swipe and arrow keys, closes with Esc and with the back button, and releases the page; the posting form has no country select and follows the chosen country (Germany, Austria).
+
+Not done:
+- Not deployed. Merge `design-brand` into `main` to deploy (no migration).
+- Chat stays "coming soon"; the sticky contact bar from the mockup was left out because the bottom bar is at the bottom on phones; the seller box sits right under the price instead.
+- Dark mode (tokens are ready), pinch zoom beyond the browser's own, and search.
+- Coordinate: the events section can reuse `ListingCard`, `Pill`, the tokens and the icons; the category-fields work renders inside the existing form cards.
+
+## Oct 18, 2026: listing fields, events and the new design merged
+
+`listing-fields`, `events` (which contains it) and `design-brand` merged into `main`. Fitted together:
+- The events category is not a filter on the country page; a «رویدادها» chip (phones) and a sidebar link (computers) lead to `/{country}/events`. Category and home-page counts leave out events, like the listing pages.
+- The event form shows the country as fixed text and its save action decides the country on the server, as for listings (`postingCountry()`); one more test (an event can't move to Austria).
+- The listing page shows the cold rent with the big price and the warm rent under it. Money fields in the form use the country's minor unit for a new listing.
+- Event pages and the event card use the new colours.
+- 262 tests pass; the production build and the headless Chromium check (all pages above, plus the events list and the event form) pass with no CSP errors.

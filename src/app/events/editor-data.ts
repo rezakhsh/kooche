@@ -8,6 +8,7 @@ import { EVENT_ROOT_SLUG, cachedCatalog } from '../../modules/listings/catalog';
 import { maxImages } from '../../modules/listings/listings';
 import { amountInputValue } from '../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../modules/listings/places';
+import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { storage } from '../../modules/media/server';
 import { photoView, type PhotoView } from '../my/listings/photo-view';
@@ -39,12 +40,16 @@ export async function eventEditorData(
   const types = (root?.childIds ?? []).map((id) => catalog.byId.get(id)!).filter((c) => c.isActive && c.allowsListings);
   const l = event?.listing ?? null;
   const d = event?.details ?? null;
-  const open = (code: string | null | undefined) => (code && countries.some((c) => c.code === code) ? code : null);
-
+  // The country is fixed, like for every listing (src/modules/listings/posting-country.ts)
+  const countryCode = postingCountry({
+    listingCountry: l?.countryCode ?? null,
+    chosen: preferred.countryCode,
+    saved: saved?.place.countryCode ?? null,
+    open: countries.map((c) => c.code),
+  });
   let place: Place | null = null;
   if (l) place = await placeOfListing(db, l);
-  else if (saved && open(saved.place.countryCode)) place = saved.place;
-  const countryCode = open(place?.countryCode) ?? open(l?.countryCode) ?? open(preferred.countryCode) ?? countries[0]?.code ?? '';
+  else if (saved && saved.place.countryCode === countryCode) place = saved.place;
   const currency = l?.currency ? catalog.currencies.get(l.currency) : undefined;
 
   const tz = d?.timeZone ?? DEFAULT_TIME_ZONE;
@@ -60,7 +65,9 @@ export async function eventEditorData(
       listingId: l?.id ?? null,
       status: l?.status ?? 'draft',
       types: types.map((c) => ({ id: c.id, nameFa: c.nameFa })),
-      countries: countries.map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
+      // Only the event's country: shown as fixed text
+      countries: countries.filter((c) => c.code === countryCode).map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
+      countryChangeable: !l?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
       values: {
         categoryId: l?.categoryId ?? (preferredType && types.some((t) => t.id === preferredType.id) ? preferredType.id : ''),
@@ -69,7 +76,7 @@ export async function eventEditorData(
         priceType: l && ['free', 'fixed', 'on_request'].includes(l.priceType) ? (l.priceType as 'free' | 'fixed' | 'on_request') : 'free',
         amount: l?.priceMinor != null && currency ? amountInputValue(l.priceMinor, currency.minorUnit) : '',
         place: {
-          countryCode,
+          countryCode: countryCode ?? '',
           place: place ? placeLabel(place) : '',
           placeValue: place ? placeValue(place) : '',
           district: '',

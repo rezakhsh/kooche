@@ -11,6 +11,7 @@ import { eventPath } from '../../../../modules/events/slug';
 import { takeDownStatement } from '../../../../modules/listings/queries';
 import { requireSession } from '../../../../modules/users/server';
 import { EventEditor } from '../../../events/editor';
+import { chosenCountry } from '../../../country-choice';
 import { eventEditorData } from '../../../events/editor-data';
 
 export const metadata = { title: messages.events.form.editTitle, robots: { index: false } };
@@ -35,7 +36,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         .where(eq(listingImages.listingId, listing.id))
         .orderBy(listingImages.position)
     : [];
-  const editor = editable ? await eventEditorData(db, user.id, { ...own, images }, { countryCode: null, typeSlug: null }) : null;
+  const editor = editable ? await eventEditorData(db, user.id, { ...own, images }, { countryCode: (await chosenCountry(db))?.code ?? null, typeSlug: null }) : null;
 
   return (
     <PageShell title={listing.status === 'draft' ? messages.events.form.newTitle : messages.events.form.editTitle}>
@@ -54,7 +55,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         {listing.status === 'active' && <Alert tone="info">{t.liveNotice}</Alert>}
         {!editable && <Alert tone="error">{messages.events.form.ended}</Alert>}
         {listing.status !== 'draft' && (
-          <Link href={eventPath(listing.title, listing.publicToken)} className="text-sm text-emerald-800 hover:underline">
+          <Link href={eventPath(listing.title, listing.publicToken)} className="text-sm text-brand-800 hover:underline">
             {t.view} ←
           </Link>
         )}

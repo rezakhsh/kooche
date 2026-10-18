@@ -38,7 +38,7 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
         {t.copyLink}
       </button>
       {copied && (
-        <span role="status" className="text-xs text-emerald-800">
+        <span role="status" className="text-xs text-brand-800">
           {t.copied}
         </span>
       )}

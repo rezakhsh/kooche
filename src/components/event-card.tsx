@@ -41,14 +41,14 @@ export function EventCard({ e }: { e: EventCardData }) {
         </div>
         {label && (
           <span
-            className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-emerald-700 text-white' : 'bg-red-700 text-white'}`}
+            className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-brand-700 text-white' : 'bg-red-700 text-white'}`}
           >
             {label}
           </span>
         )}
       </div>
       <div className="space-y-1 p-3">
-        <p className="text-xs text-emerald-800">{when.time}</p>
+        <p className="text-xs text-brand-800">{when.time}</p>
         <p className="line-clamp-2 text-sm font-semibold">{e.title}</p>
         {e.where && <p className="truncate text-xs text-neutral-500">{e.where}</p>}
         {e.price && <p className="text-xs text-neutral-700">{e.price}</p>}

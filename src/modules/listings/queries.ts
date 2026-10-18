@@ -10,7 +10,7 @@ export type Country = {
   slug: string;
   nameFa: string;
   nameLocal: string;
-  currency: { code: string; symbol: string; minorUnit: number };
+  currency: { code: string; symbol: string; minorUnit: number; nameFa: string };
 };
 
 const globalForCountries = globalThis as typeof globalThis & { countries?: { value: Promise<Country[]>; at: number } };
@@ -25,7 +25,7 @@ export function activeCountries(db: Queryable): Promise<Country[]> {
       slug: countries.slug,
       nameFa: countries.nameFa,
       nameLocal: countries.nameLocal,
-      currency: { code: currencies.code, symbol: currencies.symbol, minorUnit: currencies.minorUnit },
+      currency: { code: currencies.code, symbol: currencies.symbol, minorUnit: currencies.minorUnit, nameFa: currencies.nameFa },
     })
     .from(countries)
     .innerJoin(currencies, eq(currencies.code, countries.defaultCurrency))
@@ -94,6 +94,8 @@ export async function countryListings(
   db: Queryable,
   countryCode: string,
   after: { rankedAt: Date; id: string } | null,
+  /** A category and everything under it; null: all categories */
+  categoryIds: string[] | null = null,
 ) {
   const rows = await db
     .select({
@@ -109,6 +111,9 @@ export async function countryListings(
       district: listings.district,
       cityFa: locations.nameFa,
       rankedAt: listings.rankedAt,
+      publishedAt: listings.publishedAt,
+      kind: listings.kind,
+      photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
     })
     .from(listings)
     .leftJoin(locations, eq(locations.id, listings.locationId))
@@ -117,6 +122,7 @@ export async function countryListings(
         eq(listings.status, 'active'),
         eq(listings.countryCode, countryCode),
         notAnEvent,
+        categoryIds ? inArray(listings.categoryId, categoryIds) : undefined,
         after ? sql`(${listings.rankedAt}, ${listings.id}) < (${after.rankedAt.toISOString()}::timestamptz, ${after.id}::uuid)` : undefined,
       ),
     )
@@ -129,6 +135,26 @@ export async function countryListings(
     items: page.map((r) => ({ ...r, coverKey: covers.get(r.id) ?? null })),
     next: rows.length > COUNTRY_PAGE_SIZE && last?.rankedAt ? { rankedAt: last.rankedAt, id: last.id } : null,
   };
+}
+
+/** Active listings of one country by category (the leaf a listing is in); the page adds them up the tree */
+export async function countryCategoryCounts(db: Queryable, countryCode: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ categoryId: listings.categoryId, n: sql<number>`count(*)::int` })
+    .from(listings)
+    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode), notAnEvent))
+    .groupBy(listings.categoryId);
+  return new Map(rows.filter((r) => r.categoryId).map((r) => [r.categoryId!, r.n]));
+}
+
+/** Active listings per open country, for the home page */
+export async function countryCounts(db: Queryable): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ code: listings.countryCode, n: sql<number>`count(*)::int` })
+    .from(listings)
+    .where(and(eq(listings.status, 'active'), notAnEvent))
+    .groupBy(listings.countryCode);
+  return new Map(rows.filter((r) => r.code).map((r) => [r.code!, r.n]));
 }
 
 /** The owner's listings, newest first, with the cover photo's key */

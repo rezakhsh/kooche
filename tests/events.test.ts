@@ -368,3 +368,20 @@ describe('grants', () => {
     });
   });
 });
+
+describe('an event keeps its country (decided Oct 17, 2026, like every listing)', () => {
+  it('a published event in Germany cannot be moved to Austria', async () => {
+    const u = await user();
+    const id = await publishEvent(u.id);
+    const r = await saveEvent(appDb, {
+      userId: u.id,
+      listingId: id,
+      input: listingIn({ countryCode: 'AT', place: '1010' }),
+      event: eventIn(),
+      intent: 'save',
+      now: NOW,
+    });
+    expect(r).toMatchObject({ ok: false, errors: { countryCode: 'locked' } });
+    expect(await listing(id)).toMatchObject({ countryCode: 'DE', postalCode: '12045' });
+  });
+});
