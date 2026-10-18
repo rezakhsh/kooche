@@ -358,3 +358,5 @@ Not done:
 - The listing page shows the cold rent with the big price and the warm rent under it. Money fields in the form use the country's minor unit for a new listing.
 - Event pages and the event card use the new colours.
 - 262 tests pass; the production build and the headless Chromium check (all pages above, plus the events list and the event form) pass with no CSP errors.
+
+Deployed to staging Oct 18, 2026 (`652bf93`): `classifieds-migrate` applied `0009_attribute_date` and `0010_events`, then web and worker came up healthy. The seed was run once as `classifieds_owner` from a throwaway container on the `coolify` network (141 categories, 127 leaves, 289 fields, 1,257 options; seed checks passed). Checked live: `/`, `/germany` with a category and list view, `/austria`, `/germany/events`, the icons, the share image and the manifest answer 200, `/turkey` 404, the CSP header is in place. Memory right after: web 93 MB, worker 71 MB, PostgreSQL 162 MB, Valkey 4 MB; 1.5 GB available on the server.
