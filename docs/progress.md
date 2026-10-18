@@ -387,9 +387,15 @@ Done (branch `chat`):
 - **Memory:** 500 open streams raised the web process from 77 to 131 MB; Valkey +0.2 MB; the worker about 52 MB (`docs/setup.md`, "Memory budget").
 - Docs: `docs/setup.md` ("Chat", including why the bot scales), `docs/schema.md` (sections 10, 11, 14, 15, 17).
 
-Not done yet:
-- Not deployed. After merging, `classifieds-migrate` applies `0011`; no seed and no new setting.
-- The live check on staging: two verified users chatting, SSE through Cloudflare (pings, a 10-minute stream, a reconnect during the deploy), a Telegram notice to the owner, an email notice to an account without Telegram, block and report. For the second account: a second email address of the owner's and an unused mobile number verified by SMS (staging logs the code).
-- Email notices weren't sent end to end locally (the local mail sink has no STARTTLS); the unit tests cover them, and staging uses SES.
+Deployed to staging Oct 18, 2026 (`d1e8f70`, approved by the owner): `classifieds-migrate` applied `0011_chat`, then web and worker came up healthy; the bot polls as @Peydoo_bot and `/health` answers 200. No seed and no new setting.
+
+Checked live on https://staging.peydoo.com:
+- **Through Cloudflare:** a chat stream answered `text/event-stream` without compression (`cf-cache-status: DYNAMIC`), got a `ping` every 20 seconds and stayed open for the full 10 minutes until the server ended it (600.6 s). A temporary test account was used for this and deleted afterwards.
+- **Two verified accounts** (the owner's رضا as seller and their second account as buyer, both linked to the bot by then): one conversation, 28 messages in both directions between 20:47 and 20:54 UTC, both read watermarks set, nothing left unread, every `message.sent` handed to the worker.
+- **Notices** (BullMQ results in Valkey): 41 checks; 2 Telegram notices sent, one to each side (`sent`, no retries, nothing failed); the others correctly skipped: 21 while the receiver had the chat open, 2 already read, 12 within the 5-minute debounce. No email was needed, because both accounts reach the bot.
+
+Not checked live yet:
+- The email fallback (both test accounts are now linked to the bot). Covered by the tests with a fake Telegram (403 and ten 502s end in an email); SES itself already sends the login codes and expiry reminders.
+- Block and report on staging (no rows yet). Covered by the tests and the local two-browser run.
 - Chat images, the business inbox (organization managers answering), the n8n alert for new reports, the 12-month purge of deleted listings (it must delete conversations first), and the data-export job.
 
