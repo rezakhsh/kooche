@@ -310,6 +310,19 @@ Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify
 
 **Seeding on staging.** The seed is not part of the deploy. After a deploy whose migrations need new reference data (like 0008), run it once as `classifieds_owner` from a throwaway container on the `coolify` network, the same way as the first setup ("Database setup"): `npm run db:seed` with `MIGRATION_DATABASE_URL`. It runs in one transaction with the seed checks, and can be rerun. Until it has run, the country list is empty and posting finds no postal codes; old listings keep working.
 
+## Brand and design
+
+Approved by the owner on Oct 17, 2026 (plan: https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK).
+
+- **Name:** پیدو (Peydoo). Under it: «نیازمندی‌های ایرانیان خارج از کشور». Slogan: «هر چی بخوای، تو پیدو پیداست». All in `src/messages/fa.ts` (`site`).
+- **Logo:** option A, a turquoise rounded square with a white magnifier and a saffron dot. React: `src/components/logo.tsx`; favicon `src/app/icon.svg`. The PNG icons, `favicon.ico` and the share image (`opengraph-image.png`) are drawn by `scripts/brand-assets.mjs` in the Playwright image (command in the file); run it again when the logo or slogan changes. `src/app/manifest.ts` is the "add to home screen" manifest.
+- **Colours:** tokens in `src/app/globals.css`. `brand-*` (Persian turquoise, primary `brand-700` #0B6E77), `saffron-*` (accent, dark text only), and `neutral-*` redefined with a turquoise tint. Every text colour passes WCAG AA on white and `neutral-50`. Light only; dark mode later redefines the same tokens.
+- **Type and icons:** Vazirmatn only (self-hosted). Icons are our own line drawings in `src/components/icons.tsx` (no icon font or CDN); `categoryIcon()` maps a top category's slug to its icon. Flags of open countries are in `src/components/flag.tsx`; add one when a country opens.
+- **Layout:** header with the logo, the chosen country and (on computers) the actions; on phones a bottom bar (`src/components/bottom-nav.tsx`) with listings, post, my listings and account; footer. Listing cards come from `src/components/listing-card.tsx` (grid or list); new list pages (cities, search, events) reuse it.
+- **Country page:** `?category=<slug>` shows a category and everything under it; categories sit in a sidebar from the `lg` breakpoint and in a row plus a sheet on phones. `?view=grid|list` switches the layout and is remembered in the `view` cookie.
+- **Photo viewer** (`src/app/v/[slug]/[token]/gallery.tsx`): a native `<dialog>` with native horizontal scrolling and scroll snap, so the strict CSP needs nothing new. Tap or click to open, swipe or arrow keys to move, Esc, the close button, a click beside the photo or the back button (it adds `#photos` to the address) to close. Without JavaScript each photo links to its large image.
+- **Country fixed when posting:** `postingCountry()` in `src/modules/listings/posting-country.ts`. The listing's own country; for a new listing the country chosen on the home page, else the saved place's. The form shows it as fixed text with a "change country" link to `/?choose` (only before the listing has a country). The save action decides the country on the server and refuses a form that names another; `saveListing()` refuses any other country for a listing that has one (`locked`).
+
 ## Memory budget
 
 **Now (CX23, 4 GB, staging):** limits, and use measured on Oct 16, 2026 right after the first app deploy (idle, after 20 page loads).

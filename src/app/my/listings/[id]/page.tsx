@@ -30,7 +30,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
   const editor = editable ? await editorData(db, user.id, categoryId, listing, images, (await chosenCountry(db))?.code ?? null) : null;
 
   return (
-    <PageShell title={listing.status === 'draft' ? t.draftTitle : t.editTitle}>
+    <PageShell title={listing.status === 'draft' ? t.draftTitle : t.editTitle} wide>
       <div className="space-y-6">
         {listing.status === 'rejected' && (
           <Alert tone="error">

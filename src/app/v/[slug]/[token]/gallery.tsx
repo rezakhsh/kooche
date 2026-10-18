@@ -131,7 +131,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
         onClose={onClose}
         onKeyDown={onKeyDown}
         aria-label={t.viewer}
-        className="photo-viewer m-0 h-dvh max-h-none w-screen max-w-none bg-transparent p-0 text-white"
+        className="photo-viewer m-0 h-dvh max-h-none w-screen max-w-none bg-neutral-950 p-0 text-white"
       >
         {open && (
           <div className="flex h-full flex-col">

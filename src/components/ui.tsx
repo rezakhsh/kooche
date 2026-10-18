@@ -1,15 +1,31 @@
 import type { ComponentProps, ReactNode } from 'react';
+import { LogoMark } from './logo';
 
 // Small shared building blocks for forms and pages. Logical (start/end) classes only: the whole
 // site is right-to-left.
 
-export function PageShell({ title, children }: { title: string; children: ReactNode }) {
+/** `wide`: the posting form and lists; `logo`: login, with the logo above a centred title */
+export function PageShell({ title, children, wide, logo }: { title: string; children: ReactNode; wide?: boolean; logo?: boolean }) {
   return (
-    <main className="mx-auto w-full max-w-md px-6 py-12">
-      <h1 className="mb-6 text-2xl font-bold">{title}</h1>
+    <main className={`mx-auto w-full px-4 py-8 sm:px-6 sm:py-12 ${wide ? 'max-w-2xl' : 'max-w-md'}`}>
+      {logo && <LogoMark className="mx-auto mb-4 size-14" />}
+      <h1 className={`mb-6 text-2xl font-extrabold ${logo ? 'text-center' : ''}`}>{title}</h1>
       {children}
     </main>
   );
+}
+
+/** A small coloured label: a listing's status, "your country", "verified" */
+export function Pill({ tone, children }: { tone: 'brand' | 'success' | 'warning' | 'danger' | 'neutral' | 'saffron'; children: ReactNode }) {
+  const styles = {
+    brand: 'bg-brand-50 text-brand-700',
+    success: 'bg-green-50 text-green-800',
+    warning: 'bg-amber-50 text-amber-800',
+    danger: 'bg-red-50 text-red-800',
+    neutral: 'bg-neutral-100 text-neutral-700',
+    saffron: 'bg-saffron-50 text-saffron-700',
+  }[tone];
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${styles}`}>{children}</span>;
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -40,6 +56,7 @@ export function Field({
 
 const buttonStyles = {
   primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/60',
+  accent: 'bg-saffron-500 text-neutral-900 hover:bg-saffron-400',
   secondary: 'border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50',
   danger: 'border border-red-200 bg-white text-red-700 hover:bg-red-50',
 };
@@ -52,7 +69,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${buttonStyles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
     />
   );
 }
@@ -65,7 +82,7 @@ export function LinkButton({
   return (
     <a
       {...props}
-      className={`inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${buttonStyles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
     />
   );
 }

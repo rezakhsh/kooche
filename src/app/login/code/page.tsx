@@ -12,7 +12,7 @@ export default async function CodePage() {
   if (!email) redirect('/login');
   const t = messages.code;
   return (
-    <PageShell title={t.title}>
+    <PageShell title={t.title} logo>
       <Card>
         <p className="mb-5 text-sm leading-relaxed text-neutral-600">
           {t.intro('⁨' + email + '⁩')}
