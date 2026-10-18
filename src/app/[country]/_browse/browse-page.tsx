@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import { cache } from 'react';
 import { FavoriteButton } from '../../../components/favorite-button';
@@ -163,11 +163,34 @@ export async function BrowsePage({ b }: { b: Browse }) {
             ? tb.postalUnknown
             : null;
 
+  // Structured data: where the page sits (country › city › categories) and the listings on it
+  const crumbs = [
+    { name: country.nameFa, path: browsePath(country.slug, null, null) },
+    ...(city ? [{ name: city.nameFa, path: browsePath(country.slug, city.slug, null) }] : []),
+    ...path.map((c) => ({ name: c.nameFa, path: browsePath(country.slug, city?.slug ?? null, c.slug) })),
+  ];
+  const jsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: `${env.APP_URL}${c.path}` })),
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: titleOf(b),
+      numberOfItems: cards.length,
+      itemListElement: cards.map(({ card }, i) => ({ '@type': 'ListItem', position: i + 1, url: `${env.APP_URL}${card.href}`, name: card.title })),
+    },
+  ];
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   const categoryLinks = <CategoryLinks roots={roots} counts={counts} total={total} root={root} selected={category} childrenOfRoot={children} link={link} />;
   const filterForm = (id: string) => <FilterForm b={b} cities={cities} id={id} />;
 
   return (
     <main className="mx-auto w-full max-w-6xl pb-6 sm:px-6">
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <RememberCountry slug={country.slug} />
       <RememberView view={state.view} />
 

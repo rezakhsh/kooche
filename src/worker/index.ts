@@ -12,11 +12,12 @@ import { startChatJobs } from './chat';
 import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
 import { startRetention } from './retention';
+import { startSeoJobs } from './seo';
 import { runTelegramBot } from './telegram';
 
 // Background worker entry point: one process that polls the outbox, runs the phone verification
-// Telegram bot, the chat jobs and notices, the daily retention jobs and (as features arrive) other
-// BullMQ job processors.
+// Telegram bot, the chat jobs and notices, the daily retention jobs, the hourly sitemaps and (as
+// features arrive) other BullMQ job processors.
 // Bundled to dist/worker.js for the `worker` Docker target.
 
 const POLL_INTERVAL_MS = 1_000;
@@ -69,6 +70,7 @@ async function main(): Promise<void> {
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
     appUrl: env.APP_URL,
   });
+  const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
   handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers);
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
@@ -80,7 +82,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

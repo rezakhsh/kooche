@@ -5,6 +5,26 @@ import { webEnv } from './lib/env';
 // request's CSP header and puts it on its own scripts. The other security headers are static and
 // live in next.config.ts, except X-Robots-Tag, which depends on the environment at runtime.
 
+/** First path segments of our own pages; anything else with one to three segments is a browse page */
+const NOT_BROWSE = new Set(['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'v', 'sitemaps']);
+const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
+
+/**
+ * Cache-Control for browse pages (/germany, /germany/berlin/cars …). A logged-out visitor's page
+ * is the same for everyone, so a shared cache may keep it for 60 seconds. Anything personal stays
+ * private: a session, the remembered layout, a chosen country other than the page's (the header
+ * shows it), and a postal code or "near me" in the address. Cloudflare caches HTML only once a
+ * Cache Rule says so (docs/setup.md, "Browsing and favorites"); until then this changes nothing.
+ * Other pages keep Next.js's own header.
+ */
+export function browseCacheControl(pathname: string, search: URLSearchParams, cookie: (name: string) => string | undefined): string | null {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length < 1 || segments.length > 3 || NOT_BROWSE.has(segments[0]!) || !/^[a-z][a-z-]{1,40}$/.test(segments[0]!)) return null;
+  const chosen = cookie('country');
+  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined || (chosen !== undefined && chosen !== segments[0]);
+  return personal || search.has('near') || search.has('postal') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
+}
+
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const dev = process.env.NODE_ENV === 'development';
@@ -36,6 +56,8 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  const cacheControl = browseCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value);
+  if (cacheControl) response.headers.set('Cache-Control', cacheControl);
   return response;
 }
 
