@@ -15,7 +15,8 @@ import { startRetention } from './retention';
 import { runTelegramBot } from './telegram';
 
 // Background worker entry point: one process that polls the outbox, runs the phone verification
-// Telegram bot, the chat jobs and notices, the daily retention jobs and (as features arrive) other BullMQ job processors.
+// Telegram bot, the chat jobs and notices, the daily retention jobs and (as features arrive) other
+// BullMQ job processors.
 // Bundled to dist/worker.js for the `worker` Docker target.
 
 const POLL_INTERVAL_MS = 1_000;

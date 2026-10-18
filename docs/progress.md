@@ -364,3 +364,32 @@ Deployed to staging Oct 18, 2026 (`652bf93`): `classifieds-migrate` applied `000
 Changed after the owner tried it (Oct 18, 2026):
 - Photos: the photo box came before the event type, and a new event can't take photos until it has a type. The box now follows the type (`9a56e98`).
 - Dates: event dates are shown in the Gregorian calendar (miladi), in Persian, everywhere: cards, the event page, "my events" and the form's day check under each date field. The event page keeps the Jalali date as a small second line. The owner's reason: Iranians outside Iran, and the venues and tickets, use the Gregorian calendar. Listings keep Jalali dates.
+
+## Oct 18, 2026: chat between buyers and sellers
+
+Decided by the owner (Oct 18, 2026), plan approved with all five open points as recommended:
+- Instant: server-sent events from the Next.js app, fanned out through Valkey pub/sub, heartbeats under Cloudflare's 100 seconds, reconnect with the last message id, fallback to reloading.
+- Notices: Telegram bot first, email when the bot can't reach someone; one per conversation per few minutes (Telegram 5, email 15), none while the chat is open; a BullMQ queue limited to 25 a second that honors 429 and drops nothing; a per-user switch.
+- Phone number: the seller chooses per listing, chat only by default; reveal only for verified users, limited per day and per IP, every reveal logged.
+- Scam guard: warn always, block links and IBANs from accounts under 7 days; send limits and new-conversation limits for new accounts.
+- Also: chats of taken-down listings close too and reopen when live again; links in messages are plain text; the bottom bar gets «پیام‌ها».
+
+Done (branch `chat`):
+- **Pages:** «گفتگو با آگهی‌دهنده» on listing and event pages; `/chat/new?l=` (listing, quick first messages, composer; nothing stored until sent); the inbox `/chat` (buying and selling merged, filters, unread badges, seen ticks, archive); the conversation `/chat/{id}` (full screen on phones, bubbles, Jalali day dividers, ticks, safety tip, risk warnings, report dialog, archive, block, read-only states with their reasons, "load older"); `/account/notifications`. Badges in the header and the bottom bar (now five items). Works without JavaScript.
+- **Live:** `/chat/stream` with one Valkey subscriber per web process, replay after `Last-Event-ID`, `ping` events every 20 s, streams ending after 10 minutes, presence for "chat open", caps per process and per user; the browser closes the stream for hidden tabs, reconnects when back online or after 50 s of silence, and falls back to reloading with a backoff retry.
+- **Notices:** worker queues `chat`, `chat-notify`, `telegram-send` (one every 40 ms, 429 pauses the queue, 403 marks the bot unreachable and sends email, the last failed attempt sends email) and `email-send`. The bot now hears block and unblock (`my_chat_member`). The Telegram client moved to `src/modules/notifications/telegram-api.ts`.
+- **Safety:** risk detector with five flags, the new-account rule, rate limits, messaging sanctions honored, quiet blocking (`messages.withheld`), message reports with `report.created`.
+- **Phone reveal:** verified viewers only, 10 an hour and 30 a day per viewer, 40 an hour and 100 a day per IP, `audit_log` row per reveal. The form switch is relabelled.
+- **Retention and export:** `chat-retention` daily (90 days after an account deletion, unless reported); `exportChatData()` ready for the export job.
+- **Migration `0011`:** `messages.withheld`, one open report per person per message. Additive; no seed needed.
+- **Tests:** 61 new (324 in total), all passing: participants only, blocks and withheld messages, the new-account rule, rate limits, sanctions, risk flags (27 cases including false-positive guards), closed, reopened and locked conversations, read watermarks and the replay, reports, the phone reveal limits and log, retention, export, the notice rules and debounce, and the send queues against a fake Telegram (429 with `retry_after`, 403, ten 502s then email, the 25-a-second limiter), plus the bot's block tracking.
+- **Checked in two headless Chromium browsers** (production build, TLS in front, scratch PostgreSQL and Valkey, a phone-sized buyer and a desktop seller): start from the listing page, the seller's badge, seen ticks live, a reply delivered live in about 100–140 ms, the link refusal for the new buyer, the payment warning, catching up after offline, a hidden tab catching up when visible, a web restart (deploy) with the stream coming back, sending without JavaScript, report, block (the withheld message never reaches the seller, also after a reload), no sideways scroll, no CSP errors. That run found and fixed four bugs: the header badge counting the chat being read, text typed before the page loaded being lost, a quick second message being wiped, and a stream that died without closing never reconnecting.
+- **Memory:** 500 open streams raised the web process from 77 to 131 MB; Valkey +0.2 MB; the worker about 52 MB (`docs/setup.md`, "Memory budget").
+- Docs: `docs/setup.md` ("Chat", including why the bot scales), `docs/schema.md` (sections 10, 11, 14, 15, 17).
+
+Not done yet:
+- Not deployed. After merging, `classifieds-migrate` applies `0011`; no seed and no new setting.
+- The live check on staging: two verified users chatting, SSE through Cloudflare (pings, a 10-minute stream, a reconnect during the deploy), a Telegram notice to the owner, an email notice to an account without Telegram, block and report. For the second account: a second email address of the owner's and an unused mobile number verified by SMS (staging logs the code).
+- Email notices weren't sent end to end locally (the local mail sink has no STARTTLS); the unit tests cover them, and staging uses SES.
+- Chat images, the business inbox (organization managers answering), the n8n alert for new reports, the 12-month purge of deleted listings (it must delete conversations first), and the data-export job.
+

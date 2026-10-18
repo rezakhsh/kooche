@@ -320,6 +320,64 @@ Decided by the owner on Oct 18, 2026, after a look at what Iranians in Germany a
 - **Worker:** no new job for ending events (the listing expiry job does it). One job scheduler, `event-digest` on queue `events`, Mondays 08:00 Berlin time, writes one `event_digest.weekly` outbox event per country for the planned channel posting through n8n.
 - **Cost and memory:** no new service and no new setting. Two small tables in PostgreSQL; one image size more in imgproxy (`poster`, 480×600, for the upright posters on event cards).
 
+## Chat
+
+Decided by the owner on Oct 18, 2026 (plan approved the same day with all five open points as recommended). A buyer couldn't reach a seller at all before this, which is why chat comes before search. Code in `src/modules/chat/`, `src/app/chat/` and `src/worker/chat.ts`; tables in `docs/schema.md`, section 10.
+
+**What people get.** "Chat with seller" on listing and event pages opens `/chat/new?l=<token>` (listing, three quick first messages, the composer) or the existing conversation. The conversation is created with its first message, one per listing per buyer, and only verified phones can write (`canSendMessage()`, plus messaging sanctions). The inbox `/chat` merges buying and selling, newest first, with filters (all, buying, selling, archived), unread badges and "seen" ticks; the header (computers) and the bottom bar (phones, now five items) show how many conversations have unread messages. A conversation `/chat/{id}` fills the screen like a messenger: my messages at the end side (left in RTL), the other person's at the start side, Jalali day dividers, ticks, a fixed safety tip, archive, block and report. Links are shown as text, never as links. Everything works without JavaScript as plain pages and form posts.
+
+**Instant delivery: server-sent events through Valkey.**
+- `GET /chat/stream?c=<conversation>` (or no `c` on the inbox) is a Next.js route handler. Every web process holds **one** Valkey subscriber connection (`src/modules/chat/hub.ts`) and subscribes to `chat:user:<id>` while that user has a stream open. Whoever commits a change publishes it: the web after a message or a read, the worker after a listing closed or reopened its conversations. Several app instances work as they are.
+- Events: `message` (with `id:` = the message id), `read` (the other side's watermark, for the ticks), `conversation` (closed or reopened), `unread` (the badge), `reload`, and `ping` every 20 seconds. The ping keeps Cloudflare's 100-second idle limit away and refreshes the presence key.
+- Nothing is missed: the browser's EventSource sends `Last-Event-ID` when it reconnects (`?after=` on the first connect). The stream subscribes first, then replays the conversation's messages after that id (keyset on `created_at, id`, at most 100; more means `reload`), then flushes what arrived meanwhile; the browser drops duplicates by id. Sends to one conversation lock its row and take `clock_timestamp()` to the millisecond after the lock, so within a conversation the order of `created_at` is the commit order.
+- The browser (`src/app/chat/use-chat-stream.ts`) closes the stream 30 seconds after the tab is hidden and reopens it when visible, reconnects at once when it comes back online, and after 50 seconds without even a ping (a connection that died without closing). After three failures in a minute, or a refusal, it falls back to reloading the page data every 20 seconds while visible and tries the stream again after 5, 10, 20… up to 60 seconds. It never reloads while offline: Next.js would fall back to a full page load, which fails.
+- Each stream ends after 10 minutes and the browser reconnects, so no connection lives forever. Limits per web process: 2,000 streams (then 503) and 5 per user (then 429); both make the page fall back. A stream holds **no** database connection.
+- Response headers: `text/event-stream`, `Cache-Control: no-cache, no-store, no-transform`, `X-Accel-Buffering: no` and `Content-Encoding: none` (stops Next.js's compression from holding events back). CSP needs nothing new (`connect-src 'self'`).
+- "Has the chat open" = a visible page with a live stream: a Valkey sorted set `chat:viewing:<user>:<conversation or *>` (member: the stream, score: its expiry, 60 seconds, refreshed by every ping). The inbox counts as viewing every conversation.
+
+**Notices: Telegram first, email as fallback** (`src/modules/notifications/chat-notice.ts`, `src/worker/chat.ts`).
+1. Sending writes `message.sent` to the outbox (not for withheld messages). The worker's `chat-notify` job checks at once: receiver active, notices on (`users.notification_prefs.chat`, `/account/notifications`), conversation open, message unread, receiver not viewing. If a notice may be needed it schedules a second check **20 seconds** later; someone who reads within that time gets nothing.
+2. The second check repeats all of that, picks the channel (Telegram when `telegram_user_id` is set and the bot isn't marked unreachable, else email) and takes the **debounce** slot `notice:<conversation>:<receiver>`: at most one notice per conversation per **5 minutes** on Telegram, **15 minutes** by email.
+3. The notice: «پیام تازه از {name} درباره «{title}»» with buttons to open the conversation (`APP_URL/chat/{id}`) and the notification settings. **No message text**, so scam text and personal data stay out of Telegram and email.
+
+**Does the bot scale?** The bot has two independent halves:
+- *Incoming* (phone verification, `/start`, block and unblock) is one long-polling loop in the worker. Its load is tiny and doesn't grow with chat.
+- *Outgoing* notices are plain `sendMessage` calls from the BullMQ queue `telegram-send`. Its limiter lives in Valkey, so it holds for every worker process together: **one message every 40 ms, 25 a second**, which keeps any one-second span at 26 or fewer, under Telegram's limit of about 30 (a plain "25 per second" window could let 50 through at its edge; the test caught that). That is 90,000 notices an hour.
+- **429 (flood control):** the job reads `parameters.retry_after`, pauses the whole queue for that long (`worker.rateLimit()`) and goes back to waiting with `RateLimitError`, without using up an attempt. Tested against a fake Telegram: one 429 with `retry_after: 1`, the next call a second later, delivered once.
+- **403 (bot blocked, account deleted) or 400 "chat not found":** the account is marked unreachable (`tg:unreachable:<telegram id>`, 30 days) and the notice goes by email. The bot also hears `my_chat_member` (blocked or unblocked) and clears the mark when the person writes to it again. After 30 days Telegram is simply tried again.
+- **Other errors:** 10 attempts with exponential backoff from 5 seconds (about 45 minutes in all); after the last one the notice goes by email. Email (`email-send`, one every 100 ms, under SES's rate) has 10 attempts from 10 seconds. Failed jobs are kept (1,000 per queue) and logged. Nothing is dropped.
+- Telegram also limits one chat to about one message a second; the debounce keeps each conversation far below that.
+- Beyond 25 a second, Telegram's paid broadcasts allow up to 1,000 a second; that would be a setting on the same queue. Each environment keeps its own bot (production gets one at launch).
+
+**Phone number** (approved Oct 18, 2026). The seller chooses per listing with the form's switch «شماره تلفنم هم نمایش داده شود», off by default (chat only). Revealing it needs a signed-in visitor **with a verified phone**, and is limited per visitor (10 an hour, 30 a day) and per IP (40 an hour, 100 a day). Every reveal is written to `audit_log` (`listing.phone_revealed`: who, which listing, IP and browser; the IP is scrubbed after 90 days, the row deleted after 2 years). Code: `src/modules/listings/phone-reveal.ts`.
+
+**Scam guard** (`src/modules/chat/risk.ts`). On the normalized text (Persian digits, Arabic letters and stray ZWNJs can't hide anything) the detector sets `messages.risk_flags`:
+
+| Flag | Found by |
+| --- | --- |
+| `link` | URLs, `www.`, bare domains with common endings, shorteners, `t.me` / `wa.me` |
+| `iban` | ISO 13616 pattern with the mod-97 check (no false hits on prices or postal codes) |
+| `payment_request` | بیعانه، پیش‌پرداخت، واریز، کارت به کارت، شماره کارت، PayPal friends and family، Western Union، gift cards، crypto، تتر …; a 16-digit card number that passes Luhn |
+| `off_platform_contact` | تلگرام، واتساپ، سیگنال، اینستاگرام، ایمیل …, email addresses, `@usernames`, messenger links |
+| `phone_number` | Numbers libphonenumber accepts: international ones, and national ones starting with 0 for DE, AT and IR |
+
+The receiver sees a Persian warning per flag under the message; the sender sees nothing. **Accounts younger than 7 days can't send a message with a link or an IBAN**; the composer keeps the text and explains why.
+
+**Limits** (Valkey, `src/modules/chat/limits.ts`):
+
+| What | Limit |
+| --- | --- |
+| Messages | 20 a minute and 300 an hour per user |
+| New conversations | 30 an hour per user; accounts under 7 days 5 an hour and 15 a day |
+| Reports | 20 a day per user |
+| Blocks | 50 a day per user |
+
+**Blocking and reports.** The blocker can't write until they unblock. The blocked person's messages are stored with `withheld = true`: never shown to the blocker (not even after an unblock), not counted, no live event, no notice, no inbox entry; to the sender they look sent and never "seen". Reporting a message (scam, harassment, spam, offensive, personal data, other) writes `reports.message_id` (one open report per person per message) and a `report.created` outbox event for the phase-4 queue and, later, the n8n admin alert; the dialog offers to block too.
+
+**Conversations follow their listing.** A listing sold, deleted, expired or taken down closes its open conversations with a system message (stored as a code, the text is in `fa.ts`); renewed or live again reopens them, unless a participant deleted their account. Locked conversations (moderation) stay locked.
+
+**Retention and export.** `chat-retention` (queue `retention`, 02:30 UTC) deletes conversations 90 days after a participant deleted their account, except those with a message a report or decision still points at. `exportChatData()` returns what the user can see of their conversations, for the data-export job when it is built.
+
 ## Brand and design
 
 Approved by the owner on Oct 17, 2026 (plan: https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK).
@@ -353,6 +411,8 @@ Whole server at that moment: 1.95 GB used, 1.87 GB available, 214 MB of swap use
 Places (Oct 17, 2026): `postal_places` adds a few MB to PostgreSQL; no new service, and the outline map is part of the pages.
 
 Events (Oct 18, 2026): two small tables and one BullMQ queue with a weekly job; no new service.
+
+Chat (Oct 18, 2026): no new service and no new setting. Measured against the production build on a scratch stack: 500 open chat streams raised the web process from 77 MB to 131 MB (about 110 KB per stream with Node's heap growth) at 0% CPU between pings; Valkey grew by 0.2 MB and holds one subscriber connection per web process; no stream holds a database connection. The worker runs four more queues (four more blocking Valkey connections) at about 52 MB in all. On today's 768 MB web limit that is room for several thousand streams; the per-process cap is 2,000.
 
 **After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
 

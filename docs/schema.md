@@ -709,7 +709,8 @@ Constraints: `UNIQUE (listing_id, buyer_user_id)`, `CHECK (buyer_user_id <> sell
 | `body` | `text` | `CHECK (char_length(body) BETWEEN 1 AND 4000)` |
 | `risk_flags` | `text[] DEFAULT '{}'` | `CHECK (risk_flags <@ ARRAY['link','payment_request','off_platform_contact','phone_number','iban'])`. Set by the scam detector when the message is sent. The UI shows the warning. |
 | `hidden_at` | `timestamptz null` | Hidden by moderation. The UI shows a placeholder. |
-| `created_at` | `timestamptz DEFAULT now()` | |
+| `withheld` | `boolean DEFAULT false` | Sent while the recipient had blocked the sender (migration 0011). Never shown to the recipient, even after an unblock; no unread count, no notice. The sender sees it like any other message. |
+| `created_at` | `timestamptz DEFAULT now()` | The app writes `date_trunc('milliseconds', clock_timestamp())` after locking the conversation row, so within a conversation the order is the commit order and JavaScript dates compare exactly |
 
 Constraint: `CHECK ((kind = 'system') = (sender_user_id IS NULL))`.
 
@@ -763,6 +764,7 @@ Constraint: `CHECK (num_nonnulls(listing_id, reported_user_id, organization_id, 
 | `(message_id) WHERE message_id IS NOT NULL` | Reports on a message, and the purge check |
 | `(reporter_user_id, created_at DESC) WHERE reporter_user_id IS NOT NULL` | Spotting people who abuse the report button |
 | `UNIQUE (reporter_user_id, listing_id) WHERE status IN ('open','in_review') AND reporter_user_id IS NOT NULL AND listing_id IS NOT NULL` | One open report per person per listing |
+| `UNIQUE (reporter_user_id, message_id) WHERE status IN ('open','in_review') AND reporter_user_id IS NOT NULL AND message_id IS NOT NULL` | One open report per person per chat message (migration 0011) |
 
 ### `moderation_decisions`
 
@@ -1100,7 +1102,7 @@ Proposed periods. They go into the privacy policy and get checked by the lawyer.
 | Event details and dates | With their listing: kept while it exists (an ended event is an `expired` listing), purged with it | `ON DELETE CASCADE` |
 | Deleted `listings` (+ images, events, favorites) | 12 months after `deleted_at`, longer while referenced by a report, decision or order | Purge job deletes in dependency order. `RESTRICT` FKs stop it from touching anything still referenced. Image files are deleted from R2 through the outbox. |
 | `reports`, `moderation_decisions` | 2 years after the decision | Function, called by worker job `history-retention`, daily |
-| Chats | 90 days after either participant deletes their account (plan) | Worker job |
+| Chats | 90 days after either participant deletes their account; longer while a report or decision points at one of their messages | Worker job `chat-retention`, daily |
 | `orders`, `payments`, `subscriptions` | 10 years (German retention rules for accounting records, §147 AO / §257 HGB) | Kept even after account deletion (GDPR art. 17(3)(b)) |
 | `users` tombstone | Permanently (ID only) | |
 
@@ -1121,7 +1123,7 @@ Each of these is a later, additive migration that changes no table above:
 
 - **Item sales**: escrow ("safe payment"), shipping labels, buyer protection. They will get their own `deals`/`shipments` tables. `orders` is only for our own products.
 - **Images in chat**, an in-app notification inbox, web-push subscriptions.
-- **Seller ratings**, view logs per visitor, "show phone number" logs (rate limiting is in Valkey).
+- **Seller ratings**, view logs per visitor. ("Show phone number" is logged since Oct 18, 2026, in `audit_log` as `listing.phone_revealed`, not in a table of its own.)
 - **GDPR data export requests** as a table. Exports run as a job, and the job is recorded in `audit_log`.
 - **The search index.** Meilisearch is rebuilt from `listings` via the outbox, so it adds no table.
 - **An add-on API** like Divar's Kenar (OAuth clients and tokens).
@@ -1186,4 +1188,9 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Post-checks:** a third check, `event_fields`, runs the banned terms over the venue, address and organizer and the link rules over both links. The decision's content snapshot includes them.
   - **Kept apart from listings:** the country page grid, "my listings" and the expiry reminder skip listings with `event_details`. `/v/…` of an event redirects to `/e/…`, `/my/listings/{id}` to `/my/events/{id}`, `/new` sends the events root to `/events/new`. `e` and `events` are reserved slugs.
   - **Seed:** the root `events-calendar` with 13 event types; `community › events` («رویداد و دورهمی») retired (set inactive by the seed, existing rows keep it).
-
+- **Chat (Oct 18, 2026).** Decided by the owner: live delivery over server-sent events fanned out through Valkey, notices through the Telegram bot with email as fallback, the phone number chosen per listing (chat only by default), a scam detector that always warns and blocks links and IBANs from accounts under 7 days. Migration `0011`: `messages.withheld` and the one-open-report-per-message index; additive, grants unchanged (the app already wrote `conversations`, `messages`, `user_blocks` and `reports`; the worker already deleted chats). Code in `src/modules/chat/`; how it works in `docs/setup.md`, "Chat".
+  - **Writes** (`conversations.ts`): `sendMessage()` checks session, verified phone, messaging sanctions, participant, status (`closed`, `locked`), blocks in both directions, the new-account rule and the rate limits, then locks the conversation row, inserts the message and updates the counters, watermarks and archive flags in one transaction with `conversation.started` and `message.sent` in the outbox. The sender's own watermark moves to the new message. A withheld message doesn't move `last_message_at`, the other side's count or archive. `markRead()` locks the row, sets the reader's watermark to the newest message from the other side and the count to 0.
+  - **Reads** (`queries.ts`): the inbox is a `UNION ALL` of the buyer and seller indexes, each limited, then a lateral join for the last message the viewer may see (a conversation a blocked person started, with nothing visible, is left out). Unread badge: two indexed counts of conversations with unread messages.
+  - **Following the listing** (worker queue `chat`): `listing.sold|deleted|expired|rejected` close open conversations with a system message (`body` is a code: `listing_sold`, `listing_deleted`, `listing_expired`, `listing_removed`; reopening writes `listing_active`) and `conversation.closed`; `listing.renewed|published|resumed` reopen closed ones when the listing is active and both participants are. System messages don't count as unread.
+  - **Outbox event types:** `conversation.started`, `message.sent` (handler: chat notices), `conversation.closed`, `conversation.reopened`, `report.created` (no handler yet). `src/worker/outbox.ts` now merges the handler maps of all features, so a listing event can have both the post-checks and the chat as handlers.
+  - **The 12-month purge of deleted listings** (not built yet) must delete the listing's conversations first: `conversations.listing_id` is `RESTRICT`.
