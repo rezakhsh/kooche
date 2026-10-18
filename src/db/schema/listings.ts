@@ -196,7 +196,7 @@ export const categories = pgTable(
   ],
 );
 
-export const ATTRIBUTE_TYPES = ['number', 'select', 'multi_select', 'boolean', 'text'] as const;
+export const ATTRIBUTE_TYPES = ['number', 'select', 'multi_select', 'boolean', 'text', 'date'] as const;
 
 export const categoryAttributes = pgTable(
   'category_attributes',

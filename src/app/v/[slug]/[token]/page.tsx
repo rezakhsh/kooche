@@ -10,7 +10,7 @@ import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatDate } from '../../../../lib/format';
 import { messages } from '../../../../messages/fa';
-import { ancestry, cachedCatalog, effectiveAttributes, type AttributeDef } from '../../../../modules/listings/catalog';
+import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency, type AttributeDef, type Currency } from '../../../../modules/listings/catalog';
 import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
 import { publicListing } from '../../../../modules/listings/queries';
@@ -48,8 +48,11 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   };
 }
 
-function attributeText(def: AttributeDef, value: unknown): string | null {
+function attributeText(def: AttributeDef, value: unknown, currency: Currency | undefined): string | null {
   if (value === undefined || value === null) return null;
+  if (def.validation.money) {
+    return typeof value === 'number' && currency ? formatPrice(value, currency.code, currency.minorUnit) : null;
+  }
   const option = (v: unknown) => def.options.find((o) => o.value === v)?.labelFa ?? String(v);
   switch (def.type) {
     case 'select':
@@ -60,6 +63,14 @@ function attributeText(def: AttributeDef, value: unknown): string | null {
       return value ? messages.form.yes : messages.form.no;
     case 'number':
       return `${Number(value).toLocaleString('fa-IR')}${def.unitFa ? ` ${def.unitFa}` : ''}`;
+    case 'date': {
+      const [y, m, d] = String(value).split('-').map(Number);
+      if (!y || !m) return null;
+      // A day in the Jalali calendar; a month (TÜV) as the Gregorian month it is
+      return d
+        ? formatDate(new Date(Date.UTC(y, m - 1, d)), 'UTC')
+        : `${messages.form.months[m - 1] ?? m} ${y.toLocaleString('fa-IR', { useGrouping: false })}`;
+    }
     default:
       return String(value);
   }
@@ -87,8 +98,15 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const crumbs = l.categoryId ? ancestry(catalog, l.categoryId) : [];
   const defs = l.categoryId ? effectiveAttributes(catalog, l.categoryId) : [];
   const attrs = l.attributes as Record<string, unknown>;
-  const details = defs.map((d) => ({ label: d.labelFa, text: attributeText(d, attrs[d.key]) })).filter((x) => x.text);
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;
+  const amountCurrency = listingCurrency(catalog, l);
+  const details = defs.map((d) => ({ label: d.labelFa, text: attributeText(d, attrs[d.key], amountCurrency) })).filter((x) => x.text);
+  // Rent: the price is the cold rent; with the extra costs the page adds up the warm rent
+  const extraCosts = defs.some((d) => d.key === 'extra_costs') ? attrs.extra_costs : undefined;
+  const warmRent =
+    l.priceMinor !== null && currency && typeof extraCosts === 'number'
+      ? formatPrice(l.priceMinor + extraCosts, currency.code, currency.minorUnit)
+      : null;
   const price =
     l.priceMinor !== null && currency
       ? `${formatPrice(l.priceMinor, currency.code, currency.minorUnit)}${l.priceType === 'negotiable' ? ` (${messages.priceType.negotiable})` : ''}`
@@ -181,7 +199,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               {l.publishedAt && <p className="mt-1 text-xs text-neutral-500">{t.postedOn(formatDate(l.publishedAt, env.APP_TIME_ZONE))}</p>}
             </div>
             <dl className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
-              {price && <Row label={t.price} value={<span className="font-semibold">{price}</span>} />}
+              {price && <Row label={warmRent ? t.coldRent : t.price} value={<span className="font-semibold">{price}</span>} />}
               {hasPlace && (
                 <Row
                   label={t.location}
@@ -194,6 +212,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   }
                 />
               )}
+              {warmRent && <Row label={t.warmRent} value={<span className="font-semibold">{warmRent}</span>} />}
               {details.map((d) => (
                 <Row key={d.label} label={d.label} value={d.text} />
               ))}

@@ -361,9 +361,106 @@ describe('attribute validation (against category_attributes)', () => {
     expect(await save({ brand: 'bmw', mileage_km: '120000' })).toMatchObject({ errors: { 'attr.mileage_km': 'invalid' } });
     expect(await save({ brand: 'bmw', color_hex: '#fff' })).toMatchObject({ errors: { 'attr.color_hex': 'unknown_field' } });
 
-    const ok = await save({ brand: 'bmw', model: 'bmw-3-series', year: 2018, mileage_km: 120_000, fuel: 'diesel' });
+    const car = { brand: 'bmw', model: 'bmw-3-series', year: 2018, mileage_km: 120_000, fuel: 'diesel', gearbox: 'automatic' };
+    expect(await save(car)).toMatchObject({ errors: { 'attr.damage': 'required' } });
+    const ok = await save({ ...car, damage: 'accident_free', inspection_until: '2027-03' });
     expect(ok).toMatchObject({ ok: true, status: 'active' });
-    expect((await listing(id)).attributes).toEqual({ brand: 'bmw', model: 'bmw-3-series', year: 2018, mileage_km: 120_000, fuel: 'diesel' });
+    expect((await listing(id)).attributes).toEqual({ ...car, damage: 'accident_free', inspection_until: '2027-03' });
+  });
+
+  it('every car make has «other models», so a required model is always possible', async () => {
+    const catalog = await cachedCatalog(appDb);
+    const defs = effectiveAttributes(catalog, (await categoryBySlug('cars')).id);
+    const brands = defs.find((d) => d.key === 'brand')!.options;
+    const models = defs.find((d) => d.key === 'model')!.options;
+    expect(brands.length).toBeGreaterThanOrEqual(45);
+    for (const b of brands) expect(models.some((m) => m.parentValue === b.value && m.value.endsWith('-other-model'))).toBe(true);
+  });
+
+  it('dates: a day or a month, real calendar dates only', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'tickets');
+    const save = async (attributes: Record<string, unknown>) =>
+      saveListing(appDb, { userId: u.id, listingId: id, input: await input({ title: 'دو بلیت کنسرت', attributes, amount: '80' }), intent: 'publish' });
+
+    expect(await save({})).toMatchObject({ errors: { 'attr.event_date': 'required' } });
+    for (const bad of ['2027-02-30', '2027-13-01', '27-03-01', '2027-03', '1800-01-01', 20270301]) {
+      expect(await save({ event_date: bad })).toMatchObject({ errors: { 'attr.event_date': 'invalid' } });
+    }
+    expect(await save({ event_date: '2028-02-29', ticket_count: 2 })).toMatchObject({ ok: true });
+    expect((await listing(id)).attributes).toEqual({ event_date: '2028-02-29', ticket_count: 2 });
+
+    const { validateAttributes } = await import('../src/modules/listings/attributes');
+    const catalog = await cachedCatalog(appDb);
+    const motorbike = effectiveAttributes(catalog, (await categoryBySlug('motorcycles')).id);
+    expect(validateAttributes(motorbike, { inspection_until: '2027-03' }, 'draft')).toEqual({ ok: true, value: { inspection_until: '2027-03' } });
+    expect(validateAttributes(motorbike, { inspection_until: '2027-03-01' }, 'draft')).toMatchObject({ ok: false });
+    expect(validateAttributes(motorbike, { inspection_until: '2027-00' }, 'draft')).toMatchObject({ ok: false });
+  });
+
+  it('rent: amounts are minor units of the country currency; the extra costs are required', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'apartments-rent');
+    const flat = { area_m2: 62, rooms: 2.5, apartment_type: 'attic', features: ['cellar', 'fitted_kitchen'], available_from: '2026-12-01' };
+    const save = async (attributes: Record<string, unknown>) =>
+      saveListing(appDb, { userId: u.id, listingId: id, input: await input({ title: 'آپارتمان ۲٫۵ خوابه', attributes, amount: '900' }), intent: 'publish' });
+
+    expect(await save(flat)).toMatchObject({ errors: { 'attr.extra_costs': 'required' } });
+    expect(await save({ ...flat, extra_costs: 'دویست' })).toMatchObject({ errors: { 'attr.extra_costs': 'invalid' } });
+    expect(await save({ ...flat, extra_costs: -5 })).toMatchObject({ errors: { 'attr.extra_costs': 'invalid' } });
+    expect(await save({ ...flat, extra_costs: '۱۸۰٫۵۰', deposit: '2.700' })).toMatchObject({ ok: true });
+    expect((await listing(id)).attributes).toMatchObject({ extra_costs: 18_050, deposit: 270_000 });
+    // An integer is already minor units (API callers, the stored value on a second save)
+    expect(await save({ ...flat, extra_costs: 18_050 })).toMatchObject({ ok: true });
+    expect((await listing(id)).attributes).toMatchObject({ extra_costs: 18_050 });
+  });
+
+  it('a retired field keeps its value when the listing is edited', async () => {
+    // «نوع اجاره» (cold or warm) was retired on Oct 18, 2026: on staging its definition is still
+    // there, inactive, and older listings carry it. The test database never had it, so add it.
+    const flats = await categoryBySlug('apartments-rent');
+    const [retired] = await db
+      .insert(schema.categoryAttributes)
+      .values({ categoryId: flats.id, key: 'rent_type', type: 'text', labelFa: 'نوع اجاره', isActive: false })
+      .returning();
+    const resetCatalog = () => ((globalThis as { catalog?: unknown }).catalog = undefined);
+    resetCatalog();
+    try {
+      const u = await user();
+      const id = await draftFor(u.id, 'apartments-rent');
+      const flat = { area_m2: 40, rooms: 1, extra_costs: 15_000 };
+      const save = async (attributes: Record<string, unknown>, intent: 'publish' | 'save') =>
+        saveListing(appDb, { userId: u.id, listingId: id, input: await input({ attributes, amount: '700' }), intent });
+      expect(await save(flat, 'publish')).toMatchObject({ ok: true });
+      await db.update(schema.listings).set({ attributes: { ...flat, rent_type: 'warm' } }).where(eq(schema.listings.id, id));
+
+      expect(await save({ ...flat, rooms: 2 }, 'save')).toMatchObject({ ok: true });
+      expect((await listing(id)).attributes).toEqual({ ...flat, rooms: 2, rent_type: 'warm' });
+      // New input can't set it
+      expect(await save({ ...flat, rent_type: 'cold' }, 'save')).toMatchObject({ errors: { 'attr.rent_type': 'unknown_field' } });
+    } finally {
+      await db.delete(schema.categoryAttributes).where(eq(schema.categoryAttributes.id, retired!.id));
+      resetCatalog();
+    }
+  });
+
+  it('a required field can be optional in one category: no size for a parking space', async () => {
+    const catalog = await cachedCatalog(appDb);
+    const area = async (slug: string) =>
+      effectiveAttributes(catalog, (await categoryBySlug(slug)).id).find((d) => d.key === 'area_m2')!.isRequired;
+    expect(await area('apartments-rent')).toBe(true);
+    expect(await area('parking-garages')).toBe(false);
+  });
+
+  it('dependent select: a karat only for gold', async () => {
+    const { validateAttributes } = await import('../src/modules/listings/attributes');
+    const catalog = await cachedCatalog(appDb);
+    const defs = effectiveAttributes(catalog, (await categoryBySlug('jewelry-watches')).id);
+    expect(validateAttributes(defs, { jewelry_material: 'gold', gold_karat: 'k18' }, 'draft')).toMatchObject({ ok: true });
+    expect(validateAttributes(defs, { jewelry_material: 'silver', gold_karat: 'k18' }, 'draft')).toEqual({
+      ok: false,
+      errors: { gold_karat: 'parent_mismatch' },
+    });
   });
 
   it('inherited fields count: a phone gets electronics «condition»', async () => {

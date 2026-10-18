@@ -1,11 +1,14 @@
 import { z } from 'zod';
 import { normalizePersian } from '../../lib/normalize-persian';
 import type { AttributeDef } from './catalog';
+import { MAX_PRICE_MINOR, parseAmount } from './price';
 
 // listings.attributes is validated on every write against the category's definitions
 // (docs/schema.md, section 5): a Zod schema is built from them. Selects store option values,
 // numbers are JSON numbers, multi-selects arrays of values, unknown keys are refused. Required
-// fields are enforced only when publishing; drafts may lack them.
+// fields are enforced only when publishing; drafts may lack them. Amounts (`money`) are integers in
+// minor units of the listing's currency, like the price; the form sends them as typed text. Dates
+// are calendar dates as text, "2027-03-15", or "2027-03" for a month.
 
 export type AttributeErrorCode =
   | 'required'
@@ -26,11 +29,36 @@ export type AttributeResult =
   | { ok: false; errors: Record<string, AttributeErrorCode> };
 
 const TEXT_MAX_DEFAULT = 200;
+const DATE_YEARS = { min: 1900, max: 2100 };
 
-function fieldSchema(def: AttributeDef): z.ZodType {
+/** "2027-03-15" (or "2027-03" for a month) that names a real day in a sensible year */
+function isCalendarDate(s: string, month: boolean): boolean {
+  const m = (month ? /^(\d{4})-(\d{2})$/ : /^(\d{4})-(\d{2})-(\d{2})$/).exec(s);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), month ? 1 : Number(m[3])];
+  if (y < DATE_YEARS.min || y > DATE_YEARS.max) return false;
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  return date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+}
+
+function fieldSchema(def: AttributeDef, minorUnit: number): z.ZodType {
   const v = def.validation;
   switch (def.type) {
     case 'number': {
+      if (v.money) {
+        // A typed amount ("1.200,50") or an integer already in minor units
+        return z
+          .union([z.number(), z.string()], { error: 'invalid' })
+          .transform((x, ctx) => {
+            const n = typeof x === 'string' ? parseAmount(x, minorUnit) : x;
+            if (n === null || !Number.isSafeInteger(n) || n < 0) {
+              ctx.addIssue({ code: 'custom', message: 'invalid' });
+              return z.NEVER;
+            }
+            return n;
+          })
+          .refine((n) => n <= MAX_PRICE_MINOR, { error: 'too_large' });
+      }
       let s = z.number({ error: 'invalid' }).refine(Number.isFinite, { error: 'invalid' });
       if (v.integer) s = s.refine(Number.isInteger, { error: 'not_integer' });
       if (v.min !== undefined) s = s.refine((n) => n >= v.min!, { error: 'too_small' });
@@ -57,17 +85,21 @@ function fieldSchema(def: AttributeDef): z.ZodType {
         .string({ error: 'invalid' })
         .min(1, { error: 'required' })
         .max(v.max_length ?? TEXT_MAX_DEFAULT, { error: 'too_long' });
+    case 'date':
+      return z.string({ error: 'invalid' }).refine((x) => isCalendarDate(x, !!v.month), { error: 'invalid' });
   }
 }
 
 /**
  * Validates attribute values against the definitions. Only active definitions accept input;
- * values of retired fields are kept by the caller as they were (`keepRetired`).
+ * values of retired fields are kept by the caller as they were (`keepRetired`). `minorUnit` is the
+ * listing currency's, for typed amounts.
  */
 export function validateAttributes(
   defs: AttributeDef[],
   raw: Record<string, unknown>,
   mode: 'draft' | 'publish',
+  minorUnit = 2,
 ): AttributeResult {
   const active = defs.filter((d) => d.isActive);
   const errors: Record<string, AttributeErrorCode> = {};
@@ -83,7 +115,7 @@ export function validateAttributes(
       if (mode === 'publish' && def.isRequired) errors[def.key] = 'required';
       continue;
     }
-    const parsed = fieldSchema(def).safeParse(input);
+    const parsed = fieldSchema(def, minorUnit).safeParse(input);
     if (!parsed.success) {
       errors[def.key] = (parsed.error.issues[0]?.message as AttributeErrorCode) ?? 'invalid';
       continue;
@@ -119,6 +151,8 @@ function parseNumberInput(s: string): number | string {
 /**
  * Reads `attr.<key>` fields from the posting form. Empty fields are left out (unset). A value
  * that isn't a number stays a string, so validation reports it as invalid instead of dropping it.
+ * Amounts stay text and are parsed with the listing's currency. A month comes as two selects,
+ * `attr.<key>.year` and `attr.<key>.month`.
  */
 export function attributesFromForm(defs: AttributeDef[], form: FormData): Record<string, unknown> {
   const raw: Record<string, unknown> = {};
@@ -129,10 +163,17 @@ export function attributesFromForm(defs: AttributeDef[], form: FormData): Record
       if (values.length) raw[def.key] = values;
       continue;
     }
+    if (def.type === 'date' && def.validation.month) {
+      const part = (p: string) => normalizePersian(String(form.get(`${name}.${p}`) ?? '')).trim();
+      const [y, m] = [part('year'), part('month')];
+      if (y || m) raw[def.key] = y && m ? `${y}-${m.padStart(2, '0')}` : `${y}-${m}`;
+      continue;
+    }
     const v = form.get(name);
     if (typeof v !== 'string' || v.trim() === '') continue;
     const s = v.trim();
-    if (def.type === 'number') raw[def.key] = parseNumberInput(s);
+    if (def.type === 'number') raw[def.key] = def.validation.money ? s : parseNumberInput(s);
+    else if (def.type === 'date') raw[def.key] = normalizePersian(s);
     else if (def.type === 'boolean') raw[def.key] = s === 'true' ? true : s === 'false' ? false : s;
     else raw[def.key] = def.type === 'text' ? s.normalize('NFC') : s;
   }

@@ -1,0 +1,2 @@
+ALTER TABLE "category_attributes" DROP CONSTRAINT "category_attributes_type_check";--> statement-breakpoint
+ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_type_check" CHECK ("category_attributes"."type" IN ('number', 'select', 'multi_select', 'boolean', 'text', 'date'));

@@ -132,6 +132,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               parentValue={d.dependsOn ? selects[d.dependsOn] : undefined}
               onSelect={(val) => setSelects((s) => ({ ...s, [d.key]: val }))}
               error={errors[`attr.${d.key}`]}
+              currencySymbol={currencySymbol}
             />
           ))}
         </Card>
@@ -228,15 +229,19 @@ function AttributeField({
   parentValue,
   onSelect,
   error,
+  currencySymbol,
 }: {
   def: AttributeDef;
   value: unknown;
   parentValue?: string;
   onSelect: (value: string) => void;
   error?: FieldError;
+  /** The listing country's currency, for amounts */
+  currencySymbol: string;
 }) {
   const name = `attr.${def.key}`;
-  const label = `${def.labelFa}${def.unitFa ? ` (${def.unitFa})` : ''}${def.isRequired ? ' *' : ''}`;
+  const unit = def.validation.money ? currencySymbol : def.unitFa;
+  const label = `${def.labelFa}${unit ? ` (${unit})` : ''}${def.isRequired ? ' *' : ''}`;
   const wrap = (control: ReactNode) => (
     <div>
       {control}
@@ -252,13 +257,47 @@ function AttributeField({
           label={label}
           name={name}
           defaultValue={value === undefined ? '' : String(value)}
-          inputMode={def.validation.integer ? 'numeric' : 'decimal'}
+          inputMode={def.validation.integer && !def.validation.money ? 'numeric' : 'decimal'}
           dir="ltr"
           className="text-end"
         />,
       );
     case 'text':
       return wrap(<Field label={label} name={name} defaultValue={typeof value === 'string' ? value : ''} maxLength={def.validation.max_length ?? 200} />);
+    case 'date': {
+      const stored = typeof value === 'string' ? value : '';
+      if (!def.validation.month) {
+        return wrap(<Field label={label} name={name} type="date" defaultValue={stored} min="1900-01-01" max="2100-12-31" dir="ltr" className="text-end" />);
+      }
+      // Month and year (TÜV): two selects, since Firefox and desktop Safari have no month input
+      const [y = '', m = ''] = stored.split('-');
+      const now = new Date().getFullYear();
+      const years = Array.from({ length: 6 }, (_, i) => String(now - 1 + i));
+      if (y && !years.includes(y)) years.unshift(y);
+      return wrap(
+        <fieldset>
+          <legend className="mb-1 block text-sm font-medium text-neutral-700">{label}</legend>
+          <div className="flex gap-2">
+            <select name={`${name}.month`} defaultValue={m ? String(Number(m)) : ''} aria-label={t.month} className={selectClass}>
+              <option value="">{t.month}</option>
+              {t.months.map((label, i) => (
+                <option key={label} value={String(i + 1)}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select name={`${name}.year`} defaultValue={y} aria-label={t.year} className={selectClass}>
+              <option value="">{t.year}</option>
+              {years.map((yr) => (
+                <option key={yr} value={yr}>
+                  {Number(yr).toLocaleString('fa-IR', { useGrouping: false })}
+                </option>
+              ))}
+            </select>
+          </div>
+        </fieldset>,
+      );
+    }
     case 'boolean':
       return wrap(
         <label className="block">
@@ -273,6 +312,8 @@ function AttributeField({
     case 'select': {
       // A dependent select (model) shows only the options of the chosen parent (brand)
       const options = def.dependsOn ? def.options.filter((o) => !o.parentValue || o.parentValue === parentValue) : def.options;
+      // Nothing to choose for this parent (karat when the material isn't gold): no field
+      if (def.dependsOn && parentValue && options.length === 0) return null;
       return wrap(
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>

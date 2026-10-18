@@ -32,6 +32,20 @@ describe('seed checks', () => {
     });
   });
 
+  it('catch money on a non-number, month on a non-date, and optional_in outside the subtree', async () => {
+    for (const [type, validation] of [
+      ['text', { money: true }],
+      ['number', { month: true }],
+      ['number', { optional_in: ['cars'] }],
+    ] as const) {
+      await rollback(async (tx) => {
+        const flats = await category(tx, 'real-estate');
+        await tx.insert(categoryAttributes).values({ categoryId: flats.id, key: 'probe', type, labelFa: 'آزمایش', validation });
+        expect(await failingChecks(tx)).toContain(check('validation settings fit'));
+      });
+    }
+  });
+
   it("catch a city whose parent isn't a region", async () => {
     await rollback(async (tx) => {
       const berlin = await location(tx, 'berlin');

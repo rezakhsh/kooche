@@ -159,15 +159,6 @@ async function prepare(
   else if (publish && description.length === 0) errors.description = 'required';
   else if (publish && description.length < MIN_DESCRIPTION) errors.description = 'too_short';
 
-  // Attributes: the category's own and inherited definitions; retired fields keep their values
-  const defs = effectiveAttributes(catalog, category.id);
-  const attrs = validateAttributes(defs, input.attributes, mode);
-  if (!attrs.ok) for (const [k, code] of Object.entries(attrs.errors)) errors[`attr.${k}`] = code;
-  const attributes = {
-    ...keepRetired(defs, current.attributes as Record<string, unknown>),
-    ...(attrs.ok ? attrs.value : {}),
-  };
-
   // Location (decided Oct 17, 2026): a country, then a postal code or town from our own data, or
   // the browser's position. The point is never the seller's exact position: the browser location
   // snapped to the ~500 m grid (here again), else the centre of the postal-code area, else the
@@ -208,6 +199,17 @@ async function prepare(
     if (place && snapped && distanceMeters(snapped, place.center) > MAX_AREA_DISTANCE_M) errors.area = 'too_far';
     if (!place && publish && !errors.place && !errors.area) errors.place = 'required';
   }
+
+  // Attributes: the category's own and inherited definitions; retired fields keep their values.
+  // Amounts (deposit, extra costs) are in the country's currency, like the price.
+  const defs = effectiveAttributes(catalog, category.id);
+  const minorUnit = country ? catalog.currencies.get(country.defaultCurrency)?.minorUnit : undefined;
+  const attrs = validateAttributes(defs, input.attributes, mode, minorUnit);
+  if (!attrs.ok) for (const [k, code] of Object.entries(attrs.errors)) errors[`attr.${k}`] = code;
+  const attributes = {
+    ...keepRetired(defs, current.attributes as Record<string, unknown>),
+    ...(attrs.ok ? attrs.value : {}),
+  };
 
   const countryCode: string | null = country?.code ?? null;
   let locationId: string | null = null;

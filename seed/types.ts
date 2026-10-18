@@ -33,7 +33,7 @@ export type LocationsSeed = { countryCode: string; regions: RegionSeed[]; cities
 /** One row of seed/postal/<cc>.tsv */
 export type PostalPlaceSeed = { postalCode: string; placeName: string; lat: number; lng: number };
 
-export type AttributeType = 'number' | 'select' | 'multi_select' | 'boolean' | 'text';
+export type AttributeType = 'number' | 'select' | 'multi_select' | 'boolean' | 'text' | 'date';
 
 export type OptionSeed = {
   value: string;
@@ -48,8 +48,12 @@ export type AttributeSeed = {
   labelFa: string;
   unitFa?: string;
   helpFa?: string;
-  /** numbers: {min, max, integer}, text: {max_length}, multi_select: {max_items} */
-  validation?: Record<string, number | boolean>;
+  /**
+   * numbers: {min, max, integer}, plus {money: true} for an amount in minor units of the listing's
+   * currency; text: {max_length}; multi_select: {max_items}; date: {month: true} for month and year
+   * only. Any type: {optional_in: [category slugs]} makes a required field optional there.
+   */
+  validation?: Record<string, number | boolean | string[]>;
   /** Key of an attribute on the same category or an ancestor (model depends on brand) */
   dependsOn?: string;
   isRequired?: boolean;

@@ -4,6 +4,7 @@ import {
   categories,
   categoryAttributeOptions,
   categoryAttributes,
+  countries,
   currencies,
   type ATTRIBUTE_TYPES,
   type PRICE_MODES,
@@ -21,6 +22,12 @@ export type AttributeValidation = {
   integer?: boolean;
   max_length?: number;
   max_items?: number;
+  /** number: an amount in minor units of the listing's currency (CLAUDE.md, money) */
+  money?: boolean;
+  /** date: month and year only ("2027-03") instead of a day ("2027-03-15") */
+  month?: boolean;
+  /** Category slugs where a required field is optional (area of a parking space) */
+  optional_in?: string[];
 };
 
 export type AttributeOption = { value: string; labelFa: string; parentValue: string | null };
@@ -68,10 +75,12 @@ export type Catalog = {
   /** Active roots, in display order */
   rootIds: string[];
   currencies: Map<string, Currency>;
+  /** Country code → its currency code: amounts in attributes are in it (decided Oct 17, 2026) */
+  countryCurrency: Map<string, string>;
 };
 
 export async function loadCatalog(db: Queryable): Promise<Catalog> {
-  const [cats, attrs, opts, curr] = await Promise.all([
+  const [cats, attrs, opts, curr, ctry] = await Promise.all([
     db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.nameFa)),
     db.select().from(categoryAttributes).orderBy(asc(categoryAttributes.sortOrder)),
     db
@@ -79,6 +88,7 @@ export async function loadCatalog(db: Queryable): Promise<Catalog> {
       .from(categoryAttributeOptions)
       .orderBy(asc(categoryAttributeOptions.sortOrder)),
     db.select().from(currencies),
+    db.select({ code: countries.code, defaultCurrency: countries.defaultCurrency }).from(countries),
   ]);
 
   const optionValueById = new Map(opts.map((o) => [o.id, o.value]));
@@ -141,6 +151,7 @@ export async function loadCatalog(db: Queryable): Promise<Catalog> {
     bySlug: new Map([...byId.values()].map((c) => [c.slug, c])),
     rootIds,
     currencies: new Map(curr.map((c) => [c.code, c])),
+    countryCurrency: new Map(ctry.map((c) => [c.code, c.defaultCurrency])),
   };
 }
 
@@ -162,6 +173,15 @@ export function cachedCatalog(db: Queryable): Promise<Catalog> {
   return value;
 }
 
+/** The currency amounts of a listing are in: its own, else its country's */
+export function listingCurrency(
+  catalog: Catalog,
+  listing: { currency: string | null; countryCode: string | null },
+): Currency | undefined {
+  const code = listing.currency ?? (listing.countryCode ? catalog.countryCurrency.get(listing.countryCode) : undefined);
+  return code ? catalog.currencies.get(code) : undefined;
+}
+
 /** Root first, the category itself last */
 export function ancestry(catalog: Catalog, categoryId: string): CategoryNode[] {
   const chain: CategoryNode[] = [];
@@ -176,7 +196,13 @@ export function ancestry(catalog: Catalog, categoryId: string): CategoryNode[] {
  * category itself (docs/schema.md, section 5), retired ones included so old values still display.
  */
 export function effectiveAttributes(catalog: Catalog, categoryId: string): AttributeDef[] {
-  return ancestry(catalog, categoryId).flatMap((c) => c.ownAttributes);
+  const chain = ancestry(catalog, categoryId);
+  const slugs = new Set(chain.map((c) => c.slug));
+  return chain.flatMap((c) =>
+    c.ownAttributes.map((d) =>
+      d.isRequired && d.validation.optional_in?.some((s) => slugs.has(s)) ? { ...d, isRequired: false } : d,
+    ),
+  );
 }
 
 /** A category new listings may use: an active leaf whose ancestors are active too */

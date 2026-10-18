@@ -272,3 +272,22 @@ Next:
 3. City pages under the country (`/germany/berlin`) and category filters on the country page.
 4. "Near me" search on the stored ~500 m points.
 5. Later, if wanted: street-level address search and a real street map (both possible without changing stored data).
+
+## Oct 18, 2026: listing fields per category
+
+The owner asked (Oct 17) which fields each category is missing. A plan compared every category with Kleinanzeigen's posting forms and filters (what German and Austrian buyers expect) and Divar's Persian wording, and was approved Oct 18 with all five choices as recommended: rent price = cold rent with extra costs and deposit; a date field type; shipping (already a listing checkbox, nothing to add); about 45 car makes and 300 models; Germany-only fields (WBS) optional and labelled «فقط آلمان». Plan page: https://claude.ai/artifact/3fXT1NNZunDx2kyuhQuDz6
+
+Done (branch `listing-fields`):
+- `seed/categories.ts`: 289 attributes and 1,257 options (was 118 and 317), no category added or removed. Real estate: extra costs, deposit, available from/until, apartment and house type, a features checklist, pets, WBS, year built, energy class, WG room type and flatmate preference, short-stay price unit, land and commercial use, parking rent or sale. Cars: trim, accident history, TÜV/HU month, colour, owners, service book, doors, Euro class, equipment checklist, and make, model, year, mileage, fuel and gearbox now required. Motorbikes, bikes, campers, vans, boats, parts and tyres got their own fields; electronics an exact model, RAM, colour, battery health, warranty, receipt; furniture, appliances, carpets (material, more origins), clothing (garment type, brand, colour, EU size numbers), jewellery (material, karat for gold, weight), prams, car seats, toys, pets (vaccinated, chip, neutered, papers), books, tickets (event date, required), services (price unit, what is offered, home visits), lessons (audience, trial lesson, subjects, levels, exam preparation), jobs (salary, experience, Persian-speaking, visa help, licence, start date), rideshare (from, to, date). `rent_type` retired.
+- New field type `date` (migration `0009`, a CHECK change only) and amounts in minor units of the listing's currency. The posting form shows a date input, month and year selects, and the currency next to amounts; the listing page shows Jalali dates, Gregorian months, amounts with the currency, and the warm rent next to the cold rent. Details in `docs/schema.md`, section 17.
+- 7 new tests (214 in total), all passing in Docker on a scratch PostgreSQL built like `compose.yaml` plus Valkey; typecheck and `check:rtl` pass. Upgrade from `main`'s seed tested on a scratch database.
+
+Not done:
+- Deploy. After merging, `classifieds-migrate` applies `0009`; then run the seed once on staging as in `docs/setup.md` ("Seeding on staging"). Until the seed runs, the new fields don't appear and old ones keep working.
+- Cards don't read `show_on_card` yet, and filters come with search.
+- The listing page and posting form are also being restyled on `design-brand`; both branches touch `src/app/my/listings/[id]/form.tsx`, `editor-data.ts`, `src/app/v/[slug]/[token]/page.tsx` and `src/messages/fa.ts`, so the second to merge resolves small conflicts there (here only the attribute field, the attribute text and two message groups changed).
+
+Next:
+1. A native speaker reads the new Persian labels and options.
+2. Cards: show up to three `show_on_card` fields under the price.
+3. Possible new categories, e.g. driving lessons.

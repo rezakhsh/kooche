@@ -115,6 +115,25 @@ export const SEED_CHECKS: SeedCheck[] = [
       WHERE a.depends_on_attribute_id IS DISTINCT FROM p.attribute_id`,
   },
   {
+    // money is for numbers, month for dates; optional_in names categories under the definition's own
+    name: 'validation settings fit the attribute',
+    query: sql`
+      SELECT a.key || ' in ' || c.slug || CASE
+               WHEN a.validation ? 'money' AND a.type <> 'number' THEN ' has money but is ' || a.type
+               WHEN a.validation ? 'month' AND a.type <> 'date' THEN ' has month but is ' || a.type
+               ELSE ' is optional in ' || s.slug || ', which is not below it' END AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      LEFT JOIN LATERAL jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(a.validation -> 'optional_in') = 'array' THEN a.validation -> 'optional_in' ELSE '[]' END
+      ) AS s(slug) ON true
+      WHERE a.is_active AND (
+        (a.validation ? 'money' AND a.type <> 'number')
+        OR (a.validation ? 'month' AND a.type <> 'date')
+        OR (s.slug IS NOT NULL AND NOT EXISTS (
+          SELECT 1 FROM categories x WHERE x.slug = s.slug AND x.path <@ c.path AND x.id <> c.id)))`,
+  },
+  {
     name: 'selects have options and other types have none',
     query: sql`
       SELECT a.key || ' in ' || c.slug || ' (' || a.type || ')' AS problem

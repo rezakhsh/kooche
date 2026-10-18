@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
-import { ancestry, cachedCatalog, effectiveAttributes } from '../../../modules/listings/catalog';
+import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency } from '../../../modules/listings/catalog';
 import { maxImages, priceTypesFor } from '../../../modules/listings/listings';
 import { amountInputValue } from '../../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
@@ -46,6 +46,15 @@ export async function editorData(
     district = saved.district;
   }
   const countryCode = open(place?.countryCode) ?? open(listing?.countryCode) ?? open(preferredCountry) ?? countries[0]?.code ?? '';
+  const defs = effectiveAttributes(catalog, category.id).filter((d) => d.isActive);
+
+  // Stored amounts are minor units; the form shows them as typed, like the price
+  const attributes = { ...((listing?.attributes as Record<string, unknown>) ?? {}) };
+  const minorUnit = (listing && listingCurrency(catalog, listing)?.minorUnit) ?? 2;
+  for (const d of defs) {
+    const a = attributes[d.key];
+    if (d.validation.money && typeof a === 'number') attributes[d.key] = amountInputValue(a, minorUnit);
+  }
 
   return {
     form: {
@@ -53,7 +62,7 @@ export async function editorData(
       categoryId,
       status: listing?.status ?? 'draft',
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
-      defs: effectiveAttributes(catalog, category.id).filter((d) => d.isActive),
+      defs,
       priceTypes: [...priceTypesFor(category.priceMode)],
       countries: countries.map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
       needsName: me?.displayName === messages.account.defaultDisplayName,
@@ -61,7 +70,7 @@ export async function editorData(
         kind: listing?.kind ?? 'offer',
         title: listing?.title ?? '',
         description: listing?.description ?? '',
-        attributes: (listing?.attributes as Record<string, unknown>) ?? {},
+        attributes,
         priceType: listing?.priceType ?? 'fixed',
         amount: listing?.priceMinor != null && currency ? amountInputValue(listing.priceMinor, currency.minorUnit) : '',
         place: {
