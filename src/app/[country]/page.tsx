@@ -59,6 +59,12 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
           {t.change}
         </Link>
       </div>
+      <Link
+        href={`/${country.slug}/events`}
+        className="mb-6 block rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 font-semibold text-emerald-900 hover:bg-emerald-100"
+      >
+        {messages.events.linkFromCountry} ←
+      </Link>
       {page.items.length === 0 && <p className="text-neutral-600">{t.empty}</p>}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {page.items.map((l) => {

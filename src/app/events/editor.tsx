@@ -1,0 +1,49 @@
+'use client';
+
+import { useCallback, useRef, useState } from 'react';
+import { messages } from '../../messages/fa';
+import { PhotoEditor } from '../my/listings/[id]/photos';
+import type { PhotoView } from '../my/listings/photo-view';
+import { startEventDraftAction } from './actions';
+import { EventForm, type EventFormProps } from './form';
+
+// Poster, photos and form of one event. Like a listing, a new event exists only in the browser
+// until the organizer saves it or adds the first photo (which needs the event type); then the
+// draft is created once and the address bar moves to /my/events/<id> without reloading.
+
+export function EventEditor({ form, photos }: { form: EventFormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }) {
+  const [listingId, setListingId] = useState(form.listingId);
+  const [categoryId, setCategoryId] = useState(form.values.categoryId);
+  const pending = useRef<Promise<string> | null>(null);
+
+  const adopt = useCallback((id: string) => {
+    setListingId(id);
+    window.history.replaceState(null, '', `/my/events/${id}`);
+  }, []);
+
+  const ensureListing = useCallback(async () => {
+    if (listingId) return listingId;
+    if (!categoryId) throw new Error(messages.events.form.chooseType);
+    // Two quick photo picks must not start two drafts
+    pending.current ??= startEventDraftAction(categoryId).then((r) => {
+      if (!r.ok) {
+        pending.current = null;
+        throw new Error(r.error);
+      }
+      adopt(r.listingId);
+      return r.listingId;
+    });
+    return pending.current;
+  }, [listingId, categoryId, adopt]);
+
+  return (
+    <>
+      <div className="space-y-2">
+        <h2 className="font-semibold">{messages.events.form.photos}</h2>
+        <p className="text-xs text-neutral-500">{messages.events.form.photosHint}</p>
+        <PhotoEditor listingId={listingId} ensureListing={ensureListing} {...photos} />
+      </div>
+      <EventForm {...form} listingId={listingId} onDraftCreated={adopt} onTypeChange={setCategoryId} />
+    </>
+  );
+}

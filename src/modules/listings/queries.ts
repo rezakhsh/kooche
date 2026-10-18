@@ -81,6 +81,9 @@ export async function savedPlace(db: Queryable, userId: string): Promise<{ place
   };
 }
 
+/** Events have their own section, pages and "my events" (src/modules/events/) */
+const notAnEvent = sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`;
+
 export const COUNTRY_PAGE_SIZE = 24;
 
 /**
@@ -113,6 +116,7 @@ export async function countryListings(
       and(
         eq(listings.status, 'active'),
         eq(listings.countryCode, countryCode),
+        notAnEvent,
         after ? sql`(${listings.rankedAt}, ${listings.id}) < (${after.rankedAt.toISOString()}::timestamptz, ${after.id}::uuid)` : undefined,
       ),
     )
@@ -132,7 +136,7 @@ export async function myListings(db: Queryable, userId: string) {
   const rows = await db
     .select()
     .from(listings)
-    .where(and(eq(listings.userId, userId), ne(listings.status, 'deleted')))
+    .where(and(eq(listings.userId, userId), ne(listings.status, 'deleted'), notAnEvent))
     .orderBy(desc(listings.createdAt))
     .limit(200);
   const covers = await coverKeys(db, rows.map((r) => r.id));

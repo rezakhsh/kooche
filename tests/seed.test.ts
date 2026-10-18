@@ -85,14 +85,15 @@ describe('seed checks', () => {
 });
 
 describe('seeded data', () => {
-  it('has the approved category tree: 13 roots and 115 leaves', async () => {
+  // Oct 18, 2026: + the events section (1 root, 13 event types), community › events retired
+  it('has the approved category tree: 14 roots and 127 leaves', async () => {
     const [roots] = await db.select({ n: count() }).from(categories).where(isNull(categories.parentId));
     const [leaves] = await db
       .select({ n: count() })
       .from(categories)
       .where(eq(categories.allowsListings, true));
-    expect(roots!.n).toBe(13);
-    expect(leaves!.n).toBe(115);
+    expect(roots!.n).toBe(14);
+    expect(leaves!.n).toBe(127);
   });
 
   it('opens Germany and Austria, with their regions and every city under one of them', async () => {

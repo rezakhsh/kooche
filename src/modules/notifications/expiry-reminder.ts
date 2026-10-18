@@ -28,6 +28,8 @@ export async function sendExpiryReminders(
     FROM listings l JOIN users u ON u.id = l.user_id
     WHERE l.status = 'active' AND l.expires_at > ${from}::timestamptz AND l.expires_at <= ${to}::timestamptz
       AND u.status = 'active'
+      -- An event ends with its last date; there is nothing to renew
+      AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)
     ORDER BY u.id, l.expires_at
   `);
 

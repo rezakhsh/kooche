@@ -205,6 +205,15 @@ export function effectiveAttributes(catalog: Catalog, categoryId: string): Attri
   );
 }
 
+/** Root of the events section (src/modules/events/): its leaves are the event types */
+export const EVENT_ROOT_SLUG = 'events-calendar';
+
+/** Whether a category belongs to the events section, whose listings are events */
+export function isEventCategory(catalog: Catalog, categoryId: string | null | undefined): boolean {
+  if (!categoryId) return false;
+  return ancestry(catalog, categoryId)[0]?.slug === EVENT_ROOT_SLUG;
+}
+
 /** A category new listings may use: an active leaf whose ancestors are active too */
 export function isPostable(catalog: Catalog, categoryId: string): boolean {
   const chain = ancestry(catalog, categoryId);

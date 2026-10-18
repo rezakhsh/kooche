@@ -1,0 +1,59 @@
+import Link from 'next/link';
+import { messages } from '../messages/fa';
+import { cardDate } from '../modules/events/format';
+import { eventPath } from '../modules/events/slug';
+
+// One event in a list: poster, a date badge (Jalali day and month, weekday and time at the venue),
+// title, where, price, and a label when it is online, postponed or cancelled. Plain styles; the
+// brand's design replaces them.
+
+export type EventCardData = {
+  title: string;
+  publicToken: string;
+  startsAt: Date;
+  timeZone: string;
+  where: string | null;
+  price: string | null;
+  attendance: string;
+  scheduleStatus: string;
+  moreDates: number;
+  cover: string | null;
+};
+
+export function EventCard({ e }: { e: EventCardData }) {
+  const t = messages.events;
+  const when = cardDate(e.startsAt, e.timeZone);
+  const label =
+    e.scheduleStatus !== 'scheduled'
+      ? t.scheduleStatus[e.scheduleStatus as 'postponed' | 'cancelled']
+      : e.attendance === 'online'
+        ? t.card.online
+        : e.attendance === 'hybrid'
+          ? t.card.hybrid
+          : null;
+  return (
+    <Link href={eventPath(e.title, e.publicToken)} className="block overflow-hidden rounded-2xl border border-neutral-200 hover:bg-neutral-50">
+      <div className="relative aspect-[4/5] bg-neutral-100">
+        {e.cover && <img src={e.cover} alt="" width={480} height={600} loading="lazy" decoding="async" className="size-full object-cover" />}
+        <div className="absolute start-2 top-2 rounded-xl bg-white/95 px-2 py-1 text-center shadow-sm">
+          <span className="block text-sm font-bold">{when.day}</span>
+          <span className="block text-xs text-neutral-600">{when.weekday}</span>
+        </div>
+        {label && (
+          <span
+            className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-emerald-700 text-white' : 'bg-red-700 text-white'}`}
+          >
+            {label}
+          </span>
+        )}
+      </div>
+      <div className="space-y-1 p-3">
+        <p className="text-xs text-emerald-800">{when.time}</p>
+        <p className="line-clamp-2 text-sm font-semibold">{e.title}</p>
+        {e.where && <p className="truncate text-xs text-neutral-500">{e.where}</p>}
+        {e.price && <p className="text-xs text-neutral-700">{e.price}</p>}
+        {e.moreDates > 0 && <p className="text-xs text-neutral-500">{t.card.moreDates(e.moreDates)}</p>}
+      </div>
+    </Link>
+  );
+}

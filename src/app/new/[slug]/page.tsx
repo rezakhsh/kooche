@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { PageShell } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { messages } from '../../../messages/fa';
-import { cachedCatalog, isPostable } from '../../../modules/listings/catalog';
+import { cachedCatalog, isEventCategory, isPostable } from '../../../modules/listings/catalog';
 import { canPostListing, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { ListingEditor } from '../../my/listings/[id]/editor';
@@ -23,6 +23,7 @@ export default async function NewInCategoryPage({ params }: { params: Promise<{ 
   const category = catalog.bySlug.get(slug);
   if (!category || !isPostable(catalog, category.id)) notFound();
   if (category.businessOnly) redirect('/new?error=business_only');
+  if (isEventCategory(catalog, category.id)) redirect(`/events/new?type=${category.slug}`);
 
   const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null);
   return (

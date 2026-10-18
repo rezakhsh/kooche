@@ -6,6 +6,7 @@ import postgres from 'postgres';
 import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
 import { type OutboxHandlers, BATCH_SIZE, processOutboxBatch } from './outbox';
+import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
 import { startRetention } from './retention';
 import { runTelegramBot } from './telegram';
@@ -58,7 +59,8 @@ async function main(): Promise<void> {
 
   const retention = await startRetention(sql, connection);
   const listingJobs = await startListingJobs(db, connection);
-  handlers = { ...listingJobs.handlers };
+  const eventJobs = await startEventJobs(db, connection);
+  handlers = { ...listingJobs.handlers, ...eventJobs.handlers };
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
     ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
@@ -69,7 +71,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

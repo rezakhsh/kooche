@@ -10,6 +10,8 @@ export const IMAGE_SIZES = {
   thumb: 'rs:fill:160:160:1/g:ce',
   /** Listing card and photo strip */
   card: 'rs:fill:480:360:1/g:ce',
+  /** Event card: posters are upright (4:5) */
+  poster: 'rs:fill:480:600:1/g:ce',
   /** Listing page */
   full: 'rs:fit:1280:1280:0',
 } as const;

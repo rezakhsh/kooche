@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
@@ -13,6 +13,8 @@ import { messages } from '../../../../messages/fa';
 import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency, type AttributeDef, type Currency } from '../../../../modules/listings/catalog';
 import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
+import { isEventListing } from '../../../../modules/events/queries';
+import { eventPath } from '../../../../modules/events/slug';
 import { publicListing } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
@@ -87,6 +89,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const { token } = await params;
   const data = await load(token);
   if (!data) notFound();
+  // An event is a listing with its own page
+  if (await isEventListing(appDb(), data.listing.id)) permanentRedirect(eventPath(data.listing.title, data.listing.publicToken));
   const session = await currentSession();
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();

@@ -5,6 +5,8 @@ import type { REASON_CODES } from '../../db/schema/_values';
 import { messages } from '../../messages/fa';
 import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
+import { eventCheckFields } from '../events/events';
+import { checkLink } from '../events/links';
 import { findBannedTerm } from './terms';
 
 // Automatic checks after publishing (decided Oct 17, 2026). Listings go live at once; the worker
@@ -104,7 +106,27 @@ const duplicatePhotos: ListingCheck = {
   },
 };
 
-export const CHECKS: readonly ListingCheck[] = [bannedTerms, duplicatePhotos];
+/**
+ * An event's own text (venue, address, organizer) gets the banned-terms check too, and its ticket
+ * and online links the link rules again (the form already refuses shorteners; this catches rows
+ * written before a shortener was added to the list).
+ */
+const eventFields: ListingCheck = {
+  name: 'event_fields',
+  async run({ tx, listing }) {
+    const fields = await eventCheckFields(tx, listing.id);
+    if (!fields) return { verdict: 'pass' };
+    const found = findBannedTerm(fields.text);
+    if (found) {
+      return { verdict: 'take_down', rule: 'banned_terms', reason: 'prohibited', policyGround: 'terms-prohibited-items', detail: { ...found, field: 'event' } };
+    }
+    const bad = fields.links.find((l) => !checkLink(l).ok);
+    if (bad) return { verdict: 'take_down', rule: 'event_links', reason: 'scam', policyGround: 'terms-event-links', detail: { link: bad } };
+    return { verdict: 'pass' };
+  },
+};
+
+export const CHECKS: readonly ListingCheck[] = [bannedTerms, duplicatePhotos, eventFields];
 
 /** Statuses the checks look at: live, paused (can come back) and waiting for review */
 const CHECKED = new Set<Listing['status']>(['active', 'paused', 'pending_review']);
@@ -116,6 +138,7 @@ async function snapshot(tx: Queryable, listing: Listing) {
     .select({ key: listingImages.storageKey })
     .from(listingImages)
     .where(and(eq(listingImages.listingId, listing.id), eq(listingImages.status, 'ready')));
+  const event = await eventCheckFields(tx, listing.id);
   return {
     title: listing.title,
     description: listing.description,
@@ -125,6 +148,7 @@ async function snapshot(tx: Queryable, listing: Listing) {
     attributes: listing.attributes,
     district: listing.district,
     images: images.map((i) => i.key),
+    ...(event ? { event } : {}),
   };
 }
 

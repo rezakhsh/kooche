@@ -24,7 +24,7 @@ The loader (`src/db/seed.ts`) runs in one transaction and can be run again at an
 | `locations/de.ts` | The 16 German Länder and the first set of German cities |
 | `locations/at.ts` | The 9 Austrian Bundesländer and 29 cities (the largest and every state capital) |
 | `postal/de.tsv`, `postal/at.tsv` | Postal codes and their places (code, place, latitude, longitude), written by `scripts/import-postal-codes.mjs`; never edit by hand |
-| `categories.ts` | 13 root categories, 115 leaf categories, 289 attributes and their options (Persian), fields per category as approved Oct 18, 2026 |
+| `categories.ts` | 14 root categories, 127 leaf categories (with the events section's 13 event types, Oct 18, 2026), 289 attributes and their options (Persian), fields per category as approved Oct 18, 2026 |
 | `car-models.ts` | 45 car makes and their models for the car `brand` and `model` selects |
 
 To open a country, follow the checklist in `docs/setup.md`, "Countries, places and the map".

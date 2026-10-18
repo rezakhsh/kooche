@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 import { Alert, PageShell } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { messages } from '../../../../messages/fa';
+import { isEventListing } from '../../../../modules/events/queries';
 import { ownListing } from '../../../../modules/listings/listings';
 import { takeDownStatement } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
@@ -20,6 +21,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
   const db = appDb();
   const own = await ownListing(db, user.id, id);
   if (!own?.listing.categoryId) notFound();
+  if (await isEventListing(db, own.listing.id)) redirect(`/my/events/${own.listing.id}`);
   const { listing, images } = own;
   const categoryId = listing.categoryId!;
   const t = messages.form;

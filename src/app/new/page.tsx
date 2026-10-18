@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Alert, Card, LinkButton, PageShell } from '../../components/ui';
 import { appDb } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
-import { cachedCatalog, type CategoryNode } from '../../modules/listings/catalog';
+import { EVENT_ROOT_SLUG, cachedCatalog, type CategoryNode } from '../../modules/listings/catalog';
 import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { pickCategory } from './actions';
@@ -81,6 +81,18 @@ export default async function NewListingPage({
 
 function CategoryRow({ category, keep, listingId }: { category: CategoryNode; keep: string; listingId?: string }) {
   const row = 'flex w-full items-center justify-between gap-3 px-4 py-4 text-start hover:bg-neutral-50';
+  // Events have their own form (src/app/events/new); a listing can't move into them
+  if (category.path.split('.')[0] === EVENT_ROOT_SLUG) {
+    if (listingId) return null;
+    return (
+      <Link href="/events/new" className={row}>
+        <span>{category.nameFa}</span>
+        <span aria-hidden className="text-neutral-400">
+          ‹
+        </span>
+      </Link>
+    );
+  }
   if (category.childIds.length > 0) {
     return (
       <Link href={`/new?c=${category.slug}${keep}`} className={row}>

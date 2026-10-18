@@ -10,7 +10,7 @@ type Db = PgDatabase<PgQueryResultHKT, any>;
 export type SeedCheck = { name: string; query: ReturnType<typeof sql> };
 
 /** First path segments the app uses itself, so no country may take them as its slug */
-export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search'];
+export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search', 'e', 'events'];
 
 export const SEED_CHECKS: SeedCheck[] = [
   {

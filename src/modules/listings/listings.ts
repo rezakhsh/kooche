@@ -10,7 +10,7 @@ import { messages } from '../../messages/fa';
 import { reviewPolicy } from '../moderation/policy';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
-import { cachedCatalog, effectiveAttributes, isPostable, type Catalog, type CategoryNode } from './catalog';
+import { cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
 import { MAX_PRICE_MINOR, parseAmount } from './price';
@@ -89,6 +89,13 @@ export type FieldError =
   | 'too_far'
   | 'not_found'
   | 'ambiguous'
+  // Events (src/modules/events/): a date in the past or too far ahead, an end before its start,
+  // more dates than a series may have, a link through a URL shortener
+  | 'in_past'
+  | 'too_late'
+  | 'before_start'
+  | 'too_many_dates'
+  | 'short_link'
   | AttributeErrorCode;
 /** Field name (`title`, `amount`, `attr.fuel`…) → error code */
 export type FieldErrors = Record<string, FieldError>;
@@ -145,7 +152,7 @@ async function prepare(
   input: ListingInput,
   mode: 'draft' | 'publish',
   needsName: boolean,
-): Promise<{ ok: true; prepared: Prepared } | { ok: false; errors: FieldErrors }> {
+): Promise<{ ok: true; prepared: Prepared } | { ok: false; errors: FieldErrors; place: Place | null }> {
   const errors: FieldErrors = {};
   const publish = mode === 'publish';
 
@@ -266,7 +273,7 @@ async function prepare(
     else if (name) displayName = name;
   }
 
-  if (Object.keys(errors).length) return { ok: false, errors };
+  if (Object.keys(errors).length) return { ok: false, errors, place };
   return {
     ok: true,
     prepared: {
@@ -304,6 +311,32 @@ async function prepare(
 export type Refusal = Denied | 'not_found' | 'not_allowed' | 'category_not_postable' | 'business_only';
 export type Refused = { ok: false; reason: Refusal };
 
+/**
+ * What the events module adds to a listing (src/modules/events/). Listings in the events section
+ * are created and saved only with it, and other listings never with it, so an event always has
+ * its dates and its end. `prepare` runs once the place is resolved, and its errors join the
+ * listing's; `write` runs in the same transaction after the listing row is written.
+ */
+export type ListingExtension = {
+  prepare(
+    tx: Queryable,
+    ctx: { current: Listing; place: Place | null; mode: 'draft' | 'publish'; goingOut: boolean; now: Date },
+  ): Promise<
+    | {
+        ok: true;
+        /** The end of the last date: the listing's expires_at. null only in a draft. */
+        expiresAt: Date | null;
+        /** Changed extra fields, for the `edited` history row */
+        diff: Record<string, [unknown, unknown]>;
+        write(
+          tx: Queryable,
+          saved: { listing: Listing; status: Listing['status']; goingOut: boolean; revision: number },
+        ): Promise<void>;
+      }
+    | { ok: false; errors: FieldErrors }
+  >;
+};
+
 /** The owner's listing, locked for the rest of the transaction. Deleted ones are not found. */
 async function lockOwn(tx: Queryable, userId: string, listingId: string): Promise<Listing | null> {
   const [row] = await tx
@@ -332,7 +365,16 @@ async function needsDisplayName(tx: Queryable, userId: string): Promise<boolean>
 /** Starts a listing in a category: a draft, so photos can be uploaded before it is published */
 export async function createDraft(
   db: Db,
-  { userId, categoryId }: { userId: string; categoryId: string },
+  {
+    userId,
+    categoryId,
+    afterCreate,
+  }: {
+    userId: string;
+    categoryId: string;
+    /** The events module's own row for a new event; required in the events section, refused elsewhere */
+    afterCreate?: (tx: Queryable, listingId: string) => Promise<void>;
+  },
 ): Promise<{ ok: true; listingId: string } | Refused> {
   const catalog = await cachedCatalog(db);
   return db.transaction(async (tx) => {
@@ -341,6 +383,7 @@ export async function createDraft(
     if (!isPostable(catalog, categoryId)) return { ok: false, reason: 'category_not_postable' };
     // Business-only categories need organizations, which come later
     if (catalog.byId.get(categoryId)!.businessOnly) return { ok: false, reason: 'business_only' };
+    if (isEventCategory(catalog, categoryId) !== !!afterCreate) return { ok: false, reason: 'category_not_postable' };
 
     for (let attempt = 0; ; attempt++) {
       const [row] = await tx
@@ -359,6 +402,7 @@ export async function createDraft(
           to: 'draft',
           revision: 1,
         });
+        await afterCreate?.(tx, row.id);
         return { ok: true, listingId: row.id };
       }
       if (attempt >= 3) throw new Error('Could not generate a unique listing token');
@@ -378,6 +422,10 @@ export async function changeDraftCategory(
     if (listing.status !== 'draft') return { ok: false, reason: 'not_allowed' };
     if (!isPostable(catalog, categoryId)) return { ok: false, reason: 'category_not_postable' };
     if (catalog.byId.get(categoryId)!.businessOnly) return { ok: false, reason: 'business_only' };
+    // An event stays an event (its details row), a listing stays a listing
+    if (isEventCategory(catalog, categoryId) !== isEventCategory(catalog, listing.categoryId)) {
+      return { ok: false, reason: 'category_not_postable' };
+    }
     const keys = new Set(effectiveAttributes(catalog, categoryId).map((d) => d.key));
     const attributes = Object.fromEntries(
       Object.entries(listing.attributes as Record<string, unknown>).filter(([k]) => keys.has(k)),
@@ -438,7 +486,15 @@ function changedFields(before: Listing, after: Prepared['values']): Record<strin
  */
 export async function saveListing(
   db: Db,
-  opts: { userId: string; listingId: string; input: ListingInput; intent: 'save' | 'publish'; now?: Date },
+  opts: {
+    userId: string;
+    listingId: string;
+    input: ListingInput;
+    intent: 'save' | 'publish';
+    now?: Date;
+    /** The events module's fields; required for listings in the events section */
+    extension?: ListingExtension;
+  },
 ): Promise<SaveResult> {
   const catalog = await cachedCatalog(db);
   const now = opts.now ?? new Date();
@@ -450,6 +506,7 @@ export async function saveListing(
     if (!EDITABLE.has(listing.status)) return { ok: false, reason: 'not_allowed' };
     const category = listing.categoryId ? catalog.byId.get(listing.categoryId) : undefined;
     if (!category) return { ok: false, reason: 'category_not_postable' };
+    if (isEventCategory(catalog, category.id) !== !!opts.extension) return { ok: false, reason: 'category_not_postable' };
     const goingOut = opts.intent === 'publish' && (listing.status === 'draft' || listing.status === 'rejected');
     if (goingOut && (!isPostable(catalog, category.id) || category.businessOnly)) {
       return { ok: false, reason: 'category_not_postable' };
@@ -458,7 +515,17 @@ export async function saveListing(
     const mode = listing.status === 'draft' && !goingOut ? 'draft' : 'publish';
     const needsName = await needsDisplayName(tx, opts.userId);
     const result = await prepare(tx, catalog, category, listing, opts.input, mode, needsName);
-    if (!result.ok) return { ok: false, reason: 'invalid', errors: result.errors };
+    const extra = await opts.extension?.prepare(tx, {
+      current: listing,
+      place: result.ok ? result.prepared.place : result.place,
+      mode,
+      goingOut,
+      now,
+    });
+    if (!result.ok || (extra && !extra.ok)) {
+      const errors = { ...(result.ok ? {} : result.errors), ...(extra && !extra.ok ? extra.errors : {}) };
+      return { ok: false, reason: 'invalid', errors };
+    }
     const { values, displayName, place } = result.prepared;
 
     if (displayName) {
@@ -470,7 +537,7 @@ export async function saveListing(
     // "Remember for my next listings": the postal code, place and district, never the position
     if (opts.input.rememberPlace && place) await tx.update(users).set(savedPlaceColumns(place, values.district)).where(eq(users.id, opts.userId));
 
-    const diff = changedFields(listing, values);
+    const diff = { ...changedFields(listing, values), ...(extra?.ok ? extra.diff : {}) };
     const changed = Object.keys(diff).length > 0;
     // Drafts aren't public: no history or outbox until they are published
     const revision = listing.status !== 'draft' && changed ? listing.revision + 1 : listing.revision;
@@ -487,17 +554,21 @@ export async function saveListing(
         status = 'active';
         dates.publishedAt = listing.publishedAt ?? now;
         dates.rankedAt = listing.rankedAt ?? now;
-        dates.expiresAt = new Date(now.getTime() + category.listingDurationDays * DAY_MS);
+        dates.expiresAt = extra?.ok ? extra.expiresAt : new Date(now.getTime() + category.listingDurationDays * DAY_MS);
       } else {
         status = 'pending_review';
       }
       dates.statusChangedAt = now;
+    } else if (extra?.ok && listing.status !== 'draft' && extra.expiresAt) {
+      // An event that is out ends with its (possibly new) last date
+      dates.expiresAt = extra.expiresAt;
     }
 
-    await tx
+    const [saved] = await tx
       .update(listings)
       .set({ ...values, ...dates, status, revision })
-      .where(eq(listings.id, listing.id));
+      .where(eq(listings.id, listing.id))
+      .returning();
 
     if (listing.status !== 'draft' && changed) {
       await recordChange(tx, {
@@ -525,6 +596,8 @@ export async function saveListing(
         revision,
       });
     }
+    // The event's own rows and outbox events, after the listing's history
+    if (extra?.ok) await extra.write(tx, { listing: saved!, status, goingOut, revision });
     return { ok: true, status, publicToken: listing.publicToken };
   });
 }
@@ -532,7 +605,18 @@ export async function saveListing(
 export type StatusAction = 'pause' | 'resume' | 'sold' | 'renew' | 'delete';
 
 /** Whether an action is offered for a listing in this state (also used by "my listings") */
-export function canApply(action: StatusAction, l: Pick<Listing, 'status' | 'expiresAt'>, now = new Date()): boolean {
+export function canApply(
+  action: StatusAction,
+  l: Pick<Listing, 'status' | 'expiresAt'> & {
+    /** Events end with their last date: no renewing, no "sold", no resuming once over */
+    isEvent?: boolean;
+  },
+  now = new Date(),
+): boolean {
+  if (l.isEvent) {
+    if (action === 'renew' || action === 'sold') return false;
+    if (action === 'resume') return l.status === 'paused' && !!l.expiresAt && l.expiresAt > now;
+  }
   switch (action) {
     case 'pause':
       return l.status === 'active';
@@ -575,7 +659,9 @@ export async function changeListingStatus(
 
     const listing = await lockOwn(tx, opts.userId, opts.listingId);
     if (!listing) return { ok: false, reason: 'not_found' };
-    if (!canApply(opts.action, listing, now)) return { ok: false, reason: 'not_allowed' };
+    if (!canApply(opts.action, { ...listing, isEvent: isEventCategory(catalog, listing.categoryId) }, now)) {
+      return { ok: false, reason: 'not_allowed' };
+    }
     const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * DAY_MS;
     const freshExpiry = new Date(now.getTime() + duration);
 

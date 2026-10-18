@@ -4,7 +4,8 @@ import type { AttributeSeed, CategorySeed, OptionSeed } from './types';
 // Starter category tree: Divar's top-level grouping and Persian names, merged with
 // Kleinanzeigen's European structure (two levels, separate roots for children, pets and
 // lessons, Germany-specific leaves such as WG rooms, tires, Ausbildung and Minijobs).
-// Approved Oct 16, 2026: 13 roots, 115 leaves.
+// Approved Oct 16, 2026: 13 roots, 115 leaves. Oct 18, 2026: the events section added (14 roots,
+// 127 leaves).
 //
 // Fields per category (approved Oct 18, 2026): what Kleinanzeigen's posting forms and filters ask
 // in each category, with Divar's Persian wording. Few fields are required; the rest are optional so
@@ -2010,7 +2011,6 @@ export const categories: CategorySeed[] = [
     icon: 'users',
     priceMode: 'optional',
     children: [
-      leaf('events', 'رویداد و دورهمی'),
       leaf('rideshare', 'همسفری', {
         attributes: [
           {
@@ -2071,6 +2071,33 @@ export const categories: CategorySeed[] = [
           },
         ],
       }),
+    ],
+  },
+  {
+    // The events section («رویدادها», decided Oct 18, 2026): its own pages and form
+    // (src/modules/events/), sorted by the event's date and ended after its last date. Event
+    // fields are columns of event_details, not attributes. Replaces community › events.
+    slug: 'events-calendar',
+    nameFa: 'رویدادها',
+    icon: 'calendar',
+    priceMode: 'optional',
+    maxImages: 10,
+    children: [
+      leaf('event-concerts', 'کنسرت و موسیقی'),
+      leaf('event-parties', 'پارتی و شب‌نشینی'),
+      leaf('event-celebrations', 'جشن‌ها و مناسبت‌ها', {
+        descriptionFa: 'نوروز، چهارشنبه‌سوری، سیزده‌بدر، یلدا و دیگر جشن‌ها',
+      }),
+      leaf('event-theatre', 'تئاتر و نمایش'),
+      leaf('event-film', 'سینما و فیلم'),
+      leaf('event-readings', 'کتاب‌خوانی و شب شعر'),
+      leaf('event-talks', 'سخنرانی، نشست و وبینار'),
+      leaf('event-workshops', 'کلاس و کارگاه'),
+      leaf('event-meetups', 'دورهمی و آشنایی', { descriptionFa: 'دورهمی‌های محلی، دانشجویی و تازه‌واردها' }),
+      leaf('event-family', 'کودک و خانواده'),
+      leaf('event-sports', 'ورزش و طبیعت‌گردی'),
+      leaf('event-religious', 'مراسم مذهبی و آیینی'),
+      leaf('event-other', 'سایر رویدادها'),
     ],
   },
   {

@@ -9,3 +9,4 @@ export * from './chat';
 export * from './moderation';
 export * from './payments';
 export * from './shared';
+export * from './events';

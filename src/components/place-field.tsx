@@ -38,6 +38,7 @@ export function PlaceField({
   initial,
   errors = {},
   allowArea = true,
+  showDistrict = true,
   onCountryChange,
 }: {
   countries: { code: string; nameFa: string }[];
@@ -46,6 +47,8 @@ export function PlaceField({
   errors?: Partial<Record<'countryCode' | 'place' | 'district' | 'area', string>>;
   /** The account's saved place has no position */
   allowArea?: boolean;
+  /** Events give a venue and street instead of a district */
+  showDistrict?: boolean;
   onCountryChange?: (code: string) => void;
 }) {
   const [country, setCountry] = useState(initial.countryCode || countries[0]?.code || '');
@@ -199,10 +202,12 @@ export function PlaceField({
         <ErrorLine text={errors.place} />
       </div>
 
-      <div>
-        <Field label={t.district} hint={t.districtHint} name="district" defaultValue={initial.district} maxLength={60} />
-        <ErrorLine text={errors.district} />
-      </div>
+      {showDistrict && (
+        <div>
+          <Field label={t.district} hint={t.districtHint} name="district" defaultValue={initial.district} maxLength={60} />
+          <ErrorLine text={errors.district} />
+        </div>
+      )}
 
       {allowArea && (
         <div className="space-y-2">
