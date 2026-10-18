@@ -267,3 +267,30 @@ export async function cityCounts(db: Queryable, countryCode: string): Promise<Ma
     .groupBy(listings.locationId);
   return new Map(rows.filter((r) => r.locationId).map((r) => [r.locationId!, r.n]));
 }
+
+// Counts read every active listing of a country (~30 ms at 50,000 listings, scripts/explain-browse.ts),
+// on every page load. Pages take them from a per-process copy that is at most a minute old.
+const COUNTS_TTL_MS = 60_000;
+const globalForCounts = globalThis as typeof globalThis & { browseCounts?: Map<string, { value: Promise<Map<string, number>>; at: number }> };
+
+function cachedCounts(key: string, load: () => Promise<Map<string, number>>): Promise<Map<string, number>> {
+  const cache = (globalForCounts.browseCounts ??= new Map());
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < COUNTS_TTL_MS) return hit.value;
+  const value = load();
+  cache.set(key, { value, at: Date.now() });
+  value.catch(() => {
+    if (cache.get(key)?.value === value) cache.delete(key);
+  });
+  return value;
+}
+
+/** categoryCounts, at most a minute old */
+export function cachedCategoryCounts(db: Queryable, countryCode: string, locationId: string | null = null) {
+  return cachedCounts(`category:${countryCode}:${locationId ?? ''}`, () => categoryCounts(db, countryCode, locationId));
+}
+
+/** cityCounts, at most a minute old */
+export function cachedCityCounts(db: Queryable, countryCode: string) {
+  return cachedCounts(`city:${countryCode}`, () => cityCounts(db, countryCode));
+}

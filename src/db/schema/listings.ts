@@ -378,6 +378,10 @@ export const listings = pgTable(
       .on(t.locationId, t.rankedAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(active),
     index('listings_point_idx').using('gist', t.point).where(active),
+    // "This postal code only" on browse pages (migration 0012)
+    index('listings_country_postal_idx')
+      .on(t.countryCode, t.postalCode)
+      .where(sql`status = 'active' AND postal_code IS NOT NULL`),
     index('listings_attributes_idx')
       .using('gin', t.attributes.op('jsonb_path_ops'))
       .where(active),

@@ -60,3 +60,23 @@ export const savedSearches = pgTable(
       .where(sql`notify_frequency <> 'off'`),
   ],
 );
+
+/**
+ * XML sitemaps, written by the worker every hour and served by the web app (migration 0012). A
+ * table rather than Valkey (96 MB, no eviction) because the files grow with the listings;
+ * PostgreSQL compresses the text by itself.
+ */
+export const sitemapFiles = pgTable(
+  'sitemap_files',
+  {
+    /** "index", "germany", "germany-listings-1" … served at /sitemaps/<name>.xml */
+    name: text('name').primaryKey(),
+    body: text('body').notNull(),
+    urlCount: integer('url_count').notNull(),
+    generatedAt: tstz('generated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('sitemap_files_name_check', sql`${t.name} ~ '^[a-z0-9-]{1,80}$'`),
+    check('sitemap_files_url_count_check', sql`${t.urlCount} BETWEEN 0 AND 50000`),
+  ],
+);
