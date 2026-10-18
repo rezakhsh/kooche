@@ -448,6 +448,8 @@ Events (Oct 18, 2026): two small tables and one BullMQ queue with a weekly job; 
 
 Chat (Oct 18, 2026): no new service and no new setting. Measured against the production build on a scratch stack: 500 open chat streams raised the web process from 77 MB to 131 MB (about 110 KB per stream with Node's heap growth) at 0% CPU between pings; Valkey grew by 0.2 MB and holds one subscriber connection per web process; no stream holds a database connection. The worker runs four more queues (four more blocking Valkey connections) at about 52 MB in all. On today's 768 MB web limit that is room for several thousand streams; the per-process cap is 2,000.
 
+Browsing and favorites (Oct 18, 2026): no new service and no new setting. One small table (`sitemap_files`) and one BullMQ queue (`seo`, hourly). Right after the deploy: web 122 MB, worker 75 MB, PostgreSQL 130 MB; 1.33 GB available. Building the sitemaps for 50,000 listings took 1.2 s and about 220 MB in a standalone script (tsx included), well inside the worker's 384 MB.
+
 **After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
 
 ## Monthly cost now
