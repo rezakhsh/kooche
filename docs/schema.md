@@ -49,6 +49,7 @@ The ten decisions from the plan are kept. These are the additional choices this 
 | Module | Tables |
 | --- | --- |
 | listings (incl. reference data) | `countries`, `currencies`, `locations`, `categories`, `category_attributes`, `category_attribute_options`, `listings`, `listing_events`, `favorites` |
+| events (since Oct 18, 2026) | `event_details`, `event_dates` |
 | media | `listing_images` |
 | search | `saved_searches` |
 | users | `users`, `sessions`, `auth_accounts`, `verifications`, `two_factors`, `phone_verifications`, `user_blocks` |
@@ -584,6 +585,50 @@ phash_bands integer[] GENERATED ALWAYS AS (
 
 ---
 
+### Events: `event_details` and `event_dates`
+
+Migration 0010, Oct 18, 2026. The events section («رویدادها») is a section of its own for visitors (own pages, own form, sorted by the event's date), but **each event is a listing** in a category under the root `events-calendar` (the leaves are the event types: concerts, parties, celebrations, theatre, film, readings, talks and webinars, classes, meetups, family, sports, religious, other). The listing holds the title, description, price (`free`, `fixed` read as "tickets from", `on_request` read as "at the door or varies"), country, city, postal code, point, photos, history, moderation and contact. These two tables add what only an event has. A listing is an event exactly when it has an `event_details` row; the events module creates it with the draft.
+
+`event_details`, one row per event listing, `updated_at` with its trigger:
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `listing_id` | `uuid` PK, FK → `listings` CASCADE | |
+| `attendance` | `text DEFAULT 'in_person'` | `CHECK IN ('in_person','online','hybrid')` |
+| `venue_name`, `venue_name_normalized` | `text null` | 1–100 characters. Public. |
+| `street_address` | `text null` | 1–120 characters. **Public**, unlike a listing's place: people have to find the venue. The stored point is still the postal-code centre or a ~500 m cell. |
+| `online_url` | `text null` | `^https://`, at most 500. Shown only to signed-in visitors. |
+| `ticket_url` | `text null` | `^https://`, at most 500. URL shorteners are refused by the app and by the post-checks. |
+| `organizer_name`, `organizer_name_normalized` | `text null` | 1–80. Without it the account's name is shown. |
+| `languages` | `text[] DEFAULT '{}'` | Subset of `fa`, `de`, `en`, `other` |
+| `min_age` | `smallint null` | 1–21; null is all ages |
+| `time_zone` | `text` | IANA zone of the event's city (`locations.timezone`); the form's local times are read in it |
+| `repeat` | `text DEFAULT 'none'` | `CHECK IN ('none','weekly','monthly')` |
+| `repeat_until` | `date null` | Last day of a series, local. `CHECK ((repeat = 'none') = (repeat_until IS NULL))` |
+| `schedule_status` | `text DEFAULT 'scheduled'` | `CHECK IN ('scheduled','postponed','cancelled')`. A cancelled event stays visible, marked, until its last date ends. |
+
+`event_dates`, one row per date (one for a one-off or multi-day event, at most 26 for a series), no `updated_at` (the events module replaces the rows when the dates change):
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `listing_id` | `uuid` FK → `listings` CASCADE | |
+| `country_code`, `location_id` | `text`, `uuid` | Copied from the listing; composite FK `(location_id, country_code) → locations` |
+| `starts_at`, `ends_at` | `timestamptz` | UTC. `CHECK (ends_at > starts_at)`, `CHECK (ends_at <= starts_at + interval '14 days')` |
+| `created_at` | `timestamptz` | |
+
+| Index | Serves |
+| --- | --- |
+| `UNIQUE (listing_id, starts_at)` | The dates of one event, in order |
+| `(country_code, ends_at)` | Upcoming events of a country: the range `ends_at > now()` leaves the past out, and the few upcoming rows are sorted by `starts_at` |
+| `(location_id, ends_at)` | The same in one city |
+
+The index starts with `ends_at`, not `starts_at`, on purpose: past dates are never deleted (an ended event's page says "has ended"), so an index on `starts_at` would have to walk all of them to find a festival that started yesterday and ends tomorrow.
+
+**Ending.** The listing's `expires_at` is the end of the last date, written by the events module on publish and on every change of dates; the listing expiry job (every 15 minutes) then sets `expired`. Events can't be renewed or marked sold, can't be resumed once over, and get no renewal reminder; an ended event is copied ("post again") into a new draft without dates or photos.
+
+**Grants:** the app reads and writes both tables; the worker and the backup role only read them.
+
 ## 9. Saved searches
 
 ### `saved_searches`
@@ -1052,6 +1097,7 @@ Proposed periods. They go into the privacy policy and get checked by the lawyer.
 | `outbox_events` | 7 days after processing | Worker job `event-retention`, daily |
 | `webhook_events` | 90 days after receipt, once processed; unprocessed ones stay | Worker job `event-retention`, daily |
 | `audit_log` | 2 years; IP and user agent 90 days | `SECURITY DEFINER` functions, called by worker job `history-retention`, daily |
+| Event details and dates | With their listing: kept while it exists (an ended event is an `expired` listing), purged with it | `ON DELETE CASCADE` |
 | Deleted `listings` (+ images, events, favorites) | 12 months after `deleted_at`, longer while referenced by a report, decision or order | Purge job deletes in dependency order. `RESTRICT` FKs stop it from touching anything still referenced. Image files are deleted from R2 through the outbox. |
 | `reports`, `moderation_decisions` | 2 years after the decision | Function, called by worker job `history-retention`, daily |
 | Chats | 90 days after either participant deletes their account (plan) | Worker job |
@@ -1132,3 +1178,12 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Dependent selects without options.** `gold_karat` depends on `jewelry_material`, with options only under `gold`. The form leaves the field out when the chosen parent has no options; validation still refuses a karat for silver (`parent_mismatch`).
   - **Shipping** stays the listing column `shipping_offered`, not an attribute. `show_on_card` is set as approved but cards don't read it yet; a card should show at most about three of them.
   - Upgrade tested on a scratch database seeded from `main` (118 attributes): migration `0009` and the new seed (twice) leave 289 active definitions and only the five `rent_type` definitions and their 10 options inactive.
+- **Events (Oct 18, 2026).** Decided by the owner: a separate section with its own pages and form, each event a listing underneath; local times at the venue, stored in UTC, Jalali and Gregorian on the page; one-off, multi-day (up to 14 days) or weekly/monthly up to 26 dates; the venue's address public, the online link only for signed-in visitors; free, "from" a ticket price, or at the door; a verified phone to post, at most 5 events a day; the same post-checks. Migration `0010`: `event_details`, `event_dates`, their grants and trigger. Code in `src/modules/events/`.
+  - **One save path.** `saveEvent()` calls the listings module's `saveListing()` with a `ListingExtension`, which checks the event fields once the place is resolved (its errors join the listing's), sets `expires_at`, and writes the details, the dates and the `event.*` outbox events in the same transaction, after the listing's history. `createDraft()` takes an `afterCreate` that inserts the details row. The listings module refuses an event category without the extension and the extension without an event category, so neither path can write the other kind.
+  - **Times** (`src/modules/events/time.ts`): plain Intl. A wall-clock time in the skipped hour of a clock change moves forward; one that exists twice takes the first. A series keeps its local time across clock changes; monthly skips months without that day. An end time before the start time means the next morning.
+  - **Rules** (`src/modules/events/input.ts`): a new event starts ahead and at most 365 days ahead; an edit of a live event needs one date that hasn't ended; in person needs a venue name, online needs a link; links https only, no user name or password, no IP address, no shorteners (`links.ts`).
+  - **Outbox:** `event.published`, `event.changed` (dates, place or postponement), `event.cancelled`, and `event_digest.weekly` (aggregate type `event_digest`, one per country, Mondays 08:00 Berlin, job `event-digest` on queue `events`). All registered with no handler yet; the n8n webhook subscribes later.
+  - **Post-checks:** a third check, `event_fields`, runs the banned terms over the venue, address and organizer and the link rules over both links. The decision's content snapshot includes them.
+  - **Kept apart from listings:** the country page grid, "my listings" and the expiry reminder skip listings with `event_details`. `/v/…` of an event redirects to `/e/…`, `/my/listings/{id}` to `/my/events/{id}`, `/new` sends the events root to `/events/new`. `e` and `events` are reserved slugs.
+  - **Seed:** the root `events-calendar` with 13 event types; `community › events` («رویداد و دورهمی») retired (set inactive by the seed, existing rows keep it).
+

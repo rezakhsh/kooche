@@ -310,6 +310,16 @@ Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify
 
 **Seeding on staging.** The seed is not part of the deploy. After a deploy whose migrations need new reference data (like 0008), run it once as `classifieds_owner` from a throwaway container on the `coolify` network, the same way as the first setup ("Database setup"): `npm run db:seed` with `MIGRATION_DATABASE_URL`. It runs in one transaction with the seed checks, and can be rerun. Until it has run, the country list is empty and posting finds no postal codes; old listings keep working.
 
+## Events
+
+Decided by the owner on Oct 18, 2026, after a look at what Iranians in Germany and Austria post (concerts and Persian party nights, Nowruz, Chaharshanbe Suri, Yalda and Sizdah Bedar, theatre, film, readings, language classes, student meetups, webinars) and at how Persian ticket sites (Volek, Tizo), Eventbrite and Meetup show events:
+
+- **A section of its own, «رویدادها», each event a listing underneath** (`docs/schema.md`, section 8, "Events"). Photos, post-checks, contact, history and the outbox work for events as for listings; the event adds its dates, venue, links and details.
+- **Pages:** `/{country}/events` (soonest first; today, this weekend, this week, this month; city, type, online only, free only; works without JavaScript), the event page `/e/{title}/{token}` (Jalali and Gregorian date in the venue's time zone, venue and street address, "open in map" as a link to OpenStreetMap's search, the outline map, ticket button, organizer, languages, age, all dates of a series, share to Telegram and WhatsApp, schema.org `Event` markup), "add to calendar" at `/e/{title}/{token}/calendar` (an .ics file made on request), the form `/events/new` and `/my/events/{id}`, and "my events" `/my/events` (edit, pause, cancel, post again, delete). The country page links to its events.
+- **Rules:** posting needs a verified phone (like listings), at most 5 new events a day per account; links only https and never through a URL shortener; the online link only for signed-in visitors; an event ends by itself after its last date and can't be renewed. Businesses are not required now; promoters get Pro pages and paid placement later.
+- **Worker:** no new job for ending events (the listing expiry job does it). One job scheduler, `event-digest` on queue `events`, Mondays 08:00 Berlin time, writes one `event_digest.weekly` outbox event per country for the planned channel posting through n8n.
+- **Cost and memory:** no new service and no new setting. Two small tables in PostgreSQL; one image size more in imgproxy (`poster`, 480×600, for the upright posters on event cards).
+
 ## Memory budget
 
 **Now (CX23, 4 GB, staging):** limits, and use measured on Oct 16, 2026 right after the first app deploy (idle, after 20 page loads).
@@ -328,6 +338,8 @@ Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify
 Whole server at that moment: 1.95 GB used, 1.87 GB available, 214 MB of swap used (pushed out during the image builds). About 1 GB of the "used" figure was Claude Code sessions running on the server, not the product. Close idle sessions before heavy builds.
 
 Places (Oct 17, 2026): `postal_places` adds a few MB to PostgreSQL; no new service, and the outline map is part of the pages.
+
+Events (Oct 18, 2026): two small tables and one BullMQ queue with a weekly job; no new service.
 
 **After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
 

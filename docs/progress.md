@@ -291,3 +291,44 @@ Next:
 1. A native speaker reads the new Persian labels and options.
 2. Cards: show up to three `show_on_card` fields under the price.
 3. Possible new categories, e.g. driving lessons.
+
+## Oct 18, 2026: events («رویدادها»)
+
+Decided by the owner (Oct 18, 2026), after research into what Iranians in Germany and Austria post (Persian concerts and party nights in Frankfurt, Düsseldorf, Hamburg and Berlin; Nowruz, Yalda and Chaharshanbe Suri; readings, films and lectures at Vienna's Iranisches Kulturhaus; Graz's cultural initiative) and how Volek, Tizo, Eventbrite and Meetup show events. Kleinanzeigen has only ticket resale, and no events section was found on Divar:
+- A separate section with its own pages and form; each event is a listing underneath, so photos, post-checks, contact and history are shared.
+- Start and end in the venue's local time, stored in UTC, shown in Jalali and Gregorian. Events can be one-off, last several days (up to 14), or repeat weekly or monthly (up to 26 dates).
+- The venue's street address is public. The online link is shown only to signed-in visitors.
+- Free, "tickets from", or paid at the door; ticket link, organizer, languages, age limit, poster and photos.
+- A verified phone to post (no business needed now), at most 5 events a day, the same post-checks, no URL shorteners.
+- Events end after their last date and can't be renewed; "post again" copies one.
+- No new service.
+
+Done (branch `events`, built on `listing-fields` because both change the category list and 0010 follows 0009):
+- **Pages:**
+  - `/germany/events` and `/austria/events`: soonest first; today, this weekend, this week or this month; city, type, online only, free only; paging.
+  - Event page `/e/{title}/{token}`: date and time in Jalali and Gregorian with the time zone, venue and address, "open in map", outline map, ticket button with a warning, organizer, languages, age, every date of a series, Telegram, WhatsApp and copy-link sharing, schema.org `Event` markup. Ended events say so and are `noindex`.
+  - "Add to calendar" (.ics).
+  - The form `/events/new` and `/my/events/{id}`: type, text, dates with a Jalali reading, in person, online or both, place field, venue, address, link, price, ticket link, organizer, languages, age, postponed or cancelled, poster and photos.
+  - "My events": edit, pause, resume, cancel, post again, delete.
+  - The country page links to its events. Old `/v/` links of events redirect.
+- **Kept apart:** events don't appear in the listing grid, "my listings" or the renewal email. The listing category picker sends the events section to its own form. `community › events` is retired.
+- **Worker:** the weekly digest (Mondays 08:00 Berlin) writes one `event_digest.weekly` outbox event per country. `event.published`, `event.changed` and `event.cancelled` are written with each change. All are waiting for the n8n channel posting.
+- **Migration `0010`:** `event_details` and `event_dates`, indexes for "upcoming in a country or city", grants (the app writes, the worker reads) and the `updated_at` trigger. Additive only.
+- **Tests:** 38 new (252 in total), all passing, run as the app and worker roles:
+  - Permissions: verified phone only, only the organizer edits, cancels, copies or pauses, events only through the events module, the daily limit, no negotiable price.
+  - Dates: time zones, both clock changes, overnight ends, the 14-day and 26-date limits, past and too-far dates, edits of a running event, drafts.
+  - Expiry after the event: expires_at = last end, the expiry job, no renew, no sold, no resume once over, no reminder email, an ended event can't be edited, only copied.
+  - Countries and places: Germany and Austria with their time zones and cities, Turkey closed, a place required, the currency from the country.
+  - Lists: country, city, type, online, free, time window, paging, paused hidden, events outside the listing grid.
+  - Post-checks on venue and organizer, and shortener links. Links, the calendar file, the digest, and grants.
+- The production build passes. The pages were loaded from the production build against a local database with demo events (list with filters, event page, calendar file, the `/v/` redirect, sign-in for posting).
+- Docs: `docs/schema.md` (sections 3, 8 "Events", 14 and 17), `docs/setup.md` ("Events"), `seed/README.md`.
+
+Not done yet:
+- Not deployed. After the merge, the seed has to be run once on staging, as for 0008: the events section appears only after the seed.
+- The brand session decides how event cards and pages look. Today they use the shared components and plain styles. The new root category `events-calendar` needs an icon in its icon map.
+- Report buttons come with phase 4, as for listings.
+- City pages for events (`/germany/berlin/events`) come with the city pages.
+- The n8n webhook for channel posting.
+
+Merge order: `listing-fields` first (or together), because 0010 follows 0009. Expect small conflicts with `design-brand` in `src/app/[country]/page.tsx`, `src/app/v/[slug]/[token]/page.tsx`, `src/app/new/page.tsx`, `src/app/my/listings/[id]/page.tsx`, `src/components/place-field.tsx`, `src/modules/listings/queries.ts` and `src/messages/fa.ts`. Each of these got only a few added lines.
