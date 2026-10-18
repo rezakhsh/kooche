@@ -89,7 +89,12 @@ function DateField({ label, name, value, onChange, error, hint }: { label: strin
 }
 
 export function EventForm(
-  props: EventFormProps & { onDraftCreated?: (listingId: string) => void; onTypeChange?: (categoryId: string) => void },
+  props: EventFormProps & {
+    onDraftCreated?: (listingId: string) => void;
+    onTypeChange?: (categoryId: string) => void;
+    /** The photo editor, shown right after the type and text (adding a photo needs the type) */
+    photos?: ReactNode;
+  },
 ) {
   const [state, dispatch, pending] = useActionState<EventSaveState, FormData>(saveEventAction, undefined);
   const { onDraftCreated, onTypeChange } = props;
@@ -157,6 +162,8 @@ export function EventForm(
           <ErrorText code={errors.description} />
         </label>
       </Card>
+
+      {props.photos}
 
       <Card className="space-y-4">
         <div>
