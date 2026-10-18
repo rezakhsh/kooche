@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import { RANGE_SUFFIXES, RESERVED_PARAMS } from '../modules/search/filters';
 
 // Rules about seeded reference data that the database can't express with constraints
 // (docs/schema.md, sections 4 and 5). The seed runs them before it commits, and
@@ -8,6 +9,9 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 type Db = PgDatabase<PgQueryResultHKT, any>;
 
 export type SeedCheck = { name: string; query: ReturnType<typeof sql> };
+
+/** A list of text parameters for IN (…) or VALUES */
+const textList = (xs: string[]) => sql.join(xs.map((x) => sql`${x}::text`), sql`, `);
 
 /** First path segments the app uses itself, so no country may take them as its slug */
 export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search', 'e', 'events'];
@@ -142,6 +146,49 @@ export const SEED_CHECKS: SeedCheck[] = [
       WHERE a.is_active
         AND (a.type IN ('select', 'multi_select')) <> EXISTS (
           SELECT 1 FROM category_attribute_options o WHERE o.attribute_id = a.id AND o.is_active)`,
+  },
+  {
+    // /germany/{city or category}: one path segment means either, and /germany/berlin/events is
+    // the city's events page
+    name: 'city slugs, category slugs and events stay apart in browse addresses',
+    query: sql`
+      SELECT 'city ' || l.slug || ' (' || l.country_code || ') ' ||
+             CASE WHEN l.slug = 'events' THEN 'is named events' ELSE 'has the slug of a category' END AS problem
+      FROM locations l
+      WHERE l.kind = 'city' AND (l.slug = 'events' OR EXISTS (SELECT 1 FROM categories c WHERE c.slug = l.slug))
+      UNION ALL
+      SELECT 'category events' FROM categories WHERE slug = 'events'`,
+  },
+  {
+    name: 'free-text fields are not filters',
+    query: sql`
+      SELECT a.key || ' in ' || c.slug AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      WHERE a.is_active AND a.is_filterable AND a.type = 'text'`,
+  },
+  {
+    // A filter is ?<key>=…; the form's ranges are <key>_min, <key>_max, <key>_from, <key>_to. So
+    // no key may be a parameter of the page, or another key (or price) plus such a suffix.
+    name: 'attribute keys stay clear of the browse parameters',
+    query: sql`
+      SELECT a.key || ' in ' || c.slug AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      WHERE a.key IN (${textList(RESERVED_PARAMS)})
+         OR EXISTS (
+           SELECT 1 FROM (VALUES ${sql.join(RANGE_SUFFIXES.map((x) => sql`(${x}::text)`), sql`, `)}) AS s(suffix)
+           WHERE a.key = 'price' || s.suffix
+              OR EXISTS (SELECT 1 FROM category_attributes b WHERE a.key = b.key || s.suffix))`,
+  },
+  {
+    name: "a match-all filter is only on a filterable multi-select",
+    query: sql`
+      SELECT a.key || ' in ' || c.slug AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      WHERE a.validation ? 'filter'
+        AND (a.validation ->> 'filter' IS DISTINCT FROM 'all' OR a.type <> 'multi_select' OR NOT a.is_filterable)`,
   },
 ];
 

@@ -28,6 +28,8 @@ export type AttributeValidation = {
   month?: boolean;
   /** Category slugs where a required field is optional (area of a parking space) */
   optional_in?: string[];
+  /** multi_select filter: listings must have all chosen values (an equipment checklist); default any */
+  filter?: 'all';
 };
 
 export type AttributeOption = { value: string; labelFa: string; parentValue: string | null };
@@ -42,6 +44,8 @@ export type AttributeDef = {
   /** Key of the select this one depends on (model → brand) */
   dependsOn: string | null;
   isRequired: boolean;
+  /** Offered as a filter on browse pages (src/modules/search/filters.ts) */
+  isFilterable: boolean;
   showOnCard: boolean;
   isActive: boolean;
   /** Active options only, in display order */
@@ -140,6 +144,7 @@ export async function loadCatalog(db: Queryable): Promise<Catalog> {
       validation: a.validation as AttributeValidation,
       dependsOn: a.dependsOnAttributeId ? (keyById.get(a.dependsOnAttributeId) ?? null) : null,
       isRequired: a.isRequired,
+      isFilterable: a.isFilterable,
       showOnCard: a.showOnCard,
       isActive: a.isActive,
       options: optionsByAttr.get(a.id) ?? [],

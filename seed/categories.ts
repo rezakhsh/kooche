@@ -267,6 +267,8 @@ const features: AttributeSeed = {
   key: 'features',
   type: 'multi_select',
   labelFa: 'امکانات',
+  // A checklist: a filter for balcony and lift means both
+  validation: { filter: 'all' },
   isFilterable: true,
   options: options([
     ['fitted_kitchen', 'آشپزخانه مجهز (Einbauküche)'],
@@ -795,6 +797,7 @@ export const categories: CategorySeed[] = [
             key: 'car_extras',
             type: 'multi_select',
             labelFa: 'امکانات',
+            validation: { filter: 'all' },
             isFilterable: true,
             options: options([
               ['air_con', 'کولر'],

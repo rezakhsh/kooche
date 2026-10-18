@@ -84,69 +84,6 @@ export async function savedPlace(db: Queryable, userId: string): Promise<{ place
 /** Events have their own section, pages and "my events" (src/modules/events/) */
 const notAnEvent = sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`;
 
-export const COUNTRY_PAGE_SIZE = 24;
-
-/**
- * Active listings of one country, newest first (listings_country_ranked_idx), one page at a time
- * with a keyset cursor: the ranked_at and id of the last listing on the previous page.
- */
-export async function countryListings(
-  db: Queryable,
-  countryCode: string,
-  after: { rankedAt: Date; id: string } | null,
-  /** A category and everything under it; null: all categories */
-  categoryIds: string[] | null = null,
-) {
-  const rows = await db
-    .select({
-      id: listings.id,
-      publicToken: listings.publicToken,
-      title: listings.title,
-      priceType: listings.priceType,
-      priceMinor: listings.priceMinor,
-      currency: listings.currency,
-      categoryId: listings.categoryId,
-      postalCode: listings.postalCode,
-      placeName: listings.placeName,
-      district: listings.district,
-      cityFa: locations.nameFa,
-      rankedAt: listings.rankedAt,
-      publishedAt: listings.publishedAt,
-      kind: listings.kind,
-      photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
-    })
-    .from(listings)
-    .leftJoin(locations, eq(locations.id, listings.locationId))
-    .where(
-      and(
-        eq(listings.status, 'active'),
-        eq(listings.countryCode, countryCode),
-        notAnEvent,
-        categoryIds ? inArray(listings.categoryId, categoryIds) : undefined,
-        after ? sql`(${listings.rankedAt}, ${listings.id}) < (${after.rankedAt.toISOString()}::timestamptz, ${after.id}::uuid)` : undefined,
-      ),
-    )
-    .orderBy(desc(listings.rankedAt), desc(listings.id))
-    .limit(COUNTRY_PAGE_SIZE + 1);
-  const page = rows.slice(0, COUNTRY_PAGE_SIZE);
-  const covers = await coverKeys(db, page.map((r) => r.id));
-  const last = page.at(-1);
-  return {
-    items: page.map((r) => ({ ...r, coverKey: covers.get(r.id) ?? null })),
-    next: rows.length > COUNTRY_PAGE_SIZE && last?.rankedAt ? { rankedAt: last.rankedAt, id: last.id } : null,
-  };
-}
-
-/** Active listings of one country by category (the leaf a listing is in); the page adds them up the tree */
-export async function countryCategoryCounts(db: Queryable, countryCode: string): Promise<Map<string, number>> {
-  const rows = await db
-    .select({ categoryId: listings.categoryId, n: sql<number>`count(*)::int` })
-    .from(listings)
-    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode), notAnEvent))
-    .groupBy(listings.categoryId);
-  return new Map(rows.filter((r) => r.categoryId).map((r) => [r.categoryId!, r.n]));
-}
-
 /** Active listings per open country, for the home page */
 export async function countryCounts(db: Queryable): Promise<Map<string, number>> {
   const rows = await db

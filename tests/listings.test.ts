@@ -482,6 +482,7 @@ describe('attribute validation (against category_attributes)', () => {
         validation: { max_items: 2 },
         dependsOn: null,
         isRequired: false,
+        isFilterable: false,
         showOnCard: false,
         isActive: true,
         options: ['a', 'b', 'c'].map((value) => ({ value, labelFa: value, parentValue: null })),

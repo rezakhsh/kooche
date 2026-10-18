@@ -15,7 +15,8 @@ import {
   setSavedPlace,
   type Place,
 } from '../src/modules/listings/places';
-import { activeCountries, countryListings, savedPlace } from '../src/modules/listings/queries';
+import { activeCountries, savedPlace } from '../src/modules/listings/queries';
+import { browseListings } from '../src/modules/search/browse';
 import { parseSmsNumber } from '../src/modules/users/phone-number';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
@@ -25,6 +26,9 @@ import { createDraft } from '../src/modules/listings/listings';
 // Where a listing is (decided Oct 17, 2026): a country, then a postal code or town from our own
 // data (GeoNames), or the browser's position snapped to ~500 m. No street, no exact point, and
 // the currency is always the country's.
+
+const browseIn = (countryCode: string, categoryIds: string[] | null = null) =>
+  browseListings(appDb, { countryCode, categoryIds, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' }, null);
 
 async function input(over: Partial<ListingInput> = {}): Promise<ListingInput> {
   return listingInputSchema.parse({
@@ -303,18 +307,14 @@ describe('the saved place', () => {
 });
 
 describe('country page', () => {
-  it('shows only active listings of that country, newest first, page by page', async () => {
+  // Paging and order: tests/search.test.ts
+  it('shows only active listings of that country', async () => {
     const u = await user();
     const vienna = await publish(u.id, { countryCode: 'AT', place: '1100' });
     const berlin = await publish(u.id, { place: '12045' });
-    const at = await countryListings(appDb, 'AT', null);
+    const at = await browseIn('AT');
     expect(at.items.map((i) => i.id)).toContain(vienna.id);
     expect(at.items.map((i) => i.id)).not.toContain(berlin.id);
-    const de = await countryListings(appDb, 'DE', null);
-    expect(de.items.every((i, n) => n === 0 || i.rankedAt! <= de.items[n - 1]!.rankedAt!)).toBe(true);
-    // The cursor continues strictly after the given listing
-    const first = de.items[0]!;
-    const next = await countryListings(appDb, 'DE', { rankedAt: first.rankedAt!, id: first.id });
-    expect(next.items.map((i) => i.id)).not.toContain(first.id);
+    expect((await browseIn('DE')).items.map((i) => i.id)).toContain(berlin.id);
   });
 });

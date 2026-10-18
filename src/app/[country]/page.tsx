@@ -12,7 +12,8 @@ import { messages } from '../../messages/fa';
 import { ancestry, cachedCatalog, EVENT_ROOT_SLUG, type Catalog, type CategoryNode } from '../../modules/listings/catalog';
 import { placeParts } from '../../modules/listings/place-text';
 import { formatPrice } from '../../modules/listings/price';
-import { activeCountries, countryCategoryCounts, countryListings } from '../../modules/listings/queries';
+import { activeCountries } from '../../modules/listings/queries';
+import { browseListings, categoryCounts } from '../../modules/search/browse';
 import { listingPath } from '../../modules/listings/slug';
 import { imageUrl } from '../../modules/media/server';
 import { VIEW_COOKIE } from '../country-cookie-name';
@@ -29,13 +30,6 @@ type Params = { country: string };
 type Search = { after?: string; category?: string; view?: string };
 type View = 'grid' | 'list';
 
-const cursor = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z_[0-9a-f-]{36}$/)
-  .transform((s) => {
-    const [at, id] = s.split('_');
-    return { rankedAt: new Date(at!), id: id! };
-  });
 
 const viewSchema = z.enum(['grid', 'list']);
 
@@ -80,8 +74,7 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
   const country = await find((await params).country);
   if (!country) notFound();
   const search = await searchParams;
-  const after = cursor.safeParse(search.after ?? '');
-  const asked = viewSchema.safeParse(search.view);
+    const asked = viewSchema.safeParse(search.view);
   const remembered = viewSchema.safeParse((await cookies()).get(VIEW_COOKIE)?.value);
   const view: View = asked.success ? asked.data : remembered.success ? remembered.data : 'grid';
 
@@ -89,8 +82,12 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
   const catalog = await cachedCatalog(db);
   const category = categoryOf(catalog, search.category);
   const [page, leafCounts] = await Promise.all([
-    countryListings(db, country.code, after.success ? after.data : null, category ? subtree(catalog, category.id) : null),
-    countryCategoryCounts(db, country.code),
+    browseListings(
+      db,
+      { countryCode: country.code, categoryIds: category ? subtree(catalog, category.id) : null, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+      search.after ?? null,
+    ),
+    categoryCounts(db, country.code),
   ]);
   // A listing counts for its category and every category above it
   const counts = new Map<string, number>();
@@ -229,7 +226,7 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
           {page.next && (
             <div className="mt-8 flex justify-center">
               <Link
-                href={href(country.slug, { category: category?.slug, view: asked.success ? view : null, after: `${page.next.rankedAt.toISOString()}_${page.next.id}` })}
+                href={href(country.slug, { category: category?.slug, view: asked.success ? view : null, after: page.next })}
                 className="rounded-xl border border-neutral-300 px-5 py-2.5 text-sm font-bold hover:bg-neutral-50"
               >
                 {t.more}

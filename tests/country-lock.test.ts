@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cachedCatalog } from '../src/modules/listings/catalog';
 import { createDraft, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { postingCountry } from '../src/modules/listings/posting-country';
-import { countryCategoryCounts, countryListings } from '../src/modules/listings/queries';
+import { browseListings, categoryCounts } from '../src/modules/search/browse';
 import { appDb } from './accounts';
 import { categoryBySlug, listing, user } from './listings-fixtures';
 
@@ -100,13 +100,17 @@ describe('the country page by category', () => {
     const catalog = await cachedCatalog(appDb);
     const electronics = catalog.bySlug.get('electronics')!;
     const below = (id: string): string[] => [id, ...catalog.byId.get(id)!.childIds.flatMap(below)];
-    const page = await countryListings(appDb, 'AT', null, below(electronics.id));
+    const page = await browseListings(
+      appDb,
+      { countryCode: 'AT', categoryIds: below(electronics.id), locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+      null,
+    );
     const ids = page.items.map((l) => l.id);
     expect(ids).toContain(phone);
     expect(ids).not.toContain(bike);
     expect(page.items.find((l) => l.id === phone)).toMatchObject({ kind: 'offer', photoCount: 0 });
 
-    const counts = await countryCategoryCounts(appDb, 'AT');
+    const counts = await categoryCounts(appDb, 'AT');
     expect(counts.get((await categoryBySlug('mobile-phones')).id)).toBeGreaterThanOrEqual(1);
     expect(counts.get(electronics.id)).toBeUndefined(); // only leaves; the page adds them up
   });

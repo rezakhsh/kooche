@@ -15,7 +15,8 @@ import {
   saveListing,
   type ListingInput,
 } from '../src/modules/listings/listings';
-import { countryListings, myListings } from '../src/modules/listings/queries';
+import { myListings } from '../src/modules/listings/queries';
+import { browseListings } from '../src/modules/search/browse';
 import { runListingChecks } from '../src/modules/moderation/checks';
 import { sendExpiryReminders } from '../src/modules/notifications/expiry-reminder';
 import type { Mail } from '../src/modules/notifications/mailer';
@@ -318,7 +319,11 @@ describe('lists', () => {
   it('events stay out of the listing grid and "my listings", and are in "my events"', async () => {
     const u = await user();
     const id = await publishEvent(u.id);
-    const grid = await countryListings(appDb, 'DE', null);
+    const grid = await browseListings(
+      appDb,
+      { countryCode: 'DE', categoryIds: null, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+      null,
+    );
     expect(grid.items.some((l) => l.id === id)).toBe(false);
     expect((await myListings(appDb, u.id)).some((r) => r.listing.id === id)).toBe(false);
     expect((await myEvents(appDb, u.id)).map((r) => r.listing.id)).toEqual([id]);
