@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv } from './lib/env';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
@@ -9,20 +10,33 @@ import { webEnv } from './lib/env';
 const NOT_BROWSE = new Set(['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'v', 'sitemaps']);
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
 
-/**
- * Cache-Control for browse pages (/germany, /germany/berlin/cars …). A logged-out visitor's page
- * is the same for everyone, so a shared cache may keep it for 60 seconds. Anything personal stays
- * private: a session, the remembered layout, a chosen country other than the page's (the header
- * shows it), and a postal code or "near me" in the address. Cloudflare caches HTML only once a
- * Cache Rule says so (docs/setup.md, "Browsing and favorites"); until then this changes nothing.
- * Other pages keep Next.js's own header.
- */
-export function browseCacheControl(pathname: string, search: URLSearchParams, cookie: (name: string) => string | undefined): string | null {
+/** The country slug of a browse page (/germany, /germany/berlin/cars …), else null */
+export function browseCountry(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length < 1 || segments.length > 3 || NOT_BROWSE.has(segments[0]!) || !/^[a-z][a-z-]{1,40}$/.test(segments[0]!)) return null;
-  const chosen = cookie('country');
-  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined || (chosen !== undefined && chosen !== segments[0]);
-  return personal || search.has('near') || search.has('postal') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
+  return segments[0]!;
+}
+
+/**
+ * Cache-Control for browse pages. A logged-out visitor's page is the same for everyone, so
+ * Cloudflare keeps it for 60 seconds (the Cache Rule in docs/setup.md, "Browsing and favorites").
+ * Anything personal stays private: a session, the remembered layout, and a postal code or "near
+ * me" in the address. The `country` cookie can't make a difference: proxy() renders every browse
+ * page as if the page's own country were chosen, which RememberCountry then saves anyway. React
+ * Server Components requests (`RSC` header, `_rsc` parameter) and anything but GET or HEAD are
+ * never shared: Cloudflare ignores Vary, so they must not land under the page's address.
+ * Other pages keep Next.js's own header.
+ */
+export function browseCacheControl(
+  pathname: string,
+  search: URLSearchParams,
+  cookie: (name: string) => string | undefined,
+  request: { method: string; header: (name: string) => string | null } = { method: 'GET', header: () => null },
+): string | null {
+  if (!browseCountry(pathname)) return null;
+  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined;
+  const shared = (request.method === 'GET' || request.method === 'HEAD') && request.header('rsc') === null && !search.has('_rsc');
+  return !shared || personal || search.has('near') || search.has('postal') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
 }
 
 export function proxy(request: NextRequest) {
@@ -49,6 +63,10 @@ export function proxy(request: NextRequest) {
     ...(dev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');
 
+  // A browse page shows its own country in the header, whatever was chosen before (see above)
+  const country = browseCountry(request.nextUrl.pathname);
+  if (country) request.cookies.set(COUNTRY_COOKIE, country);
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
@@ -56,7 +74,10 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  const cacheControl = browseCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value);
+  const cacheControl = browseCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, {
+    method: request.method,
+    header: (n) => request.headers.get(n),
+  });
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
   return response;
 }
