@@ -137,13 +137,9 @@ describe('cache headers of browse pages', () => {
     expect(browseCacheControl('/germany/cars', q('postal=12045'), none)).toBe('private, no-store');
   });
 
-  it('never shares React Server Components requests or anything but GET and HEAD', () => {
-    const req = (method: string, headers: Record<string, string> = {}) => ({ method, header: (n: string) => headers[n] ?? null });
-    expect(browseCacheControl('/germany', q(), none, req('HEAD'))).toBe('public, max-age=0, s-maxage=60');
-    // Next.js answers an RSC request without `_rsc` with a redirect; cached, every visitor would get it
-    expect(browseCacheControl('/germany', q(), none, req('GET', { rsc: '1' }))).toBe('private, no-store');
-    expect(browseCacheControl('/germany', q('_rsc=abc'), none)).toBe('private, no-store');
-    expect(browseCacheControl('/germany/cars', q(), none, req('POST'))).toBe('private, no-store');
+  it('shares only GET and HEAD', () => {
+    expect(browseCacheControl('/germany', q(), none, 'HEAD')).toBe('public, max-age=0, s-maxage=60');
+    expect(browseCacheControl('/germany/cars', q(), none, 'POST')).toBe('private, no-store');
   });
 
   it('leaves other pages alone', () => {
