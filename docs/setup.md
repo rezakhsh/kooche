@@ -160,7 +160,7 @@ Hostnames are the Coolify uuids on the `coolify` network: `pitchwmhavjj8wl2a9zto
 
 **`/health`** returns 200 `{"status":"ok"}` when PostgreSQL and Valkey both answer within 2 seconds, else 503. It never returns error details.
 
-**Security headers.** `src/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce per request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no `unsafe-inline`), so every page is rendered per request. `next.config.ts` sets HSTS (two years, `includeSubDomains`; `preload` is decided at launch, once production serves `peydoo.com` itself, because it is hard to undo and covers every subdomain), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and COOP. When Cloudflare starts caching logged-out pages, a cached page reuses one nonce; revisit then (hashes or SRI instead of nonces). The cache headers are in place since Oct 18, 2026 ("Browsing and favorites"); the Cache Rule is not. `SEARCH_INDEXING=off` (the default, so staging sets nothing) adds `X-Robots-Tag: noindex, nofollow` to every page in `src/proxy.ts`; production sets `on`.
+**Security headers.** `src/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce per request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no `unsafe-inline`), so every page is rendered per request. `next.config.ts` sets HSTS (two years, `includeSubDomains`; `preload` is decided at launch, once production serves `peydoo.com` itself, because it is hard to undo and covers every subdomain), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and COOP. Logged-out browse pages are cached by Cloudflare for up to 60 seconds since Oct 19, 2026 ("Browsing and favorites"), and every visitor of one cached copy gets the same nonce (see "The nonce on cached pages" there). `SEARCH_INDEXING=off` (the default, so staging sets nothing) adds `X-Robots-Tag: noindex, nofollow` to every page in `src/proxy.ts`; production sets `on`.
 
 **Coolify 4.4.6 API pitfalls** (found while setting this up):
 - Start, stop and deploy endpoints are `POST` now (`POST /api/v1/deploy?uuid=…`, `POST /api/v1/databases/<uuid>/start`). `GET` answers with a message, not an error status.
@@ -205,7 +205,8 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 - This server's app gets `peydoo.com` and `www.peydoo.com` (www redirects to the apex), with `APP_URL=https://peydoo.com`, `SEARCH_INDEXING=on` and a new Telegram bot.
 - `staging.peydoo.com` moves to the new staging server.
 - Decide on HSTS `preload`.
-- Turnstile comes with the login and posting features. The Cloudflare Cache Rule for logged-out browse pages, and the nonce decision, before launch ("Browsing and favorites").
+- Turnstile comes with the login and posting features.
+- The Cache Rule covers `staging.peydoo.com` only: add `peydoo.com` to its host condition when production gets the domain ("Browsing and favorites").
 
 ## Accounts and phone verification
 
@@ -404,11 +405,31 @@ An events category in a browse address goes to the events pages. City pages show
 
 **SEO.** Titles and descriptions in Persian, canonical to the plain page, `noindex, follow` for any filter, sort, cursor or place and for empty pages. JSON-LD `BreadcrumbList` (country › city › categories) and `ItemList` on browse pages. Sitemaps (`src/modules/search/sitemap.ts`): the worker rebuilds them every hour and once at start (queue `seo`) into `sitemap_files`; `/sitemap.xml` is the index, `/sitemaps/<country>.xml` the plain browse and events pages that have something on them, `/sitemaps/<country>-listings-<n>.xml` every active listing and event page (50,000 per file). With `SEARCH_INDEXING` off (staging) the sitemap addresses answer 404 and `robots.txt` says `Disallow: /`; with it on, `robots.txt` names the sitemap and keeps crawlers out of `/my/`, `/account`, `/chat`, `/login` and the posting forms.
 
-**Caching.** `src/proxy.ts` sends `Cache-Control: public, max-age=0, s-maxage=60` on browse pages when nothing personal is in the request, and `private, no-store` when there is a session cookie, the `view` cookie, a `country` cookie other than the page's country (the header shows it), or a postal code or "near me" in the address (checked: Next.js keeps the header). Cloudflare caches HTML only when a Cache Rule says so, and there is none yet, so nothing is cached at the edge today. Before launch:
-1. A Cache Rule for the browse paths, "eligible for cache", respecting the origin's `s-maxage`, and bypassing when the request has a session cookie (`http.cookie contains "better-auth.session_token"`). Check first that the Free plan accepts the cookie condition.
-2. Decide on the CSP nonce: a cached page gives every visitor the same nonce, which weakens the strict CSP on those pages (see "Security headers").
-3. No purge: 60 seconds is the bound. A purge from the worker on listing changes doesn't fit cleanly (filtered and paged addresses can't be purged by URL on the Free plan).
-Sitemaps and `robots.txt` have no nonce and send `public, max-age=3600`.
+**Caching** (Cache Rule since Oct 19, 2026, approved by the owner). `src/proxy.ts` sends `Cache-Control: public, max-age=0, s-maxage=60` on browse pages (`/{country}` with up to two more segments, the city and country events lists included) for GET and HEAD when nothing personal is in the request, and `private, no-store` when there is a session cookie, the `view` cookie, or a postal code or "near me" in the address (checked: Next.js keeps the header). The `country` cookie no longer counts: the proxy renders every browse page as if its own country were chosen (it sets the request's cookie; `RememberCountry` saves the same value in the browser anyway), so the header's country chip is the same for everyone. Checked on staging: the HTML for no cookie, `country=austria` and `country=germany` is identical apart from the nonce.
+
+The Cache Rule (`http_request_cache_settings`, ruleset `d9f850946905400c8344f3cb069834fc`, rule ref `staging_browse_logged_out`; the Free plan accepts the cookie and header conditions):
+
+```
+http.host eq "staging.peydoo.com"
+and not starts_with(http.request.uri.path, "/_next/")
+and not starts_with(http.request.uri.path, "/api/")
+and not http.cookie contains "better-auth.session_token"
+and not http.cookie contains "view="
+and not http.request.uri.query contains "_rsc"
+and not any(lower(http.request.headers.names[*])[*] eq "rsc")
+```
+
+Action: eligible for cache, edge TTL "use the Cache-Control header if present, bypass if not" (`bypass_by_default`), browser TTL from the origin. So the origin decides what is shared: only responses marked `public` are kept, and Next.js's `private, no-store` on every other page keeps them out. The cookie conditions matter for lookups: without them a signed-in visitor would be served the logged-out copy. The cookie match is a substring (`matches` is a Business feature), so `view=` also skips the cache for any other cookie ending in `view`; that only costs a cache hit. React Server Components requests are left out by the rule, not by the proxy: Next.js 16 removes the `RSC` header and the `_rsc` parameter before the proxy runs, and Cloudflare ignores `Vary`. Without that, one request with `RSC: 1` would store Next.js's 307 to `?_rsc` under the page's address for every visitor. Verified Oct 19, 2026 on `/austria`: logged out MISS, then HIT; after 60 s EXPIRED, then HIT again; with either session cookie or `view=list` DYNAMIC (`private, no-store`); `country=germany` HIT; `RSC: 1` and `?_rsc=` DYNAMIC, and a plain request right after the `RSC: 1` one was still the 200 page; POST DYNAMIC; a postal code BYPASS; `/`, `/login` BYPASS. A cached copy carries the CSP header and the HTML from the same render, so the nonce in both always matches.
+
+**The nonce on cached pages** (decided Oct 19, 2026). Every visitor of one cached copy gets the same nonce, readable by anyone who loads the page, for at most 60 seconds; then the next render makes a new one. Every other page keeps a fresh nonce per request. Accepted, because the nonce only helps an attacker who already has an injection on that exact copy that the cache key doesn't capture: anything rendered on the server (a listing title, a query parameter) is in the page before its nonce is drawn, and a different address is a different copy with a new nonce. What remains is DOM-based XSS (the browser itself writing attacker data, say from `location.hash`, into the page), and browse pages have no such sink: their client components only set the `country` and `view` cookies and run "near me", and the one `dangerouslySetInnerHTML` is the JSON-LD with `<` escaped. `'strict-dynamic'` with no `'unsafe-inline'` stays. Keep it that way: no `innerHTML` or HTML from the client on browse pages. Not chosen:
+- Hashes instead of a nonce: Next.js 16 streams its RSC payload in inline `<script>` tags whose content differs per page and per render, and it has no hash support. Hashing them would mean rewriting every HTML response, which the proxy can't do (it never sees the body). `experimental.sri` covers only the external chunks.
+- A Cloudflare Worker that swaps in a fresh nonce on every cached response (HTMLRewriter): the strongest option, but code on every browse request, outside Coolify, with a Free limit of 100,000 requests a day. Worth it only if browse pages ever get a client-side HTML sink.
+- No nonce on browse pages (`'unsafe-inline'`): makes any injection there work.
+- No edge cache: keeps a nonce per request, but every logged-out page view renders on the 4 GB server.
+
+**Not purged.** 60 seconds is the bound. A purge from the worker on listing changes doesn't fit cleanly (filtered and paged addresses can't be purged by URL on the Free plan). After a deploy, a cached copy may point for up to 60 seconds at JavaScript chunks and server action ids of the previous build: the page still reads and its links work, but the ♡ and "near me" may fail until it renews.
+
+Sitemaps have no nonce and send `public, max-age=3600`; `robots.txt` gets Next.js's `public, max-age=0, must-revalidate` (Cloudflare revalidates it every time).
 
 **Speed** (`scripts/generate-listings.ts` and `scripts/explain-browse.ts`, scratch database only, never staging): with 5,000 and with 50,000 generated listings (85% active, valid attributes from the real definitions, weighted by city size and category), the country, city, category and city-plus-filter pages ran in under 1 ms on their partial indexes; attribute filters across a whole country used the GIN index (4–7 ms at 50,000); postal code only went from 17 ms to 0.05 ms with the new partial index (migration 0012); a 10–50 km radius by distance took 3 ms at 5,000 and about 20 ms at 50,000. Two known slow spots at 50,000: price order over all categories of a country (50 ms; within a category 2 ms), and the category and city counts (30 ms, hence the one-minute cache). Neither needs an index at today's volume; add an expression index for the price order if it is ever used much.
 
@@ -467,7 +488,8 @@ After the resize to CX33: +€3.00 net.
 
 - The Hetzner and Cloudflare API tokens were shared in chat. They are stored only in `/root/.secrets/infra.env`. The owner chose to keep them as they are.
 - The Hetzner token covers the whole project, including the n8n and Supabase servers. Treat it as a key to all of them.
-- The Cloudflare token can edit DNS and manage R2. Since Oct 17, 2026 it can also edit zone settings and WAF rules on `peydoo.com`. It can read `taskpilot.dev`'s zone settings too, so check its zone scope in Cloudflare if it should only cover `peydoo.com`. It cannot edit its own permissions.
+- The Cloudflare token can edit DNS and manage R2. Since Oct 17, 2026 it can also edit zone settings and WAF rules on `peydoo.com`. It can read `taskpilot.dev`'s zone settings too, so check its zone scope in Cloudflare if it should only cover `peydoo.com`. It cannot edit its own permissions. Since Oct 19, 2026 it can also reach the Cache Rules phase (granted by the owner).
+- `CLOUDFLARE_CACHE_TOKEN` in `/root/.secrets/infra.env` (`peydoo-cache-rules`, made Oct 19, 2026 with the token above, approved by the owner): Cache Settings read and write and Zone read on `peydoo.com` only. Use it for Cache Rules.
 - Coolify admin login: `/root/.secrets/coolify-admin.env`. Turning on two-factor authentication in Coolify is recommended.
 - Coolify's API is on, limited to the `coolify` Docker network, with one deploy-only token (`/root/.secrets/coolify-api-tokens.env`). Whoever has it can start or cancel deployments of any application, nothing more.
 - The `classifieds_owner` password is in the env of `classifieds-migrate` (stored encrypted by Coolify), never in web or worker.

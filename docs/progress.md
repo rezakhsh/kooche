@@ -156,7 +156,7 @@ Done:
 Next:
 1. The `kooche-coolify` GitHub App's homepage and callback URLs still name `coolify.taskpilot.dev`. They aren't used after installation, but should be changed in GitHub's App settings.
 2. At launch: `peydoo.com` and `www` for production, `SEARCH_INDEXING=on`, the HSTS `preload` decision, a production Telegram bot, and staging moving to its own server (`docs/setup.md`, "Domain and Cloudflare").
-3. Turnstile on sign-in and posting, Cloudflare cache rules with caching of logged-out pages.
+3. Turnstile on sign-in and posting. ~~Cloudflare cache rules with caching of logged-out pages.~~ Done for staging Oct 19, 2026.
 
 ## Oct 17, 2026: retention of account data
 
@@ -428,6 +428,24 @@ Checked live on https://staging.peydoo.com: `/germany`, `/austria`, `/germany/ca
 Memory right after (Oct 18, 22:47 UTC): web 122 MB, worker 75 MB, PostgreSQL 130 MB, Valkey 7 MB, imgproxy 41 MB; 1.33 GB available on the server. Swap is full (2 GB): it is held by idle Claude Code session processes (about 90–100 MB each), not by the product; closing idle sessions frees it.
 
 Not done:
-- The Cloudflare Cache Rule and the nonce decision (see setup); a worker purge doesn't fit cleanly on the Free plan.
+- ~~The Cloudflare Cache Rule and the nonce decision.~~ Done Oct 19, 2026, see below. A worker purge doesn't fit cleanly on the Free plan.
 - Facet counts per option, saved searches and alerts, keyword search: with Meilisearch. Cards still don't show `show_on_card` fields.
 - An expression index for price order over all categories, if that sort is ever used much.
+
+## Oct 19, 2026: edge caching of logged-out browse pages
+
+Plan approved by the owner (Oct 19, 2026): a narrow Cloudflare token for Cache Rules, the proxy fixes, deploy to staging, the rule for `staging.peydoo.com`, the nonce kept as it is on cached pages.
+
+Done (details in `docs/setup.md`, "Browsing and favorites", "Caching" and "The nonce on cached pages"):
+- **Two problems found before the rule went in.** (1) The `country` cookie changed the header's country chip (none without the cookie, the chip with it) while both answers were `public`, so one cached copy would have served the other. The proxy now renders every browse page as if its own country were chosen, and that cookie no longer makes a page private. (2) Next.js answers a request with `RSC: 1` and no `_rsc` with a 307 to `?_rsc`, sent `public`; Cloudflare ignores `Vary`, so one such request could have redirected every visitor for a minute. Next.js 16 removes the `RSC` header and `_rsc` from what the proxy sees, so the rule leaves those requests out. Only GET and HEAD are marked `public` now.
+- **Cache Rule** on the Free plan (the cookie and header conditions are accepted): staging host, not `/_next/` or `/api/`, no session or `view` cookie, no RSC request; eligible for cache, using the origin's `Cache-Control` and bypassing when there is none.
+- **Token** `peydoo-cache-rules` (`CLOUDFLARE_CACHE_TOKEN` in `/root/.secrets/infra.env`): Cache Settings and Zone read on `peydoo.com` only. The owner also gave the main token access to Cache Rules.
+- **Nonce decision:** a cached copy shares one nonce for at most 60 seconds, on logged-out browse pages only. Accepted. It only helps DOM-based XSS on that copy, and browse pages have no client-side HTML sink. Hashes (Next.js's inline RSC scripts change per render), a nonce-swapping Worker, `'unsafe-inline'` and no edge cache were compared and not chosen.
+- **Tests:** the cache header rules updated (another country's cookie is shared now, only GET and HEAD shared); 360 tests pass, typecheck and the RTL check too.
+- Commits `8e518c9` and `2c768ff`, deployed to staging through Coolify.
+
+Checked live on https://staging.peydoo.com (Oct 19, 2026): logged out `/austria` MISS, then HIT, EXPIRED after 60 s and HIT again; two visitors of one copy get the same nonce in the CSP header and the HTML; either session cookie and `view=list` DYNAMIC with `private, no-store`; `country=germany` HIT; `RSC: 1` and `?_rsc=` DYNAMIC, and the page stays the normal 200 copy after an `RSC: 1` request; POST DYNAMIC, a postal code BYPASS, `/` and `/login` BYPASS. The HTML of `/germany/berlin` without a cookie and with `country=austria` or `country=germany` is identical apart from the nonce. Not checked in a browser on a HIT copy (the header and HTML nonce match, which is what the browser checks).
+
+Not done:
+- Production: add `peydoo.com` to the rule's host condition at launch.
+- After a deploy, a cached copy can point for up to 60 seconds at the previous build's chunks and server actions (♡ and "near me" may fail until it renews). A full purge after each deploy would close that; it needs the Cache Purge permission.
