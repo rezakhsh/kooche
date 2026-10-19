@@ -33,3 +33,12 @@ Read first: `docs/setup.md` (current infrastructure and decisions, wins over eve
 - Commit after every working step. Deploy to staging first.
 - Update `docs/progress.md` at the end of each session.
 - Never put secrets in Git, prompts or logs.
+
+## Working on this server
+
+The owner works from two tools on this same server: the Claude desktop app and VS Code (Remote-SSH), with different accounts. They can't see each other's conversations, only the files.
+
+- **One tool at a time in `/root/classifieds`.** Before starting: `git status` (must be clean) and `git pull`. Before stopping: commit, push, and update `docs/progress.md`, so the other tool can pick up from the files alone.
+- **Parallel work goes in its own worktree** (`git worktree add /root/classifieds-<name> -b <name>`), never in the shared checkout.
+- **Memory is tight (4 GB).** Each Claude session process takes about 250 MB. On Oct 19, 2026, 12 open sessions plus a web image build froze the server, and it had to be power-cycled. Run `free -m` before a deploy (a web build needs about 1 GB free), and keep few sessions open.
+- **Server state lives in files:** secrets in `/root/.secrets/*.env`, backups in `/usr/local/bin/classifieds-backup`, alerts in `/usr/local/bin/kooche-alert` and `kooche-healthcheck`. See `docs/setup.md`.
