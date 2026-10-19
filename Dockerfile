@@ -20,7 +20,7 @@ COPY . .
 RUN npm run typecheck && npm run check:rtl
 
 FROM source AS web-build
-RUN npm run build
+RUN npm run build && npm run build:purge
 
 FROM source AS worker-build
 RUN npm run build:worker
@@ -34,6 +34,8 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 # Application files stay owned by root (read-only for the app); only Next's cache is writable.
 COPY --from=web-build /app/.next/standalone ./
 COPY --from=web-build /app/.next/static ./.next/static
+# Coolify's post-deployment command on classifieds-web: `node purge-cache.js` (src/deploy/purge-cache.ts)
+COPY --from=web-build /app/dist/purge-cache.js ./purge-cache.js
 RUN mkdir -p .next/cache && chown node:node .next/cache
 USER node
 EXPOSE 3000

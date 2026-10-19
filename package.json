@@ -10,6 +10,7 @@
     "dev:worker": "tsx watch src/worker/index.ts",
     "build": "next build",
     "build:worker": "esbuild src/worker/index.ts --bundle --platform=node --format=esm --target=node24 --external:msgpackr-extract --external:sharp --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/worker.js",
+    "build:purge": "esbuild src/deploy/purge-cache.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/purge-cache.js",
     "build:migrate": "esbuild src/db/migrate.ts src/deploy/trigger.ts --bundle --platform=node --format=esm --target=node24 --entry-names=[name] --outdir=dist/migrate",
     "start": "node .next/standalone/server.js",
     "start:worker": "node dist/worker.js",

@@ -89,9 +89,19 @@ const deploySchema = z.object({
   DEPLOY_APP_UUIDS: z.string().regex(/^[a-z0-9]+(,[a-z0-9]+)*$/),
 });
 
+// Post-deployment command of `classifieds-web` (src/deploy/purge-cache.ts): purges APP_URL's host
+// from Cloudflare's cache once the new container serves alone.
+const purgeSchema = z.object({
+  APP_URL: z.url({ protocol: /^https?$/ }),
+  CLOUDFLARE_ZONE_ID: z.string().regex(/^[0-9a-f]{32}$/),
+  // A Cloudflare API token with only Cache Purge on the zone.
+  CLOUDFLARE_PURGE_TOKEN: z.string().min(1),
+});
+
 export type WebEnv = z.infer<typeof webSchema>;
 export type WorkerEnv = z.infer<typeof workerSchema>;
 export type DeployEnv = z.infer<typeof deploySchema>;
+export type PurgeEnv = z.infer<typeof purgeSchema>;
 
 function parse<T extends z.ZodType>(schema: T, name: string): z.infer<T> {
   const result = schema.safeParse(process.env);
@@ -106,6 +116,7 @@ function parse<T extends z.ZodType>(schema: T, name: string): z.infer<T> {
 let web: WebEnv | undefined;
 let worker: WorkerEnv | undefined;
 let deploy: DeployEnv | undefined;
+let purge: PurgeEnv | undefined;
 
 /** Environment of the Next.js app. Server code only. */
 export function webEnv(): WebEnv {
@@ -120,4 +131,9 @@ export function workerEnv(): WorkerEnv {
 /** Environment of the deploy trigger in the `migrate` image. */
 export function deployEnv(): DeployEnv {
   return (deploy ??= parse(deploySchema, 'deploy'));
+}
+
+/** Environment of the cache purge after a deploy, run in the `web` image. */
+export function purgeEnv(): PurgeEnv {
+  return (purge ??= parse(purgeSchema, 'purge'));
 }
