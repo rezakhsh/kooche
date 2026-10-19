@@ -140,6 +140,12 @@ Rules that follow from this:
 - **Deploying by hand:** redeploy `classifieds-migrate`, which deploys the other two. "Deploy" on web or worker alone skips the migrations; use it only when no migration is pending.
 - **Rolling back** web or worker in Coolify doesn't undo migrations. A schema change is undone with a new migration.
 
+**Cache purge after each web deploy** (since Oct 19, 2026). `classifieds-web` has the post-deployment command `node purge-cache.js` (`src/deploy/purge-cache.ts`, bundled into the `web` image by `npm run build:purge`). Coolify 4.4.6 runs it with `docker exec` in the new container after the rolling update: the new container is healthy and the old one has been stopped and removed, so nothing of the previous build can be cached again afterwards (checked in `ApplicationDeploymentJob`: `rolling_update()` → `post_deployment()` → `run_post_deployment_command()`). It runs after every web deployment, from a push, by hand or as a rollback. It purges APP_URL's host only (`{"hosts": ["staging.peydoo.com"]}`, available on the Free plan), not the whole zone, so `img-staging.peydoo.com` keeps its cached photos and imgproxy doesn't render them all again. A failure (retried once on a network error or 5xx) only writes "Post-deployment command failed" with Cloudflare's message to the deployment log; the deployment stays successful and the 60-second bound is the fallback. Success writes "Cloudflare cache purged for staging.peydoo.com" to the deployment log. Verified Oct 19, 2026: a `/austria` copy cached during the rolling update was a MISS right after it.
+
+Where else it could have run, not chosen: in `trigger.js` after it queues the deploy (it would have to poll `GET /api/v1/deployments/<uuid>`, which needs the `read` ability on the deploy token, and would miss deploys by hand and rollbacks), or in the worker at start (depends on the queue deploying web before worker, purges on every worker restart, and misses web-only deploys).
+
+The token `peydoo-cache-purge` (account-owned, id `35270e58ab0b1b447df4657bb4ca3ffd`) has only Cache Purge on zone `peydoo.com` and works only from the server's IPv4 `135.181.253.129` (calls over IPv6 are refused; the containers reach Cloudflare over IPv4). Its value is in `/root/.secrets/infra.env` and in the env of `classifieds-web`. The env vars and the command were set on Oct 19, 2026 through the API with a one-hour token made with `php artisan tinker` in the `coolify` container and deleted afterwards.
+
 Why this design (Coolify 4.4.6, checked in its source):
 - A **pre-deployment command** runs with `docker exec` in the **old**, still-running container, before the new image is even built. It would run the previous commit's migrations, and is skipped when no container runs. It would also put the owner password into the web app.
 - In a **Docker Compose** application, Coolify adds `env_file: .env` to every service, so a one-shot migrate service there would hand the owner password to web and worker. Compose deploys also replace rolling updates with a recreate.
@@ -151,7 +157,7 @@ Why this design (Coolify 4.4.6, checked in its source):
 
 | App | Variables |
 | --- | --- |
-| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_MEDIA`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT` (`SEARCH_INDEXING` unset on staging, which means `off`) |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_MEDIA`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` (read only by the post-deployment command) (`SEARCH_INDEXING` unset on staging, which means `off`) |
 | `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN`, `S3_*` (same five as web), `APP_URL`, `SMTP_URL`, `EMAIL_FROM` (expiry reminders) |
 | `classifieds-imgproxy` | `IMGPROXY_KEY`, `IMGPROXY_SALT`, `IMGPROXY_USE_S3`, `IMGPROXY_S3_ENDPOINT`, `IMGPROXY_S3_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (read-only token), `IMGPROXY_BASE_URL`, `IMGPROXY_S3_ALLOWED_BUCKETS`, `IMGPROXY_WORKERS`, `IMGPROXY_MAX_SRC_RESOLUTION`, `IMGPROXY_MAX_SRC_FILE_SIZE`, `IMGPROXY_TTL`, `IMGPROXY_STRIP_METADATA`, `IMGPROXY_ALLOW_SECURITY_OPTIONS` |
 | `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
@@ -207,6 +213,7 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 - Decide on HSTS `preload`.
 - Turnstile comes with the login and posting features.
 - The Cache Rule covers `staging.peydoo.com` only: add `peydoo.com` to its host condition when production gets the domain ("Browsing and favorites").
+- Production's web app gets the same post-deployment command and the two `CLOUDFLARE_*` variables (it purges its own APP_URL host, `peydoo.com`); if production runs on another server, the purge token's IP condition needs that server's IPv4.
 
 ## Accounts and phone verification
 
@@ -427,7 +434,7 @@ Action: eligible for cache, edge TTL "use the Cache-Control header if present, b
 - No nonce on browse pages (`'unsafe-inline'`): makes any injection there work.
 - No edge cache: keeps a nonce per request, but every logged-out page view renders on the 4 GB server.
 
-**Not purged.** 60 seconds is the bound. A purge from the worker on listing changes doesn't fit cleanly (filtered and paged addresses can't be purged by URL on the Free plan). After a deploy, a cached copy may point for up to 60 seconds at JavaScript chunks and server action ids of the previous build: the page still reads and its links work, but the ♡ and "near me" may fail until it renews.
+**Purged after each deploy, not on listing changes.** After a deploy, a cached copy would point at JavaScript chunks and server action ids of the previous build (the ♡ and "near me" would fail until it renews), so `classifieds-web` purges its host once the new container serves alone ("App deployment", "Cache purge after each web deploy"). Listing changes are not purged: 60 seconds is the bound there. A purge from the worker on listing changes doesn't fit cleanly (filtered and paged addresses can't be purged by URL). A browser tab left open on the old build still has the old server action ids until it reloads; the purge doesn't change that.
 
 Sitemaps have no nonce and send `public, max-age=3600`; `robots.txt` gets Next.js's `public, max-age=0, must-revalidate` (Cloudflare revalidates it every time).
 

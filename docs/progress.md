@@ -448,4 +448,23 @@ Checked live on https://staging.peydoo.com (Oct 19, 2026): logged out `/austria`
 
 Not done:
 - Production: add `peydoo.com` to the rule's host condition at launch.
-- After a deploy, a cached copy can point for up to 60 seconds at the previous build's chunks and server actions (♡ and "near me" may fail until it renews). A full purge after each deploy would close that; it needs the Cache Purge permission.
+- ~~After a deploy, a cached copy can point for up to 60 seconds at the previous build's chunks and server actions.~~ Done Oct 19, 2026, see below.
+
+## Oct 19, 2026: Cloudflare cache purge after each deploy
+
+Plan approved by the owner (Oct 19, 2026): a Coolify post-deployment command on `classifieds-web`, purge by host, a new purge-only token, deploy to staging.
+
+Done (details in `docs/setup.md`, "App deployment", "Cache purge after each web deploy"):
+- **`node purge-cache.js`** (`src/deploy/purge-cache.ts`, `src/deploy/cloudflare-purge.ts`) as the post-deployment command of `classifieds-web`. Coolify runs it in the new container once it is healthy and the old one is removed, after every web deployment (push, by hand, rollback). It purges APP_URL's host only, so the imgproxy host keeps its cache. Checked in Coolify 4.4.6's source; compared with purging from `trigger.js` (needs `read` on the deploy token, misses rollbacks) and from the worker at start (depends on queue order).
+- **Token** `peydoo-cache-purge`: Cache Purge on `peydoo.com` only, usable only from the server's IPv4 (tested: IPv4 purges, IPv6 is refused). In `/root/.secrets/infra.env` and in Coolify's env of `classifieds-web`, never in Git. Purge by host works on the Free plan (tested).
+- **Coolify:** `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` and the command set through the API with a one-hour token, deleted afterwards.
+- **Tests:** three unit tests for the purge request (only the app host, no retry on 4xx, the token never in the error, one retry on 5xx or a network error); typecheck passes.
+- Commit `2c4af69`, deployed to staging.
+
+Checked live on https://staging.peydoo.com (Oct 19, 2026): `/austria` was cached during the web deployment (HIT, 15 s old at 08:01:33); the rolling update removed the old container at 08:01:36, the deployment log shows "Cloudflare cache purged for staging.peydoo.com" at 08:01:37, and the next request (08:01:48, when that copy would have been 30 s old) was a MISS, then HIT again.
+
+Incident on the way: the first deploy (07:42) left the server at 100% CPU and unreachable. The web image build (npm ci, typecheck, Next.js build) ran while 12 Claude Code sessions used about 3 GB of the 4 GB. The owner power-cycled the server; web and worker deployments were marked failed and staging stayed on the previous build. After the other sessions were ended (2.4 GB available) the redeploy went through. Keep builds and many parallel sessions apart on this server.
+
+Not done:
+- A failed purge only shows in the deployment log; no alert. The 60-second bound is the fallback.
+
