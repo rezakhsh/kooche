@@ -157,7 +157,7 @@ Why this design (Coolify 4.4.6, checked in its source):
 
 | App | Variables |
 | --- | --- |
-| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_MEDIA`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` (read only by the post-deployment command) (`SEARCH_INDEXING` unset on staging, which means `off`) |
+| `classifieds-web` | `NODE_ENV`, `APP_URL`, `APP_TIME_ZONE`, `DATABASE_URL` (as `classifieds_app`), `REDIS_URL`, `AUTH_SECRET`, `PHONE_CODE_SECRET`, `SMTP_URL`, `EMAIL_FROM`, `TELEGRAM_BOT_USERNAME`, `SMS_PROVIDER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_MEDIA`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` (read only by the post-deployment command), `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` (`SEARCH_INDEXING` unset on staging, which means `off`) |
 | `classifieds-worker` | `NODE_ENV`, `WORKER_DATABASE_URL` (as `classifieds_worker`), `REDIS_URL`, `TELEGRAM_BOT_TOKEN`, `S3_*` (same five as web), `APP_URL`, `SMTP_URL`, `EMAIL_FROM` (expiry reminders) |
 | `classifieds-imgproxy` | `IMGPROXY_KEY`, `IMGPROXY_SALT`, `IMGPROXY_USE_S3`, `IMGPROXY_S3_ENDPOINT`, `IMGPROXY_S3_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (read-only token), `IMGPROXY_BASE_URL`, `IMGPROXY_S3_ALLOWED_BUCKETS`, `IMGPROXY_WORKERS`, `IMGPROXY_MAX_SRC_RESOLUTION`, `IMGPROXY_MAX_SRC_FILE_SIZE`, `IMGPROXY_TTL`, `IMGPROXY_STRIP_METADATA`, `IMGPROXY_ALLOW_SECURITY_OPTIONS` |
 | `classifieds-migrate` | `NODE_ENV`, `MIGRATION_DATABASE_URL` (as `classifieds_owner`, the only place outside `/root/.secrets` with the owner password), `COOLIFY_API_URL` (`http://coolify:8080`), `COOLIFY_DEPLOY_TOKEN`, `DEPLOY_APP_UUIDS` (`jc0kgkjqmzxgdccrf0hn93tk,bvhgg5spgjwcwjfnkirvoyvu`) |
@@ -212,7 +212,7 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 - This server's app gets `peydoo.com` and `www.peydoo.com` (www redirects to the apex), with `APP_URL=https://peydoo.com`, `SEARCH_INDEXING=on` and a new Telegram bot.
 - `staging.peydoo.com` moves to the new staging server.
 - Decide on HSTS `preload`.
-- Turnstile comes with the login and posting features.
+- A production Turnstile widget for `peydoo.com` with its own keys in the production web app ("Bot protection").
 - The Cache Rule covers `staging.peydoo.com` only: add `peydoo.com` to its host condition when production gets the domain ("Browsing and favorites").
 - Production's web app gets the same post-deployment command and the two `CLOUDFLARE_*` variables (it purges its own APP_URL host, `peydoo.com`); if production runs on another server, the purge token's IP condition needs that server's IPv4.
 
@@ -258,6 +258,38 @@ Only one process may poll a bot token. During a rolling deploy the old and new w
 - **Seller page** `/u/{public_token}`: name, member since, phone verified, active listings and upcoming events. `noindex, follow`, and `u` is in the proxy's `NOT_BROWSE`, so it is never marked `public` for the edge cache. Deactivated and deleted accounts answer 404.
 - **Download** (`/account/data`): a POST form to the route handler `/account/data/export`. A route handler has no server-action origin check, so it refuses any `Origin` other than APP_URL's (403). Valkey limit `export:user:1h`, 3 an hour; each download writes `audit_log` `user.data_exported` with the session, IP and user agent. Built on request, not as a job (decided Oct 21, 2026): one account's data is small; switch to a job with an emailed link if exports grow.
 - **Deletion** (`/account/delete`): confirmed by typing the account's own email and a tick (decided Oct 21, 2026; an emailed code was the stronger alternative). `erase_user` stays executable only by the worker: the app's transaction sets `status = 'deactivated'` (no new sessions, no posting or messages), deletes every session and writes `user.erase_requested` to the outbox and `audit_log`; the worker's `accounts` queue (5 attempts, exponential backoff) calls `erase_user` only for a deactivated account, and `erase_user` does nothing for one already deleted. The action clears the browser's cookie by setting it expired with `Secure` (a `__Secure-` cookie is only replaced by a secure one) and ends on `/account/deleted`.
+
+## Bot protection
+
+Built Oct 21, 2026 (roadmap step 3). Cloudflare Turnstile on sign-in and publishing, and tighter limits for accounts in their first 7 days.
+
+**Where Turnstile is checked** (server actions, before anything is written):
+- Sign-in, "send code" (`requestCode`): every request. Entering the code isn't checked (5 tries per code, 10 per 15 minutes per email).
+- "Send the code again" (`resendCode`) has no widget: it works only for 10 minutes after a Turnstile-checked request for the same email (Valkey `login-human:<sha256(email)>`, 10-minute expiry; `src/modules/security/login-human.ts`). The `login_email` cookie alone could be forged.
+- Publishing a listing or an event (`saveListingAction`, `saveEventAction`) when it goes out: a draft (or a new form) published, or a rejected one sent again. Not "save", edits of live listings, pause, resume, renew or photos.
+
+**The check** (`verifyTurnstile()` in `src/modules/security/turnstile.ts`, `checkTurnstile()` in `server.ts`): siteverify with the secret, the token and `clientIp()`, 5-second timeout. Accepted only with `success: true`, `hostname` equal to APP_URL's host, and `action` equal to the form's (`login`, `publish-listing`, `publish-event`), so a token from one form can't be spent on another. Tokens are single-use and live 300 seconds (siteverify answers `timeout-or-duplicate`). Fails closed: no token, an HTTP error, a malformed answer, a timeout or no network all refuse. The log gets the outcome and error codes, never the token. Cloudflare's test secrets (`1x…`, `2x…`, `3x…`) answer hostname `example.com` and no action, so those two checks are skipped for them, and `env.ts` allows a test secret only with a local APP_URL (`localhost`, `127.0.0.1`, `*.localhost`, `*.test`).
+
+**The widget** (`useTurnstile()` in `src/components/turnstile.tsx`): our own client code adds `https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit`, which `'strict-dynamic'` trusts without a nonce. Explicit render with the form's `action`, `language: 'fa'`, `appearance: 'interaction-only'` (nothing shows unless Cloudflare wants a click), `refresh-expired: 'auto'`; the token is the form's hidden `cf-turnstile-response`. The send/publish button reads «در حال بررسی امنیتی…» and stays disabled until a token is there; after a refused submit the widget is reset (the token is spent). The site key comes from the server page as a prop (`turnstileSiteKey()`), read at runtime like every setting.
+
+**CSP** (`src/proxy.ts`, `contentSecurityPolicy()`): `frame-src https://challenges.cloudflare.com` and the same host in `script-src` (only for browsers without `'strict-dynamic'`). On every page, because a page reached by an in-app link keeps the CSP of the page the visit started on, such as a cached `/germany`. No `unsafe-inline`.
+
+**Edge cache:** the widget is only on `/login`, `/new/…`, `/my/listings/…`, `/events/new` and `/my/events/…`, none of them browse pages, so none is cached. Cached browse pages only gained the CSP line; the deploy's purge replaced the old copies.
+
+**Without JavaScript** (decided Oct 21, 2026): browsing, favorites, chat, saving drafts and the other forms work as before. Sending a login code and publishing need JavaScript: Turnstile has no mode without it, and a way around it would be the one every bot takes. A `<noscript>` note says so («برای این کار باید جاوااسکریپت مرورگرتان روشن باشد…»), the button is disabled, and a form that arrives without a token is refused («بررسی امنیتی هنوز تمام نشده است…»).
+
+**Widgets and keys.** One widget per environment, mode managed, limited to that environment's hostname: `peydoo-staging` for `staging.peydoo.com` now, a new one for `peydoo.com` at launch. `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are in the env of `classifieds-web` and in `/root/.secrets/turnstile.env`; both are required in production (`env.ts`), and without them in development the widget and the check are off. The infra token can't manage Turnstile; it needs a token with "Turnstile Sites Write" (account), or the dashboard (Turnstile → Add widget).
+
+**New-account limits** (accounts younger than 7 days by `users.created_at`; `isNewAccount()` in `src/modules/users/new-account.ts`, shared with chat):
+
+| What | All accounts | Accounts under 7 days | Where |
+| --- | --- | --- | --- |
+| Listings published | no daily limit | 3 in 24 hours | `saveListing()`, counted in PostgreSQL (`publishedInLastDay()`): own non-event listings by `published_at`, deleted ones included; renewals keep their old `published_at` |
+| Events published | 5 in 24 hours | 2 in 24 hours | `saveEvent()`, the same query for events |
+| Photos added | 60 an hour | also 20 an hour and 40 a day | Valkey `listing-upload:new-user:1h` / `:1d` (`newAccountUploadChecks()`) |
+| New chats, links in chat | | unchanged ("Chat") | |
+
+The publish limits are inside the transaction after `canPostListing()`, so no caller can skip them; the refusal is `new_account_limit`, shown as «حساب‌های تازه (کمتر از ۷ روز) در هر ۲۴ ساعت حداکثر ۳ آگهی منتشر می‌کنند…». Saving and editing still work.
 
 ## Photos and imgproxy
 
@@ -522,6 +554,7 @@ After the resize to CX33: +€3.00 net.
 - Accounts: `/root/.secrets/auth.env` holds `AUTH_SECRET`, `PHONE_CODE_SECRET`, the SES SMTP credentials and the staging bot token, and the same values are in Coolify. A new `AUTH_SECRET` logs everyone out; a new `PHONE_CODE_SECRET` only invalidates SMS codes in flight.
 - R2: `/root/.secrets/r2.env` (staging read-write and read-only S3 credentials) and `/root/.secrets/imgproxy.env` (URL signing key and salt), both also in Coolify. A new imgproxy key or salt breaks every image URL in cached pages until they are rendered again.
 - Since Oct 17, 2026 the Cloudflare token can also create API tokens (granted by the owner to create the R2 tokens). That makes it able to mint tokens with any permission in the account; narrow it again in Cloudflare if that isn't wanted.
+- Turnstile: `/root/.secrets/turnstile.env` (staging widget's site key and secret), also in Coolify for `classifieds-web`. A new secret (rotated in the dashboard) must reach Coolify at once, or every sign-in and publish is refused.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
 ## Open decisions
