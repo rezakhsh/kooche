@@ -468,3 +468,20 @@ Incident on the way: the first deploy (07:42) left the server at 100% CPU and un
 Not done:
 - A failed purge only shows in the deployment log; no alert. The 60-second bound is the fallback.
 
+
+## Oct 21, 2026: roadmap for the rest of the build
+
+Decided by the owner (Oct 21, 2026): finish the public site first; the admin page (reports, moderation queue, everything in one place) is the last build step, then launch. Each step runs in its own session and worktree, with a plan approved first. The owner now works from a laptop; the master session in the Claude desktop app starts each step.
+
+Order:
+1. **Account, seller page and listing cards** (started Oct 21, 2026). Cards show up to three `show_on_card` fields. Users edit their name, delete their account (`erase_user`) and download their data. A public seller page (public token only) lists their active listings and events.
+2. **Legal and help pages:** Impressum, privacy policy and terms of use in Persian and German (a lawyer checks them before launch; `policy_ground` then names real sections), safety tips, help and contact, linked from the footer.
+3. **Bot protection:** Turnstile on sign-in and posting, limits for accounts in their first 7 days.
+4. **Keyword search and saved searches with alerts** (Meilisearch). The owner first resizes the server to CX33.
+5. **AI posting:** a photo plus a short Persian voice note becomes a listing. Needs an Anthropic API key.
+6. **Pro and payments:** business pages, Stripe subscriptions, paid bumps and featured listings through entitlements. Needs a Stripe account and prices.
+7. Optional: dark mode, photos in chat.
+8. **Admin page (last):** one place for the owner to see everything: reports and the moderation queue (take down or restore with the DSA statement), escalated post-checks, users, listings, events and payments. Staff two-factor login comes first. The public report buttons on listing and event pages come in this step, with the queue behind them.
+9. **Launch:** production on `peydoo.com`, security review and load test, n8n posting to Telegram channels, the first Berlin businesses. Step 8 must be done before launch (DSA: a way to report content and a reason for every removal).
+
+For the owner along the way: a native speaker reads the Persian names and labels; resize to CX33 before step 4; an Anthropic API key before step 5; a Stripe account before step 6; change the `kooche-coolify` GitHub App's `coolify.taskpilot.dev` addresses.
