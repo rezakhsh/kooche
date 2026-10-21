@@ -209,6 +209,21 @@ const PATHS = {
   ),
   /** Favorite (outline; filled with the `fill-current` class) */
   heart: <path d="M12 20s-7.5-4.6-9.2-9.4C1.7 7.4 3.8 4 7.2 4c2 0 3.6 1.1 4.8 2.8C13.2 5.1 14.8 4 16.8 4c3.4 0 5.5 3.4 4.4 6.6C19.5 15.4 12 20 12 20Z" />,
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </>
+  ),
+  /** A seller's public page */
+  store: (
+    <>
+      <path d="M4 10v10h16V10M3 4h18l-1 6H4Z" />
+      <path d="M9 20v-6h6v6" />
+    </>
+  ),
+  download: <path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" />,
+  trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

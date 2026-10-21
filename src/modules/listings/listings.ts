@@ -5,8 +5,8 @@ import { countries, listingImages, listings, users, type PRICE_TYPES } from '../
 import type { Point } from '../../db/types';
 import { distanceMeters, snapToGrid } from '../../lib/geo';
 import { normalizePersian } from '../../lib/normalize-persian';
+import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
-import { messages } from '../../messages/fa';
 import { reviewPolicy } from '../moderation/policy';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
@@ -32,7 +32,6 @@ const MAX_TITLE = 90;
 const MIN_DESCRIPTION = 10;
 const MAX_DESCRIPTION = 5000;
 const MAX_DISTRICT = 60;
-const MAX_DISPLAY_NAME = 50;
 
 const DAY_MS = 86_400_000;
 
@@ -98,6 +97,8 @@ export type FieldError =
   | 'short_link'
   /** A listing's country never changes once it has one (decided Oct 17, 2026) */
   | 'locked'
+  /** A display name with the brand, staff or support in it (src/modules/users/profile.ts) */
+  | 'reserved'
   | AttributeErrorCode;
 /** Field name (`title`, `amount`, `attr.fuel`…) → error code */
 export type FieldErrors = Record<string, FieldError>;
@@ -274,10 +275,10 @@ async function prepare(
 
   let displayName: string | null = null;
   if (needsName) {
-    const name = clean(input.displayName ?? '');
-    if (name.length > MAX_DISPLAY_NAME) errors.displayName = 'too_long';
-    else if (publish && name.length < 2) errors.displayName = name ? 'too_short' : 'required';
-    else if (name) displayName = name;
+    // The same rule as /account/name; a draft may be saved without one
+    const name = checkDisplayName(input.displayName ?? '');
+    if (name.ok) displayName = name.name;
+    else if (publish || name.error === 'too_long' || name.error === 'reserved') errors.displayName = name.error;
   }
 
   if (Object.keys(errors).length) return { ok: false, errors, place };
@@ -366,7 +367,7 @@ export function savedPlaceColumns(place: Place, district: string | null) {
 
 async function needsDisplayName(tx: Queryable, userId: string): Promise<boolean> {
   const [u] = await tx.select({ name: users.displayName }).from(users).where(eq(users.id, userId));
-  return u?.name === messages.account.defaultDisplayName;
+  return !!u && isPlaceholderName(u.name);
 }
 
 /** Starts a listing in a category: a draft, so photos can be uploaded before it is published */

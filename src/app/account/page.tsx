@@ -10,6 +10,7 @@ import { chatNoticesOn } from '../../modules/users/notification-prefs';
 import { loadActor } from '../../modules/users/permissions';
 import { eq } from 'drizzle-orm';
 import { users } from '../../db/schema';
+import { isPlaceholderName, sellerPath } from '../../modules/users/profile';
 import { requireSession } from '../../modules/users/server';
 import { signOut } from './actions';
 
@@ -23,14 +24,23 @@ export default async function AccountPage() {
   const [actor, saved, [prefs]] = await Promise.all([
     loadActor(db, user.id),
     savedPlace(db, user.id),
-    db.select({ prefs: users.notificationPrefs }).from(users).where(eq(users.id, user.id)),
+    db
+      .select({ prefs: users.notificationPrefs, name: users.displayName, publicToken: users.publicToken })
+      .from(users)
+      .where(eq(users.id, user.id)),
   ]);
   const t = messages.account;
   return (
     <PageShell title={t.title}>
       <div className="space-y-6">
         <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
-          <Row icon="user" label={t.email} value={<bdi dir="ltr">{user.email}</bdi>} />
+          <Row
+            href="/account/name"
+            icon="user"
+            label={t.name}
+            value={prefs && !isPlaceholderName(prefs.name) ? <bdi dir="auto">{prefs.name}</bdi> : <Pill tone="warning">{t.nameNotSet}</Pill>}
+          />
+          <Row icon="mail" label={t.email} value={<bdi dir="ltr">{user.email}</bdi>} />
           <Row
             href="/account/phone"
             icon="phone"
@@ -42,6 +52,8 @@ export default async function AccountPage() {
           <Row href="/my/listings" icon="doc" label={t.myListings} />
           <Row href="/my/favorites" icon="heart" label={messages.favorites.title} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
+          {prefs && <Row href={sellerPath(prefs.publicToken)} icon="store" label={t.publicPage} />}
+          <Row href="/account/data" icon="shield" label={t.myData} />
         </ul>
         <form action={signOut}>
           <Button type="submit" variant="secondary" className="w-full">

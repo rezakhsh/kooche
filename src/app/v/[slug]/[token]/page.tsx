@@ -25,6 +25,7 @@ import { allCities } from '../../../../modules/search/places';
 import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
+import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from './contact';
 import { Gallery, type GalleryImage } from './gallery';
@@ -169,10 +170,16 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         </span>
         <div className="min-w-0">
           <span className="block text-xs text-neutral-500">{t.seller}</span>
-          <span className="block truncate font-bold">{seller.displayName}</span>
+          <Link href={sellerPath(seller.publicToken)} className="block truncate font-bold hover:underline">
+            <bdi>{seller.displayName}</bdi>
+          </Link>
           <span className="block text-xs text-neutral-500">{t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}</span>
         </div>
       </div>
+      <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-1 text-sm font-medium text-brand-800 hover:underline">
+        <Icon name="store" className="size-4" />
+        {messages.seller.allListings}
+      </Link>
       <p className="flex items-center gap-1.5 text-xs font-medium text-brand-800">
         <Icon name="shield" className="size-4" />
         {t.phoneVerified}

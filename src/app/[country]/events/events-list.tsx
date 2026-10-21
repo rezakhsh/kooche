@@ -7,11 +7,10 @@ import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { messages } from '../../../messages/fa';
 import { DEFAULT_TIME_ZONE } from '../../../modules/events/events';
-import { eventPriceText } from '../../../modules/events/format';
+import { eventCardOf } from '../../../modules/events/card';
 import { WHEN, cityBySlug, eventCities, upcomingEvents, whenWindow, type When } from '../../../modules/events/queries';
 import { EVENT_ROOT_SLUG, cachedCatalog } from '../../../modules/listings/catalog';
 import { activeCountries } from '../../../modules/listings/queries';
-import { imageUrl } from '../../../modules/media/server';
 import { eventsPath } from '../../../modules/search/paths';
 import { RememberCountry } from '../remember-country';
 
@@ -184,28 +183,11 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
         </div>
       )}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {page.items.map((e) => {
-          const currency = e.currency ? catalog.currencies.get(e.currency) : undefined;
-          const where = e.attendance === 'online' ? t.card.online : [e.venueName, e.cityFa ?? e.placeName].filter(Boolean).join('، ');
-          return (
-            <li key={e.id}>
-              <EventCard
-                e={{
-                  title: e.title,
-                  publicToken: e.publicToken,
-                  startsAt: e.startsAt,
-                  timeZone: e.timeZone,
-                  where: where || null,
-                  price: eventPriceText(e.priceType, e.priceMinor !== null && currency ? { minor: e.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null),
-                  attendance: e.attendance,
-                  scheduleStatus: e.scheduleStatus,
-                  moreDates: e.dateCount - 1,
-                  cover: e.coverKey ? imageUrl(e.coverKey, 'poster', 'webp') : null,
-                }}
-              />
-            </li>
-          );
-        })}
+        {page.items.map((e) => (
+          <li key={e.id}>
+            <EventCard e={eventCardOf(catalog, e)} />
+          </li>
+        ))}
       </ul>
       {page.next && (
         <div className="mt-6 flex justify-center">

@@ -265,6 +265,7 @@ export const messages = {
       required: 'این مورد لازم است.',
       too_short: 'کوتاه است.',
       too_long: 'طولانی است.',
+      reserved: 'این نام را نمی‌شود انتخاب کرد. نام پیدو، پشتیبانی یا مدیر سایت در آن نباشد.',
       invalid: 'درست نیست.',
       not_allowed: 'در این دسته مجاز نیست.',
       too_far: 'این موقعیت از محل انتخاب‌شده یا از کشور آگهی دور است.',
@@ -420,6 +421,30 @@ export const messages = {
     notifications: 'اعلان پیام‌ها',
     notificationsOn: 'روشن',
     notificationsOff: 'خاموش',
+    name: 'نام نمایشی',
+    nameNotSet: 'انتخاب نکرده‌اید',
+    nameHint: 'این نام کنار آگهی‌ها، در گفتگوها و در صفحه عمومی شما دیده می‌شود. ۲ تا ۵۰ نویسه.',
+    nameSave: 'ذخیره نام',
+    nameSaved: 'نام ذخیره شد.',
+    nameErrors: {
+      required: 'نامی بنویسید.',
+      too_short: 'نام دست‌کم ۲ نویسه باشد.',
+      too_long: 'نام حداکثر ۵۰ نویسه باشد.',
+      reserved: 'این نام را نمی‌شود انتخاب کرد. نام پیدو، پشتیبانی یا مدیر سایت در آن نباشد.',
+      rate_limited: 'امروز چند بار نامتان را عوض کرده‌اید. فردا دوباره امتحان کنید.',
+    },
+    publicPage: 'صفحه عمومی من',
+    myData: 'داده‌های من و حذف حساب',
+  },
+  // A seller's public page: src/app/u/[token] (approved Oct 21, 2026)
+  seller: {
+    title: (name: string) => `آگهی‌های ${name}`,
+    listings: 'آگهی‌ها',
+    events: 'رویدادها',
+    empty: 'این آگهی‌دهنده الان آگهی فعالی ندارد.',
+    ownerNotice: 'دیگران صفحه شما را این‌طور می‌بینند. ایمیل و شماره تلفن شما اینجا نیست.',
+    changeName: 'تغییر نام',
+    allListings: 'همه آگهی‌های این آگهی‌دهنده',
   },
   // Chat notices settings: src/app/account/notifications
   notifications: {

@@ -43,7 +43,10 @@ export function whenWindow(when: When, now: Date, timeZone: string): { from: Dat
 }
 
 export type EventFilter = {
-  countryCode: string;
+  /** A country's events, or (without it) one seller's events everywhere */
+  countryCode?: string;
+  /** Only this seller's own events, not their organizations' (the seller page) */
+  sellerId?: string;
   locationId?: string | null;
   categoryIds?: string[] | null;
   from: Date;
@@ -82,6 +85,7 @@ export type EventCardRow = {
  * event_dates_country_ends_idx or event_dates_location_ends_idx: only rows not over yet.
  */
 export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Date()) {
+  if (!f.countryCode && !f.sellerId) throw new Error('upcomingEvents needs a country or a seller');
   const rows = await db.execute<{
     id: string;
     public_token: string;
@@ -105,7 +109,8 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
       SELECT DISTINCT ON (d.listing_id) d.listing_id, d.starts_at, d.ends_at,
              count(*) OVER (PARTITION BY d.listing_id)::int AS date_count
       FROM event_dates d
-      WHERE d.country_code = ${f.countryCode}
+      WHERE ${f.countryCode ? sql`d.country_code = ${f.countryCode}` : sql`true`}
+        ${f.sellerId ? sql`AND d.listing_id IN (SELECT id FROM listings WHERE user_id = ${f.sellerId} AND organization_id IS NULL)` : sql``}
         AND d.ends_at > ${now.toISOString()}::timestamptz
         AND d.ends_at > ${f.from.toISOString()}::timestamptz
         ${f.to ? sql`AND d.starts_at < ${f.to.toISOString()}::timestamptz` : sql``}

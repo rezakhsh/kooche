@@ -19,6 +19,7 @@ import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorit
 import { activeCountries } from '../../../../modules/listings/queries';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
+import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from '../../../v/[slug]/[token]/contact';
 import { ShareButtons } from './share';
@@ -314,6 +315,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <span className="block text-xs text-neutral-500">{t.organizer}</span>
                 <span className="font-semibold">{organizer}</span>
               </div>
+              <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-1 text-sm text-brand-800 hover:underline">
+                <Icon name="store" className="size-4" />
+                <span>
+                  {messages.listing.seller}: <bdi className="font-medium">{seller.displayName}</bdi>
+                </span>
+              </Link>
               {isOwner && favCount !== null && (
                 <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
                   <Icon name="heart" className="size-4 text-red-600" />
