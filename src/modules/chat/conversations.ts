@@ -5,8 +5,9 @@ import { conversations, listings, messages, outboxEvents, users } from '../../db
 import { hit } from '../../lib/rate-limit';
 import { activeSanctions, restrictsMessaging } from '../moderation/sanctions';
 import { blockState } from '../users/blocks';
+import { isNewAccount } from '../users/new-account';
 import { canSendMessage, loadActor, type Denied } from '../users/permissions';
-import { CHAT_LIMITS, isNewAccount } from './limits';
+import { CHAT_LIMITS } from './limits';
 import { BLOCKED_FOR_NEW_ACCOUNTS, detectRisks, type RiskFlag } from './risk';
 
 // Chat (docs/schema.md, section 10; docs/setup.md, "Chat"): one conversation per listing per

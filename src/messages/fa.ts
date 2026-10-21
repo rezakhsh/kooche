@@ -197,6 +197,20 @@ export const messages = {
     accountDisabled: 'این حساب غیرفعال است.',
     tooManyDrafts: 'امروز آگهی زیادی شروع کرده‌اید. فردا دوباره امتحان کنید.',
     categoryNotPostable: 'در این دسته نمی‌توان آگهی ثبت کرد.',
+    // New-account limits (first 7 days, docs/setup.md "Bot protection")
+    newAccountListings: (max: number) =>
+      `حساب‌های تازه (کمتر از ۷ روز) در هر ۲۴ ساعت حداکثر ${max.toLocaleString('fa-IR')} آگهی منتشر می‌کنند. آگهی را ذخیره کنید و بعداً منتشر کنید.`,
+    newAccountPhotos: (minutes: number) =>
+      `حساب‌های تازه (کمتر از ۷ روز) عکس کمتری می‌توانند بفرستند. ${minutes.toLocaleString('fa-IR')} دقیقه دیگر دوباره امتحان کنید.`,
+  },
+  // Cloudflare Turnstile on sign-in and publishing
+  turnstile: {
+    checking: 'در حال بررسی امنیتی…',
+    noScript: 'برای این کار باید جاوااسکریپت مرورگرتان روشن باشد. آن را روشن کنید و صفحه را دوباره باز کنید.',
+    missing: 'بررسی امنیتی هنوز تمام نشده است. چند لحظه صبر کنید و دوباره بزنید. اگر جاوااسکریپت مرورگرتان خاموش است، آن را روشن کنید.',
+    failed: 'بررسی امنیتی پذیرفته نشد. دوباره امتحان کنید.',
+    unavailable: 'بررسی امنیتی الان ممکن نیست. چند دقیقه دیگر دوباره امتحان کنید.',
+    widgetError: 'بررسی امنیتی بار نشد. صفحه را دوباره باز کنید.',
   },
   form: {
     editTitle: 'ویرایش آگهی',
@@ -421,6 +435,7 @@ export const messages = {
     tooManyAttempts: 'تعداد تلاش‌ها زیاد بود. کد تازه بگیرید.',
     accountDisabled: 'این حساب غیرفعال است.',
     noEmail: 'اول ایمیلتان را وارد کنید.',
+    resendExpired: 'برای کد تازه، ایمیلتان را دوباره وارد کنید.',
   },
   rateLimited: (minutes: number) =>
     `تعداد درخواست‌ها زیاد بود. ${minutes.toLocaleString('fa-IR')} دقیقه دیگر دوباره امتحان کنید.`,
@@ -747,6 +762,8 @@ export const messages = {
       photos: 'پوستر و عکس‌ها',
       photosHint: 'اول پوستر رویداد را بگذارید؛ عکس اول روی کارت رویداد دیده می‌شود.',
       tooManyEvents: 'امروز رویداد زیادی منتشر کرده‌اید. فردا دوباره امتحان کنید.',
+      newAccountEvents: (max: number) =>
+        `حساب‌های تازه (کمتر از ۷ روز) در هر ۲۴ ساعت حداکثر ${max.toLocaleString('fa-IR')} رویداد منتشر می‌کنند. رویداد را ذخیره کنید و بعداً منتشر کنید.`,
       ended: 'این رویداد تمام شده است و ویرایش نمی‌شود. با «ثبت دوباره» یک نسخه تازه بسازید.',
     },
     my: {

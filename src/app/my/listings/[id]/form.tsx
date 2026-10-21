@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { startTransition, useActionState, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { TermsNotice } from '../../../../components/terms-notice';
+import { useTurnstile } from '../../../../components/turnstile';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
 import { PlaceField, type PlaceFieldValue } from '../../../../components/place-field';
 import { messages } from '../../../../messages/fa';
@@ -32,6 +33,8 @@ export type FormProps = {
   /** False once the listing has a country: then "change country" isn't offered */
   countryChangeable: boolean;
   needsName: boolean;
+  /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
+  turnstileSiteKey: string | null;
   values: {
     kind: 'offer' | 'wanted';
     title: string;
@@ -73,11 +76,20 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
 
   const draft = props.status === 'draft';
   const rejected = props.status === 'rejected';
+  // Publishing needs Turnstile, saving doesn't. A publish spends the token, so a new one after it.
+  const turnstile = useTurnstile(draft || rejected ? props.turnstileSiteKey : null, 'publish-listing');
+  const { reset: resetTurnstile } = turnstile;
+  const sentPublish = useRef(false);
+  useEffect(() => {
+    if (state && sentPublish.current) resetTurnstile();
+    sentPublish.current = false;
+  }, [state, resetTurnstile]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const data = new FormData(e.currentTarget, submitter);
+    sentPublish.current = submitter?.value === 'publish';
     startTransition(() => dispatch(data));
   }
 
@@ -220,13 +232,14 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.notice && <Alert tone="success">{state.notice}</Alert>}
 
+      {(draft || rejected) && turnstile.widget}
       {(draft || rejected) && <TermsNotice />}
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
         {draft || rejected ? (
           <>
-            <Button type="submit" name="intent" value="publish" disabled={pending} className="sm:flex-1">
-              {rejected ? t.resubmit : t.publish}
+            <Button type="submit" name="intent" value="publish" disabled={pending || !turnstile.ready} className="sm:flex-1">
+              {!turnstile.ready ? messages.turnstile.checking : rejected ? t.resubmit : t.publish}
             </Button>
             <Button type="submit" name="intent" value="save" variant="secondary" disabled={pending} className="sm:flex-1">
               {draft ? t.saveDraft : t.save}

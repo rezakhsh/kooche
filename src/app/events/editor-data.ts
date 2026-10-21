@@ -11,6 +11,7 @@ import { placeLabel, placeOfListing, placeValue, type Place } from '../../module
 import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { storage } from '../../modules/media/server';
+import { turnstileSiteKey } from '../../modules/security/server';
 import { photoView, type PhotoView } from '../my/listings/photo-view';
 import type { EventFormProps } from './form';
 
@@ -69,6 +70,7 @@ export async function eventEditorData(
       countries: countries.filter((c) => c.code === countryCode).map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
       countryChangeable: !l?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
+      turnstileSiteKey: turnstileSiteKey(),
       values: {
         categoryId: l?.categoryId ?? (preferredType && types.some((t) => t.id === preferredType.id) ? preferredType.id : ''),
         title: l?.title ?? '',

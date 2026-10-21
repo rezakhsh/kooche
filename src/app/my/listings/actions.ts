@@ -8,7 +8,7 @@ import { valkey } from '../../../lib/valkey';
 import { messages } from '../../../messages/fa';
 import { attributesFromForm } from '../../../modules/listings/attributes';
 import { cachedCatalog, effectiveAttributes } from '../../../modules/listings/catalog';
-import { LISTING_LIMITS } from '../../../modules/listings/limits';
+import { LISTING_LIMITS, NEW_ACCOUNT_LISTINGS_PER_DAY, newAccountUploadChecks } from '../../../modules/listings/limits';
 import {
   changeListingStatus,
   createDraft,
@@ -24,6 +24,7 @@ import { listingPath } from '../../../modules/listings/slug';
 import { confirmUpload, moveImage, removeImage, requestUpload } from '../../../modules/media/images';
 import { storage } from '../../../modules/media/server';
 import { photoView, type PhotoView } from './photo-view';
+import { checkTurnstile } from '../../../modules/security/server';
 import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 
@@ -44,6 +45,8 @@ function refusal(reason: string): string {
     case 'category_not_postable':
     case 'business_only':
       return t.post.categoryNotPostable;
+    case 'new_account_limit':
+      return t.post.newAccountListings(NEW_ACCOUNT_LISTINGS_PER_DAY);
     default:
       return t.genericError;
   }
@@ -87,6 +90,12 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   const country = (listingCountry: string | null) =>
     postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: open.map((c) => c.code) });
   if (!listingId && !country(null)) return { error: messages.form.chooseCountryFirst };
+  // Publishing needs Turnstile, checked before anything is written (docs/setup.md, "Bot protection")
+  const publishing = form.get('intent') === 'publish';
+  if (publishing && !listingId) {
+    const notHuman = await checkTurnstile(form, 'publish-listing');
+    if (notHuman) return { error: notHuman };
+  }
   if (!listingId) {
     const draft = await startDraft(user.id, form.get('categoryId'));
     if (!draft.ok) return { error: draft.error };
@@ -95,6 +104,10 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   if (!uuid.safeParse(listingId).success) return { error: messages.genericError };
   const own = await ownListing(appDb(), user.id, listingId);
   if (!own?.listing.categoryId) return { error: messages.genericError };
+  if (publishing && !created && (own.listing.status === 'draft' || own.listing.status === 'rejected')) {
+    const notHuman = await checkTurnstile(form, 'publish-listing');
+    if (notHuman) return { error: notHuman };
+  }
 
   const countryCode = country(own.listing.countryCode);
   if (!countryCode) return { error: messages.form.chooseCountryFirst, listingId: created };
@@ -124,7 +137,7 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   });
   if (!parsed.success) return { error: messages.form.fixErrors, listingId: created };
 
-  const intent = form.get('intent') === 'publish' ? 'publish' : 'save';
+  const intent = publishing ? 'publish' : 'save';
   const r = await saveListing(appDb(), { userId: user.id, listingId, input: parsed.data, intent });
   if (!r.ok) {
     if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created };
@@ -172,6 +185,9 @@ export async function requestUploadAction(input: { listingId: string; contentTyp
   if (!store) return { ok: false, error: t.photosUnavailable };
   const limited = await hit(valkey(), [[LISTING_LIMITS.uploadsPerUserHour, user.id]]);
   if (!limited.ok) return { ok: false, error: messages.rateLimited(Math.ceil(limited.retryAfterSeconds / 60)) };
+  // Fewer photos for accounts in their first 7 days
+  const fresh = await hit(valkey(), newAccountUploadChecks(user.id, new Date(user.createdAt), new Date()));
+  if (!fresh.ok) return { ok: false, error: messages.post.newAccountPhotos(Math.ceil(fresh.retryAfterSeconds / 60)) };
 
   const r = await requestUpload(appDb(), store, { userId: user.id, ...parsed.data });
   if (!r.ok) {

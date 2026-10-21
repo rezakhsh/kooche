@@ -1,13 +1,20 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useTurnstile } from '../../components/turnstile';
 import { Alert, Button, Field } from '../../components/ui';
 import type { FormState } from '../../lib/form';
 import { messages } from '../../messages/fa';
 import { requestCode, resendCode, verifyCode } from './actions';
 
-export function EmailForm({ next }: { next: string }) {
+export function EmailForm({ next, turnstileSiteKey }: { next: string; turnstileSiteKey: string | null }) {
   const [state, action, pending] = useActionState<FormState, FormData>(requestCode, undefined);
+  const turnstile = useTurnstile(turnstileSiteKey, 'login');
+  const { reset } = turnstile;
+  // A refused request may have spent the token: fetch a new one
+  useEffect(() => {
+    if (state) reset();
+  }, [state, reset]);
   const t = messages.login;
   return (
     <form action={action} className="space-y-4">
@@ -23,9 +30,10 @@ export function EmailForm({ next }: { next: string }) {
         required
         autoFocus
       />
+      {turnstile.widget}
       {state?.error && <Alert tone="error">{state.error}</Alert>}
-      <Button type="submit" disabled={pending} className="w-full">
-        {t.submit}
+      <Button type="submit" disabled={pending || !turnstile.ready} className="w-full">
+        {turnstile.ready ? t.submit : messages.turnstile.checking}
       </Button>
     </form>
   );

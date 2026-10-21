@@ -8,10 +8,12 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
 import { reviewPolicy } from '../moderation/policy';
+import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
 import { cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { LISTING_OUTBOX, recordChange } from './events';
+import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
 import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
 import { MAX_PRICE_MINOR, parseAmount } from './price';
 
@@ -316,8 +318,21 @@ async function prepare(
 // Operations
 // ---------------------------------------------------------------------------
 
-export type Refusal = Denied | 'not_found' | 'not_allowed' | 'category_not_postable' | 'business_only';
+export type Refusal = Denied | 'not_found' | 'not_allowed' | 'category_not_postable' | 'business_only' | 'new_account_limit';
 export type Refused = { ok: false; reason: Refusal };
+
+/**
+ * How many of the user's listings (or events) were first published in the 24 hours before `now`.
+ * Deleted ones count too, so deleting and posting again doesn't help; a renewal keeps its old
+ * published_at and doesn't count.
+ */
+export async function publishedInLastDay(db: Queryable, userId: string, now: Date, kind: 'listings' | 'events'): Promise<number> {
+  const [row] = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM listings l
+    WHERE l.user_id = ${userId} AND l.published_at > ${new Date(now.getTime() - 86_400_000).toISOString()}::timestamptz
+      AND ${kind === 'events' ? sql`EXISTS` : sql`NOT EXISTS`} (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`);
+  return row?.n ?? 0;
+}
 
 /**
  * What the events module adds to a listing (src/modules/events/). Listings in the events section
@@ -507,7 +522,8 @@ export async function saveListing(
   const catalog = await cachedCatalog(db);
   const now = opts.now ?? new Date();
   return db.transaction(async (tx) => {
-    const allowed = canPostListing(await loadActor(tx, opts.userId));
+    const actor = await loadActor(tx, opts.userId);
+    const allowed = canPostListing(actor);
     if (!allowed.ok) return allowed;
     const listing = await lockOwn(tx, opts.userId, opts.listingId);
     if (!listing) return { ok: false, reason: 'not_found' };
@@ -518,6 +534,17 @@ export async function saveListing(
     const goingOut = opts.intent === 'publish' && (listing.status === 'draft' || listing.status === 'rejected');
     if (goingOut && (!isPostable(catalog, category.id) || category.businessOnly)) {
       return { ok: false, reason: 'category_not_postable' };
+    }
+    // Accounts in their first 7 days publish only a few listings a day (events count apart, in
+    // src/modules/events/events.ts)
+    if (
+      goingOut &&
+      listing.status === 'draft' &&
+      !opts.extension &&
+      isNewAccount(actor!.createdAt, now) &&
+      (await publishedInLastDay(tx, opts.userId, now, 'listings')) >= NEW_ACCOUNT_LISTINGS_PER_DAY
+    ) {
+      return { ok: false, reason: 'new_account_limit' };
     }
 
     const mode = listing.status === 'draft' && !goingOut ? 'draft' : 'publish';

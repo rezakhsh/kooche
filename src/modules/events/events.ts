@@ -1,10 +1,11 @@
 import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
-import { eventDates, eventDetails, listings, locations, outboxEvents } from '../../db/schema';
+import { eventDates, eventDetails, listings, locations, outboxEvents, users } from '../../db/schema';
 import { cachedCatalog, isEventCategory } from '../listings/catalog';
 import { recordChange } from '../listings/events';
 import {
   createDraft,
+  publishedInLastDay,
   saveListing,
   type FieldErrors,
   type ListingExtension,
@@ -12,6 +13,7 @@ import {
   type Refused,
   type SaveResult,
 } from '../listings/listings';
+import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor } from '../users/permissions';
 import { EVENT_PRICE_TYPES, prepareEventFields, type EventDate, type EventDetailsValues, type EventInput } from './input';
 import { isTimeZone } from './time';
@@ -38,6 +40,8 @@ export const EVENT_OUTBOX = {
 
 /** A new account may publish this many events in 24 hours */
 export const EVENTS_PER_DAY = 5;
+/** The same for accounts in their first 7 days (src/modules/users/new-account.ts) */
+export const NEW_ACCOUNT_EVENTS_PER_DAY = 2;
 /** Until the event has a place, its times are read in this zone (both open countries use it) */
 export const DEFAULT_TIME_ZONE = 'Europe/Berlin';
 
@@ -146,15 +150,6 @@ function eventExtension(input: EventInput, listingInput: ListingInput): ListingE
 
 export type SaveEventResult = SaveResult | { ok: false; reason: 'too_many_events' };
 
-/** Events this user published in the last 24 hours */
-async function publishedToday(db: Queryable, userId: string, now: Date): Promise<number> {
-  const [row] = await db.execute<{ n: number }>(sql`
-    SELECT count(*)::int AS n FROM listings l
-    WHERE l.user_id = ${userId} AND l.published_at > ${new Date(now.getTime() - 86_400_000).toISOString()}::timestamptz
-      AND EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`);
-  return row?.n ?? 0;
-}
-
 /**
  * Saves the event form: the listing fields through the listings module, the event's own fields
  * with them. An event that has ended can't be edited; "post again" copies it instead.
@@ -170,8 +165,13 @@ export async function saveEvent(
     .where(and(eq(listings.id, opts.listingId), eq(listings.userId, opts.userId), ne(listings.status, 'deleted')));
   if (!current) return { ok: false, reason: 'not_found' };
   if (current.status === 'expired') return { ok: false, reason: 'not_allowed' };
-  if (opts.intent === 'publish' && current.status === 'draft' && (await publishedToday(db, opts.userId, now)) >= EVENTS_PER_DAY) {
-    return { ok: false, reason: 'too_many_events' };
+  if (opts.intent === 'publish' && current.status === 'draft') {
+    const [user] = await db.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, opts.userId));
+    const fresh = !!user && isNewAccount(user.createdAt, now);
+    const published = await publishedInLastDay(db, opts.userId, now, 'events');
+    if (published >= (fresh ? NEW_ACCOUNT_EVENTS_PER_DAY : EVENTS_PER_DAY)) {
+      return { ok: false, reason: fresh ? 'new_account_limit' : 'too_many_events' };
+    }
   }
   return saveListing(db, {
     userId: opts.userId,

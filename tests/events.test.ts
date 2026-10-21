@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { writeWeeklyDigests } from '../src/modules/events/digest';
-import { cancelEvent, copyEvent, createEventDraft, saveEvent, EVENTS_PER_DAY } from '../src/modules/events/events';
+import { cancelEvent, copyEvent, createEventDraft, saveEvent, EVENTS_PER_DAY, NEW_ACCOUNT_EVENTS_PER_DAY } from '../src/modules/events/events';
 import { eventInputSchema, type EventInput } from '../src/modules/events/input';
 import { cityBySlug, myEvents, upcomingEvents } from '../src/modules/events/queries';
 import {
@@ -131,13 +131,32 @@ describe('who may post events', () => {
   });
 
   it(`at most ${EVENTS_PER_DAY} new events a day per account`, async () => {
-    const u = await user();
+    const u = await user({ createdAt: new Date(NOW.getTime() - 30 * DAY) });
     for (let i = 0; i < EVENTS_PER_DAY; i++) await publishEvent(u.id);
     const id = await draftFor(u.id);
     expect(await saveEvent(appDb, { userId: u.id, listingId: id, input: listingIn(), event: eventIn(), intent: 'publish', now: NOW })).toEqual({
       ok: false,
       reason: 'too_many_events',
     });
+  });
+
+  it(`accounts in their first 7 days publish at most ${NEW_ACCOUNT_EVENTS_PER_DAY} events a day, listings apart`, async () => {
+    const u = await user({ createdAt: new Date(NOW.getTime() - DAY) });
+    for (let i = 0; i < NEW_ACCOUNT_EVENTS_PER_DAY; i++) await publishEvent(u.id);
+    const id = await draftFor(u.id);
+    const publish = (now: Date) => saveEvent(appDb, { userId: u.id, listingId: id, input: listingIn(), event: eventIn(), intent: 'publish', now });
+    expect(await publish(NOW)).toEqual({ ok: false, reason: 'new_account_limit' });
+    expect((await listing(id)).status).toBe('draft');
+    // A deleted event still counts
+    const [first] = await db.select({ id: schema.listings.id }).from(schema.listings).where(and(eq(schema.listings.userId, u.id), eq(schema.listings.status, 'active')));
+    expect(await changeListingStatus(appDb, { userId: u.id, listingId: first!.id, action: 'delete' })).toMatchObject({ ok: true, status: 'deleted' });
+    expect(await publish(NOW)).toEqual({ ok: false, reason: 'new_account_limit' });
+    // At 7 days old the normal limit applies, even within the same 24 hours
+    const born = new Date(NOW.getTime() - 7 * DAY + 3_600_000);
+    const v = await user({ createdAt: born });
+    for (let i = 0; i < NEW_ACCOUNT_EVENTS_PER_DAY; i++) await publishEvent(v.id);
+    await expect(publishEvent(v.id)).rejects.toThrow('new_account_limit');
+    await expect(publishEvent(v.id, { now: new Date(born.getTime() + 7 * DAY) })).resolves.toBeTruthy();
   });
 
   it('only free, a ticket price or "at the door"; no negotiating or exchange', async () => {

@@ -7,7 +7,10 @@ import { appDb } from '../../db/drizzle';
 import { webEnv } from '../../lib/env';
 import type { FormState } from '../../lib/form';
 import { normalizePersian } from '../../lib/normalize-persian';
+import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
+import { isLoginHuman, markLoginHuman } from '../../modules/security/login-human';
+import { checkTurnstile } from '../../modules/security/server';
 import { authErrorCode, rateLimitMessage } from '../../modules/users/errors';
 import { loadActor } from '../../modules/users/permissions';
 import { auth, safeNext } from '../../modules/users/server';
@@ -51,6 +54,10 @@ async function sendCode(email: string): Promise<string | null> {
 export async function requestCode(_: FormState, form: FormData): Promise<FormState> {
   const email = emailSchema.safeParse(String(form.get('email') ?? '').trim().toLowerCase());
   if (!email.success) return { error: messages.login.invalidEmail };
+  // Every code request needs a person in front of the form (Turnstile); "send again" leans on it
+  const notHuman = await checkTurnstile(form, 'login');
+  if (notHuman) return { error: notHuman };
+  await markLoginHuman(valkey(), email.data);
 
   const error = await sendCode(email.data);
   if (error) return { error };
@@ -63,6 +70,8 @@ export async function requestCode(_: FormState, form: FormData): Promise<FormSta
 export async function resendCode(_: FormState): Promise<FormState> {
   const email = (await cookies()).get(EMAIL_COOKIE)?.value;
   if (!email) return { error: messages.code.noEmail };
+  // The cookie is not proof: only an email that passed Turnstile in the last 10 minutes
+  if (!(await isLoginHuman(valkey(), email))) return { error: messages.code.resendExpired };
   const error = await sendCode(email);
   return error ? { error } : { notice: messages.code.resent };
 }

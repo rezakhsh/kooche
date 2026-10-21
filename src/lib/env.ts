@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TEST_SECRETS } from '../modules/security/turnstile';
 
 // Configuration comes only from the environment (CLAUDE.md). Each process validates the variables
 // it uses on first access, at runtime, so `next build` and the image build need no secrets.
@@ -21,6 +22,10 @@ const s3Fields = {
 };
 const hasS3 = (e: { S3_ENDPOINT?: string; S3_BUCKET_MEDIA?: string; S3_ACCESS_KEY_ID?: string; S3_SECRET_ACCESS_KEY?: string }) =>
   !!(e.S3_ENDPOINT && e.S3_BUCKET_MEDIA && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY);
+function isLocal(url: string): boolean {
+  const host = new URL(url).hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost') || host.endsWith('.test');
+}
 const hex = z.string().regex(/^([0-9a-f]{2}){16,}$/, 'hex, at least 16 bytes');
 
 const webSchema = z.object({
@@ -53,6 +58,11 @@ const webSchema = z.object({
   IMAGE_URL: optional(z.url({ protocol: /^https?$/ })),
   IMGPROXY_KEY: optional(hex),
   IMGPROXY_SALT: optional(hex),
+  // Cloudflare Turnstile on sign-in and publishing (one widget per environment). The site key is
+  // public (it goes into the page); the secret only checks tokens with siteverify. Unset in
+  // development: no widget and no check.
+  TURNSTILE_SITE_KEY: optional(z.string().regex(/^[0-9a-zA-Z_-]{10,100}$/)),
+  TURNSTILE_SECRET_KEY: optional(z.string().min(10)),
 })
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
@@ -61,6 +71,15 @@ const webSchema = z.object({
   .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.IMAGE_URL && e.IMGPROXY_KEY && e.IMGPROXY_SALT), {
     message: 'S3_*, IMAGE_URL, IMGPROXY_KEY and IMGPROXY_SALT are required in production',
     path: ['S3_ENDPOINT'],
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || (e.TURNSTILE_SITE_KEY && e.TURNSTILE_SECRET_KEY), {
+    message: 'TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are required in production',
+    path: ['TURNSTILE_SECRET_KEY'],
+  })
+  // Cloudflare's test secrets accept anything; only a local build may use them
+  .refine((e) => !e.TURNSTILE_SECRET_KEY || !TEST_SECRETS.includes(e.TURNSTILE_SECRET_KEY as never) || isLocal(e.APP_URL), {
+    message: 'a Turnstile test secret is only allowed with a local APP_URL',
+    path: ['TURNSTILE_SECRET_KEY'],
   });
 
 const workerSchema = z.object({

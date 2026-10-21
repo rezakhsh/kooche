@@ -6,7 +6,8 @@ import { db, publicToken } from './db';
 // Committed fixtures for the posting tests. The listing functions run their own transactions as
 // classifieds_app or classifieds_worker, so these rows are real (and unique per test).
 
-export async function user(opts: { verified?: boolean; name?: string } = {}) {
+/** `createdAt`: the account's age matters for the new-account limits (first 7 days) */
+export async function user(opts: { verified?: boolean; name?: string; createdAt?: Date } = {}) {
   const token = publicToken();
   const name = opts.name ?? 'فروشنده آزمایشی';
   const [u] = await db
@@ -16,6 +17,7 @@ export async function user(opts: { verified?: boolean; name?: string } = {}) {
       email: `seller-${token}@example.test`,
       displayName: name,
       displayNameNormalized: normalizePersian(name),
+      ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
       ...(opts.verified === false
         ? {}
         : { phoneE164: `+4917${Math.floor(10_000_000 + Math.random() * 89_999_999)}`, phoneVerifiedAt: new Date(), phoneVerificationMethod: 'telegram' as const }),

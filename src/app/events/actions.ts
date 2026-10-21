@@ -6,7 +6,7 @@ import { appDb } from '../../db/drizzle';
 import { hit } from '../../lib/rate-limit';
 import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
-import { cancelEvent, copyEvent, createEventDraft, saveEvent } from '../../modules/events/events';
+import { NEW_ACCOUNT_EVENTS_PER_DAY, cancelEvent, copyEvent, createEventDraft, saveEvent } from '../../modules/events/events';
 import { eventInputSchema } from '../../modules/events/input';
 import { ownEvent } from '../../modules/events/queries';
 import { eventPath } from '../../modules/events/slug';
@@ -15,6 +15,7 @@ import { LISTING_LIMITS } from '../../modules/listings/limits';
 import { changeDraftCategory, changeListingStatus, listingInputSchema, type FieldErrors } from '../../modules/listings/listings';
 import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
+import { checkTurnstile } from '../../modules/security/server';
 import { requireSession } from '../../modules/users/server';
 import { chosenCountry } from '../country-choice';
 
@@ -38,6 +39,8 @@ function refusal(reason: string): string {
       return messages.post.categoryNotPostable;
     case 'too_many_events':
       return messages.events.form.tooManyEvents;
+    case 'new_account_limit':
+      return messages.events.form.newAccountEvents(NEW_ACCOUNT_EVENTS_PER_DAY);
     default:
       return messages.genericError;
   }
@@ -77,6 +80,12 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   const country = (listingCountry: string | null) =>
     postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: open.map((c) => c.code) });
   if (!listingId && !country(null)) return { error: messages.form.chooseCountryFirst };
+  // Publishing needs Turnstile, checked before anything is written (docs/setup.md, "Bot protection")
+  const publishing = form.get('intent') === 'publish';
+  if (publishing && !listingId) {
+    const notHuman = await checkTurnstile(form, 'publish-event');
+    if (notHuman) return { error: notHuman };
+  }
   if (!listingId) {
     const draft = await startDraft(user.id, form.get('categoryId'));
     if (!draft.ok) return { error: draft.error, errors: form.get('categoryId') ? undefined : { categoryId: 'required' } };
@@ -86,6 +95,10 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   const db = appDb();
   const own = await ownEvent(db, user.id, listingId);
   if (!own) return { error: messages.genericError, listingId: created };
+  if (publishing && !created && (own.listing.status === 'draft' || own.listing.status === 'rejected')) {
+    const notHuman = await checkTurnstile(form, 'publish-event');
+    if (notHuman) return { error: notHuman };
+  }
   const countryCode = country(own.listing.countryCode);
   if (!countryCode) return { error: messages.form.chooseCountryFirst, listingId: created };
   const sent = (str(form, 'countryCode') ?? '').toUpperCase();
@@ -132,7 +145,7 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   });
   if (!listingInput.success || !eventInput.success) return { error: messages.form.fixErrors, listingId: created };
 
-  const intent = form.get('intent') === 'publish' ? 'publish' : 'save';
+  const intent = publishing ? 'publish' : 'save';
   const r = await saveEvent(db, { userId: user.id, listingId, input: listingInput.data, event: eventInput.data, intent });
   if (!r.ok) {
     if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created };

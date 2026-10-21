@@ -10,6 +10,8 @@ export type Actor = {
   id: string;
   status: 'active' | 'deactivated' | 'deleted';
   phoneVerifiedAt: Date | null;
+  /** For the new-account limits (./new-account.ts) */
+  createdAt: Date;
 };
 
 export type Denied = 'sign_in_required' | 'account_disabled' | 'phone_required';
@@ -18,7 +20,7 @@ export type Decision = { ok: true } | { ok: false; reason: Denied };
 export async function loadActor(db: Queryable, userId: string | null | undefined): Promise<Actor | null> {
   if (!userId) return null;
   const [actor] = await db
-    .select({ id: users.id, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt })
+    .select({ id: users.id, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, userId));
   return actor ?? null;

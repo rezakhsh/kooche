@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { COUNTRY_COOKIE } from './app/country-cookie-name';
-import { webEnv } from './lib/env';
+import { webEnv, type WebEnv } from './lib/env';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
 // request's CSP header and puts it on its own scripts. The other security headers are static and
@@ -12,6 +12,8 @@ const NOT_BROWSE = new Set([
   // Legal and help pages (Oct 21, 2026)
   ...['contact', 'help', 'impressum', 'privacy', 'safety', 'terms'],
 ]);
+/** Cloudflare Turnstile (src/components/turnstile.tsx) */
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
 
 /** The country slug of a browse page (/germany, /germany/berlin/cars …), else null */
@@ -42,29 +44,37 @@ export function browseCacheControl(
   return (method !== 'GET' && method !== 'HEAD') || personal || search.has('near') || search.has('postal') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
 }
 
-export function proxy(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const dev = process.env.NODE_ENV === 'development';
-  const env = webEnv();
+/** The Content-Security-Policy for one response */
+export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_URL' | 'S3_ENDPOINT'>, dev = false): string {
   // Photos come from imgproxy; the photo editor uploads straight to R2 (presigned PUT)
   const imageOrigin = env.IMAGE_URL ? ` ${new URL(env.IMAGE_URL).origin}` : '';
   const uploadOrigin = env.S3_ENDPOINT ? ` ${new URL(env.S3_ENDPOINT).origin}` : '';
 
-  const csp = [
+  return [
     "default-src 'self'",
     // 'strict-dynamic': scripts loaded by a nonced script are trusted, nothing else is.
-    // React's dev tooling needs eval, so only in development.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
+    // React's dev tooling needs eval, so only in development. Turnstile's host is for browsers
+    // without 'strict-dynamic' (the others ignore host entries and trust our script that adds it).
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE_ORIGIN}${dev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'nonce-${nonce}'`,
     `img-src 'self' blob: data:${imageOrigin}`,
     "font-src 'self'",
     `connect-src 'self'${uploadOrigin}`,
+    // Turnstile's widget on sign-in and publishing. On every page, not just those: a page reached
+    // by an in-app link keeps the CSP of the page the visit started on.
+    `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     ...(dev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');
+}
+
+export function proxy(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const env = webEnv();
+  const csp = contentSecurityPolicy(nonce, env, process.env.NODE_ENV === 'development');
 
   // A browse page shows its own country in the header, whatever was chosen before (see above)
   const country = browseCountry(request.nextUrl.pathname);

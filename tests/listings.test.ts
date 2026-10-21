@@ -12,6 +12,7 @@ import {
   saveListing,
   type ListingInput,
 } from '../src/modules/listings/listings';
+import { NEW_ACCOUNT_LISTINGS_PER_DAY } from '../src/modules/listings/limits';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
 import { categoryBySlug, city, events, listing, outbox, user } from './listings-fixtures';
@@ -89,6 +90,43 @@ describe('who may post', () => {
     expect(l.publicToken).toMatch(/^[0-9a-hjkmnp-tv-z]{10}$/);
     expect((await events(id)).map((e) => e.eventType)).toEqual(['created']);
     expect(await outbox(id)).toEqual(['listing.created']);
+  });
+});
+
+describe('accounts in their first 7 days', () => {
+  const NOW = new Date('2026-10-21T12:00:00Z');
+  const publishAt = async (userId: string, now: Date, id?: string) =>
+    saveListing(appDb, { userId, listingId: id ?? (await draftFor(userId)), input: await input(), intent: 'publish', now });
+
+  it(`publish at most ${NEW_ACCOUNT_LISTINGS_PER_DAY} listings in 24 hours; deleting one doesn't help`, async () => {
+    const u = await user({ createdAt: new Date(NOW.getTime() - DAY) });
+    const ids: string[] = [];
+    for (let i = 0; i < NEW_ACCOUNT_LISTINGS_PER_DAY; i++) {
+      const id = await draftFor(u.id);
+      expect(await publishAt(u.id, NOW, id)).toMatchObject({ ok: true, status: 'active' });
+      ids.push(id);
+    }
+    const next = await draftFor(u.id);
+    expect(await publishAt(u.id, NOW, next)).toEqual({ ok: false, reason: 'new_account_limit' });
+    expect((await listing(next)).status).toBe('draft');
+    // Saving still works, and so do edits of the live ones
+    expect(await saveListing(appDb, { userId: u.id, listingId: next, input: await input({ title: 'پیش‌نویس' }), intent: 'save', now: NOW })).toMatchObject({ ok: true });
+    expect(await saveListing(appDb, { userId: u.id, listingId: ids[0]!, input: await input({ title: 'ویرایش' }), intent: 'save', now: NOW })).toMatchObject({ ok: true });
+    expect(await changeListingStatus(appDb, { userId: u.id, listingId: ids[0]!, action: 'delete' })).toMatchObject({ ok: true, status: 'deleted' });
+    expect(await publishAt(u.id, NOW, next)).toEqual({ ok: false, reason: 'new_account_limit' });
+    // 24 hours later the next ones go out
+    expect(await publishAt(u.id, new Date(NOW.getTime() + DAY + 60_000), next)).toMatchObject({ ok: true, status: 'active' });
+  });
+
+  it('the limit ends when the account is 7 days old, and never applies to older accounts', async () => {
+    const born = new Date(NOW.getTime() - 7 * DAY + 3_600_000);
+    const u = await user({ createdAt: born });
+    for (let i = 0; i < NEW_ACCOUNT_LISTINGS_PER_DAY; i++) expect(await publishAt(u.id, NOW)).toMatchObject({ ok: true });
+    expect(await publishAt(u.id, NOW)).toEqual({ ok: false, reason: 'new_account_limit' });
+    expect(await publishAt(u.id, new Date(born.getTime() + 7 * DAY))).toMatchObject({ ok: true, status: 'active' });
+
+    const old = await user({ createdAt: new Date(NOW.getTime() - 8 * DAY) });
+    for (let i = 0; i < NEW_ACCOUNT_LISTINGS_PER_DAY + 2; i++) expect(await publishAt(old.id, NOW)).toMatchObject({ ok: true, status: 'active' });
   });
 });
 

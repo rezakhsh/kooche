@@ -9,6 +9,7 @@ import { placeLabel, placeOfListing, placeValue, type Place } from '../../../mod
 import { postingCountry } from '../../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
 import { storage } from '../../../modules/media/server';
+import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
 
@@ -76,6 +77,7 @@ export async function editorData(
       // Only a listing that has no country yet may still take another one
       countryChangeable: !listing?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
+      turnstileSiteKey: turnstileSiteKey(),
       values: {
         kind: listing?.kind ?? 'offer',
         title: listing?.title ?? '',
