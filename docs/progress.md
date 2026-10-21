@@ -513,3 +513,22 @@ Checked live on https://staging.peydoo.com:
 Not done:
 - Avatars (the `user.erased` handler that deletes the file has nothing to delete yet).
 - Organization pages: listings posted for an organization stay off the personal seller page.
+
+## Oct 21, 2026: legal and help pages (roadmap step 2)
+
+Plan approved by the owner (Oct 21, 2026). Operator details given by the owner: private person Reza Khodamehri Sheijani, Cornelius-Fredericks-Str. 14, 13351 Berlin, `support@peydoo.com`, no VAT ID, no phone. No English version for now (not legally needed for Germany and Austria; add `legal-en.ts` with the same section ids when a non-German-speaking country opens, with the lawyer).
+
+Done (branch `legal`, details in `docs/setup.md`, "Legal pages"):
+- **Pages:** `/terms` and `/terms/de`, `/privacy` and `/privacy/de` (German binding, `lang="de" dir="ltr"`, hreflang alternates, contents list, anchors `#s5-2`), `/impressum` (§5 DDG block in German, Persian around it), `/safety` (quotes the chat warnings from `messages.chat.risk`), `/help` (FAQ in `<details>`, no JavaScript), `/contact` (the email, DSA art. 16 notice elements, art. 11/12 contact). Every legal page shows a draft banner until a lawyer has checked it (`draft: true`).
+- **Terms:** 13 numbered sections; prohibited items in 5.1–5.9 match `src/modules/moderation/terms.ts` and the categories left out in `seed/categories.ts`.
+- **Privacy:** every service (Hetzner, Cloudflare incl. R2 and Email Routing, Amazon SES, Telegram as a separate controller, self-hosted n8n), the periods from `docs/schema.md` section 14 plus backups (up to 6 months), the six cookies (all necessary, no banner), the Berlin supervisory authority.
+- **policy_ground with real sections:** banned terms → `terms-5.2` (weapons), `terms-5.3` (drugs), `terms-5.4` (money transfer); duplicate photos → `terms-4.3`; event links → `terms-4.6`. Statements name the section («بند ۵.۴ شرایط استفاده») and the edit page links to it. Older rows keep `terms-prohibited-items` (no link). No migration.
+- **Links:** footer («پیدو» nav), a terms notice under the sign-in form and above «انتشار آگهی» (listings and events), privacy link on the phone page, «نکات ایمنی» in the chat tip.
+- **Bundle:** the long texts are `pages` in `fa.ts`, separate from `messages`, so the 18 client components that import `messages` don't ship them (checked in the build output).
+- **Tests:** 23 new (407 in total), all passing: fa/de sections identical and numbered, operator filled, every cited section exists, groups map to 5.2–5.4, statements name the section, new paths not browse pages and reserved slugs; the banned-term and event-link tests check the new grounds.
+- **Checked in headless Chromium** (production build behind TLS, scratch PostgreSQL and Valkey), phone 390×844 and computer 1280×800: 129 checks passed: all eight pages 200, not shared at the edge, no country cookie, no sideways scroll; German pages LTR; operator, processors, cookies and periods present; FAQ opens; footer links; sign-in, listing form, phone page and chat links; a listing taken down by the real check shows and links section 5.4. No CSP or console errors.
+
+For the owner:
+- **support@peydoo.com:** turn on Cloudflare Email Routing (the token lacks the right): Email → Email Routing → `support` → forward to reza.khodamehri@gmail.com, accept the suggested MX/SPF records, click Cloudflare's verification email. Test before launch.
+- **Lawyer before launch:** all three texts, especially Telegram (art. 49), the 18+ age, §12 changes, §13 dispute clause, and whether Austria needs anything extra.
+- Add the SMS provider to the privacy policy when one is bought.

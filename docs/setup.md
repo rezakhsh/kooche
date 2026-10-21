@@ -447,6 +447,17 @@ Sitemaps have no nonce and send `public, max-age=3600`; `robots.txt` gets Next.j
 
 **Speed** (`scripts/generate-listings.ts` and `scripts/explain-browse.ts`, scratch database only, never staging): with 5,000 and with 50,000 generated listings (85% active, valid attributes from the real definitions, weighted by city size and category), the country, city, category and city-plus-filter pages ran in under 1 ms on their partial indexes; attribute filters across a whole country used the GIN index (4–7 ms at 50,000); postal code only went from 17 ms to 0.05 ms with the new partial index (migration 0012); a 10–50 km radius by distance took 3 ms at 5,000 and about 20 ms at 50,000. Two known slow spots at 50,000: price order over all categories of a country (50 ms; within a category 2 ms), and the category and city counts (30 ms, hence the one-minute cache). Neither needs an index at today's volume; add an expression index for the price order if it is ever used much.
 
+## Legal pages
+
+Built Oct 21, 2026 (roadmap step 2, `docs/progress.md`).
+
+- **Texts:** Persian in `src/messages/fa.ts` under `pages` (a separate export, so client bundles don't carry them), the binding German terms and privacy policy in `src/messages/legal-de.ts`. Both share `LegalDoc` (`legal-types.ts`) and the same section ids; `tests/legal.test.ts` fails if they drift. Rendered by `src/components/legal-doc.tsx`. Change a fact (period, service, cookie) in both languages together with the code.
+- **Operator:** `src/messages/operator.ts` (Impressum, controller, terms §1.1). Public, the same in every environment and part of legal text, so a reviewed commit rather than `.env`.
+- **Contact address:** `support@peydoo.com` through Cloudflare Email Routing to the owner's inbox (set up by the owner in the dashboard; the API token has no Email Routing rights). Its MX and SPF are on the apex; SES keeps `bounce.peydoo.com`.
+- **Moderation grounds:** `policy_ground` is `terms-<section>` (`policyGround()`, `groundSection()` in `src/modules/moderation/terms.ts`). A new automatic check names a section that exists in the terms.
+- **Drafts:** `draft: true` shows the banner. Set it to false once the lawyer has approved, and update `updated`.
+- The page paths are in the proxy's `NOT_BROWSE` and in `RESERVED_SLUGS`.
+
 ## Brand and design
 
 Approved by the owner on Oct 17, 2026 (plan: https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK).
