@@ -143,7 +143,7 @@ describe('cache headers of browse pages', () => {
   });
 
   it('leaves other pages alone', () => {
-    for (const p of ['/', '/my/favorites', '/account', '/v/x/abc', '/chat', '/login', '/sitemaps/germany.xml', '/icon.png', '/a/b/c/d']) {
+    for (const p of ['/', '/my/favorites', '/account', '/v/x/abc', '/u/abc1234567', '/account/deleted', '/chat', '/login', '/sitemaps/germany.xml', '/icon.png', '/a/b/c/d']) {
       expect(browseCacheControl(p, q(), none), p).toBeNull();
     }
   });
