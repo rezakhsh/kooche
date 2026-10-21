@@ -12,7 +12,8 @@ import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatAgo, formatDate, formatMonth } from '../../../../lib/format';
 import { messages } from '../../../../messages/fa';
-import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency, type AttributeDef, type Currency } from '../../../../modules/listings/catalog';
+import { attributeText } from '../../../../modules/listings/attribute-text';
+import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency } from '../../../../modules/listings/catalog';
 import { placeParts } from '../../../../modules/listings/place-text';
 import { amountInputValue, formatPrice } from '../../../../modules/listings/price';
 import { isEventListing } from '../../../../modules/events/queries';
@@ -55,34 +56,6 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     robots: l.status === 'active' ? undefined : { index: false },
     openGraph: { title: l.title, description: l.description.slice(0, 160), images: cover ? [cover] : undefined, locale: 'fa_IR', type: 'website' },
   };
-}
-
-function attributeText(def: AttributeDef, value: unknown, currency: Currency | undefined): string | null {
-  if (value === undefined || value === null) return null;
-  if (def.validation.money) {
-    return typeof value === 'number' && currency ? formatPrice(value, currency.code, currency.minorUnit) : null;
-  }
-  const option = (v: unknown) => def.options.find((o) => o.value === v)?.labelFa ?? String(v);
-  switch (def.type) {
-    case 'select':
-      return option(value);
-    case 'multi_select':
-      return Array.isArray(value) ? value.map(option).join('، ') : null;
-    case 'boolean':
-      return value ? messages.form.yes : messages.form.no;
-    case 'number':
-      return `${Number(value).toLocaleString('fa-IR')}${def.unitFa ? ` ${def.unitFa}` : ''}`;
-    case 'date': {
-      const [y, m, d] = String(value).split('-').map(Number);
-      if (!y || !m) return null;
-      // A day in the Jalali calendar; a month (TÜV) as the Gregorian month it is
-      return d
-        ? formatDate(new Date(Date.UTC(y, m - 1, d)), 'UTC')
-        : `${messages.form.months[m - 1] ?? m} ${y.toLocaleString('fa-IR', { useGrouping: false })}`;
-    }
-    default:
-      return String(value);
-  }
 }
 
 const CONDITION: Record<string, string> = {

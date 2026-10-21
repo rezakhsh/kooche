@@ -316,6 +316,7 @@ export const messages = {
     notAllowed: 'این کار برای این آگهی ممکن نیست.',
   },
   listing: {
+    more: '…',
     breadcrumbHome: 'خانه',
     price: 'قیمت',
     location: 'محل',

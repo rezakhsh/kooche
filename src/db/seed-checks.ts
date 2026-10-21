@@ -14,7 +14,7 @@ export type SeedCheck = { name: string; query: ReturnType<typeof sql> };
 const textList = (xs: string[]) => sql.join(xs.map((x) => sql`${x}::text`), sql`, `);
 
 /** First path segments the app uses itself, so no country may take them as its slug */
-export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search', 'e', 'events', 'chat', 'favorites', 'sitemaps'];
+export const RESERVED_SLUGS = ['account', 'api', 'health', 'login', 'my', 'new', 'v', 'b', 'admin', 'search', 'e', 'events', 'chat', 'favorites', 'sitemaps', 'u'];
 
 export const SEED_CHECKS: SeedCheck[] = [
   {

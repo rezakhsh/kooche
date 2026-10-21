@@ -4,20 +4,16 @@ import Link from 'next/link';
 import { cache } from 'react';
 import { FavoriteButton } from '../../../components/favorite-button';
 import { categoryIcon, Icon } from '../../../components/icons';
-import { ListingCard, type CardData } from '../../../components/listing-card';
+import { ListingCard } from '../../../components/listing-card';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
-import { formatAgo } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
+import { cardOf } from '../../../modules/listings/card';
 import { savedAmong } from '../../../modules/listings/favorites';
-import { placeParts } from '../../../modules/listings/place-text';
-import { formatPrice } from '../../../modules/listings/price';
-import { listingPath } from '../../../modules/listings/slug';
-import { imageUrl } from '../../../modules/media/server';
 import { currentSession } from '../../../modules/users/server';
 import { searchListings } from '../../../modules/search';
-import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP, type BrowseItem } from '../../../modules/search/browse';
+import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP } from '../../../modules/search/browse';
 import { browseQuery, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { citiesOf } from '../../../modules/search/places';
@@ -84,30 +80,6 @@ export async function browseMetadata(b: Browse): Promise<Metadata> {
   };
 }
 
-function cardOf(b: Browse, l: BrowseItem, timeZone: string): CardData {
-  const t = messages.country;
-  const currency = l.currency ? b.catalog.currencies.get(l.currency) : undefined;
-  const noPrice = l.categoryId ? b.catalog.byId.get(l.categoryId)?.priceMode === 'none' : false;
-  const price =
-    l.priceMinor !== null && currency
-      ? `${formatPrice(l.priceMinor, currency.code, currency.minorUnit)}${l.priceType === 'negotiable' ? ` (${messages.priceType.negotiable})` : ''}`
-      : noPrice
-        ? null
-        : messages.priceType[l.priceType];
-  const place = placeParts({ ...l, cityLocal: null }, t.near);
-  return {
-    href: listingPath(l.title, l.publicToken),
-    title: l.title,
-    price,
-    place: place.local ? { text: l.placeName!, latin: true } : place.city ? { text: place.city, latin: false } : null,
-    ago: l.publishedAt ? formatAgo(l.publishedAt, timeZone) : null,
-    cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
-    photoCount: l.photoCount,
-    wanted: l.kind === 'wanted',
-    distance: l.distanceKm !== null ? messages.browse.distance(l.distanceKm) : null,
-  };
-}
-
 /** What a category link keeps from the current page: the place, shipping, the layout */
 function carried(state: BrowseState): BrowseState {
   return { ...EMPTY_STATE, near: state.near, postal: state.postal, ship: state.ship, view: state.view, sort: state.sort === 'distance' ? 'distance' : 'newest' };
@@ -142,7 +114,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const eventsHref = eventsPath(country.slug, city?.slug ?? null);
   const withState = (s: Partial<BrowseState>) => `${b.path}${browseQuery({ ...state, after: null, ...s }, ctx.minorUnit)}`;
 
-  const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: cardOf(b, l, env.APP_TIME_ZONE) }));
+  const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: cardOf(b.catalog, l, env.APP_TIME_ZONE) }));
   const filtered = isFiltered(state);
   const filterCount = filterChips(b).length;
   const sorts = SORTS.filter((s) => (s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));

@@ -44,6 +44,7 @@ export type BrowseItem = {
   priceType: (typeof listings.$inferSelect)['priceType'];
   priceMinor: number | null;
   currency: string | null;
+  countryCode: string | null;
   categoryId: string | null;
   postalCode: string | null;
   placeName: string | null;
@@ -51,6 +52,8 @@ export type BrowseItem = {
   cityFa: string | null;
   publishedAt: Date | null;
   kind: (typeof listings.$inferSelect)['kind'];
+  /** The listing's field values, for the card facts */
+  attributes: Record<string, unknown>;
   photoCount: number;
   coverKey: string | null;
   /** Whole kilometres to the listing's stored (rounded) point, when a radius is on */
@@ -172,6 +175,29 @@ function conditions(f: SearchFilters): SQL[] {
 }
 
 /**
+ * What a listing card needs, selected from `listings` left-joined to its city (`locations`). The
+ * seller page (src/modules/users/profile.ts) selects the same columns.
+ */
+export const cardColumns = {
+  id: listings.id,
+  publicToken: listings.publicToken,
+  title: listings.title,
+  priceType: listings.priceType,
+  priceMinor: listings.priceMinor,
+  currency: listings.currency,
+  countryCode: listings.countryCode,
+  categoryId: listings.categoryId,
+  postalCode: listings.postalCode,
+  placeName: listings.placeName,
+  district: listings.district,
+  cityFa: locations.nameFa,
+  publishedAt: listings.publishedAt,
+  kind: listings.kind,
+  attributes: sql<Record<string, unknown>>`${listings.attributes}`,
+  photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
+};
+
+/**
  * One page of active listings matching the filters, in the asked order, after the cursor.
  * `next` is the cursor of the following page, or null on the last one.
  */
@@ -188,22 +214,9 @@ export async function browseListings(db: Queryable, f: SearchFilters, cursor: st
 
   const rows = await db
     .select({
-      id: listings.id,
-      publicToken: listings.publicToken,
-      title: listings.title,
-      priceType: listings.priceType,
-      priceMinor: listings.priceMinor,
-      currency: listings.currency,
-      categoryId: listings.categoryId,
-      postalCode: listings.postalCode,
-      placeName: listings.placeName,
-      district: listings.district,
-      cityFa: locations.nameFa,
-      publishedAt: listings.publishedAt,
-      kind: listings.kind,
+      ...cardColumns,
       sortKey: f.sort === 'newest' ? sql<string>`to_char(${listings.rankedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` : sql<number>`${key.expr}`,
       distanceM: f.around ? sql<number>`ST_Distance(${listings.point}, ${geography(f.around.point)})` : sql<null>`NULL`,
-      photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
     })
     .from(listings)
     .leftJoin(locations, eq(locations.id, listings.locationId))

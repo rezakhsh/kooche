@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { messages } from '../messages/fa';
+import type { CardFact } from '../modules/listings/attribute-text';
 import { Icon } from './icons';
 
 // One listing in a list of listings (country page; later city pages, search and events reuse
@@ -16,6 +17,8 @@ export type CardData = {
   cover: string | null;
   photoCount: number;
   wanted: boolean;
+  /** Up to three of the category's card fields ("۲۰۱۸", "۱۲۰٬۰۰۰ کیلومتر", "دیزل") */
+  facts: CardFact[];
   /** "حدود ۳ کیلومتر" when the page measures from a place; never more exact than the stored point */
   distance?: string | null;
 };
@@ -48,6 +51,17 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
         {card.title}
       </p>
       {card.price && <p className="text-sm font-extrabold text-brand-700">{card.price}</p>}
+      {card.facts.length > 0 && (
+        <p className="truncate text-xs text-neutral-600">
+          {card.facts.map((f, i) => (
+            <span key={f.label}>
+              {i > 0 && <span aria-hidden> · </span>}
+              <span className="sr-only">{f.label}: </span>
+              <bdi>{f.text}</bdi>
+            </span>
+          ))}
+        </p>
+      )}
       <p className="mt-auto flex min-w-0 items-center gap-1 text-xs text-neutral-500">
         {card.place && (
           <>

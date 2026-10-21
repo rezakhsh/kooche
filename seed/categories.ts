@@ -348,13 +348,14 @@ const propertyUse: AttributeSeed = {
   ]),
 };
 
-const brand = (pairs: [string, string][], isRequired = false): AttributeSeed => ({
+/** `showOnCard: false` where titles name the make anyway (cars, motorcycles; approved Oct 21, 2026) */
+const brand = (pairs: [string, string][], isRequired = false, showOnCard = true): AttributeSeed => ({
   key: 'brand',
   type: 'select',
   labelFa: 'برند',
   isRequired,
   isFilterable: true,
-  showOnCard: true,
+  showOnCard,
   options: options([...pairs, ['other', 'سایر']]),
 });
 
@@ -526,7 +527,8 @@ const carModel: AttributeSeed = {
   dependsOn: 'brand',
   isRequired: true,
   isFilterable: true,
-  showOnCard: true,
+  // Titles name the model (approved Oct 21, 2026)
+  showOnCard: false,
   options: carModels,
 };
 
@@ -707,7 +709,7 @@ export const categories: CategorySeed[] = [
     children: [
       leaf('cars', 'خودرو', {
         attributes: [
-          brand(carBrands, true),
+          brand(carBrands, true, false),
           carModel,
           {
             key: 'trim',
@@ -847,7 +849,7 @@ export const categories: CategorySeed[] = [
             ['harley_davidson', 'هارلی‌دیویدسون'],
             ['piaggio', 'وسپا و پیاجو'],
             ['triumph', 'تریومف'],
-          ]),
+          ], false, false),
           year(),
           mileageKm(),
           {
