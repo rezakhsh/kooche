@@ -533,6 +533,6 @@ Deployed to staging Oct 21, 2026 (approved by the owner; 2.1 GB available before
 Checked live on https://staging.peydoo.com: `/terms`, `/terms/de`, `/privacy`, `/privacy/de`, `/impressum`, `/safety`, `/help` and `/contact` answer 200 through Cloudflare with `private, no-store` and `cf-cache-status: BYPASS`, no cookies set; the Impressum carries the name, address and `mailto:support@peydoo.com`; `/germany` (a MISS after the deploy's purge) has all six footer links. Headless Chromium against staging, phone and computer, those pages plus `/login` and `/germany`: 22/22, no sideways scroll, no CSP or console errors.
 
 For the owner:
-- **support@peydoo.com:** turn on Cloudflare Email Routing (the token lacks the right): Email → Email Routing → `support` → forward to reza.khodamehri@gmail.com, accept the suggested MX/SPF records, click Cloudflare's verification email. Test before launch.
+- **support@peydoo.com:** Cloudflare Email Routing turned on Oct 21, 2026 (owner widened the token; done through the API), forwarding to reza.khodamehri@gmail.com. A test mail through SES was accepted (250 Ok); the owner confirms it arrived.
 - **Lawyer before launch:** all three texts, especially Telegram (art. 49), the 18+ age, §12 changes, §13 dispute clause, and whether Austria needs anything extra.
 - Add the SMS provider to the privacy policy when one is bought.
