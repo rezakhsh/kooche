@@ -528,6 +528,10 @@ Done (branch `legal`, details in `docs/setup.md`, "Legal pages"):
 - **Tests:** 23 new (407 in total), all passing: fa/de sections identical and numbered, operator filled, every cited section exists, groups map to 5.2–5.4, statements name the section, new paths not browse pages and reserved slugs; the banned-term and event-link tests check the new grounds.
 - **Checked in headless Chromium** (production build behind TLS, scratch PostgreSQL and Valkey), phone 390×844 and computer 1280×800: 129 checks passed: all eight pages 200, not shared at the edge, no country cookie, no sideways scroll; German pages LTR; operator, processors, cookies and periods present; FAQ opens; footer links; sign-in, listing form, phone page and chat links; a listing taken down by the real check shows and links section 5.4. No CSP or console errors.
 
+Deployed to staging Oct 21, 2026 (approved by the owner; 2.1 GB available before): `legal` fast-forwarded into `main` (`2c691c3`); `classifieds-migrate` had nothing to apply, then web and worker came up healthy. No seed run needed (the reserved slugs are only a seed check).
+
+Checked live on https://staging.peydoo.com: `/terms`, `/terms/de`, `/privacy`, `/privacy/de`, `/impressum`, `/safety`, `/help` and `/contact` answer 200 through Cloudflare with `private, no-store` and `cf-cache-status: BYPASS`, no cookies set; the Impressum carries the name, address and `mailto:support@peydoo.com`; `/germany` (a MISS after the deploy's purge) has all six footer links. Headless Chromium against staging, phone and computer, those pages plus `/login` and `/germany`: 22/22, no sideways scroll, no CSP or console errors.
+
 For the owner:
 - **support@peydoo.com:** turn on Cloudflare Email Routing (the token lacks the right): Email → Email Routing → `support` → forward to reza.khodamehri@gmail.com, accept the suggested MX/SPF records, click Cloudflare's verification email. Test before launch.
 - **Lawyer before launch:** all three texts, especially Telegram (art. 49), the 18+ age, §12 changes, §13 dispute clause, and whether Austria needs anything extra.
