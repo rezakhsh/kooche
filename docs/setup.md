@@ -194,6 +194,7 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 **Zone settings.** SSL Full (strict), minimum TLS 1.2, TLS 1.3 and HTTP/3 at the edge on. Two settings are off on purpose:
 - **Always Use HTTPS is off.** Traefik already redirects HTTP to HTTPS for every Coolify domain and leaves `/.well-known/acme-challenge/` alone. Let's Encrypt (HTTP-01, through Cloudflare) renews the server's certificates that way. In Full (strict), Cloudflare reaches the server over HTTP for HTTP requests, so the challenge gets through.
 - **Bot Fight Mode is off.** It would challenge GitHub's webhooks to Coolify and the n8n uptime checks.
+- **Email Address Obfuscation is off** (Scrape Shield, turned off Oct 21, 2026 with the owner's approval). It rewrote every email address in the HTML into `[email protected]` plus Cloudflare's `email-decode.min.js`, which the CSP blocks (it has no nonce), and the changed HTML broke React's hydration (#418) on `/account` and `/account/notifications`. It can't work under our CSP; the user's own email only appears behind sign-in.
 
 **Certificates.** Cloudflare's Universal SSL at the edge covers `peydoo.com` and `*.peydoo.com`, one level only. The server keeps its own Let's Encrypt certificates from Traefik, which Full (strict) requires.
 
