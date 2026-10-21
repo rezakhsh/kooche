@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cardFacts } from '../src/modules/listings/attribute-text';
-import { loadCatalog, type Catalog } from '../src/modules/listings/catalog';
+import { effectiveAttributes, loadCatalog, type Catalog } from '../src/modules/listings/catalog';
 import { db } from './db';
 
 // The facts under a card's price: the category's show_on_card fields, at most three, in form order
@@ -27,8 +27,12 @@ describe('card facts', async () => {
     expect(facts('cars', {})).toEqual([]);
   });
 
-  it('flats show size and rooms', () => {
-    expect(facts('apartments-rent', { area_m2: 65, rooms: 2.5, extra_costs: 20000 })).toHaveLength(2);
+  it('flats show size and rooms; a count without a unit carries its label', () => {
+    const rooms = effectiveAttributes(catalog, catalog.bySlug.get('apartments-rent')!.id).find((a) => a.key === 'rooms')!.labelFa;
+    const out = facts('apartments-rent', { area_m2: 65, rooms: 2, extra_costs: 20000 });
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatch(/^۶۵ /);
+    expect(out[1]).toBe(`${rooms} ۲`);
   });
 
   it('yes/no fields show their label when yes and nothing when no; amounts use the currency', () => {

@@ -63,7 +63,11 @@ export function cardFacts(
     if (def.type === 'boolean') text = value === true ? def.labelFa : null;
     else if (def.type === 'multi_select' && Array.isArray(value) && value.length > 2) {
       text = `${attributeText(def, value.slice(0, 2), currency)}${messages.listing.more}`;
-    } else text = attributeText(def, value, currency);
+    } else {
+      text = attributeText(def, value, currency);
+      // A bare count says nothing on its own ("۲"): with its label ("تعداد اتاق ۲"). Years and amounts read fine.
+      if (text && def.type === 'number' && !def.unitFa && !def.validation.money && (def.validation.min ?? 0) < 1900) text = `${def.labelFa} ${text}`;
+    }
     if (text) facts.push({ label: def.labelFa, text });
   }
   return facts;

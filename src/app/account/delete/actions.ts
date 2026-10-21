@@ -20,7 +20,10 @@ export async function deleteAccountAction(form: FormData): Promise<void> {
   await auth()
     .api.signOut({ headers: await headers() })
     .catch(() => undefined);
+  // A __Secure- cookie is only replaced by one that is Secure too, which delete() doesn't send
   const jar = await cookies();
-  for (const c of jar.getAll()) if (c.name.includes('better-auth.')) jar.delete(c.name);
+  for (const c of jar.getAll()) {
+    if (c.name.includes('better-auth.')) jar.set(c.name, '', { maxAge: 0, path: '/', httpOnly: true, sameSite: 'lax', secure: c.name.startsWith('__Secure-') });
+  }
   redirect('/account/deleted');
 }
