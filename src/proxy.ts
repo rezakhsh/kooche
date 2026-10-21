@@ -7,7 +7,7 @@ import { webEnv } from './lib/env';
 // live in next.config.ts, except X-Robots-Tag, which depends on the environment at runtime.
 
 /** First path segments of our own pages; anything else with one to three segments is a browse page */
-const NOT_BROWSE = new Set(['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'v', 'sitemaps']);
+const NOT_BROWSE = new Set(['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'u', 'v', 'sitemaps']);
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
 
 /** The country slug of a browse page (/germany, /germany/berlin/cars …), else null */
