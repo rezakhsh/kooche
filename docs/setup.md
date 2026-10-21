@@ -252,6 +252,12 @@ Only one process may poll a bot token. During a rolling deploy the old and new w
 
 **Permissions.** Posting a listing and sending a message need a verified phone; browsing and favorites don't (decided Oct 16, 2026). `canPostListing()` and `canSendMessage()` in `src/modules/users/permissions.ts` must be called by the posting and chat features before they write anything.
 
+**Name, seller page, data download and deletion** (approved Oct 21, 2026; code in `src/modules/users/profile.ts`, `export.ts`, `erasure.ts`, pages under `src/app/account/` and `src/app/u/[token]/`):
+- **Name** (`/account/name`): 2–50 characters, the same rule as on the posting form (`checkDisplayName()`). Names containing پیدو, پشتیبانی, مدیر سایت, peydoo, admin, support or «کاربر حذف‌شده» are refused (normalized, Latin folded, without spaces or ZWNJ). Valkey limit `rename:user:1d`, 10 a day.
+- **Seller page** `/u/{public_token}`: name, member since, phone verified, active listings and upcoming events. `noindex, follow`, and `u` is in the proxy's `NOT_BROWSE`, so it is never marked `public` for the edge cache. Deactivated and deleted accounts answer 404.
+- **Download** (`/account/data`): a POST form to the route handler `/account/data/export`. A route handler has no server-action origin check, so it refuses any `Origin` other than APP_URL's (403). Valkey limit `export:user:1h`, 3 an hour; each download writes `audit_log` `user.data_exported` with the session, IP and user agent. Built on request, not as a job (decided Oct 21, 2026): one account's data is small; switch to a job with an emailed link if exports grow.
+- **Deletion** (`/account/delete`): confirmed by typing the account's own email and a tick (decided Oct 21, 2026; an emailed code was the stronger alternative). `erase_user` stays executable only by the worker: the app's transaction sets `status = 'deactivated'` (no new sessions, no posting or messages), deletes every session and writes `user.erase_requested` to the outbox and `audit_log`; the worker's `accounts` queue (5 attempts, exponential backoff) calls `erase_user` only for a deactivated account, and `erase_user` does nothing for one already deleted. The action clears the browser's cookie by setting it expired with `Secure` (a `__Secure-` cookie is only replaced by a secure one) and ends on `/account/deleted`.
+
 ## Photos and imgproxy
 
 Built Oct 17, 2026 with the posting feature (code in `src/modules/media/`).
