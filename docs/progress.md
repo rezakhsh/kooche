@@ -474,7 +474,7 @@ Not done:
 Decided by the owner (Oct 21, 2026): finish the public site first; the admin page (reports, moderation queue, everything in one place) is the last build step, then launch. Each step runs in its own session and worktree, with a plan approved first. The owner now works from a laptop; the master session in the Claude desktop app starts each step.
 
 Order:
-1. **Account, seller page and listing cards** (built Oct 21, 2026, see below; deploy waits for approval). Cards show up to three `show_on_card` fields. Users edit their name, delete their account (`erase_user`) and download their data. A public seller page (public token only) lists their active listings and events.
+1. **Account, seller page and listing cards** (done and on staging Oct 21, 2026, see below). Cards show up to three `show_on_card` fields. Users edit their name, delete their account (`erase_user`) and download their data. A public seller page (public token only) lists their active listings and events.
 2. **Legal and help pages:** Impressum, privacy policy and terms of use in Persian and German (a lawyer checks them before launch; `policy_ground` then names real sections), safety tips, help and contact, linked from the footer.
 3. **Bot protection:** Turnstile on sign-in and posting, limits for accounts in their first 7 days.
 4. **Keyword search and saved searches with alerts** (Meilisearch). The owner first resizes the server to CX33.
@@ -502,7 +502,15 @@ Done (branch `profile`, details in `docs/setup.md`, "Accounts and phone verifica
 - **Checked in headless Chromium** (production build behind TLS, scratch PostgreSQL, Valkey and worker), phone 390×844 and computer 1280×800: 66 checks passed. Cards with facts in grid and list, the listing page year, seller page from the listing and event pages (three active listings, not the paused one, the event, no email, phone or id, noindex), 404 for an unknown token, the account rows, a reserved name refused and a new one saved, the owner notice, the export download (`peydoo-data-2026-10-21.json`, own data only), a forged Origin refused (403), deletion with another email refused, then deleted: notice page, cookie gone, the old session sent to sign-in, the worker erased the account within a second (`accounts: erase …: erased`), its seller page and listing 404. No sideways scroll, no CSP or console errors. That run found the kept `__Secure-` cookie (fixed: `cookies().delete()` sends no `Secure`).
 - Memory on the scratch stack: web 134 MB, worker 62 MB.
 
+Deployed to staging Oct 21, 2026 (approved by the owner): `profile` fast-forwarded into `main` (`456e8f8`); `classifieds-migrate` had nothing to apply, then web and worker came up healthy (`telegram: polling as @Peydoo_bot`). The seed ran once as `classifieds_owner` (141 categories, 289 fields, 1,257 options); `brand` and `model` are off the cards for cars and motorcycles.
+
+Checked live on https://staging.peydoo.com:
+- **Logged out (curl through Cloudflare):** `/u/ps2y23gdng` (رضا) 200, `private, no-store`, `cf-cache-status: BYPASS`, `noindex, follow`, no email or phone in the HTML, links to the flat and the meetup; the listing and event pages link to it; `/u/0000000000` 404; `/account/name`, `/account/data` and `/account/delete` redirect to sign-in, `/account/deleted` 200; the export answers 403 to a foreign Origin and sends a request without a session to sign-in. The flat's card reads «۶۵ متر مربع · تعداد اتاق ۲».
+- **Headless Chromium, phone and computer, with a temporary account** (signed in through Better Auth with the staging secret, the login code captured by the script, no email sent): account rows, the name saved, two exports with this account's own data, then deletion: notice page, cookie cleared, the old session sent to sign-in. The staging worker logged `accounts: erase …: erased`; the row is a tombstone with no sessions, and `audit_log` holds `user.data_exported` ×2, `user.erase_requested` and `user.erased`. No sideways scroll.
+- **Found:** Cloudflare's Email Address Obfuscation rewrites the email on `/account` (and `/account/notifications`) into a link plus `/cdn-cgi/…/email-decode.min.js`. The CSP blocks that script (correctly) and the changed HTML makes React's hydration fail (#418). It was there before this change (the email row is older); the page still works. Fix: turn Email Address Obfuscation off for the zone (Scrape Shield), which needs the owner's OK.
+- **Fixed after the check:** a screen reader heard a count's label twice («تعداد اتاق: تعداد اتاق ۲»); facts that already start with their label get no hidden label now.
+
 Not done:
-- Staging deploy and the seed run: waiting for the owner's approval.
+- Email Address Obfuscation in Cloudflare (above).
 - Avatars (the `user.erased` handler that deletes the file has nothing to delete yet).
 - Organization pages: listings posted for an organization stay off the personal seller page.

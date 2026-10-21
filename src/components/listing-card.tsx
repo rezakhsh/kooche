@@ -56,7 +56,8 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
           {card.facts.map((f, i) => (
             <span key={f.label}>
               {i > 0 && <span aria-hidden> · </span>}
-              <span className="sr-only">{f.label}: </span>
+              {/* Counts and yes/no facts already carry their label */}
+              {!f.text.startsWith(f.label) && <span className="sr-only">{f.label}: </span>}
               <bdi>{f.text}</bdi>
             </span>
           ))}
