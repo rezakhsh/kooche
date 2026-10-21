@@ -7,7 +7,7 @@ import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
 import { eventCheckFields } from '../events/events';
 import { checkLink } from '../events/links';
-import { findBannedTerm } from './terms';
+import { bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from './terms';
 
 // Automatic checks after publishing (decided Oct 17, 2026). Listings go live at once; the worker
 // runs these checks on every publish, edit, photo change and resubmission, and a check can take a
@@ -27,7 +27,7 @@ export type CheckOutcome =
       verdict: 'take_down' | 'flag';
       rule: string;
       reason: ReasonCode;
-      /** Section of our terms; the terms are written before launch */
+      /** Section of our terms of use, e.g. terms-5.2 (policyGround() in ./terms.ts) */
       policyGround: string;
       detail: Record<string, unknown>;
     };
@@ -44,7 +44,7 @@ const bannedTerms: ListingCheck = {
       verdict: 'take_down',
       rule: 'banned_terms',
       reason: 'prohibited',
-      policyGround: 'terms-prohibited-items',
+      policyGround: bannedTermGround(found.group),
       detail: found,
     };
   },
@@ -71,7 +71,7 @@ const duplicatePhotos: ListingCheck = {
         verdict: 'take_down',
         rule: 'duplicate_photos_exact',
         reason: 'duplicate',
-        policyGround: 'terms-own-photos',
+        policyGround: policyGround(OWN_PHOTOS_SECTION),
         detail: { imageId: exact[0].image_id, otherListingId: exact[0].other_listing_id },
       };
     }
@@ -94,7 +94,7 @@ const duplicatePhotos: ListingCheck = {
         verdict: 'flag',
         rule: 'duplicate_photos_near',
         reason: 'duplicate',
-        policyGround: 'terms-own-photos',
+        policyGround: policyGround(OWN_PHOTOS_SECTION),
         detail: {
           imageId: near[0].image_id,
           otherListingId: near[0].other_listing_id,
@@ -118,10 +118,10 @@ const eventFields: ListingCheck = {
     if (!fields) return { verdict: 'pass' };
     const found = findBannedTerm(fields.text);
     if (found) {
-      return { verdict: 'take_down', rule: 'banned_terms', reason: 'prohibited', policyGround: 'terms-prohibited-items', detail: { ...found, field: 'event' } };
+      return { verdict: 'take_down', rule: 'banned_terms', reason: 'prohibited', policyGround: bannedTermGround(found.group), detail: { ...found, field: 'event' } };
     }
     const bad = fields.links.find((l) => !checkLink(l).ok);
-    if (bad) return { verdict: 'take_down', rule: 'event_links', reason: 'scam', policyGround: 'terms-event-links', detail: { link: bad } };
+    if (bad) return { verdict: 'take_down', rule: 'event_links', reason: 'scam', policyGround: policyGround(EVENT_LINKS_SECTION), detail: { link: bad } };
     return { verdict: 'pass' };
   },
 };
@@ -181,7 +181,7 @@ export async function runListingChecks(
           decision: listing.status === 'pending_review' ? 'reject' : 'remove',
           reasonCode: takeDown.reason,
           policyGround: takeDown.policyGround,
-          statementFa: messages.moderation.statement[takeDown.rule as keyof typeof messages.moderation.statement],
+          statementFa: messages.moderation.statement[takeDown.rule as keyof typeof messages.moderation.statement](groundSection(takeDown.policyGround) ?? ''),
           decidedBy: 'rule',
           aiOutput: { rule: takeDown.rule, detail: takeDown.detail },
           contentSnapshot: await snapshot(tx, listing),

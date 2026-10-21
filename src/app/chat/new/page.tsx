@@ -62,7 +62,12 @@ export default async function NewConversationPage({ searchParams }: { searchPara
           <p className="px-4 pt-4 text-sm text-neutral-700">{t.newIntro(data.seller.displayName)}</p>
           <p className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-saffron-50 px-3 py-2 text-xs leading-relaxed text-saffron-800">
             <Icon name="shield" className="mt-0.5 size-4 shrink-0" />
-            {t.tip}
+            <span>
+              {t.tip}{' '}
+              <Link href="/safety" className="font-semibold underline">
+                {t.tipMore}
+              </Link>
+            </span>
           </p>
           <div className="mt-3">
             <Composer hidden={{ listingToken: l.publicToken }} quickReplies={t.quickReplies} autoFocus />

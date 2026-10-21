@@ -44,6 +44,11 @@ export default async function PhonePage() {
             {t.smsLink}
           </Link>
         </Card>
+        <p className="text-xs">
+          <Link href="/privacy#s4-2" className="text-neutral-600 underline">
+            {t.privacy}
+          </Link>
+        </p>
       </div>
     </PageShell>
   );

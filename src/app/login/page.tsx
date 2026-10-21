@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Card, PageShell } from '../../components/ui';
 import { messages } from '../../messages/fa';
@@ -19,6 +20,17 @@ export default async function LoginPage({
       <Card>
         <p className="mb-5 text-sm leading-relaxed text-neutral-600">{t.intro}</p>
         <EmailForm next={next} />
+        <p className="mt-4 text-xs leading-relaxed text-neutral-600">
+          {t.noticeBefore}
+          <Link href="/terms" className="text-brand-800 underline">
+            {t.noticeTerms}
+          </Link>
+          {t.noticeMiddle}
+          <Link href="/privacy" className="text-brand-800 underline">
+            {t.noticePrivacy}
+          </Link>
+          {t.noticeAfter}
+        </p>
       </Card>
     </PageShell>
   );

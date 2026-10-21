@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { startTransition, useActionState, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { TermsNotice } from '../../../../components/terms-notice';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
 import { PlaceField, type PlaceFieldValue } from '../../../../components/place-field';
 import { messages } from '../../../../messages/fa';
@@ -218,6 +219,8 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
 
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.notice && <Alert tone="success">{state.notice}</Alert>}
+
+      {(draft || rejected) && <TermsNotice />}
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
         {draft || rejected ? (

@@ -93,6 +93,15 @@ export function UnreadBadge({ count, className = '' }: { count: number; classNam
   );
 }
 
+const FOOTER_LINKS = [
+  ['help', '/help'],
+  ['safety', '/safety'],
+  ['contact', '/contact'],
+  ['terms', '/terms'],
+  ['privacy', '/privacy'],
+  ['impressum', '/impressum'],
+] as const satisfies readonly (readonly [keyof typeof messages.footer.links, string])[];
+
 export async function SiteFooter() {
   const countries = await activeCountries(appDb());
   return (
@@ -105,6 +114,13 @@ export async function SiteFooter() {
             <p>{messages.site.slogan}</p>
           </div>
         </div>
+        <nav aria-label={messages.footer.about} className="flex flex-wrap gap-x-4 gap-y-1 sm:max-w-xs">
+          {FOOTER_LINKS.map(([key, href]) => (
+            <Link key={key} href={href} className="hover:text-brand-800 hover:underline">
+              {messages.footer.links[key]}
+            </Link>
+          ))}
+        </nav>
         <nav aria-label={messages.footer.countries} className="flex flex-wrap gap-x-4 gap-y-1">
           {countries.map((c) => (
             <Link key={c.code} href={`/${c.slug}`} className="hover:text-brand-800 hover:underline">

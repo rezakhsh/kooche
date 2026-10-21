@@ -118,14 +118,14 @@ export async function coverKeys(db: Queryable, listingIds: string[]): Promise<Ma
 }
 
 /** Why a listing was taken down: the latest restricting decision's statement */
-export async function takeDownStatement(db: Queryable, listingId: string): Promise<string | null> {
+export async function takeDownStatement(db: Queryable, listingId: string): Promise<{ statement: string | null; policyGround: string | null } | null> {
   const [row] = await db
-    .select({ statement: moderationDecisions.statementFa })
+    .select({ statement: moderationDecisions.statementFa, policyGround: moderationDecisions.policyGround })
     .from(moderationDecisions)
     .where(and(eq(moderationDecisions.listingId, listingId), inArray(moderationDecisions.decision, ['reject', 'remove'])))
     .orderBy(desc(moderationDecisions.createdAt))
     .limit(1);
-  return row?.statement ?? null;
+  return row ?? null;
 }
 
 /** Everything the public listing page shows, by public token. Deleted listings are not found. */

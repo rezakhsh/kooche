@@ -345,6 +345,8 @@ describe('post-checks and digest', () => {
     const id = await publishEvent(u.id);
     await db.update(schema.eventDetails).set({ ticketUrl: 'https://bit.ly/abc' }).where(eq(schema.eventDetails.listingId, id));
     expect(await runListingChecks(workerDb, id)).toBe('taken_down');
+    const [decision] = await db.select().from(schema.moderationDecisions).where(eq(schema.moderationDecisions.listingId, id));
+    expect(decision).toMatchObject({ policyGround: 'terms-4.6', statementFa: expect.stringContaining('بند ۴.۶ شرایط استفاده') });
   });
 
   it('the weekly digest: one outbox event per country with events that week', async () => {

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useActionState, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../../../components/icons';
@@ -133,7 +134,12 @@ export function Thread(props: Props) {
       <div ref={scroller} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6" aria-live="polite" aria-relevant="additions">
         <p className="mx-auto mb-4 flex max-w-md items-start gap-2 rounded-xl bg-saffron-50 px-3 py-2 text-xs leading-relaxed text-saffron-800">
           <Icon name="shield" className="mt-0.5 size-4 shrink-0" />
-          {t.tip}
+          <span>
+            {t.tip}{' '}
+            <Link href="/safety" className="font-semibold underline">
+              {t.tipMore}
+            </Link>
+          </span>
         </p>
         {hasOlder && list[0] && (
           <div className="mb-3 text-center">

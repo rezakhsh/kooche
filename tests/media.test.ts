@@ -280,6 +280,9 @@ describe('automatic post-checks (decided Oct 17, 2026: live at once, checks can 
     const [decision] = await db.select().from(schema.moderationDecisions).where(eq(schema.moderationDecisions.listingId, id));
     expect(decision).toMatchObject({ decision: 'remove', decidedBy: 'rule', reasonCode: 'prohibited', listingRevision: 1 });
     expect(decision!.statementFa).toBeTruthy();
+    // Money exchange is section 5.4 of the terms, and the statement names it (Oct 21, 2026)
+    expect(decision!.policyGround).toBe('terms-5.4');
+    expect(decision!.statementFa).toContain('بند ۵.۴ شرایط استفاده');
     expect(decision!.contentSnapshot).toMatchObject({ title: 'گوشی سامسونگ' });
     const ev = (await events(id)).at(-1)!;
     expect(ev).toMatchObject({ eventType: 'rejected', actorType: 'system', moderationDecisionId: decision!.id });

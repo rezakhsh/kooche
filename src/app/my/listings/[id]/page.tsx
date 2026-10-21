@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
+import { TakeDownReason } from '../../../../components/take-down-reason';
 import { Alert, PageShell } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { messages } from '../../../../messages/fa';
@@ -35,15 +36,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
     <PageShell title={listing.status === 'draft' ? t.draftTitle : t.editTitle} wide>
       <div className="space-y-6">
         {listing.status === 'rejected' && (
-          <Alert tone="error">
-            {t.rejectedNotice}
-            {statement && (
-              <>
-                <br />
-                <span className="font-semibold">{t.reason}</span> {statement}
-              </>
-            )}
-          </Alert>
+          <TakeDownReason notice={t.rejectedNotice} reason={statement} />
         )}
         {listing.status === 'active' && <Alert tone="info">{t.liveNotice}</Alert>}
         {!editable && <Alert tone="error">{t.notEditable}</Alert>}

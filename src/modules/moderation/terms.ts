@@ -24,6 +24,25 @@ export const BANNED_TERMS: Record<string, readonly string[]> = {
   ],
 };
 
+/**
+ * Sections of the terms of use (fa.ts and legal-de.ts) that the automatic checks cite as
+ * moderation_decisions.policy_ground (decided Oct 21, 2026; before that `terms-prohibited-items`
+ * and the like, which older rows keep). tests/legal.test.ts checks that each exists.
+ */
+export const BANNED_TERM_SECTION: Record<string, string> = { weapons: '5.2', drugs: '5.3', money_transfer: '5.4' };
+export const OWN_PHOTOS_SECTION = '4.3';
+export const EVENT_LINKS_SECTION = '4.6';
+
+export const policyGround = (section: string) => `terms-${section}`;
+
+/** The ground for a banned-term match: its group's section, else 5.1 (anything illegal) */
+export const bannedTermGround = (group: string) => policyGround(BANNED_TERM_SECTION[group] ?? '5.1');
+
+/** The section a policy_ground names, or null for a legal ground or an older placeholder */
+export function groundSection(ground: string | null | undefined): string | null {
+  return ground?.match(/^terms-(\d+(?:\.\d+)?)$/)?.[1] ?? null;
+}
+
 /** Normalized text as a list of words (letters and digits; ZWNJ, spaces and punctuation split) */
 export function words(text: string): string[] {
   return normalizePersian(text)

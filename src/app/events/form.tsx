@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { PlaceField, type PlaceFieldValue } from '../../components/place-field';
+import { TermsNotice } from '../../components/terms-notice';
 import { Alert, Button, Card, Field } from '../../components/ui';
 import { messages } from '../../messages/fa';
 import type { FieldError } from '../../modules/listings/listings';
@@ -338,6 +339,8 @@ export function EventForm(
 
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.notice && <Alert tone="success">{state.notice}</Alert>}
+
+      {(draft || rejected) && <TermsNotice />}
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
         {draft || rejected ? (
