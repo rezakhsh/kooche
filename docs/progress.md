@@ -557,3 +557,9 @@ Deployed to staging Oct 21, 2026 (approved by the owner; 2.0 GB available before
 Checked live on https://staging.peydoo.com:
 - `/health` ok; `/login` carries the new CSP (`frame-src https://challenges.cloudflare.com`, `'strict-dynamic'`, no `unsafe-inline`), the staging site key and `cf-cache-status: BYPASS`; `/germany` came back MISS with the new CSP after the deploy's purge.
 - Headless Chromium, phone and computer: the real widget loads (its frame and Cloudflare's challenge script answer 200, no CSP violation), but Cloudflare gives automated browsers no token, so the button stays «در حال بررسی امنیتی…». With the form forced open, a forged token was refused by siteverify (`invalid-input-response`, so the real secret works) and a missing one before any call; no email was sent; 4/4.
+
+## Oct 21, 2026: CX33 watcher (before roadmap step 4)
+
+CX33 and CX43 are sold out in every location, so the resize before keyword search waits. An automatic rescale from n8n was planned first; the owner chose an alert instead (stopping the server would cut off staging and every Claude session without warning). The n8n workflow **Peydoo – CX33 available** checks Hetzner every 5 minutes, read-only, and emails reza.khodamehri@gmail.com when CX33 can be ordered in Helsinki, with the rescale steps. It stops once the server is no longer CX23. Details in `docs/setup.md`, "Alerts". The owner took a Hetzner snapshot of the server the same day (`Peydoo-1792624565`).
+
+For the owner: when the email comes, rescale in Hetzner Console ("CPU and RAM only"), check https://staging.peydoo.com/health, then delete the workflow and its "Hetzner Cloud – Peydoo project" credential in n8n.

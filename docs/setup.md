@@ -335,6 +335,12 @@ To add a check:
 - **A job on the server:** call `kooche-alert event|status|heartbeat`.
 - **Several reports at once:** send them as one `kooche-alert batch '[...]'`. Parallel n8n runs overwrite each other's memory, so separate requests sent at the same moment can lose state.
 
+**CX33 watcher.** A second n8n workflow, **Peydoo – CX33 available** (id `v7KPDYAV6hIgtfs2`), checks Hetzner every 5 minutes and emails reza.khodamehri@gmail.com (Gmail credential "Gmail account reza.khodamehri@gmail.com") when CX33 can be ordered in `hel1`. CX33 was sold out everywhere on Oct 21, 2026, and keyword search (roadmap step 4) waits for it. It only reads (`GET /v1/server_types?name=cx33` and `GET /v1/servers/170743334`) and never changes the server: the owner decided on Oct 21, 2026 to rescale by hand, because an automatic rescale powers off staging and every Claude session on the server without warning. Rescale in Hetzner Console with "CPU and RAM only", so the 40 GB disk stays and a downgrade remains possible.
+- One email each time CX33 goes from sold out to available (state per type in the workflow's static data); none while it stays available. The "Remember" node saves that state only after Gmail sent the email, so a failed send is retried every 5 minutes (failed runs are kept in n8n, successful ones aren't).
+- Once Peydoo is no longer CX23 it sends one last email and stops checking for good (static data `done`). Then deactivate or delete it.
+- Type, location and server id are constants at the top of its "Config" Code node. Tested on Oct 21, 2026 with CPX32 (available) in place of CX33: the Hetzner reads and the decision work. The email did not go out, because the Gmail credential needed to be reconnected in n8n; reconnect it there (and test the email) if it expires again.
+- It uses the n8n credential **Hetzner Cloud – Peydoo project** (`httpBearerAuth`, limited to `api.hetzner.cloud`). That is the project-wide read/write token from `/root/.secrets/infra.env`, the owner's choice, so it now also lives in n8n's credential store on `n8nworkerReza`, where it could change any server in the project. Delete the credential with the workflow.
+
 ## Countries, places and the map
 
 Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify, MapTiler, Stadia), self-hosted address search (Photon, Nominatim: several GB of data and 1–2 GB of memory, too heavy for this server) and our own map tiles (PMTiles: 2.6 GB for Germany and Austria, 11 GB for Europe, on R2):
