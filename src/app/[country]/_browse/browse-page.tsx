@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
-import Link from 'next/link';
+import { BrowseLink as Link } from '../../../components/browse-link';
 import { cache } from 'react';
 import { EventCard } from '../../../components/event-card';
 import { FavoriteButton } from '../../../components/favorite-button';

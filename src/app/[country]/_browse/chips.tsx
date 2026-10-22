@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BrowseLink as Link } from '../../../components/browse-link';
 import { Icon } from '../../../components/icons';
 import { formatDate, formatMonth } from '../../../lib/format';
 import { messages } from '../../../messages/fa';

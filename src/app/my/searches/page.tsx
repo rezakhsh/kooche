@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BrowseLink as Link } from '../../../components/browse-link';
 import { eq } from 'drizzle-orm';
 import { Icon } from '../../../components/icons';
 import { Alert, Button, LinkButton, PageShell } from '../../../components/ui';

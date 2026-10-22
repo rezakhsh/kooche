@@ -23,6 +23,18 @@ export async function testIndex(name = 'listings'): Promise<string> {
   return index;
 }
 
+/** A key made exactly like the server's (src/modules/search/keys.ts), its value */
+export async function keyLike(def: { uid: string } & Record<string, unknown>): Promise<string> {
+  const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+  let res = await fetch(`${url}/keys/${def.uid}`, { headers });
+  if (res.status === 404) res = await fetch(`${url}/keys`, { method: 'POST', headers, body: JSON.stringify(def) });
+  keys.push(def.uid);
+  return ((await res.json()) as { key: string }).key;
+}
+const keys: string[] = [];
+
+export const meiliUrl = url;
+
 /** Waits until every queued Meilisearch task is done */
 export async function settled(): Promise<void> {
   const r = await fetch(`${url}/tasks?statuses=enqueued,processing&limit=1`, { headers: { Authorization: `Bearer ${key}` } });
@@ -34,6 +46,7 @@ export async function settled(): Promise<void> {
 }
 
 afterAll(async () => {
+  for (const uid of keys) await fetch(`${url}/keys/${uid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${key}` } });
   for (const index of made) {
     if (await meili.indexStats(index)) await meili.wait(await meili.deleteIndex(index));
   }

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BrowseLink as Link } from '../../../components/browse-link';
 import type { AttributeDef } from '../../../modules/listings/catalog';
 import { amountInputValue } from '../../../modules/listings/price';
 import { attrFacet } from '../../../modules/search/keyword';

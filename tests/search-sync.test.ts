@@ -12,13 +12,15 @@ import { LISTING_OUTBOX } from '../src/modules/listings/events';
 import { changeListingStatus, createDraft, expireDueListings, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { runListingChecks } from '../src/modules/moderation/checks';
 import { DOC_VERSION, documentsFor, indexSettings, type ListingDocument } from '../src/modules/search/documents';
+import { WEB_KEY, WORKER_KEY } from '../src/modules/search/keys';
+import { Meili } from '../src/modules/search/meili';
 import { indexState, rebuildIndex, settingsMatch, syncListings } from '../src/modules/search/sync';
 import { eraseRequestedUser } from '../src/modules/users/erasure';
 import { startSearchJobs, SYNC_EVENTS } from '../src/worker/search';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
 import { categoryBySlug, user } from './listings-fixtures';
-import { meili, settled, testIndex } from './meili';
+import { keyLike, meili, meiliUrl, settled, testIndex } from './meili';
 
 // The index follows PostgreSQL (approved Oct 22, 2026): every change that can move a listing in or
 // out of search reaches the worker through the outbox, the job re-reads the listing, and a rebuild
@@ -296,6 +298,22 @@ describe('rebuild', () => {
     const other = await testIndex('settings');
     await meili.wait(await meili.updateSettings(other, { stopWords: [] }));
     expect(await indexState(workerDb, meili, other)).toBe('settings');
+  });
+
+  it("the worker's key (as made on the server) can sync and rebuild; the web key can only search", async () => {
+    // The server's key definitions, with this file's index in place of `listings`
+    const worker = new Meili({ url: meiliUrl!, key: await keyLike({ ...WORKER_KEY, uid: randomUUID() }) });
+    const web = new Meili({ url: meiliUrl!, key: await keyLike({ ...WEB_KEY, uid: randomUUID(), indexes: [index] }) });
+    const u = await seller();
+    const id = await publish(u.id);
+    const r = await syncListings(workerDb, worker, index, catalog, [id]);
+    for (const t of r.tasks) await worker.wait(t);
+    expect(await rebuildIndex(workerDb, worker, index, catalog)).toBeGreaterThan(0);
+    expect((await web.search(index, { q: '', filter: `id = "${id}"` })).hits).toHaveLength(1);
+    await expect(web.addDocuments(index, [{ id: randomUUID() }])).rejects.toMatchObject({ status: 403 });
+    await expect(web.deleteDocuments(index, [id])).rejects.toMatchObject({ status: 403 });
+    await expect(web.getSettings(index)).rejects.toMatchObject({ status: 403 });
+    await expect(web.search(`${index}_other`, { q: '' })).rejects.toMatchObject({ status: 403 });
   });
 
   it('compares settings the way Meilisearch returns them', async () => {
