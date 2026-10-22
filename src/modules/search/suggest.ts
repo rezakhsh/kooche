@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { normalizePersian } from '../../lib/normalize-persian';
 import type { Limit } from '../../lib/rate-limit';
-import { browsableCategory, type AttributeDef, type Catalog, type CategoryNode } from '../listings/catalog';
+import { ancestry, browsableCategory, type AttributeDef, type Catalog, type CategoryNode } from '../listings/catalog';
 import type { SearchFilters } from './browse';
 import { browseQuery, cleanKeyword, EMPTY_STATE, filterContext, KEYWORD_MAX_LENGTH, type AttributeFilter } from './filters';
 import { meiliFilter } from './keyword';
@@ -163,10 +163,11 @@ export function suggestions(catalog: Catalog, scope: SuggestScope, typed: string
     shown.add(h.category_id);
   }
 
-  // The keyword in the categories with the most matching listings that have no row yet
+  // The keyword in the categories with the most matching listings that have no row yet, nor a
+  // row for a category above them («املاک» offers املاک, not also «املاک در اجاره آپارتمان»)
   const leaves = [...found.counts]
     .map(([id, n]) => [catalog.byId.get(id), n] as const)
-    .filter((x): x is readonly [CategoryNode, number] => isBrowsable(catalog, x[0]) && x[1] > 0 && !shown.has(x[0].id))
+    .filter((x): x is readonly [CategoryNode, number] => isBrowsable(catalog, x[0]) && x[1] > 0 && !ancestry(catalog, x[0].id).some((a) => shown.has(a.id)))
     .sort((a, b) => b[1] - a[1] || a[0].nameFa.localeCompare(b[0].nameFa, 'fa'));
   for (const [c, n] of leaves.slice(0, MAX_IN_CATEGORY)) {
     if (rows.length >= MAX_ROWS) break;

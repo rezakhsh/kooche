@@ -147,6 +147,12 @@ describe('the rows', () => {
     ]);
   });
 
+  it('no keyword row under a category that already has a row', () => {
+    const vehicles = catalog.byId.get(id('cars'))!.parentId!;
+    const rows = suggestions(catalog, germany, 'وسایل', found([hit({ kind: 'category', category_id: vehicles, brand: null, label: 'وسایل نقلیه' })], [[id('cars'), 3], [id('mobile-phones'), 1]]));
+    expect(hrefs(rows)).toEqual([`/germany?q=${enc('وسایل')}`, '/germany/vehicles', `/germany/mobile-phones?q=${enc('وسایل')}`]);
+  });
+
   it('a phrase found only through its category name is left out', () => {
     const rows = suggestions(catalog, germany, 'خودرو', found([hit({ _matchesPosition: { category_text: [] } }), hit({ kind: 'category', brand: null, label: 'خودرو', _matchesPosition: { phrase: [] } })]));
     expect(kinds(rows)).toEqual(['search', 'category']);
