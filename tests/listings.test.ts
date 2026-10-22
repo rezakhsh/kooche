@@ -391,7 +391,12 @@ describe('attribute validation (against category_attributes)', () => {
     const save = async (attributes: Record<string, unknown>) =>
       saveListing(appDb, { userId: u.id, listingId: id, input: await input({ title: 'ب‌ام‌و سری ۳', attributes, amount: '15000' }), intent: 'publish' });
 
-    expect(await save({ model: 'bmw-3-series' })).toMatchObject({ errors: { 'attr.brand': 'required' } });
+    expect(await save({ fuel: 'diesel' })).toMatchObject({ errors: { 'attr.brand': 'required', 'attr.model': 'required' } });
+    // A model chosen from the grouped list without a brand brings its brand (Oct 23, 2026)
+    const modelOnly = await save({ model: 'bmw-3-series' });
+    expect(modelOnly.ok).toBe(false);
+    expect(modelOnly).not.toMatchObject({ errors: { 'attr.brand': expect.anything() } });
+    expect(modelOnly).not.toMatchObject({ errors: { 'attr.model': expect.anything() } });
     expect(await save({ brand: 'audi', model: 'bmw-3-series' })).toMatchObject({ errors: { 'attr.model': 'parent_mismatch' } });
     expect(await save({ brand: 'bmw', model: 'bmw-3-series', year: 1900 })).toMatchObject({ errors: { 'attr.year': 'too_small' } });
     expect(await save({ brand: 'bmw', mileage_km: 1200.5 })).toMatchObject({ errors: { 'attr.mileage_km': 'not_integer' } });
