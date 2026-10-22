@@ -31,6 +31,14 @@ export const organizations = pgTable(
     legalName: text('legal_name'),
     vatId: text('vat_id'),
     registrationNumber: text('registration_number'),
+    /** Legal form as registered (GmbH, UG, Einzelunternehmen…), for the Impressum (migration 0014) */
+    legalForm: text('legal_form'),
+    /** Who represents the business (Geschäftsführer, owner), for the Impressum */
+    representativeName: text('representative_name'),
+    /** Register court of the registration number (Amtsgericht Charlottenburg…) */
+    registerCourt: text('register_court'),
+    /** Anything else the Impressum must say (chamber, supervisory authority, professional rules) */
+    imprintExtra: text('imprint_extra'),
     countryCode: text('country_code')
       .notNull()
       .references(() => countries.code),
@@ -64,6 +72,10 @@ export const organizations = pgTable(
     check('organizations_phone_e164_check', matches(t.phoneE164, PATTERNS.phone)),
     check('organizations_website_check', matches(t.website, '^https://')),
     check('organizations_description_check', sql`char_length(${t.description}) <= 5000`),
+    check('organizations_legal_form_check', sql`char_length(${t.legalForm}) BETWEEN 1 AND 80`),
+    check('organizations_representative_name_check', sql`char_length(${t.representativeName}) BETWEEN 2 AND 120`),
+    check('organizations_register_court_check', sql`char_length(${t.registerCourt}) BETWEEN 2 AND 120`),
+    check('organizations_imprint_extra_check', sql`char_length(${t.imprintExtra}) BETWEEN 1 AND 2000`),
     check(
       'organizations_verification_status_check',
       isIn(t.verificationStatus, VERIFICATION_STATUSES),

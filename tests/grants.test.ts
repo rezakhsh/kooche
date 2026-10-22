@@ -110,20 +110,18 @@ describe('grants', () => {
       const listing = await makeListing(tx, user.id);
       const { product, price } = await makeProduct(tx);
       await setRole(tx, 'classifieds_app');
-      const [order] = await tx
-        .insert(orders)
-        .values({
-          buyerUserId: user.id,
-          productId: product.id,
-          productPriceId: price.id,
-          listingId: listing.id,
-          currency: 'EUR',
-          subtotalMinor: 299,
-          discountMinor: 0,
-          taxMinor: 0,
-          totalMinor: 299,
-        })
-        .returning({ id: orders.id });
+      // Only a pending order's columns (migration 0014): plain SQL, since Drizzle names every column
+      const [order] = await tx.execute<{ id: string }>(sql`
+        INSERT INTO orders (buyer_user_id, product_id, product_price_id, listing_id, currency, subtotal_minor, discount_minor, tax_minor, total_minor)
+        VALUES (${user.id}, ${product.id}, ${price.id}, ${listing.id}, 'EUR', 299, 0, 0, 299)
+        RETURNING id`);
+      await expectError(
+        tx.transaction((sp) =>
+          sp.execute(sql`INSERT INTO orders (buyer_user_id, product_id, product_price_id, currency, subtotal_minor, discount_minor, tax_minor, total_minor, status, paid_at)
+            VALUES (${user.id}, ${product.id}, ${price.id}, 'EUR', 299, 0, 0, 299, 'paid', now())`),
+        ),
+        INSUFFICIENT_PRIVILEGE,
+      );
       await tx
         .update(orders)
         .set({ providerCheckoutId: 'cs_test_123' })

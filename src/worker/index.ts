@@ -7,12 +7,14 @@ import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
 import { notificationMailer } from '../modules/notifications/mailer';
 import { TelegramClient } from '../modules/notifications/telegram-api';
+import { StripeGateway } from '../modules/payments/gateway';
 import { Meili } from '../modules/search/meili';
 import { type OutboxHandlers, BATCH_SIZE, mergeHandlers, processOutboxBatch } from './outbox';
 import { startAccountJobs } from './accounts';
 import { startChatJobs } from './chat';
 import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
+import { startPaymentJobs } from './payments';
 import { startRetention } from './retention';
 import { startSearchJobs } from './search';
 import { startSearchAlertJobs } from './search-alerts';
@@ -21,7 +23,7 @@ import { runTelegramBot } from './telegram';
 
 // Background worker entry point: one process that polls the outbox, runs the phone verification
 // Telegram bot, the chat jobs and notices, account erasure, the daily retention jobs, the hourly sitemaps, the
-// search index and (as features arrive) other BullMQ job processors.
+// search index, payments and (as features arrive) other BullMQ job processors.
 // Bundled to dist/worker.js for the `worker` Docker target.
 
 const POLL_INTERVAL_MS = 1_000;
@@ -79,7 +81,9 @@ async function main(): Promise<void> {
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
   const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN });
   const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });
-  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers);
+  // Applies payment webhooks; reads subscriptions and invoices back from Stripe
+  const paymentJobs = await startPaymentJobs(db, connection, { gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null });
+  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers, paymentJobs.handlers);
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
     ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
@@ -90,7 +94,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close(), paymentJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

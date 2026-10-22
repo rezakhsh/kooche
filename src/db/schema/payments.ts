@@ -148,6 +148,8 @@ export const orders = pgTable(
     /** Stripe Checkout Session id */
     providerCheckoutId: text('provider_checkout_id').unique('orders_provider_checkout_id_key'),
     providerInvoiceId: text('provider_invoice_id'),
+    /** The billing address's country as the provider reports it, for the EU VAT thresholds (migration 0014) */
+    buyerCountry: text('buyer_country'),
     paidAt: tstz('paid_at'),
   },
   (t) => [
@@ -161,6 +163,7 @@ export const orders = pgTable(
     ),
     check('orders_status_check', isIn(t.status, ORDER_STATUSES)),
     check('orders_paid_check', sql`${t.status} <> 'paid' OR ${t.paidAt} IS NOT NULL`),
+    check('orders_buyer_country_check', matches(t.buyerCountry, '^[A-Z]{2}$')),
     index('orders_buyer_user_id_created_at_idx').on(t.buyerUserId, t.createdAt.desc().nullsFirst()),
     index('orders_organization_id_created_at_idx')
       .on(t.organizationId, t.createdAt.desc().nullsFirst())
@@ -276,6 +279,8 @@ export const entitlements = pgTable(
     subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
       onDelete: 'restrict',
     }),
+    /** The paid invoice a pro_plan period comes from, so refunding that invoice revokes it (migration 0014) */
+    providerInvoiceId: text('provider_invoice_id'),
     /** For scheduled bumps, when to apply */
     startsAt: tstz('starts_at').notNull(),
     /** A bump is a moment, not a period */
@@ -314,6 +319,10 @@ export const entitlements = pgTable(
     index('entitlements_subscription_id_idx')
       .on(t.subscriptionId)
       .where(sql`subscription_id IS NOT NULL`),
+    // One pro_plan period per paid invoice: a retried webhook can't grant it twice
+    uniqueIndex('entitlements_provider_invoice_id_key')
+      .on(t.providerInvoiceId)
+      .where(sql`provider_invoice_id IS NOT NULL`),
   ],
 );
 

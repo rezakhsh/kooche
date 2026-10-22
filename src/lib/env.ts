@@ -28,6 +28,19 @@ function isLocal(url: string): boolean {
 }
 const hex = z.string().regex(/^([0-9a-f]{2}){16,}$/, 'hex, at least 16 bytes');
 
+// Stripe (docs/setup.md, "Payments"): a secret or restricted key. Test-mode keys on staging; a
+// live key only with PAYMENTS_LIVE=on, which only production sets (at launch). Unset in
+// development: payments are switched off.
+const stripeFields = {
+  STRIPE_SECRET_KEY: optional(z.string().regex(/^(sk|rk)_(test|live)_[0-9A-Za-z]{10,}$/, 'a Stripe secret or restricted key')),
+  PAYMENTS_LIVE: z.enum(['on', 'off']).default('off'),
+};
+/** Whether a Stripe key moves real money */
+export const isLiveStripeKey = (key: string) => /^(sk|rk)_live_/.test(key);
+const liveKeyAllowed = (e: { STRIPE_SECRET_KEY?: string; PAYMENTS_LIVE: 'on' | 'off' }) =>
+  !e.STRIPE_SECRET_KEY || !isLiveStripeKey(e.STRIPE_SECRET_KEY) || e.PAYMENTS_LIVE === 'on';
+const liveKeyRule = { message: 'a live Stripe key needs PAYMENTS_LIVE=on (production only)', path: ['STRIPE_SECRET_KEY'] };
+
 const webSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_URL: z.url(),
@@ -67,7 +80,15 @@ const webSchema = z.object({
   // search the listings index. Unset: keyword search runs on PostgreSQL (slower, no typos).
   MEILI_URL: optional(z.url({ protocol: /^https?$/ })),
   MEILI_SEARCH_KEY: optional(z.string().min(16)),
+  ...stripeFields,
+  // Signing secret of the webhook endpoint (/api/stripe/webhook); made by scripts/stripe-setup.ts
+  STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[0-9A-Za-z]{10,}$/)),
 })
+  .refine(liveKeyAllowed, liveKeyRule)
+  .refine((e) => !e.STRIPE_SECRET_KEY === !e.STRIPE_WEBHOOK_SECRET, {
+    message: 'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together',
+    path: ['STRIPE_WEBHOOK_SECRET'],
+  })
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
     path: ['SMTP_URL'],
@@ -102,10 +123,14 @@ const workerSchema = z.object({
   // index (documents, settings, swap). Unset: no index is kept (keyword search uses PostgreSQL).
   MEILI_URL: optional(z.url({ protocol: /^https?$/ })),
   MEILI_WRITE_KEY: optional(z.string().min(16)),
-}).refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
-  message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
-  path: ['S3_ENDPOINT'],
-});
+  // Applies payment webhooks: reads subscriptions and invoices back from Stripe
+  ...stripeFields,
+})
+  .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
+    message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
+    path: ['S3_ENDPOINT'],
+  })
+  .refine(liveKeyAllowed, liveKeyRule);
 
 // The `migrate` Docker target: after the migrations it asks Coolify to deploy web and worker.
 const deploySchema = z.object({
@@ -126,6 +151,8 @@ const purgeSchema = z.object({
 });
 
 export type WebEnv = z.infer<typeof webSchema>;
+/** For tests: the web settings checked without caching them */
+export const parseWebEnv = (env: Record<string, string | undefined>) => webSchema.safeParse(env);
 export type WorkerEnv = z.infer<typeof workerSchema>;
 export type DeployEnv = z.infer<typeof deploySchema>;
 export type PurgeEnv = z.infer<typeof purgeSchema>;

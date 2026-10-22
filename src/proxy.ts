@@ -13,7 +13,14 @@ const NOT_BROWSE = new Set([
   ...['contact', 'help', 'impressum', 'privacy', 'safety', 'terms'],
   // Turning off a saved-search alert from its email (Oct 22, 2026)
   'alerts',
+  // Business pages, creating a business, the Pro page (Oct 22, 2026)
+  ...['b', 'business', 'pro'],
 ]);
+/**
+ * Stripe's hosted Checkout and Customer Portal. A purchase form posts to our server action, which
+ * redirects there; browsers apply form-action to that redirect too.
+ */
+const STRIPE_FORM_TARGETS = 'https://checkout.stripe.com https://billing.stripe.com';
 /** Cloudflare Turnstile (src/components/turnstile.tsx) */
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
@@ -68,7 +75,7 @@ export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_UR
     `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self' ${STRIPE_FORM_TARGETS}`,
     "frame-ancestors 'none'",
     ...(dev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');

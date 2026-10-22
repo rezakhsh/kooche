@@ -19,6 +19,8 @@ export const LISTING_OUTBOX = {
   sold: 'listing.sold',
   expired: 'listing.expired',
   renewed: 'listing.renewed',
+  /** A paid bump moved ranked_at (written by the worker, src/modules/payments/bumps.ts) */
+  bumped: 'listing.bumped',
   rejected: 'listing.rejected',
   deleted: 'listing.deleted',
 } as const;
