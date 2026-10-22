@@ -5,6 +5,9 @@ import { notFound } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon } from '../../../../components/icons';
+import { clientIp } from '../../../../lib/client-ip';
+import { valkey } from '../../../../lib/valkey';
+import { countView } from '../../../../modules/listings/views';
 import { OutlineMap } from '../../../../components/outline-map';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -94,7 +97,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const inPerson = d.attendance !== 'online';
   const placeLine = [l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : null, cityFa && cityLocal !== l.placeName ? cityFa : null].filter(Boolean).join('، ');
   const addressText = [d.venueName, d.streetAddress, l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : cityLocal, country?.nameLocal].filter(Boolean).join(', ');
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get('x-nonce') ?? undefined;
+  // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own
+  if (!isOwner && l.status === 'active') {
+    await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
+  }
   const { published } = await searchParams;
   const organizer = d.organizerName ?? seller.displayName;
   const languages = d.languages.map((x) => messages.events.languages[x as keyof typeof messages.events.languages]).join('، ');

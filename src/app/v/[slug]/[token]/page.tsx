@@ -7,6 +7,9 @@ import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon } from '../../../../components/icons';
+import { clientIp } from '../../../../lib/client-ip';
+import { valkey } from '../../../../lib/valkey';
+import { countView } from '../../../../modules/listings/views';
 import { isFeatured } from '../../../../modules/payments/plans';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -105,7 +108,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const path = listingPath(l.title, l.publicToken);
   // The seller sees no chat button on their own listing
   const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get('x-nonce') ?? undefined;
+  // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own
+  if (!isOwner && l.status === 'active') {
+    await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
+  }
   const { published } = await searchParams;
   const country = l.countryCode ? (await activeCountries(appDb())).find((c) => c.code === l.countryCode) : undefined;
   const countrySlug = country?.slug ?? null;

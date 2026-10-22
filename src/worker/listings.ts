@@ -3,6 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { workerEnv } from '../lib/env';
 import { expireDueListings } from '../modules/listings/listings';
+import { flushViews } from '../modules/listings/views';
 import { cleanupAbandonedUploads } from '../modules/media/cleanup';
 import { storageFromEnv } from '../modules/media/config';
 import { markImageFailed, processImage } from '../modules/media/process';
@@ -17,7 +18,8 @@ import type { OutboxHandlers, OutboxJobData } from './outbox';
 // - queue `listing-checks` (from the outbox): the post-checks after publish, edit, photo change
 //   and resubmission (src/modules/moderation/checks.ts).
 // - queue `listings` (job schedulers): expiry every 15 minutes, the expiry reminder daily at
-//   09:00 Berlin time, the cleanup of abandoned uploads daily at 02:45 UTC.
+//   09:00 Berlin time, the cleanup of abandoned uploads daily at 02:45 UTC, the listing views
+//   counted in Valkey written to PostgreSQL every 5 minutes.
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
 const KEEP = { removeOnComplete: 100, removeOnFail: 500 };
@@ -26,6 +28,7 @@ const SCHEDULES = {
   'listing-expiry': { pattern: '*/15 * * * *', tz: 'UTC' },
   'expiry-reminder': { pattern: '0 9 * * *', tz: 'Europe/Berlin' },
   'upload-cleanup': { pattern: '45 2 * * *', tz: 'UTC' },
+  'view-flush': { pattern: '*/5 * * * *', tz: 'UTC' },
 } as const;
 
 export async function startListingJobs(
@@ -81,6 +84,8 @@ export async function startListingJobs(
         } else if (job.name === 'expiry-reminder') {
           const n = await sendExpiryReminders(db, connection, mailer, env.APP_URL);
           console.log(`listings: expiry reminders: ${n.emails} emails about ${n.listings} listings`);
+        } else if (job.name === 'view-flush') {
+          await flushViews(connection, db);
         } else if (job.name === 'upload-cleanup') {
           const n = storage ? await cleanupAbandonedUploads(db, storage) : 0;
           console.log(`listings: removed ${n} abandoned uploads`);
