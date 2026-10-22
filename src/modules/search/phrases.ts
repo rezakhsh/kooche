@@ -37,6 +37,8 @@ export type PhraseDocument = {
   label: string;
   /** Count of active listings on the phrase's page, in this scope */
   count: number;
+  /** 0 category, 1 make, 2 model: between equal counts, the broader page first */
+  level: number;
   // Searchable: the phrase, its Latin keys («peugeot 206»), the category path; all normalized
   phrase: string;
   latin: string;
@@ -52,8 +54,8 @@ export function phraseSettings(): Record<string, unknown> {
     filterableAttributes: ['scope'],
     sortableAttributes: [],
     // Matching first; among equal matches the phrase itself before longer ones («پژو» before
-    // «پژو 206»), then the phrases with the most listings
-    rankingRules: ['words', 'typo', 'proximity', 'attributeRank', 'exactness', 'count:desc', 'wordPosition'],
+    // «پژو 206»), then the phrases with the most listings, then the broader page
+    rankingRules: ['words', 'typo', 'proximity', 'attributeRank', 'exactness', 'count:desc', 'level:asc', 'wordPosition'],
     synonyms: synonymSettings(),
     stopWords: STOP_WORDS,
     localizedAttributes: [{ attributePatterns: ['phrase', 'category_text'], locales: ['pes'] }],
@@ -84,6 +86,8 @@ export function makeModelDefs(catalog: Catalog, categoryId: string): { brand: At
   const model = (brand && defs.find((d) => d.key === 'model' && d.dependsOn === 'brand')) || null;
   return { brand, model, defs };
 }
+
+const LEVEL: Record<PhraseKind, number> = { category: 0, make: 1, model: 2 };
 
 const latinOf = (value: string) => value.replace(/[_-]+/g, ' ').trim();
 
@@ -120,7 +124,7 @@ export function phraseRecords(catalog: Catalog, counts: CountRow[]): PhraseDocum
       have.count += n;
       return;
     }
-    out.set(id, { id, v: PHRASE_VERSION, scope, kind, category_id: categoryId, brand, model, label, count: n, phrase: normalizePersian(label), latin, category_text: pathText(categoryId) });
+    out.set(id, { id, v: PHRASE_VERSION, scope, kind, category_id: categoryId, brand, model, label, count: n, level: LEVEL[kind], phrase: normalizePersian(label), latin, category_text: pathText(categoryId) });
   };
 
   for (const r of counts) {
