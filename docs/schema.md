@@ -354,9 +354,11 @@ Standard columns, plus:
 | `legal_name` | `text null` | |
 | `vat_id` | `text null` | EU VAT ID |
 | `registration_number` | `text null` | E.g. Handelsregister number |
+| `legal_form`, `representative_name`, `register_court`, `imprint_extra` | `text null` | The Impressum details (§5 DDG) shown on the business page (migration 0014). `CHECK`s on length (1–80, 2–120, 2–120, 1–2000). |
 | `country_code` | `text` FK → `countries` | |
 | `location_id` | `uuid null` | Composite FK `(location_id, country_code) → locations (id, country_code)` |
 | `address_line1`, `address_line2`, `postal_code` | `text null` | |
+| `place_name` | `text null` | The town of the postal code, from `postal_places` (migration 0014): the address and the Impressum |
 | `point` | `geography(Point,4326) null` | Exact: a shop's address is public, unlike a private seller's |
 | `phone_e164` | `text null` | Public business phone |
 | `email` | `text null` | Public contact email |
@@ -934,6 +936,7 @@ One checkout for a one-time product, such as a bump or a featured slot. Standard
 | `provider` | `text DEFAULT 'stripe'` | |
 | `provider_checkout_id` | `text null UNIQUE` | Stripe Checkout Session id |
 | `provider_invoice_id` | `text null` | Receipts and invoices come from Stripe |
+| `buyer_country` | `text null` | The billing address's country as the provider reports it (migration 0014), for the EU VAT thresholds. `CHECK (~ '^[A-Z]{2}$')` |
 | `paid_at` | `timestamptz null` | `CHECK (status <> 'paid' OR paid_at IS NOT NULL)` |
 
 | Index | Serves |
@@ -1000,6 +1003,7 @@ What someone has paid for. Every paid feature is checked here: whether a listing
 | `listing_id` | `uuid null` FK → `listings` RESTRICT | The listing it applies to. `CHECK ((type = 'pro_plan') = (listing_id IS NULL))` |
 | `order_id` | `uuid null` FK → `orders` RESTRICT | Source, exactly one of the two |
 | `subscription_id` | `uuid null` FK → `subscriptions` RESTRICT | " |
+| `provider_invoice_id` | `text null` | The paid invoice a `pro_plan` period comes from (migration 0014): refunding that invoice revokes it. `UNIQUE WHERE NOT NULL`, so a retried webhook can't grant a period twice |
 | `starts_at` | `timestamptz` | For scheduled bumps, when to apply |
 | `ends_at` | `timestamptz null` | `CHECK ((type = 'bump') = (ends_at IS NULL))`, `CHECK (ends_at IS NULL OR ends_at > starts_at)`. A bump is a moment, not a period. |
 | `applied_at` | `timestamptz null` | Bumps only: when the worker moved `listings.ranked_at` |
@@ -1108,7 +1112,7 @@ The plan asks for "each component its own database role with least privilege". T
 | Role | Used by | Rights |
 | --- | --- | --- |
 | `classifieds_owner` | Migrations (deploy step) | Owns all objects. Never used by running code. |
-| `classifieds_app` | Next.js | Read and write on user-facing tables. **Insert only** on `listing_events`, `moderation_decisions`, `audit_log`, `outbox_events`, `webhook_events`. On `orders`: `INSERT`, plus `UPDATE (provider_checkout_id)` only (a column grant), so the app can start a checkout but never mark an order paid. **Read only** on `payments`, `subscriptions`, `entitlements`, `products`, `product_prices`. |
+| `classifieds_app` | Next.js | Read and write on user-facing tables. **Insert only** on `listing_events`, `moderation_decisions`, `audit_log`, `outbox_events`, `webhook_events`. On `orders`: `INSERT` of a pending order's columns only (since migration 0014: no `status`, `paid_at`, `buyer_country` or invoice), plus `UPDATE (provider_checkout_id)` only (column grants), so the app can start a checkout but never mark an order paid, not even by inserting it paid. **Read only** on `payments`, `subscriptions`, `entitlements`, `products`, `product_prices`. |
 | `classifieds_worker` | Worker | Everything the app has, plus writes on the money tables (applying webhooks), `UPDATE`/`DELETE` on `outbox_events`, `UPDATE` on `webhook_events`, `UPDATE (applied_at)` on `entitlements`. Still insert-only on `listing_events`, `moderation_decisions`, `audit_log`. |
 | `classifieds_readonly` | `pg_dump` backups, manual analysis | `SELECT` only (tables and sequences; `pg_dump` reads every sequence) |
 
@@ -1239,3 +1243,17 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Outbox:** the search sync subscribes to every `listing.*` event except `listing.created`, and to `event.published|changed|cancelled` (queue `search-sync`). `erase_user` and the expiry job already write `listing.deleted` / `listing.expired`, so they need nothing new.
   - **`SearchFilters`** gained `keyword` (the address's `q`, as typed); `BrowseState` gained `q` and the sort `relevance` (the default with a keyword). Saved searches store the address form, as planned above.
   - **`alerts`** joined the reserved country slugs.
+
+### Pro and payments (Oct 22, 2026)
+
+Roadmap step 6; details in `docs/setup.md`, "Payments and Pro". Migration `0014_pro_payments` is additive plus one grant change:
+
+- `organizations`: `legal_form`, `representative_name`, `register_court`, `imprint_extra`, `place_name`; `orders.buyer_country`; `entitlements.provider_invoice_id` with a partial unique index.
+- `REVOKE INSERT ON orders FROM classifieds_app` and `GRANT INSERT (buyer_user_id, organization_id, product_id, product_price_id, listing_id, currency, subtotal_minor, discount_minor, tax_minor, total_minor, provider)`. Drizzle names every column in an `INSERT`, so the app inserts orders with plain SQL (`startListingCheckout()`); a paid order inserted by the app is refused (`tests/payments.test.ts`, `tests/grants.test.ts`).
+- Products and prices are written by `scripts/stripe-setup.ts` as the owner, never by the seed (their provider ids differ per Stripe account). `products.features` of the plans is `{ activeListings, bumpsPerMonth, featuredSlots, staffSeats }` (`src/modules/payments/features.ts`), copied onto each `pro_plan`.
+- `pro_plan` periods: one per paid invoice, from the invoice line's period start to its end plus 7 days (SEPA settles ~6 business days late); revoked when the subscription ends, the invoice is refunded in full or disputed.
+- Included bumps and featured slots are entitlements with `subscription_id` as source and the business as holder, inserted by the worker after a member's request (`allowance.requested` in the outbox), counted against the plan: bumps over 30 days, featured slots at once.
+- Who may manage a listing: `user_id`, or owners and managers of `organization_id` (`manageableBy()`); staff only their own. The listing keeps `organization_id` when the member leaves (no FK to `organization_members`, as designed).
+- `listings.view_count` is now filled: Valkey counts, the worker adds them every 5 minutes.
+- Grants were already enough for everything else (the app writes `organizations`, `organization_members`, `organization_invitations`, `billing_customers`, `webhook_events`, `outbox_events`; the worker the money tables).
+

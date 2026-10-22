@@ -538,6 +538,56 @@ Built Oct 21, 2026 (roadmap step 2, `docs/progress.md`).
 - **Drafts:** `draft: true` shows the banner. Set it to false once the lawyer has approved, and update `updated`.
 - The page paths are in the proxy's `NOT_BROWSE` and in `RESERVED_SLUGS`.
 
+## Payments and Pro
+
+Built Oct 22, 2026 (roadmap step 6, `docs/progress.md`). Stripe in test mode on staging; live at launch. Code in `src/modules/payments/` and `src/modules/organizations/`, worker jobs in `src/worker/payments.ts`.
+
+**Stripe account.** Germany, sole trader (`business_type` individual), created by the owner on Oct 22, 2026. Only test mode is used until launch. The test secret key is in `/root/.secrets/stripe.env` (`STRIPE_SECRET_KEY`, put there by the owner; it never went through a conversation), together with the webhook signing secret (`STRIPE_WEBHOOK_SECRET`) that `scripts/stripe-setup.ts` writes there. API version pinned in code: `2026-09-30.endive` (SDK `stripe@23.0.0`, `STRIPE_API_VERSION` in `gateway.ts`).
+
+**Payment methods** (checked in Stripe's docs Oct 22, 2026, German account):
+
+| Method | One-time products | Pro subscriptions |
+| --- | --- | --- |
+| Cards, with Apple Pay and Google Pay in hosted Checkout | yes | yes |
+| PayPal (through Stripe) | yes | yes; live recurring PayPal may need "Enable" under Payment methods → PayPal (up to 5 business days) |
+| EPS (Austria) | yes | no (single-use bank redirect) |
+| SEPA Direct Debit | no (confirmed only after ~6 business days) | yes; extra identity check by Stripe to switch on live |
+
+This API version has no fixed `payment_method_types`; Checkout gets `allowed_payment_method_types` (`ONE_TIME_METHODS`, `SUBSCRIPTION_METHODS`), a filter over the methods switched on in the Dashboard. A method switched off in the Dashboard simply doesn't show. Link is left out. Stripe has no Persian; Checkout uses the browser's language (`locale: auto`).
+
+**VAT: small-business exemption (§19 UStG).** Prices are final; no Stripe Tax, no tax rates. Every customer we create has the invoice footer „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ (`INVOICE_FOOTER`), and one-time Checkouts create an invoice with the same footer. The seller's name and address on invoices come from the Stripe account's public details. Each order records the buyer's country (`orders.buyer_country`) for the EU threshold below. **To be confirmed by a tax advisor before launch:**
+- The exemption holds while last year's turnover was ≤ €25,000 net and this year's stays ≤ €100,000. Above €100,000 it ends with that sale; above €25,000 in a year it ends on 1 January. Then: remove the footer (one constant), German VAT (19%), Stripe Tax or fixed tax rates, VAT returns.
+- Austria: online advertising sold to consumers is most likely an electronically supplied service. Below €10,000 a year of cross-border B2C sales across the EU, the place of supply stays Germany; above it, Austrian VAT (20%) through the One-Stop-Shop, or the EU small-business scheme (§19a UStG, registration at the BZSt). Pro for Austrian businesses: reverse charge.
+- Invoices above €250 (yearly Pro Plus) also need the owner's Steuernummer: add it to the Stripe account's invoice settings before going live.
+
+**Refund ids:** card refunds are `re_…`, PayPal refunds `pyr_…`; both are `payments` rows of kind `refund`.
+
+**Products** (`seed/products.ts`, prices decided by the owner Oct 22, 2026): bump €1.99, 3 bumps over 7 days €4.49 (now, +3, +6 days), featured 7 days €6.99 (a second purchase extends it), featured event €9.99 (until its last date, at most 30 days), Pro €24/month or €240/year (25 active listings, 3 bumps per 30 days, 1 staff seat), Pro Plus €59/month or €590/year (100 listings, 15 bumps, 2 featured at once, 5 staff seats). Businesses without Pro: 3 active listings. Launch coupon `peydoo-launch-6m`: 100% off Pro and Pro Plus for 6 months, **monthly plans only**: Stripe discounts every invoice issued within the coupon's months, so on a yearly plan the first (12-month) invoice would be free in full (found in the test-mode run). Checkout shows the code field only for monthly plans, and the Portal can't switch a subscription to yearly; a business that wants yearly takes it through Checkout.
+
+**`scripts/stripe-setup.ts`** (run once per Stripe mode and environment, safe to repeat): creates or finds the products (`peydoo_<code>`) and prices (lookup key from `priceKey()`), writes `products` and `product_prices` as `classifieds_owner` (`syncCatalog()`: a changed price becomes a new row, the old one inactive), creates the launch coupon, sets the Customer Portal's default configuration (invoices, payment method, name and address, cancel at period end, switching between Pro and Pro Plus on monthly prices only; privacy and terms links from APP_URL), and creates the webhook endpoint `APP_URL/api/stripe/webhook` with the handled events, writing its signing secret straight into the secrets file. `--rotate-webhook` makes a new endpoint and secret; `--no-webhook` skips it (local runs use the Stripe CLI's secret). To change a price: edit `seed/products.ts`, run the script on staging (and later production).
+
+**`scripts/stripe-launch-codes.ts --count N`** prints N one-use promotion codes (`PEYDOO-XXXXXX`, valid 90 days) for launch businesses; they choose a monthly plan and enter it in Checkout («Add code»). Their Pro still arrives by webhook (schema decision 16.2). **`scripts/verify-business.ts <slug> verified`** sets the verified badge as `classifieds_owner` with an `audit_log` row, until the admin page takes this over.
+
+**The webhook-only rule.**
+1. The web (`classifieds_app`) starts a purchase: a `pending` order (raw SQL: since migration 0014 the app may insert only a pending order's columns, so it can't insert a paid one), the Stripe customer, the Checkout Session, and the session id on the order. Returning to the success page grants nothing; `/my/orders/{id}` reloads itself until the worker has applied the webhook.
+2. `POST /api/stripe/webhook` checks the signature on the raw body (5-minute tolerance), stores the event once (`webhook_events`, `ON CONFLICT DO NOTHING`) with a `webhook.received` outbox row in the same statement, answers 200 (400 for a bad signature, 200 and nothing stored for an unhandled type, 413 above 512 KB). Not a browse path; `/api/` is outside the Cache Rule; Bot Fight Mode is off, so Stripe's calls aren't challenged.
+3. The worker (`classifieds_worker`, queue `payments`, concurrency 1, 10 attempts with backoff) locks the `webhook_events` row, skips it if processed, applies it in one transaction, sets `processed_at`; a failure records `attempts` and `last_error` and is retried (an event whose order or charge isn't there yet is retried the same way). Subscription events read the current subscription back from Stripe, so out-of-order delivery ends in the right state; a paid invoice is read back with its payments.
+4. What is applied: a paid Checkout marks the order paid with Stripe's amounts, records the charge and inserts the entitlements; `invoice.paid` mirrors the subscription, records the charge (none for a €0 coupon invoice) and inserts one `pro_plan` for the invoice's period plus 7 days' grace (SEPA renewals settle ~6 business days later), unique per invoice; a subscription that is canceled, unpaid or expired revokes what is left; a full refund (all refunds of the charge reach its amount) or a dispute revokes what the charge granted, a partial refund doesn't.
+5. Included Pro bumps and featured slots: a member asks (outbox `allowance.requested`), the worker checks the plan (bumps counted over 30 days; featured slots at once, 7 days each) and inserts the entitlement with the subscription as its source.
+6. The worker's job scheduler runs due bumps every minute (moves `ranked_at`, `listing_events` `bumped`, outbox `listing.bumped` for search; a paused or in-review listing waits, a closed one's bump is revoked) and expires checkouts left pending for two days, hourly.
+
+**CSP.** Hosted Checkout and the hosted Customer Portal: no Stripe script on our pages. `form-action` allows `https://checkout.stripe.com https://billing.stripe.com`, because browsers apply it to the redirect after a form post.
+
+**Businesses.** `/business` (mine, create), `/b/{slug}` (public page, indexable with `SEARCH_INDEXING=on`, not edge-cached: `b`, `business` and `pro` are in `NOT_BROWSE` and `RESERVED_SLUGS`), `/b/{slug}/manage` (members; stats: views, saves, chats, phone reveals), `/edit`, `/team`, `/billing` (owner), `/business/invite/{token}` (accepted only by the account with the invited email; token stored as SHA-256, 7 days; the email is sent straight from the web, never through the outbox). Owners and managers manage every listing of the business (`manageableBy()` in `src/modules/organizations/limits.ts`, used by the listings and photo code); staff manage their own. A business's chats still go to the person who posted.
+
+**Private and business limits** (decided Oct 22, 2026, checked at publish, renew and resume; live listings are never taken down by them): private people at most 2 active offers under `services` and `lessons-courses`; job offers (`jobs`, kind `offer`) and `businessOnly` categories (today `tax-accounting`) only as a business; a business 3 / 25 / 100 active listings by plan.
+
+**Views.** `countView()` (`src/modules/listings/views.ts`) on listing and event pages: once per visitor (16-character SHA-256 of the IP, kept 30 minutes) per listing, no obvious bots, never the seller's own; the listings worker adds them to `listings.view_count` every 5 minutes.
+
+**Settings.** Web: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (set together). Worker: `STRIPE_SECRET_KEY`. Both refuse a live key (`sk_live_`, `rk_live_`) unless `PAYMENTS_LIVE=on`, which only production sets. Unset in development: payment pages say payments aren't available.
+
+**At launch:** activate the account (identity, bank account), statement descriptor `PEYDOO`, Steuernummer on invoices, enable PayPal recurring and SEPA in live mode, switch production to restricted keys (Checkout Sessions, Customers, Billing Portal write; Subscriptions, Invoices read; Webhook Endpoints only for the setup run), run `stripe-setup.ts` in live mode with `PAYMENTS_LIVE=on`, make the launch codes, and have the tax advisor and the lawyer confirm the VAT notes and terms section 14. Payments from Iran: nothing until a sanctions lawyer has confirmed an approach (`docs/payments-iran.md`).
+
 ## Brand and design
 
 Approved by the owner on Oct 17, 2026 (plan: https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK).
@@ -606,6 +656,7 @@ After the resize to CX33: +€3.00 net.
 - R2: `/root/.secrets/r2.env` (staging read-write and read-only S3 credentials) and `/root/.secrets/imgproxy.env` (URL signing key and salt), both also in Coolify. A new imgproxy key or salt breaks every image URL in cached pages until they are rendered again.
 - Since Oct 17, 2026 the Cloudflare token can also create API tokens (granted by the owner to create the R2 tokens). That makes it able to mint tokens with any permission in the account; narrow it again in Cloudflare if that isn't wanted.
 - Turnstile: `/root/.secrets/turnstile.env` (staging widget's site key and secret), also in Coolify for `classifieds-web`. A new secret (rotated in the dashboard) must reach Coolify at once, or every sign-in and publish is refused.
+- Stripe: `/root/.secrets/stripe.env` holds the test-mode secret key and the webhook signing secret, also in Coolify (key on web and worker, secret on web). The key can create charges and refunds in test mode only; a live key is refused without `PAYMENTS_LIVE=on`. A rotated key or a new webhook secret (`--rotate-webhook`) must reach Coolify at once, or webhooks are refused (Stripe retries for 3 days).
 - Meilisearch: `/root/.secrets/meilisearch.env` holds the master key (also on `classifieds-meilisearch` in Coolify, nowhere else) and the derived web and worker keys (also on `classifieds-web` and `classifieds-worker`). A new master key changes both derived keys: run `scripts/meili-keys.ts` again and update both apps.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
 
