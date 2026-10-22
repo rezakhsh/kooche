@@ -46,6 +46,7 @@ export async function SiteHeader() {
           )}
           {country && (
             <SearchBox
+              key={country.slug}
               id="header-q"
               action={`/${country.slug}`}
               country={country.slug}
