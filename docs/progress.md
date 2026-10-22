@@ -679,3 +679,9 @@ For the owner: on the phone, check the four places once: posting a car (tap «م
 Not done:
 - Without JavaScript, saving a brand-new listing shows an empty form again (the draft is saved; older behaviour, not from this change).
 - Disk is at 93–94% (old app images from earlier deploys); worth pruning before it blocks a build.
+
+## Oct 23, 2026: header follows a country change
+
+Reported by the owner: after changing the country (header pill → country list, or a footer link) the listings changed but the header kept the old country and its keyword box, and the logo led back to the old country. Cause: the header is in the root layout, which an in-app link doesn't render again, so it kept the country of the first page; its logo link then reopened that country, which saved it again. Fix (`8e9d910`): `RememberCountry` (`src/app/[country]/remember-country.tsx`) calls `router.refresh()` once when the saved country changes, so the header, keyword box, logo link and bottom bar are rendered again with the new cookie; the header's keyword box is keyed by country.
+
+Checked in headless Chromium, phone 390×844 and computer 1280×800: the same script failed on staging before the deploy (header stayed «آلمان», logo back to Germany) and passed 18/18 locally (production build) and live after it: change through the header and through the footer, the logo staying in the new country, `/help` and the back button keeping it, no console or CSP errors. 580 tests passing, typecheck and `check:rtl` clean. Deployed to staging Oct 23, 2026 (web, worker, migrate healthy). Disk is at 96% after this deploy (1.7 GB free): old app images should be pruned soon.
