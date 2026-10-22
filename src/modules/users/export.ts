@@ -115,7 +115,7 @@ export async function exportUserData(db: Queryable, userId: string, appUrl: stri
     WHERE f.user_id = ${userId} ORDER BY f.created_at
   `);
   const savedSearches = await db.execute<Row>(sql`
-    SELECT name, filters, country_code, created_at FROM saved_searches WHERE user_id = ${userId} ORDER BY created_at
+    SELECT name, filters, country_code, notify_frequency, created_at FROM saved_searches WHERE user_id = ${userId} ORDER BY created_at
   `);
   // Of the people they blocked, only what anyone sees: the name and the public page
   const blocked = await db.execute<Row>(sql`

@@ -15,6 +15,7 @@ import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
 import { startRetention } from './retention';
 import { startSearchJobs } from './search';
+import { startSearchAlertJobs } from './search-alerts';
 import { startSeoJobs } from './seo';
 import { runTelegramBot } from './telegram';
 
@@ -76,7 +77,8 @@ async function main(): Promise<void> {
   const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
   const accountJobs = await startAccountJobs(db, connection);
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
-  const searchJobs = await startSearchJobs(db, connection, { meili });
+  const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN });
+  const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });
   handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers);
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
@@ -88,7 +90,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

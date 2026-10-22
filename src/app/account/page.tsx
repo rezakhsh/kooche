@@ -6,7 +6,7 @@ import { appDb } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
 import { placeLabel } from '../../modules/listings/places';
 import { savedPlace } from '../../modules/listings/queries';
-import { chatNoticesOn } from '../../modules/users/notification-prefs';
+import { chatNoticesOn, savedSearchAlertsOn } from '../../modules/users/notification-prefs';
 import { loadActor } from '../../modules/users/permissions';
 import { eq } from 'drizzle-orm';
 import { users } from '../../db/schema';
@@ -48,9 +48,10 @@ export default async function AccountPage() {
             value={actor?.phoneVerifiedAt ? <Pill tone="success">{t.verified}</Pill> : <Pill tone="warning">{t.notVerified}</Pill>}
           />
           <Row href="/account/place" icon="pin" label={t.place} value={saved ? <bdi dir="auto">{placeLabel(saved.place)}</bdi> : t.placeNotSet} />
-          <Row href="/account/notifications" icon="bell" label={t.notifications} value={chatNoticesOn(prefs?.prefs) ? t.notificationsOn : t.notificationsOff} />
+          <Row href="/account/notifications" icon="bell" label={t.notifications} value={chatNoticesOn(prefs?.prefs) || savedSearchAlertsOn(prefs?.prefs) ? t.notificationsOn : t.notificationsOff} />
           <Row href="/my/listings" icon="doc" label={t.myListings} />
           <Row href="/my/favorites" icon="heart" label={messages.favorites.title} />
+          <Row href="/my/searches" icon="bell" label={messages.savedSearches.title} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
           {prefs && <Row href={sellerPath(prefs.publicToken)} icon="store" label={t.publicPage} />}
           <Row href="/account/data" icon="shield" label={t.myData} />

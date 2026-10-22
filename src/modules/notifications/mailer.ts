@@ -3,7 +3,7 @@ import { createTransport, type Transporter } from 'nodemailer';
 // Notification emails from the worker, through the same Amazon SES SMTP as the login codes
 // (docs/setup.md, "Email"). Without SMTP_URL (development) the message is printed instead.
 
-export type Mail = { to: string; subject: string; text: string; html: string };
+export type Mail = { to: string; subject: string; text: string; html: string; headers?: Record<string, string> };
 export type Mailer = (mail: Mail) => Promise<void>;
 
 let transport: Transporter | undefined;

@@ -269,6 +269,25 @@ export async function browseListings(db: Queryable, f: SearchFilters, cursor: st
 }
 
 /**
+ * Which of the searches would show this listing, by the browse query itself (saved-search
+ * alerts): one round trip for up to 50 searches.
+ */
+export async function searchesShowing(db: Queryable, listingId: string, searches: { id: string; filters: SearchFilters }[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (let i = 0; i < searches.length; i += 50) {
+    const chunk = searches.slice(i, i + 50);
+    const rows = await db.execute<{ id: string }>(
+      sql.join(
+        chunk.map((s) => sql`(SELECT ${s.id}::text AS id FROM ${listings} WHERE ${listings.id} = ${listingId}::uuid AND ${and(...conditions(s.filters))})`),
+        sql` UNION ALL `,
+      ),
+    );
+    for (const r of rows) out.add(r.id);
+  }
+  return out;
+}
+
+/**
  * Cards for listing ids found by keyword search, in the order given. Only active listings that
  * aren't events: an index entry that went stale since is simply left out.
  */

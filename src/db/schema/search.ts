@@ -5,13 +5,14 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { bytea, geographyPoint } from '../types';
 import { isIn, isObject, standardColumns, textArrayWithin, tstz } from './_columns';
-import { categories, countries, locations } from './listings';
+import { categories, countries, listings, locations } from './listings';
 import { users } from './users';
 
 // Module: search (docs/schema.md, section 9).
@@ -46,6 +47,10 @@ export const savedSearches = pgTable(
       .notNull()
       .default(sql`'{telegram}'::text[]`),
     lastNotifiedAt: tstz('last_notified_at'),
+    /** The one-click "turn this alert off" link in alert emails (migration 0013): random, not the id */
+    unsubscribeToken: text('unsubscribe_token')
+      .notNull()
+      .default(sql`replace(gen_random_uuid()::text, '-', '')`),
   },
   (t) => [
     check('saved_searches_name_check', sql`char_length(${t.name}) <= 60`),
@@ -55,9 +60,33 @@ export const savedSearches = pgTable(
     check('saved_searches_notify_frequency_check', isIn(t.notifyFrequency, NOTIFY_FREQUENCIES)),
     check('saved_searches_notify_channels_check', textArrayWithin(t.notifyChannels, NOTIFY_CHANNELS)),
     uniqueIndex('saved_searches_user_id_filters_hash_key').on(t.userId, t.filtersHash),
+    uniqueIndex('saved_searches_unsubscribe_token_key').on(t.unsubscribeToken),
     index('saved_searches_matching_idx')
       .on(t.countryCode, t.categoryId)
       .where(sql`notify_frequency <> 'off'`),
+  ],
+);
+
+/**
+ * A listing that matched a saved search (migration 0013): one row per pair, so a listing alerts a
+ * search at most once, and matches wait here for the debounced or daily notice (notified_at).
+ * Purged by the worker 30 days after they were found.
+ */
+export const savedSearchHits = pgTable(
+  'saved_search_hits',
+  {
+    savedSearchId: uuid('saved_search_id')
+      .notNull()
+      .references(() => savedSearches.id, { onDelete: 'cascade' }),
+    listingId: uuid('listing_id')
+      .notNull()
+      .references(() => listings.id, { onDelete: 'cascade' }),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    notifiedAt: tstz('notified_at'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.savedSearchId, t.listingId] }),
+    index('saved_search_hits_created_at_idx').on(t.createdAt),
   ],
 );
 

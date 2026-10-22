@@ -11,6 +11,8 @@ const NOT_BROWSE = new Set([
   ...['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'u', 'v', 'sitemaps'],
   // Legal and help pages (Oct 21, 2026)
   ...['contact', 'help', 'impressum', 'privacy', 'safety', 'terms'],
+  // Turning off a saved-search alert from its email (Oct 22, 2026)
+  'alerts',
 ]);
 /** Cloudflare Turnstile (src/components/turnstile.tsx) */
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';

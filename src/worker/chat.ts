@@ -19,6 +19,8 @@ import {
   type NoticeJob,
 } from '../modules/notifications/chat-notice';
 import type { Mailer } from '../modules/notifications/mailer';
+import { alertContent, emailAlert, telegramAlert } from '../modules/notifications/search-alert';
+import type { AlertJob } from '../modules/search/alerts';
 import { isUnreachable, TelegramError, type TelegramClient } from '../modules/notifications/telegram-api';
 import { markUnreachable } from '../modules/notifications/telegram-reach';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
@@ -33,6 +35,8 @@ import type { OutboxHandlers, OutboxJobData } from './outbox';
 //   using up an attempt; other errors retry with backoff; a blocked bot, or the last failed
 //   attempt, sends the notice by email instead. Nothing is dropped.
 // - queue `email-send`: at most EMAIL_PER_SECOND through SES, with retries.
+// The two send queues also carry saved-search notices (jobs `search_telegram`, `search_email`,
+// queued by ./search-alerts.ts), so all of the bot's messages share one limiter.
 
 export const TELEGRAM_PER_SECOND = 25;
 export const EMAIL_PER_SECOND = 10;
@@ -43,7 +47,8 @@ export const TELEGRAM_RETRY = { attempts: 10, backoff: { type: 'exponential' as 
 const EMAIL_RETRY = { attempts: 10, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
 type DeliverJob = NoticeJob;
-type SendJob = NoticeJob & { fallbackFrom?: 'telegram' };
+type SendJob = (NoticeJob | AlertJob) & { fallbackFrom?: 'telegram' };
+const isAlert = (job: Job<SendJob>): job is Job<AlertJob & { fallbackFrom?: 'telegram' }> => job.name.startsWith('search_');
 
 export type ChatJobOptions = {
   /** Null without TELEGRAM_BOT_TOKEN: every notice goes by email */
@@ -70,6 +75,11 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
 
   const sendEmail = (job: NoticeJob, fallback = false) =>
     emailQueue.add('chat_email', { ...job, ...(fallback ? { fallbackFrom: 'telegram' as const } : {}) }, { jobId: `mail_${job.messageId}` });
+  /** A saved-search notice by email: its own, or instead of Telegram (one job id per notice) */
+  const sendAlertEmail = (job: AlertJob & { fallbackFrom?: 'telegram' }, key: string) => emailQueue.add('search_email', job, { jobId: `mail_${key}` });
+  /** The email instead of a Telegram send job that couldn't deliver */
+  const emailInstead = (job: Job<SendJob>) =>
+    isAlert(job) ? sendAlertEmail({ ...job.data, fallbackFrom: 'telegram' }, String(job.id).replace(/^tg_/, '')) : sendEmail(job.data as NoticeJob, true);
 
   const publishChanges = async (changes: StatusChange[]) => {
     for (const c of changes) {
@@ -130,13 +140,13 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   const telegramWorker: Worker<SendJob> = new Worker<SendJob>(
     'telegram-send',
     async (job) => {
-      const content = await noticeContent(db, job.data, opts.appUrl);
+      const content = isAlert(job) ? await alertContent(db, job.data, opts.appUrl) : await noticeContent(db, job.data as NoticeJob, opts.appUrl);
       if (!content) return 'gone';
       if (!opts.telegram || content.telegramUserId === null) {
-        await sendEmail(job.data, true);
+        await emailInstead(job);
         return 'email';
       }
-      const { text, replyMarkup } = telegramNotice(content);
+      const { text, replyMarkup } = 'listingTitle' in content ? telegramNotice(content) : telegramAlert(content);
       try {
         await opts.telegram.sendMessage(content.telegramUserId, text, replyMarkup);
         return 'sent';
@@ -149,12 +159,12 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
         }
         if (isUnreachable(e)) {
           await markUnreachable(connection, content.telegramUserId);
-          await sendEmail(job.data, true);
+          await emailInstead(job);
           return 'unreachable';
         }
         if (e instanceof TelegramError && e.status >= 400 && e.status < 500) {
           // A request Telegram will never accept: no point retrying
-          await sendEmail(job.data, true);
+          await emailInstead(job);
           throw new UnrecoverableError(e.message);
         }
         throw e;
@@ -173,7 +183,13 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   const emailWorker = new Worker<SendJob>(
     'email-send',
     async (job) => {
-      const content = await noticeContent(db, job.data, opts.appUrl);
+      if (isAlert(job)) {
+        const content = await alertContent(db, job.data, opts.appUrl);
+        if (!content) return 'gone';
+        await opts.mailer(emailAlert(content));
+        return 'sent';
+      }
+      const content = await noticeContent(db, job.data as NoticeJob, opts.appUrl);
       if (!content) return 'gone';
       await opts.mailer(emailNotice(content));
       return 'sent';
@@ -189,7 +205,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
     onFailed(job, e);
     // After the last attempt the notice still arrives, by email
     if (job && !(e instanceof UnrecoverableError) && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-      void sendEmail(job.data, true).catch((err) => console.error('chat: email fallback failed:', err.message));
+      void emailInstead(job).catch((err) => console.error('chat: email fallback failed:', err.message));
     }
   });
 

@@ -157,6 +157,9 @@ export const messages = {
     all: 'همه آگهی‌ها',
     unsubscribed: (name: string) => `اعلان جستجوی «${name}» خاموش شد. هر وقت خواستید از «جستجوهای ذخیره‌شده» دوباره روشنش کنید.`,
     unsubscribeInvalid: 'این پیوند معتبر نیست یا جستجو دیگر وجود ندارد.',
+    unsubscribeTitle: 'خاموش کردن اعلان جستجو',
+    unsubscribeAsk: (name: string) => `اعلان آگهی‌های تازه برای جستجوی «${name}» خاموش شود؟`,
+    unsubscribeConfirm: 'خاموش شود',
   },
   // Favorites (src/modules/listings/favorites.ts, /my/favorites)
   favorites: {
@@ -505,7 +508,7 @@ export const messages = {
     placeRemove: 'حذف محل',
     placeSaved: 'محل ذخیره شد.',
     placeRemoved: 'محل حذف شد.',
-    notifications: 'اعلان پیام‌ها',
+    notifications: 'اعلان‌ها',
     notificationsOn: 'روشن',
     notificationsOff: 'خاموش',
     name: 'نام نمایشی',
@@ -572,7 +575,7 @@ export const messages = {
   },
   // Chat notices settings: src/app/account/notifications
   notifications: {
-    title: 'اعلان پیام‌ها',
+    title: 'اعلان‌ها',
     chat: 'وقتی پیام تازه‌ای دارم و پیدو باز نیست، خبرم کن',
     save: 'ذخیره',
     saved: 'ذخیره شد.',

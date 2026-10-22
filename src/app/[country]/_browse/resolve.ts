@@ -2,7 +2,7 @@ import { notFound, permanentRedirect, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
-import { ancestry, cachedCatalog, EVENT_ROOT_SLUG, isEventCategory, type Catalog, type CategoryNode } from '../../../modules/listings/catalog';
+import { browsableCategory, cachedCatalog, EVENT_ROOT_SLUG, isEventCategory, subtreeIds, type Catalog, type CategoryNode } from '../../../modules/listings/catalog';
 import { activeCountries, type Country } from '../../../modules/listings/queries';
 import { resolveFilters, type PlaceNotice, type ResolvedPlace, type SearchFilters } from '../../../modules/search';
 import { browseQuery, currentQuery, filterContext, parseBrowseParams, type BrowseState, type FilterContext, type RawParams } from '../../../modules/search/filters';
@@ -28,16 +28,7 @@ export type Browse = {
   path: string;
 };
 
-export function subtreeIds(catalog: Catalog, id: string): string[] {
-  return [id, ...(catalog.byId.get(id)?.childIds ?? []).flatMap((c) => subtreeIds(catalog, c))];
-}
-
-/** A category browse pages show: active up to its root, and not part of the events section */
-function browsable(catalog: Catalog, slug: string): CategoryNode | null {
-  const c = catalog.bySlug.get(slug);
-  if (!c || isEventCategory(catalog, c.id)) return null;
-  return ancestry(catalog, c.id).every((x) => x.isActive) ? c : null;
-}
+const browsable = browsableCategory;
 
 /** An events-section slug in a browse address goes to the events pages */
 function eventsRedirect(catalog: Catalog, country: string, city: string | null, slug: string): never | void {

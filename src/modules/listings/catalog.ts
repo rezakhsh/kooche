@@ -219,6 +219,18 @@ export function isEventCategory(catalog: Catalog, categoryId: string | null | un
   return ancestry(catalog, categoryId)[0]?.slug === EVENT_ROOT_SLUG;
 }
 
+/** A category and everything under it */
+export function subtreeIds(catalog: Catalog, id: string): string[] {
+  return [id, ...(catalog.byId.get(id)?.childIds ?? []).flatMap((c) => subtreeIds(catalog, c))];
+}
+
+/** A category browse pages show: active up to its root, and not part of the events section */
+export function browsableCategory(catalog: Catalog, slug: string): CategoryNode | null {
+  const c = catalog.bySlug.get(slug);
+  if (!c || isEventCategory(catalog, c.id)) return null;
+  return ancestry(catalog, c.id).every((x) => x.isActive) ? c : null;
+}
+
 /** A category new listings may use: an active leaf whose ancestors are active too */
 export function isPostable(catalog: Catalog, categoryId: string): boolean {
   const chain = ancestry(catalog, categoryId);

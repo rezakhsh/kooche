@@ -24,6 +24,7 @@ import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP } from '../../../modu
 import { webMeili } from '../../../modules/search/client';
 import { browseQuery, defaultSort, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
 import { KEYWORD_LIMIT } from '../../../modules/search/keyword';
+import { isSaved } from '../../../modules/search/saved';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { citiesOf } from '../../../modules/search/places';
 import { VIEW_COOKIE } from '../../country-cookie-name';
@@ -32,6 +33,7 @@ import { RememberCountry, RememberView } from '../remember-country';
 import { ActiveFilters, filterChips } from './chips';
 import { FilterForm } from './filter-form';
 import { NearMe } from './near-me';
+import { SaveSearchButton } from './save-search';
 import type { Browse } from './resolve';
 
 // One page for every browse address: a country, a category in it, a city, a category in a city
@@ -127,6 +129,9 @@ export async function BrowsePage({ b }: { b: Browse }) {
   // Filled hearts for a signed-in visitor; logged-out pages are the same for everyone
   const session = await currentSession();
   const saved = session ? await savedAmong(appDb(), session.user.id, result.items.map((l) => l.id)) : new Set<string>();
+  // Any page narrower than a whole country can be saved as a search with alerts
+  const saveable = !!(state.q || isFiltered(state) || city || category);
+  const searchSaved = saveable && session && !state.near ? await isSaved(appDb(), session.user.id, { country, city, category, ctx, state }) : false;
   const here = `${b.path}${browseQuery(state, ctx.minorUnit)}`;
   const view: View = state.view ?? (remembered === 'list' ? 'list' : 'grid');
 
@@ -340,6 +345,16 @@ export async function BrowsePage({ b }: { b: Browse }) {
           )}
 
           <ActiveFilters b={b} />
+
+          {saveable && (
+            <div className="mb-4">
+              {state.near ? (
+                <p className="text-xs text-neutral-600">{messages.savedSearches.nearNotSaveable}</p>
+              ) : (
+                <SaveSearchButton path={b.path} query={browseQuery({ ...state, after: null, view: null }, ctx.minorUnit)} saved={searchSaved} />
+              )}
+            </div>
+          )}
 
           <nav aria-label={tb.sort} className="no-scrollbar -mx-4 mb-4 flex items-center gap-1.5 overflow-x-auto px-4 text-sm sm:mx-0 sm:px-0">
             <Icon name="sort" className="size-4 shrink-0 text-neutral-400" />
