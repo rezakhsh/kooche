@@ -1,12 +1,12 @@
-import { Queue, Worker, type Job } from 'bullmq';
+import { DelayedError, Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { cachedCatalog } from '../modules/listings/catalog';
 import { EVENT_OUTBOX } from '../modules/events/events';
 import { LISTING_OUTBOX } from '../modules/listings/events';
-import { LISTINGS_INDEX } from '../modules/search/documents';
+import { indexCode, LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
-import { rebuildPhrases, SUGGESTIONS_INDEX } from '../modules/search/phrases';
+import { phraseCode, rebuildPhrases, SUGGESTIONS_INDEX } from '../modules/search/phrases';
 import { indexState, rebuildIndex, syncListings } from '../modules/search/sync';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 
@@ -20,6 +20,13 @@ import type { OutboxHandlers, OutboxJobData } from './outbox';
 // - `suggest-rebuild`: the phrase index of suggestions while typing (src/modules/search/phrases.ts),
 //   at start, a minute after listing changes (one job gathers a burst of them) and every 15
 //   minutes; skipped when its records wouldn't change.
+// Start-up rebuilds carry the stamp of the code that asked for them (indexCode(), phraseCode()).
+// During a deploy Coolify keeps the old worker running until the new one is healthy, and both take
+// jobs from the queue: the old code would rebuild the index in its own, outdated shape. A worker
+// whose stamp differs puts such a job back for STAMP_RETRY_MS, until the worker that asked takes it;
+// after STAMP_WAIT_MS (that worker is gone) any worker runs it. Scheduled and change-driven jobs
+// carry no stamp; one an old worker ran during a deploy is corrected by the next rebuild, which
+// sees another stamp in the index.
 // After a listing is published and indexed, `afterPublish` hands it to the saved-search matching.
 // Without MEILI_URL the queue still runs, writes nothing and hands publications on.
 
@@ -54,6 +61,17 @@ export const SYNC_EVENTS = [
   EVENT_OUTBOX.cancelled,
 ] as const;
 
+export const STAMP_RETRY_MS = 10_000;
+export const STAMP_WAIT_MS = 30 * 60_000;
+
+/** A start-up rebuild's data: why, which code asked for it, and when */
+export type StartupJobData = { reason: string; code: string; queuedAt: number };
+
+/** Whether this worker should leave the job to the code that queued it (and for how long at most) */
+export function leaveToOtherCode(data: Partial<StartupJobData> | undefined, own: string, now = Date.now()): boolean {
+  return !!data?.code && data.code !== own && now - (data.queuedAt ?? 0) < STAMP_WAIT_MS;
+}
+
 export type SearchJobOptions = {
   meili: Meili | null;
   index?: string;
@@ -64,6 +82,8 @@ export type SearchJobOptions = {
   afterPublish?: (listingId: string) => Promise<void>;
   /** Tests: a BullMQ key prefix of their own, no schedules, no start-up check */
   prefix?: string;
+  /** Tests: how long a job from other code is put back */
+  stampRetryMs?: number;
   schedules?: boolean;
 };
 
@@ -83,7 +103,12 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
   const own = connection.duplicate();
   const worker = new Worker(
     'search-sync',
-    async (job: Job) => {
+    async (job: Job, token?: string) => {
+      const own = job.name === 'reindex' ? indexCode() : job.name === 'suggest-rebuild' ? phraseCode() : null;
+      if (own && leaveToOtherCode(job.data, own)) {
+        await job.moveToDelayed(Date.now() + (opts.stampRetryMs ?? STAMP_RETRY_MS), token);
+        throw new DelayedError();
+      }
       if (job.name === 'search_sync') {
         const data = job.data as OutboxJobData;
         const published = data.eventType === LISTING_OUTBOX.published;
@@ -116,12 +141,13 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
   // At start: rebuild when the index can't be used as it is. A Meilisearch that doesn't answer is
   // only logged; the nightly rebuild and the retries of single writes catch up later.
   if (meili && opts.schedules !== false) {
-    await queue.add('suggest-rebuild', { reason: 'start' }, { removeOnComplete: true, removeOnFail: 50 });
+    const startup = (reason: string, code: string): StartupJobData => ({ reason, code, queuedAt: Date.now() });
+    await queue.add('suggest-rebuild', startup('start', phraseCode()), { removeOnComplete: true, removeOnFail: 50 });
     try {
       const state = await indexState(db, meili, index);
       if (state !== 'ok') {
         console.log(`search: index ${state}, rebuilding`);
-        await queue.add('reindex', { reason: state }, { removeOnComplete: true, removeOnFail: 50 });
+        await queue.add('reindex', startup(state, indexCode()), { removeOnComplete: true, removeOnFail: 50 });
       }
     } catch (e) {
       console.error('search: start-up check failed:', e instanceof Error ? e.message : e);

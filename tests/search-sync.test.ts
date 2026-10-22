@@ -11,14 +11,14 @@ import { eventInputSchema } from '../src/modules/events/input';
 import { LISTING_OUTBOX } from '../src/modules/listings/events';
 import { changeListingStatus, createDraft, expireDueListings, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { runListingChecks } from '../src/modules/moderation/checks';
-import { DOC_VERSION, documentsFor, indexSettings, LISTINGS_INDEX, type ListingDocument } from '../src/modules/search/documents';
+import { DOC_VERSION, documentsFor, indexCode, indexSettings, LISTINGS_INDEX, type ListingDocument } from '../src/modules/search/documents';
 import { WEB_KEY, WORKER_KEY } from '../src/modules/search/keys';
-import { rebuildPhrases, SUGGESTIONS_INDEX } from '../src/modules/search/phrases';
+import { phraseCode, rebuildPhrases, SUGGESTIONS_INDEX } from '../src/modules/search/phrases';
 import { findSuggestions } from '../src/modules/search/suggest';
 import { Meili } from '../src/modules/search/meili';
 import { indexState, rebuildIndex, settingsMatch, syncListings } from '../src/modules/search/sync';
 import { eraseRequestedUser } from '../src/modules/users/erasure';
-import { startSearchJobs, SYNC_EVENTS } from '../src/worker/search';
+import { leaveToOtherCode, STAMP_WAIT_MS, startSearchJobs, SYNC_EVENTS } from '../src/worker/search';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
 import { categoryBySlug, user } from './listings-fixtures';
@@ -297,6 +297,53 @@ describe('the phrase index of suggestions', () => {
       await jobs.close();
       await connection.quit();
     }
+  });
+});
+
+describe('during a deploy (old and new worker both taking jobs)', () => {
+  it('a start-up rebuild runs only on the code that asked for it, until that worker is gone', () => {
+    const now = Date.now();
+    expect(leaveToOtherCode({ reason: 'version', code: 'abc', queuedAt: now }, 'abc', now)).toBe(false);
+    expect(leaveToOtherCode({ reason: 'version', code: 'new', queuedAt: now }, 'old', now)).toBe(true);
+    expect(leaveToOtherCode({ reason: 'version', code: 'new', queuedAt: now - STAMP_WAIT_MS - 1 }, 'old', now)).toBe(false);
+    // Scheduled and change-driven jobs carry no stamp
+    expect(leaveToOtherCode({ reason: 'changes' } as never, 'old', now)).toBe(false);
+    expect(leaveToOtherCode(undefined, 'old', now)).toBe(false);
+  });
+
+  it('the queue puts back a rebuild from other code and runs its own', async () => {
+    const connection = new Redis(process.env.TEST_REDIS_URL!, { maxRetriesPerRequest: null });
+    const suggestIndex = indexName('stamp_phrases');
+    // An index of its own: the drift test below needs this file's index as the earlier tests left it
+    const jobs = await startSearchJobs(workerDb, connection, { meili, index: await testIndex('stamp'), suggestIndex, stampRetryMs: 100, prefix: `test-${randomUUID()}`, schedules: false });
+    const events = new (await import('bullmq')).QueueEvents('search-sync', { connection: connection.duplicate(), prefix: jobs.queue.opts.prefix });
+    try {
+      const other = await jobs.queue.add('suggest-rebuild', { reason: 'version', code: 'newer-code', queuedAt: Date.now() });
+      await new Promise((r) => setTimeout(r, 1_500));
+      expect(await other.getState()).toBe('delayed');
+      expect(await meili.indexStats(suggestIndex)).toBeNull();
+      // The worker that asked is gone: after the wait, anyone runs it
+      const late = await jobs.queue.add('suggest-rebuild', { reason: 'version', code: 'newer-code', queuedAt: Date.now() - STAMP_WAIT_MS - 1 });
+      await late.waitUntilFinished(events, 30_000);
+      expect(await meili.indexStats(suggestIndex)).not.toBeNull();
+      const own = await jobs.queue.add('reindex', { reason: 'version', code: indexCode(), queuedAt: Date.now() });
+      await own.waitUntilFinished(events, 60_000);
+      await other.remove().catch(() => {});
+    } finally {
+      await events.close();
+      await jobs.close();
+      await connection.quit();
+    }
+  });
+
+  it('a phrase index another code built is rebuilt even when the records are the same', async () => {
+    const phrases = indexName('stamp_rebuilt');
+    expect(await rebuildPhrases(workerDb, meili, phrases, catalog)).toBeGreaterThan(0);
+    expect(await rebuildPhrases(workerDb, meili, phrases, catalog)).toBeNull();
+    const [doc] = (await meili.fetchDocuments<Record<string, unknown>>(phrases, { limit: 1 })).results;
+    expect(doc!.code).toBe(phraseCode());
+    await meili.wait(await meili.addDocuments(phrases, [{ ...doc, code: 'older-code' }]));
+    expect(await rebuildPhrases(workerDb, meili, phrases, catalog)).toBeGreaterThan(0);
   });
 });
 

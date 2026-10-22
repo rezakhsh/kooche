@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { ancestry, browsableCategory, effectiveAttributes, type AttributeDef, type Catalog } from '../listings/catalog';
+import { codeStamp } from './documents';
 import type { Meili, Task } from './meili';
 import { STOP_WORDS, synonymSettings } from './synonyms';
 
@@ -27,6 +28,8 @@ export type PhraseKind = 'category' | 'make' | 'model';
 export type PhraseDocument = {
   id: string;
   v: number;
+  /** phraseCode() of the code that built it (an old worker during a deploy builds another) */
+  code: string;
   /** The country code, or `<country>:<city id>` */
   scope: string;
   kind: PhraseKind;
@@ -66,6 +69,9 @@ export function phraseSettings(): Record<string, unknown> {
     searchCutoffMs: 500,
   };
 }
+
+/** The phrase index as this code builds it (see indexCode() in ./documents.ts) */
+export const phraseCode = () => codeStamp(PHRASE_VERSION, phraseSettings());
 
 /** Options that mean "anything else" («سایر», «سایر مدل‌ها») are never suggested */
 const OTHER = normalizePersian('سایر');
@@ -115,6 +121,7 @@ const recordId = (...parts: (string | null)[]) => createHash('sha1').update(part
 /** The records for those counts, in a stable order */
 export function phraseRecords(catalog: Catalog, counts: CountRow[]): PhraseDocument[] {
   const out = new Map<string, PhraseDocument>();
+  const code = phraseCode();
   const pathText = (categoryId: string) => normalizePersian(ancestry(catalog, categoryId).map((c) => c.nameFa).join(' '));
 
   const add = (scope: string, kind: PhraseKind, categoryId: string, brand: string | null, model: string | null, label: string, latin: string, n: number) => {
@@ -124,7 +131,7 @@ export function phraseRecords(catalog: Catalog, counts: CountRow[]): PhraseDocum
       have.count += n;
       return;
     }
-    out.set(id, { id, v: PHRASE_VERSION, scope, kind, category_id: categoryId, brand, model, label, count: n, level: LEVEL[kind], phrase: normalizePersian(label), latin, category_text: pathText(categoryId) });
+    out.set(id, { id, v: PHRASE_VERSION, code, scope, kind, category_id: categoryId, brand, model, label, count: n, level: LEVEL[kind], phrase: normalizePersian(label), latin, category_text: pathText(categoryId) });
   };
 
   for (const r of counts) {
@@ -152,14 +159,22 @@ export const phraseDigest = (docs: PhraseDocument[]) => createHash('sha1').updat
 // first rebuild always runs (and brings new settings and record shapes with it).
 const built = new Map<string, string>();
 
+/** Whether the live index exists and was built by this code, not by another worker meanwhile */
+async function builtByThisCode(meili: Meili, index: string): Promise<boolean> {
+  if (!(await meili.indexStats(index))) return false;
+  const sample = await meili.fetchDocuments<{ code?: string }>(index, { fields: ['code'], limit: 1 });
+  return !sample.results[0] || sample.results[0].code === phraseCode();
+}
+
 /**
- * Builds `<index>_new` from PostgreSQL and swaps it in, unless the live index exists and was last
- * built from the same records. Returns the number of records, or null when nothing changed.
+ * Builds `<index>_new` from PostgreSQL and swaps it in, unless the live index exists, was last
+ * built from the same records and by this code (an old worker may have built it during a deploy).
+ * Returns the number of records, or null when nothing changed.
  */
 export async function rebuildPhrases(db: Queryable, meili: Meili, index: string, catalog: Catalog, opts: { force?: boolean } = {}): Promise<number | null> {
   const docs = phraseRecords(catalog, await phraseCounts(db));
   const digest = phraseDigest(docs);
-  if (!opts.force && built.get(index) === digest && (await meili.indexStats(index))) return null;
+  if (!opts.force && built.get(index) === digest && (await builtByThisCode(meili, index))) return null;
 
   const next = `${index}_new`;
   if (await meili.indexStats(next)) await meili.wait(await meili.deleteIndex(next));

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -65,6 +66,17 @@ export function indexSettings(): Record<string, unknown> {
     searchCutoffMs: 1500,
   };
 }
+
+/** A short stamp of what an index looks like in some code: its record version and settings */
+export const codeStamp = (version: number, settings: Record<string, unknown>) =>
+  createHash('sha1').update(JSON.stringify([version, settings])).digest('hex').slice(0, 12);
+
+/**
+ * The listings index as this code builds it. During a deploy the old and the new worker both take
+ * jobs for a moment; a start-up rebuild carries the stamp of the code that asked for it and only
+ * code with the same stamp runs it (src/worker/search.ts).
+ */
+export const indexCode = () => codeStamp(DOC_VERSION, indexSettings());
 
 /** A date field's value as a number with the same order: "2027-03-15" → 20270315, "2027-03" → 20270300 */
 export function dateNumber(s: string): number | null {
