@@ -610,3 +610,15 @@ Deployed to staging Oct 22, 2026 (approved by the owner; scratch containers remo
 **Deploy race fixed (approved by the owner).** The first deploy's logs showed the old worker, still running during Coolify's rolling update, taking the new worker's start-up rebuild: it rebuilt the listings index with the old document version (the second deploy corrected it; checked in Meilisearch: version-2 documents, right counts). Start-up rebuilds now carry the stamp of the code that asked for them and other code puts them back until that worker takes them (30 minutes at most); phrase records carry the stamp, so an index built by other code is rebuilt at the next 15-minute run (`docs/setup.md`, "Keeping the index in line"). 3 new tests (497 in all, passing). This deploy itself still started next to a worker without the check.
 
 For the owner: type in the box on a phone and a computer once real listings arrive; phrases appear as soon as a make or category has a listing.
+
+## Oct 22, 2026: Pro and payments (roadmap step 6), plan approved
+
+Decided by the owner (Oct 22, 2026):
+- **Roadmap step 5 (AI posting) is deferred** until the site has more customers. Step 6 comes first; the admin page stays the last build step.
+- **The owner uses the German small-business VAT exemption** (Kleinunternehmer, §19 UStG): no VAT on invoices, the §19 note on every invoice, Stripe Tax off. What changes past the thresholds, and what selling to Austria means, is in the plan below and goes to a tax advisor before launch.
+- Stripe first (test mode on staging). Payments from Iran are a separate study, nothing built: `docs/payments-iran.md` (a sanctions lawyer must confirm any approach first).
+- Businesses get 3 free active listings without Pro (Pro 25, Pro Plus 100). Private people may have at most 2 active service or lesson offers; job offers and regulated professions are business-only.
+- Launch businesses get 6 months of free Pro through a 100% Stripe coupon.
+- Prices: bump €1.99, 3 bumps over 7 days €4.49, featured 7 days €6.99, featured event €9.99, Pro €24/month or €240/year, Pro Plus €59/month or €590/year.
+
+Plan (approved): one-time products through Stripe Checkout (cards, Apple Pay, Google Pay, PayPal, EPS), Pro through Stripe Billing (cards, wallets, PayPal, SEPA) with the Customer Portal; webhooks stored by the web, applied by the worker; business pages `/b/{slug}`, members, posting as a business, included bumps and featured slots. Work in progress on branch `pro` (`/root/classifieds-pro`).
