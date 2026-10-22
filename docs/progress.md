@@ -658,3 +658,6 @@ For the owner:
 - Before live payments (at launch): activate the Stripe account, statement descriptor, Steuernummer on invoices, PayPal recurring and SEPA in live mode; a tax advisor confirms the VAT notes (thresholds, Austria) and the lawyer terms section 14.
 - Payments from Iran: nothing until a sanctions lawyer has confirmed an approach (`docs/payments-iran.md`).
 
+## Oct 22, 2026: launch strategy (research, no code)
+
+Research study on how to launch: market by country and city, Telegram and other competitors, one country or many, the cold start without fake listings, weaknesses and advantages, ranked future features, and 90-day and 12-month plans. Full study in a Claude Doc ("Peydoo launch strategy", https://claude.ai/artifact/CRYapwgCPUn9duJiKZWk14); summary, gates and the owner's open decisions in `docs/strategy.md`. Nothing decided yet: the owner chooses the launch date, seeding city, free-Pro length, Telegram partners and trademark timing.
