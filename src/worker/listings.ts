@@ -106,7 +106,7 @@ export async function startListingJobs(
     'listing.published': toChecks,
     'listing.updated': toChecks,
     'listing.submitted': toChecks,
-    // Known, nothing to do yet: search sync and notifications subscribe here later
+    // Search sync subscribes to these too (./search.ts); nothing else needs them yet
     'listing.created': [],
     'listing.paused': [],
     'listing.resumed': [],

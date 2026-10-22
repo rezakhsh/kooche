@@ -28,7 +28,7 @@ import { createDraft } from '../src/modules/listings/listings';
 // the currency is always the country's.
 
 const browseIn = (countryCode: string, categoryIds: string[] | null = null) =>
-  browseListings(appDb, { countryCode, categoryIds, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' }, null);
+  browseListings(appDb, { countryCode, keyword: null, categoryIds, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' }, null);
 
 async function input(over: Partial<ListingInput> = {}): Promise<ListingInput> {
   return listingInputSchema.parse({

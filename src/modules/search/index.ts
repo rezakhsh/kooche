@@ -1,13 +1,17 @@
 import type { Queryable } from '../../db/drizzle';
 import type { Point } from '../../db/types';
-import { browseListings, countListings, type SearchFilters } from './browse';
+import { browseListings, cardsByIds, countListings, type BrowseItem, type SearchFilters } from './browse';
+import { LISTINGS_INDEX } from './documents';
 import type { BrowseState } from './filters';
+import { keywordSearch } from './keyword';
+import type { Meili } from './meili';
 import { readNearToken } from './near';
 import { nearestCity, postalCenter, postalLabel } from './places';
 
-// The search module's interface for pages. Today every query is a browse query on PostgreSQL;
-// when keyword search arrives, `searchListings` sends keyword queries to Meilisearch and keeps
-// this signature, so pages don't change (docs/setup.md, decision 7).
+// The search module's interface for pages (docs/setup.md, decision 7, and "Keyword search and
+// saved searches"): without a keyword every query is a browse query on PostgreSQL; with one,
+// `searchListings` asks Meilisearch for the ids and loads the cards from PostgreSQL. If
+// Meilisearch is unset or fails, the keyword goes to PostgreSQL instead and the page says so.
 
 export type { SearchFilters } from './browse';
 
@@ -60,6 +64,7 @@ export async function resolveFilters(
   return {
     filters: {
       countryCode: opts.countryCode,
+      keyword: state.q,
       categoryIds: opts.categoryIds,
       // A radius crosses city borders, so it replaces the city
       locationId: around || postalCode ? null : opts.locationId,
@@ -76,8 +81,43 @@ export async function resolveFilters(
   };
 }
 
-/** One page of listings and the total (capped), for a browse or (later) keyword query */
-export async function searchListings(db: Queryable, filters: SearchFilters, cursor: string | null) {
+export type SearchResult = {
+  items: BrowseItem[];
+  next: string | null;
+  /** Capped at COUNT_CAP + 1 */
+  total: number;
+  /** Keyword searches through Meilisearch: counts per category (`category_id`) and option (`attrs.<key>`) */
+  facets: Record<string, Record<string, number>> | null;
+  /** Keyword searches through Meilisearch: matching events of the country, first page only */
+  eventIds: string[];
+  /** The keyword went to PostgreSQL because Meilisearch failed */
+  fallback: boolean;
+};
+
+export type SearchOptions = {
+  meili?: Meili | null;
+  index?: string;
+  /** Fields whose options show counts (keyword searches only) */
+  facetKeys?: string[];
+  /** Also look for matching events */
+  events?: boolean;
+};
+
+/** One page of listings and the total (capped), for a browse or a keyword query */
+export async function searchListings(db: Queryable, filters: SearchFilters, cursor: string | null, opts: SearchOptions = {}): Promise<SearchResult> {
+  if (filters.keyword && opts.meili) {
+    try {
+      const r = await keywordSearch(opts.meili, opts.index ?? LISTINGS_INDEX, filters, cursor, { facetKeys: opts.facetKeys, events: opts.events });
+      return { items: await cardsByIds(db, r.ids, filters.around), next: r.next, total: r.total, facets: r.facets, eventIds: r.eventIds, fallback: false };
+    } catch (e) {
+      console.error('search: keyword search failed, using PostgreSQL:', e instanceof Error ? e.message : e);
+      return { ...(await postgresSearch(db, { ...filters, sort: filters.sort === 'relevance' ? 'newest' : filters.sort }, null)), fallback: true };
+    }
+  }
+  return { ...(await postgresSearch(db, filters, cursor)), fallback: !!filters.keyword };
+}
+
+async function postgresSearch(db: Queryable, filters: SearchFilters, cursor: string | null) {
   const [page, total] = await Promise.all([browseListings(db, filters, cursor), countListings(db, filters)]);
-  return { ...page, total };
+  return { ...page, total, facets: null, eventIds: [] };
 }

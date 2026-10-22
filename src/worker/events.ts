@@ -30,7 +30,7 @@ export async function startEventJobs(db: Db, connection: Redis): Promise<{ handl
   );
   worker.on('failed', (job, e) => console.error(`events: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
 
-  // Known, nothing to do yet: the n8n webhook (channel posting) subscribes here later
+  // Search sync subscribes to these too (./search.ts); the n8n webhook (channel posting) later
   const handlers: OutboxHandlers = {
     [EVENT_OUTBOX.published]: [],
     [EVENT_OUTBOX.changed]: [],

@@ -7,18 +7,20 @@ import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
 import { notificationMailer } from '../modules/notifications/mailer';
 import { TelegramClient } from '../modules/notifications/telegram-api';
+import { Meili } from '../modules/search/meili';
 import { type OutboxHandlers, BATCH_SIZE, mergeHandlers, processOutboxBatch } from './outbox';
 import { startAccountJobs } from './accounts';
 import { startChatJobs } from './chat';
 import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
 import { startRetention } from './retention';
+import { startSearchJobs } from './search';
 import { startSeoJobs } from './seo';
 import { runTelegramBot } from './telegram';
 
 // Background worker entry point: one process that polls the outbox, runs the phone verification
-// Telegram bot, the chat jobs and notices, account erasure, the daily retention jobs, the hourly sitemaps and (as
-// features arrive) other BullMQ job processors.
+// Telegram bot, the chat jobs and notices, account erasure, the daily retention jobs, the hourly sitemaps, the
+// search index and (as features arrive) other BullMQ job processors.
 // Bundled to dist/worker.js for the `worker` Docker target.
 
 const POLL_INTERVAL_MS = 1_000;
@@ -73,7 +75,9 @@ async function main(): Promise<void> {
   });
   const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
   const accountJobs = await startAccountJobs(db, connection);
-  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers);
+  const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
+  const searchJobs = await startSearchJobs(db, connection, { meili });
+  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers);
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
     ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
@@ -84,7 +88,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

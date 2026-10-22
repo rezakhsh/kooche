@@ -1,4 +1,4 @@
-# Local development stack. Meilisearch, imgproxy and Garage are added with the features that need them.
+# Local development stack. imgproxy and Garage are added with the features that need them.
 #
 #   docker compose up -d
 #   npm run db:migrate && npm run db:seed
@@ -36,5 +36,20 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
 
+  # Keyword search. The same version and memory settings as the server (docs/setup.md).
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.3
+    environment:
+      MEILI_MASTER_KEY: dev-only-meili-master-key-0123456789
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MAX_INDEXING_MEMORY: 128Mb
+      MEILI_MAX_INDEXING_THREADS: "1"
+    ports:
+      - "127.0.0.1:7700:7700"
+    volumes:
+      - meilidata:/meili_data
+
 volumes:
   pgdata:
+  meilidata:

@@ -3,13 +3,16 @@ import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { listingImages, listings, locations } from '../../db/schema';
 import type { Point } from '../../db/types';
+import { normalizePersian } from '../../lib/normalize-persian';
 import { coverKeys } from '../listings/queries';
 import type { AttributeFilter, Sort } from './filters';
+import { STOP_WORDS, synonymsOf } from './synonyms';
 
 // Browsing without a keyword, straight from PostgreSQL (docs/architecture.md, "Search"): the
 // partial browse indexes on active listings, GIN on attributes for choices and yes/no fields,
-// GIST on the rounded point for a radius. Keyword search goes to Meilisearch later, behind
-// `searchListings` in index.ts, so pages don't change.
+// GIST on the rounded point for a radius. Keyword search goes to Meilisearch (./keyword.ts),
+// behind `searchListings` in index.ts; this query takes a keyword only as the fallback when
+// Meilisearch is down or not configured (every word or a synonym of it, no typos, newest first).
 //
 // Paging is keyset on (sort key, id), never OFFSET, so a listing published while someone pages
 // never shows twice or pushes another out. Every sort key is non-null: listings without a price
@@ -22,6 +25,8 @@ export const COUNT_CAP = 1000;
 /** What a browse query asks for, resolved to ids and minor units (built by the page from BrowseState) */
 export type SearchFilters = {
   countryCode: string;
+  /** The keyword as typed (filters.ts, cleanKeyword); null browses without one */
+  keyword: string | null;
   /** A category and everything under it; null for all */
   categoryIds: string[] | null;
   /** A city page */
@@ -73,6 +78,8 @@ const NO_PRICE_LAST_DESC = -1;
 /** The sort key as an SQL expression, and its direction */
 function sortKey(sort: Sort, around: SearchFilters['around']): { expr: SQL; dir: 'asc' | 'desc' } {
   switch (sort) {
+    // Relevance needs Meilisearch; the PostgreSQL fallback shows the newest first
+    case 'relevance':
     case 'newest':
       return { expr: sql`${listings.rankedAt}`, dir: 'desc' };
     case 'price_asc':
@@ -93,6 +100,7 @@ function sortKey(sort: Sort, around: SearchFilters['around']): { expr: SQL; dir:
 type CursorKey = string | number;
 const uuid = z.uuid();
 const cursorKeySchema: Record<Sort, z.ZodType<CursorKey>> = {
+  relevance: z.iso.datetime(),
   newest: z.iso.datetime(),
   price_asc: z.number().int().min(NO_PRICE_LAST_DESC).max(NO_PRICE_LAST_ASC),
   price_desc: z.number().int().min(NO_PRICE_LAST_DESC).max(NO_PRICE_LAST_ASC),
@@ -156,6 +164,27 @@ function attributeCondition(f: AttributeFilter): SQL {
   }
 }
 
+/** The keyword's words for the fallback: normalized, without stop words, each with its synonyms */
+export function keywordWords(keyword: string): string[][] {
+  const words = normalizePersian(keyword).split(' ').filter((w) => w && !STOP_WORDS.includes(w));
+  return words.map((w) => [w, ...synonymsOf(w)]);
+}
+
+/** Every word (or a synonym of it) somewhere in the title or description, ZWNJ ignored */
+function keywordCondition(keyword: string): SQL | undefined {
+  const groups = keywordWords(keyword);
+  if (groups.length === 0) return undefined;
+  const flat = (col: SQL) => sql`replace(${col}, ${'\u200c'}, '')`;
+  const like = (w: string) => `%${w.replace(/\u200c/g, '').replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  return sql.join(
+    groups.map((g) => sql`(${sql.join(
+      g.map((w) => sql`(${flat(sql`${listings.titleNormalized}`)} LIKE ${like(w)} OR ${flat(sql`${listings.descriptionNormalized}`)} LIKE ${like(w)})`),
+      sql` OR `,
+    )})`),
+    sql` AND `,
+  );
+}
+
 function conditions(f: SearchFilters): SQL[] {
   const out: (SQL | undefined)[] = [
     eq(listings.status, 'active'),
@@ -170,6 +199,7 @@ function conditions(f: SearchFilters): SQL[] {
     f.price?.max != null ? sql`${priceValue} <= ${f.price.max}` : undefined,
     f.shipping ? eq(listings.shippingOffered, true) : undefined,
     ...f.attributes.map(attributeCondition),
+    f.keyword ? keywordCondition(f.keyword) : undefined,
   ];
   return out.filter((c): c is SQL => !!c);
 }
@@ -236,6 +266,25 @@ export async function browseListings(db: Queryable, f: SearchFilters, cursor: st
     items,
     next: rows.length > PAGE_SIZE && last ? encodeCursor(f.sort === 'newest' ? String(last.sortKey) : Number(last.sortKey), last.id) : null,
   };
+}
+
+/**
+ * Cards for listing ids found by keyword search, in the order given. Only active listings that
+ * aren't events: an index entry that went stale since is simply left out.
+ */
+export async function cardsByIds(db: Queryable, ids: string[], around: SearchFilters['around']): Promise<BrowseItem[]> {
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({
+      ...cardColumns,
+      distanceM: around ? sql<number>`ST_Distance(${listings.point}, ${geography(around.point)})` : sql<null>`NULL`,
+    })
+    .from(listings)
+    .leftJoin(locations, eq(locations.id, listings.locationId))
+    .where(and(inArray(listings.id, ids), eq(listings.status, 'active'), notAnEvent));
+  const covers = await coverKeys(db, ids);
+  const byId = new Map(rows.map(({ distanceM, ...r }) => [r.id, { ...r, coverKey: covers.get(r.id) ?? null, distanceKm: distanceM === null ? null : roundKm(Number(distanceM)) }]));
+  return ids.map((id) => byId.get(id)).filter((r): r is BrowseItem => !!r);
 }
 
 /**

@@ -16,8 +16,27 @@ import { amountInputValue, MAX_PRICE_MINOR, parseAmount } from '../listings/pric
 // fields; the page rewrites that into the canonical form with one redirect. Anything that doesn't
 // fit a filterable field of the category is refused and dropped, so it never reaches SQL.
 
-export const SORTS = ['newest', 'price_asc', 'price_desc', 'distance'] as const;
+export const SORTS = ['relevance', 'newest', 'price_asc', 'price_desc', 'distance'] as const;
 export type Sort = (typeof SORTS)[number];
+
+/** Best matches first with a keyword, newest first without one */
+export const defaultSort = (q: string | null): Sort => (q ? 'relevance' : 'newest');
+
+/** A keyword is cut to this many characters and words */
+export const KEYWORD_MAX_LENGTH = 100;
+export const KEYWORD_MAX_WORDS = 10;
+
+/**
+ * The keyword as the address keeps it: the visitor's own spelling, trimmed, spaces collapsed, at
+ * most KEYWORD_MAX_WORDS words and KEYWORD_MAX_LENGTH characters. Null when nothing searchable is
+ * left (normalizing removes marks and invisible characters).
+ */
+export function cleanKeyword(raw: string): string | null {
+  const words = raw.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().split(/\s+/).filter(Boolean).slice(0, KEYWORD_MAX_WORDS);
+  let q = words.join(' ');
+  if (q.length > KEYWORD_MAX_LENGTH) q = q.slice(0, KEYWORD_MAX_LENGTH).replace(/\s+\S*$/, '') || q.slice(0, KEYWORD_MAX_LENGTH);
+  return normalizePersian(q) ? q : null;
+}
 
 export const RADII_KM = [5, 10, 25, 50] as const;
 export type RadiusKm = (typeof RADII_KM)[number];
@@ -40,6 +59,8 @@ export type AttributeFilter =
   | { key: string; type: 'boolean' };
 
 export type BrowseState = {
+  /** Keyword (src/modules/search/keyword.ts), as typed; null browses without one */
+  q: string | null;
   sort: Sort;
   /** Minor units of the country's currency */
   price: { min: number | null; max: number | null } | null;
@@ -57,6 +78,7 @@ export type BrowseState = {
 };
 
 export const EMPTY_STATE: BrowseState = {
+  q: null,
   sort: 'newest',
   price: null,
   ship: false,
@@ -178,7 +200,8 @@ export function attributeParamSchema(def: AttributeDef, minorUnit: number): z.Zo
   }
 }
 
-const sortSchema = z.enum(['price_asc', 'price_desc', 'distance']);
+const sortSchema = z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'distance']);
+const keywordSchema = z.string().max(1_000).transform((s, ctx) => cleanKeyword(s) ?? refused(ctx));
 const radiusSchema = z.enum(RADII_KM.map(String) as [string, ...string[]]).transform((s) => Number(s) as RadiusKm);
 const postalSchema = z
   .string()
@@ -196,6 +219,7 @@ const viewSchema = z.enum(['grid', 'list']);
 export function browseParamsSchema(ctx: FilterContext) {
   const attrs = Object.fromEntries(ctx.defs.map((d) => [d.key, attributeParamSchema(d, ctx.minorUnit).optional()]));
   return z.strictObject({
+    q: keywordSchema.optional(),
     sort: sortSchema.optional(),
     price: (ctx.priceAllowed
       ? z.string().max(MAX_VALUE_LENGTH).transform((s, c) => {
@@ -279,6 +303,8 @@ export function parseBrowseParams(raw: RawParams, ctx: FilterContext): { state: 
   }
 
   const state: BrowseState = { ...EMPTY_STATE, attributes: [] };
+  state.q = (parsed.q as string | undefined) ?? null;
+  state.sort = defaultSort(state.q);
   if (parsed.price) state.price = parsed.price as BrowseState['price'];
   state.ship = parsed.ship === '1';
   const radius = (parsed.r as RadiusKm | undefined) ?? null;
@@ -292,6 +318,7 @@ export function parseBrowseParams(raw: RawParams, ctx: FilterContext): { state: 
   }
   const sort = parsed.sort as Sort | undefined;
   if (sort === 'distance' && !state.near && !state.postal?.radiusKm) refusedKeys.push('sort');
+  else if (sort === 'relevance' && !state.q) refusedKeys.push('sort');
   else if ((sort === 'price_asc' || sort === 'price_desc') && !ctx.priceAllowed) refusedKeys.push('sort');
   else if (sort) state.sort = sort;
   state.view = (parsed.view as BrowseState['view']) ?? null;
@@ -354,7 +381,8 @@ function attributeValue(f: AttributeFilter, minorUnit: number): string {
  */
 export function browseQuery(state: BrowseState, minorUnit: number): string {
   const q: [string, string][] = [];
-  if (state.sort !== 'newest') q.push(['sort', state.sort]);
+  if (state.q) q.push(['q', state.q]);
+  if (state.sort !== defaultSort(state.q)) q.push(['sort', state.sort]);
   if (state.near) {
     q.push(['near', state.near.token], ['r', String(state.near.radiusKm)]);
   } else if (state.postal) {
@@ -385,9 +413,9 @@ export function currentQuery(raw: RawParams): string {
   return q.length ? `?${q.join('&')}` : '';
 }
 
-/** Whether the state narrows the listings (anything beyond sort, layout and paging) */
+/** Whether the state narrows the listings (anything beyond sort, layout and paging; the keyword too) */
 export function isFiltered(state: BrowseState): boolean {
-  return !!(state.price || state.ship || state.postal || state.near || state.attributes.length);
+  return !!(state.q || state.price || state.ship || state.postal || state.near || state.attributes.length);
 }
 
 /**
@@ -396,17 +424,21 @@ export function isFiltered(state: BrowseState): boolean {
  */
 export function without(
   state: BrowseState,
-  what: 'all' | 'price' | 'ship' | 'place' | { key: string; value?: string },
+  what: 'all' | 'q' | 'price' | 'ship' | 'place' | { key: string; value?: string },
   defs: AttributeDef[] = [],
 ): BrowseState {
   const next: BrowseState = { ...state, after: null };
-  if (what === 'all') return { ...EMPTY_STATE, view: state.view, sort: state.sort === 'distance' ? 'newest' : state.sort };
-  if (what === 'price') next.price = null;
+  // "Clear filters" keeps the keyword: it is the search itself, and has a chip of its own
+  if (what === 'all') return { ...EMPTY_STATE, q: state.q, view: state.view, sort: state.sort === 'distance' ? defaultSort(state.q) : state.sort };
+  if (what === 'q') {
+    next.q = null;
+    if (next.sort === 'relevance') next.sort = 'newest';
+  } else if (what === 'price') next.price = null;
   else if (what === 'ship') next.ship = false;
   else if (what === 'place') {
     next.postal = null;
     next.near = null;
-    if (next.sort === 'distance') next.sort = 'newest';
+    if (next.sort === 'distance') next.sort = defaultSort(next.q);
   } else {
     next.attributes = state.attributes.flatMap((f) => {
       if (f.key !== what.key) return [f];

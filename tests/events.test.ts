@@ -340,7 +340,7 @@ describe('lists', () => {
     const id = await publishEvent(u.id);
     const grid = await browseListings(
       appDb,
-      { countryCode: 'DE', categoryIds: null, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+      { countryCode: 'DE', keyword: null, categoryIds: null, locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
       null,
     );
     expect(grid.items.some((l) => l.id === id)).toBe(false);

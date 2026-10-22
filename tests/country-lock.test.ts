@@ -102,7 +102,7 @@ describe('the country page by category', () => {
     const below = (id: string): string[] => [id, ...catalog.byId.get(id)!.childIds.flatMap(below)];
     const page = await browseListings(
       appDb,
-      { countryCode: 'AT', categoryIds: below(electronics.id), locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+      { countryCode: 'AT', keyword: null, categoryIds: below(electronics.id), locationId: null, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
       null,
     );
     const ids = page.items.map((l) => l.id);

@@ -161,6 +161,7 @@ describe('filters from the definitions', () => {
 
 const base = (over: Partial<SearchFilters> = {}): SearchFilters => ({
   countryCode: 'DE',
+  keyword: null,
   categoryIds: null,
   locationId: null,
   postalCode: null,

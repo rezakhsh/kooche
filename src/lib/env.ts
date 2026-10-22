@@ -63,6 +63,10 @@ const webSchema = z.object({
   // development: no widget and no check.
   TURNSTILE_SITE_KEY: optional(z.string().regex(/^[0-9a-zA-Z_-]{10,100}$/)),
   TURNSTILE_SECRET_KEY: optional(z.string().min(10)),
+  // Keyword search (Meilisearch on the `coolify` network, never public) with a key that may only
+  // search the listings index. Unset: keyword search runs on PostgreSQL (slower, no typos).
+  MEILI_URL: optional(z.url({ protocol: /^https?$/ })),
+  MEILI_SEARCH_KEY: optional(z.string().min(16)),
 })
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
@@ -94,6 +98,10 @@ const workerSchema = z.object({
   APP_URL: z.url(),
   SMTP_URL: optional(z.url({ protocol: /^smtps?$/ })),
   EMAIL_FROM: optional(z.string().min(3)),
+  // Keeps the Meilisearch index in line with PostgreSQL, with a key that may write the listings
+  // index (documents, settings, swap). Unset: no index is kept (keyword search uses PostgreSQL).
+  MEILI_URL: optional(z.url({ protocol: /^https?$/ })),
+  MEILI_WRITE_KEY: optional(z.string().min(16)),
 }).refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
   message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
   path: ['S3_ENDPOINT'],
