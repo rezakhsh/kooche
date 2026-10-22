@@ -638,8 +638,20 @@ Done (branch `pro`, not merged or deployed yet; details in `docs/setup.md`, "Pay
 - **Stripe test-mode run (local scratch stack: production build, worker, Stripe CLI forwarding webhooks, headless Chromium, phone 390×844 and computer 1280×800):** real Checkout payments with a test card (bump applied, `ranked_at` moved, invoice with the §19 footer and no tax), a declined card (nothing granted), PayPal (featured 7 days, strip and badge for logged-out visitors), a refund through the API (order refunded, featured revoked), a resent event (applied once) and forged signatures (400, nothing stored); a business through the form, Pro by card (plan granted by `invoice.paid`), the Customer Portal, Pro Plus with a launch code and no card (€0, plan granted, no payment row), SEPA (subscription active; plan waits for the debit to settle), an invitation email accepted by the invited account, staff 404 on team and billing; Checkout offers exactly cards/PayPal/EPS for one-time and cards/PayPal/SEPA for subscriptions. No CSP errors, no sideways scroll.
 - **Found by that run and fixed:** PayPal refund ids are `pyr_…` (the worker refused them and retried, then applied them once fixed); the 6-month coupon made a yearly plan's whole first year free, so launch codes are now monthly-only and the Portal switches only monthly prices.
 
+Deployed to staging Oct 22, 2026 (approved by the owner; 1.9 GB available before):
+- `scripts/stripe-setup.ts` run once against the staging database as `classifieds_owner` from a throwaway container on the `coolify` network: 6 products and 8 prices written, the coupon and the Portal found, the webhook endpoint `https://staging.peydoo.com/api/stripe/webhook` created (its secret written straight into `/root/.secrets/stripe.env`).
+- Coolify (through the API, with a one-hour token made with `php artisan tinker` and deleted afterwards): `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on `classifieds-web`, `STRIPE_SECRET_KEY` on `classifieds-worker`. No value went through the conversation.
+- `pro` fast-forwarded into `main` (`ee4edbf`): `classifieds-migrate` applied `0014_pro_payments`, then web and worker came up healthy (`telegram: polling as @Peydoo_bot`). Memory right after: web 106 MB, worker 81 MB.
+
+Checked live on https://staging.peydoo.com (the owner asked for no Pro purchase on staging, so one test-mode bump only):
+- `/health` ok, `/pro` 200, the webhook route refuses an unsigned request (400).
+- Headless Chromium through Cloudflare with a temporary account (signed in through Better Auth with the staging secret, no email sent; verified phone and one test listing written as the owner): the promote page on phone and computer (no sideways scroll, no CSP or script errors), Checkout offering card, PayPal and EPS, a €1.99 bump paid with Stripe's test card, the order page turning paid once Stripe's webhook reached staging.
+- In the database: order paid, €1.99, tax 0, buyer country DE, invoice id; the charge recorded (`pi_…`); `checkout.session.completed` and `invoice.paid` applied on the first attempt; the worker logged `payments: bumps: 1 applied` and the listing's `ranked_at` moved.
+- The temporary account was deleted through the normal path (`requestErasure`, then the worker: `accounts: erase …: erased`); its listing is deleted and the order is kept (10-year records).
+
+Not checked on staging: Pro subscriptions, the launch code, SEPA and the Customer Portal (the owner asked for no Pro purchase there; all four passed in the local Stripe test-mode run, except that SEPA's test debit hadn't settled when the local stack was stopped: the subscription was active and its plan was waiting for `invoice.paid`, as designed).
+
 Not done:
-- **Staging deploy:** waits for the owner's approval. Steps: `free -m`; merge `pro`; `classifieds-migrate` applies 0014; set `STRIPE_SECRET_KEY` on web and worker and `STRIPE_WEBHOOK_SECRET` on web in Coolify; run `scripts/stripe-setup.ts` on the staging database (writes products and the webhook endpoint for `https://staging.peydoo.com/api/stripe/webhook`); a short test purchase through Cloudflare.
 - The business inbox (managers answering chats), business logos, events posted as a business, the admin page for verification and refunds (roadmap step 8).
 
 For the owner:
