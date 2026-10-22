@@ -113,3 +113,18 @@ describe('the new pages are not browse pages', () => {
     for (const p of PATHS) expect(RESERVED_SLUGS).toContain(p.split('/')[1]);
   });
 });
+
+describe('paid services (roadmap step 6)', () => {
+  it('Stripe is in both privacy policies, with the 10-year retention of payment records', () => {
+    const text = (doc: LegalDoc) => JSON.stringify(doc.sections);
+    expect(text(legalDe.privacy)).toContain('Stripe Payments Europe');
+    expect(text(pages.privacy)).toContain('Stripe Payments Europe');
+    expect(text(legalDe.privacy)).not.toContain('sobald es kostenpflichtige Leistungen gibt');
+  });
+
+  it('both terms have the paid-services section the purchase form links to, with the §19 note', () => {
+    expect(ids(legalDe.terms)).toContain('14.4');
+    expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 19 UStG');
+    expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 356 Abs. 4 BGB');
+  });
+});

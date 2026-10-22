@@ -8,7 +8,7 @@ import type { LegalDoc } from './legal-types';
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 21. Oktober 2026',
+  updated: 'Stand: 22. Oktober 2026',
   draft: true,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Deutsch und auf Persisch vor; rechtlich maßgeblich ist diese deutsche Fassung (Ziffer 13.2).',
@@ -26,7 +26,7 @@ const terms: LegalDoc = {
       id: '2.1',
       heading: '2.1 Leistungen',
       body: [
-        'Peydoo ist ein Online-Marktplatz für Kleinanzeigen und Veranstaltungen von Iranerinnen und Iranern in Deutschland und Österreich. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen gelten gesonderte Bedingungen, die vor einer Buchung angezeigt werden.',
+        'Peydoo ist ein Online-Marktplatz für Kleinanzeigen und Veranstaltungen von Iranerinnen und Iranern in Deutschland und Österreich. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen und Geschäftskonten gilt zusätzlich Ziffer 14.',
       ],
     },
     {
@@ -318,12 +318,60 @@ const terms: LegalDoc = {
       heading: '13.3 Streitbeilegung',
       body: ['Wir sind nicht bereit und nicht verpflichtet, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.'],
     },
+    { id: '14', heading: '14. Kostenpflichtige Leistungen und Geschäftskonten', body: [] },
+    {
+      id: '14.1',
+      heading: '14.1 Private und gewerbliche Anzeigen',
+      body: [
+        'Private Nutzer veröffentlichen Anzeigen kostenlos. Wer regelmäßig Dienstleistungen gegen Entgelt anbietet, Waren zum Weiterverkauf ankauft oder herstellt oder für ein Unternehmen inseriert, handelt gewerblich und muss ein Geschäftskonto mit vollständigen Angaben zum Anbieter (Impressum) verwenden.',
+        'Privat sind höchstens zwei aktive Angebote in den Rubriken Dienstleistungen und Unterricht gleichzeitig möglich. Stellenangebote und Anzeigen in Rubriken für bestimmte Berufe (etwa Steuern und Buchhaltung) sind nur mit einem Geschäftskonto möglich.',
+        'Ein Geschäftskonto ohne Abonnement kann bis zu drei aktive Anzeigen gleichzeitig haben. Das Kennzeichen „geprüftes Unternehmen“ vergibt nur Peydoo nach einer Prüfung der Angaben.',
+      ],
+    },
+    {
+      id: '14.2',
+      heading: '14.2 Leistungen und Preise',
+      body: [
+        'Wir bieten gegen Entgelt an: das Hochschieben einer Anzeige an den Anfang der Listen, ein Paket aus drei Hochschiebungen innerhalb von sieben Tagen, die Hervorhebung einer Anzeige für sieben Tage und die Hervorhebung einer Veranstaltung bis zu ihrem Ende (höchstens 30 Tage), sowie für Geschäftskonten die Abonnements „Pro“ und „Pro Plus“ mit mehr aktiven Anzeigen, monatlichen Hochschiebungen, Hervorhebungen und Mitarbeiterzugängen.',
+        'Es gelten die vor der Buchung angezeigten Preise. Sie sind Endpreise; gemäß § 19 UStG (Kleinunternehmerregelung) wird keine Umsatzsteuer berechnet.',
+      ],
+    },
+    {
+      id: '14.3',
+      heading: '14.3 Zahlung und Rechnung',
+      body: [
+        'Die Zahlung wird über Stripe Payments Europe, Limited (Dublin, Irland) abgewickelt, per Karte, Apple Pay, Google Pay, PayPal, EPS oder (bei Abonnements) SEPA-Lastschrift. Die Rechnung erhalten Sie per E-Mail. Die gebuchte Leistung beginnt, sobald Stripe uns die Zahlung bestätigt.',
+      ],
+    },
+    {
+      id: '14.4',
+      heading: '14.4 Widerrufsrecht für Verbraucher',
+      body: [
+        'Verbraucher haben bei Verträgen über Dienstleistungen ein Widerrufsrecht von 14 Tagen ab Vertragsschluss. Auf Ihren ausdrücklichen Wunsch beginnen wir mit der Leistung sofort. Sie bestätigen vor der Zahlung, dass Ihnen bekannt ist, dass Ihr Widerrufsrecht mit vollständiger Erbringung der Leistung erlischt (§ 356 Abs. 4 BGB); ein Hochschieben ist mit seiner Ausführung vollständig erbracht.',
+        'Bei Leistungen über einen Zeitraum (Hervorhebung) können Sie innerhalb der 14 Tage widerrufen; Sie zahlen dann den Anteil, der bis zum Widerruf erbracht wurde (§ 357a Abs. 2 BGB). Den Widerruf erklären Sie per E-Mail an die Adresse in Ziffer 1.1.',
+      ],
+    },
+    {
+      id: '14.5',
+      heading: '14.5 Abonnements für Geschäftskonten',
+      body: [
+        'Abonnements richten sich an Unternehmer. Sie laufen monatlich oder jährlich und verlängern sich jeweils um die gewählte Laufzeit, wenn sie nicht vorher gekündigt werden. Sie können jederzeit zum Ende der laufenden Laufzeit kündigen, Tarif und Zahlungsweise wechseln und Rechnungen abrufen, im Kundenportal von Stripe, das unter „Abonnement und Rechnungen“ erreichbar ist.',
+        'Bei kostenlosen Startzeiträumen (Gutscheincode) endet das Abonnement nach deren Ablauf, wenn keine Zahlungsart hinterlegt ist; sonst läuft es zum regulären Preis weiter. Im Abonnement enthaltene Hochschiebungen und Hervorhebungen verfallen, wenn sie nicht genutzt werden.',
+      ],
+    },
+    {
+      id: '14.6',
+      heading: '14.6 Erstattung und Ende der Leistung',
+      body: [
+        'Wird eine Anzeige wegen eines Verstoßes gegen diese Bedingungen (Ziffern 5 und 7) entfernt, endet die gebuchte Leistung ohne Erstattung. Gesetzliche Rechte bleiben unberührt. Wird eine Zahlung erstattet oder zurückgebucht, endet die damit bezahlte Leistung.',
+      ],
+    },
   ],
 };
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 21. Oktober 2026',
+  updated: 'Stand: 22. Oktober 2026',
   draft: true,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
@@ -419,6 +467,8 @@ const privacy: LegalDoc = {
       heading: '5.1 Was öffentlich ist',
       body: [
         'Anzeigen und Veranstaltungen sind öffentlich: Titel, Beschreibung, Preis, Fotos, Ort und ungefährer Standort, Ihr Anzeigename, seit wann Sie Mitglied sind und ob Ihre Nummer bestätigt ist. Ihre öffentliche Verkäuferseite zeigt dieselben Angaben und Ihre aktiven Anzeigen. Ihre E-Mail-Adresse zeigen wir nie.',
+        'Geschäftskonten: Die Unternehmensseite zeigt die Angaben, die das Unternehmen dafür eingibt, auch Anschrift, E-Mail-Adresse, Telefon und Impressum (§ 5 DDG). Anzeigen eines Unternehmens zeigen das Unternehmen als Anbieter.',
+        'Für die Statistik des Anbieters zählen wir, wie oft eine Anzeige aufgerufen wird. Damit ein Besucher nicht mehrfach zählt, speichern wir dafür 30 Minuten lang einen gekürzten Hashwert der IP-Adresse (Art. 6 Abs. 1 lit. f DSGVO).',
       ],
     },
     {
@@ -475,6 +525,7 @@ const privacy: LegalDoc = {
             'Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland: Server (Rechenzentrum Helsinki, Finnland) und verschlüsselte Sicherungskopien (Falkenstein, Deutschland).',
             'Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA: Schutz vor Angriffen, Zwischenspeicher, DNS, Speicherung der Fotos (R2, EU-Rechtsraum) und Weiterleitung von E-Mails an unsere Kontaktadresse. Ein Zugriff aus den USA ist nicht auszuschließen; Cloudflare ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
             'Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg: Versand von E-Mails (Amazon SES, Region Frankfurt). Für einen möglichen Zugriff aus den USA gelten das EU-U.S. Data Privacy Framework und Standardvertragsklauseln.',
+            'Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland: Abwicklung von Zahlungen, Rechnungen und Kundenportal für Abonnements. Stripe erhebt die Zahlungsdaten (etwa Kartennummer oder IBAN) selbst; wir erhalten Name, E-Mail-Adresse, das Land der Rechnungsadresse (bei Abonnements die Rechnungsadresse), Betrag und Zahlungsstatus, nie Karten- oder Kontonummern. Stripe verarbeitet Daten auch in den USA (Stripe, Inc.; EU-U.S. Data Privacy Framework und Standardvertragsklauseln) und ist für die Betrugsprävention und eigene gesetzliche Pflichten selbst verantwortlich. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. c (Aufbewahrungspflichten).',
             'n8n: Software für Benachrichtigungen und die Veröffentlichung in unseren Kanälen, die wir selbst auf einem eigenen Server bei Hetzner in Helsinki betreiben. Sie erhält keine Kontodaten, nur Serverwarnungen und öffentliche Anzeigendaten.',
           ],
         },
@@ -496,7 +547,7 @@ const privacy: LegalDoc = {
             'Nachrichten: 90 Tage, nachdem einer der beiden Gesprächspartner sein Konto gelöscht hat; länger nur, solange eine Meldung oder Entscheidung darauf verweist.',
             'Meldungen und Moderationsentscheidungen: zwei Jahre nach der Entscheidung.',
             'Sicherheitsprotokoll: zwei Jahre; IP-Adressen und Browserangaben darin 90 Tage.',
-            'Bestellungen und Zahlungen (sobald es kostenpflichtige Leistungen gibt): zehn Jahre wegen der handels- und steuerrechtlichen Aufbewahrungspflichten (§ 147 AO, § 257 HGB).',
+            'Bestellungen, Zahlungen, Abonnements und Rechnungen: zehn Jahre wegen der handels- und steuerrechtlichen Aufbewahrungspflichten (§ 147 AO, § 257 HGB), auch nach Löschung des Kontos.',
             'Verschlüsselte Sicherungskopien: bis zu sechs Monate (tägliche für eine Woche, wöchentliche für einen Monat, monatliche für sechs Monate).',
           ],
         },
