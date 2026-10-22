@@ -6,7 +6,7 @@
 //     priceKey()); then `products` and `product_prices` as classifieds_owner (syncCatalog()).
 //  2. The launch coupon (100% off for 6 months, Pro and Pro Plus only).
 //  3. The Customer Portal's default configuration: invoices, payment method, address, cancel at
-//     period end, switching between Pro and Pro Plus and monthly and yearly.
+//     period end, switching between Pro and Pro Plus (monthly prices only, see planPrices).
 //  4. The webhook endpoint at APP_URL/api/stripe/webhook with the events the worker applies. Its
 //     signing secret is shown by Stripe only when the endpoint is created: it is written straight
 //     into the secrets file as STRIPE_WEBHOOK_SECRET, never printed. `--rotate-webhook` deletes
@@ -44,6 +44,8 @@ console.log(`stripe-setup: ${mode} mode, ${appUrl}`);
 
 // 1. Products and prices
 const priceIds = new Map<string, string>();
+// The Customer Portal switches only between monthly prices: a switch to yearly during the launch
+// coupon's 6 free months would make a whole year free. Yearly plans are taken through Checkout.
 const planPrices: Array<{ product: string; prices: string[] }> = [];
 for (const seed of products) {
   const productId = `peydoo_${seed.code.replace(/-/g, '_')}`;
@@ -55,6 +57,7 @@ for (const seed of products) {
     await stripe.products.create({ id: productId, ...fields });
   }
   const ids: string[] = [];
+  const monthly: string[] = [];
   for (const p of seed.prices) {
     const lookupKey = priceKey(seed.code, p);
     const found = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
@@ -72,8 +75,9 @@ for (const seed of products) {
     }
     priceIds.set(lookupKey, price.id);
     ids.push(price.id);
+    if (p.interval === 'month') monthly.push(price.id);
   }
-  if (seed.kind === 'subscription') planPrices.push({ product: productId, prices: ids });
+  if (seed.kind === 'subscription') planPrices.push({ product: productId, prices: monthly });
 }
 
 const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });

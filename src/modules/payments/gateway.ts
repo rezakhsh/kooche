@@ -29,6 +29,13 @@ export type CheckoutInput = {
   metadata: Record<string, string>;
   successUrl: string;
   cancelUrl: string;
+  /**
+   * Subscriptions: whether Checkout shows the promotion-code field. Only monthly plans: the launch
+   * coupon is 100% off for 6 months, and Stripe discounts every invoice issued in those months, so
+   * a yearly plan's first invoice (12 months) would be free in full (found in the test-mode run,
+   * Oct 22, 2026).
+   */
+  promotionCodes?: boolean;
 };
 
 export type CustomerInput = { email: string; name: string; metadata: Record<string, string> };
@@ -80,8 +87,9 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
     allowed_payment_method_types: [...SUBSCRIPTION_METHODS],
     // Businesses get invoices with their address
     billing_address_collection: 'required',
-    // Launch businesses enter their code here; a 100% code needs no payment method until it ends
-    allow_promotion_codes: true,
+    // Launch businesses enter their code here (monthly plans only); a 100% code needs no payment
+    // method until it ends
+    allow_promotion_codes: !!input.promotionCodes,
     payment_method_collection: 'if_required',
     subscription_data: { metadata: input.metadata },
   };

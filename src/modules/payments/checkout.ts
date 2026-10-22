@@ -182,6 +182,7 @@ export async function startPlanCheckout(
     metadata: { organization_id: org.id, plan: opts.plan },
     successUrl: `${opts.appUrl}/b/${org.slug}/billing?done=1`,
     cancelUrl: `${opts.appUrl}/b/${org.slug}/billing`,
+    promotionCodes: opts.interval === 'month',
   });
   return { ok: true, url: session.url };
 }

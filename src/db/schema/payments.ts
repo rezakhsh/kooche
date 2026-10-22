@@ -243,7 +243,7 @@ export const payments = pgTable(
     /** Provider fee, for accounting */
     feeMinor: bigint('fee_minor', { mode: 'number' }),
     provider: text('provider').notNull().default('stripe'),
-    /** pi_… for charges, re_… for refunds */
+    /** pi_… for charges, re_… (pyr_… for PayPal) for refunds */
     providerPaymentId: text('provider_payment_id').notNull(),
     providerInvoiceId: text('provider_invoice_id'),
     failureCode: text('failure_code'),

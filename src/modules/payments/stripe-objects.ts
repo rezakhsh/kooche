@@ -91,7 +91,8 @@ export const invoiceSchema = z.object({
 export type Invoice = z.infer<typeof invoiceSchema>;
 
 export const refundSchema = z.object({
-  id: z.string().startsWith('re_'),
+  // re_… for cards and most methods, pyr_… for PayPal (found in the test-mode run, Oct 22, 2026)
+  id: z.string().regex(/^[a-z]+_\w+$/),
   object: z.literal('refund'),
   amount: z.int().positive(),
   currency: z.string(),

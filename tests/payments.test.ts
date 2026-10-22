@@ -105,8 +105,10 @@ describe('starting a checkout (app role)', () => {
     expect(once).toMatchObject({ mode: 'payment', allowed_payment_method_types: ['card', 'paypal', 'eps'], invoice_creation: { enabled: true, invoice_data: { footer: INVOICE_FOOTER } } });
     expect(once).not.toHaveProperty('automatic_tax');
     expect(once).not.toHaveProperty('allow_promotion_codes');
-    const plan = checkoutParams({ ...base, mode: 'subscription' });
+    const plan = checkoutParams({ ...base, mode: 'subscription', promotionCodes: true });
     expect(plan).toMatchObject({ mode: 'subscription', allowed_payment_method_types: ['card', 'paypal', 'sepa_debit'], allow_promotion_codes: true, payment_method_collection: 'if_required', billing_address_collection: 'required' });
+    // No launch code on a yearly plan: 6 free months would make its 12-month invoice free
+    expect(checkoutParams({ ...base, mode: 'subscription' })).toMatchObject({ allow_promotion_codes: false });
     expect(plan).not.toHaveProperty('automatic_tax');
     expect(INVOICE_FOOTER).toBe('Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.');
   });
@@ -119,7 +121,7 @@ describe('starting a checkout (app role)', () => {
     const start = (userId: string) => startPlanCheckout(appDb, gateway, { userId, organizationId: org.id, plan: 'pro', interval: 'year', appUrl: APP_URL });
     expect(await start(manager.id)).toEqual({ ok: false, reason: 'not_found' });
     expect(await start(ownerId)).toMatchObject({ ok: true });
-    expect(gateway.checkouts[0]).toMatchObject({ mode: 'subscription', priceId: stripePriceId('pro', 'year'), clientReferenceId: org.id, metadata: { organization_id: org.id } });
+    expect(gateway.checkouts[0]).toMatchObject({ mode: 'subscription', priceId: stripePriceId('pro', 'year'), clientReferenceId: org.id, metadata: { organization_id: org.id }, promotionCodes: false });
     expect(await openBillingPortal(appDb, gateway, { userId: manager.id, organizationId: org.id, appUrl: APP_URL })).toEqual({ ok: false, reason: 'not_found' });
     expect(await openBillingPortal(appDb, gateway, { userId: ownerId, organizationId: org.id, appUrl: APP_URL })).toMatchObject({ ok: true });
 
@@ -297,6 +299,14 @@ describe('refunds and disputes (worker role)', () => {
     await applyWebhookEvent(workerDb, new FakeGateway(), await storeEvent(event('refund.created', stripeRefund(session.payment_intent, 399))));
     expect((await orderRow(order.id)).status).toBe('refunded');
     expect((await featuredListingIds(db, [listing.id])).has(listing.id)).toBe(false);
+  });
+
+  it('a PayPal refund (pyr_… id) revokes like any other', async () => {
+    const { order, checkoutId } = await buy('featured-7d');
+    const session = await pay(order, checkoutId);
+    await applyWebhookEvent(workerDb, new FakeGateway(), await storeEvent(event('refund.created', stripeRefund(session.payment_intent, 699, 'succeeded', 'pyr_test_1PayPalRefund'))));
+    expect((await orderRow(order.id)).status).toBe('refunded');
+    expect((await entitlementsOf({ orderId: order.id }))[0]).toMatchObject({ revokeReason: 'refund' });
   });
 
   it('records a refund’s later status on the same row', async () => {
