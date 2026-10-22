@@ -6,7 +6,36 @@ import type { LegalDoc } from './legal-types';
 /** Latin digits in a section number as Persian digits: 5.2 → ۵.۲ */
 export const faDigits = (s: string) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]!);
 
+/**
+ * Latin text (a URL, an email, a phone number) inside Persian text, isolated left to right
+ * (U+2066 … U+2069), so the right-to-left paragraph can't move its punctuation: «https://» would
+ * otherwise show as «//:https». Works in plain strings and attributes, where <bdi> can't go.
+ */
+export const ltr = (s: string) => `\u2066${s}\u2069`;
+
 export const messages = {
+  // The browser's own form checks (required, type, pattern, min and max) in Persian, set by
+  // src/components/form-validation.tsx. The server's Zod checks stay the real ones.
+  validation: {
+    required: 'این بخش را پر کنید.',
+    checkbox: 'برای ادامه، این گزینه را تیک بزنید.',
+    radio: 'یکی از گزینه‌ها را انتخاب کنید.',
+    select: 'یک گزینه از فهرست انتخاب کنید.',
+    file: 'یک فایل انتخاب کنید.',
+    email: `یک ایمیل درست وارد کنید، مثل ${ltr('name@example.com')}.`,
+    url: `یک نشانی کامل وارد کنید که با ${ltr('https://')} شروع شود.`,
+    pattern: 'این مقدار به شکل خواسته‌شده نیست.',
+    tooShort: (min: number, now: number) => `دست‌کم ${min.toLocaleString('fa-IR')} نویسه بنویسید (الان ${now.toLocaleString('fa-IR')} نویسه).`,
+    tooLong: (max: number) => `حداکثر ${max.toLocaleString('fa-IR')} نویسه.`,
+    min: (min: string) => `کمترین مقدار ${min} است.`,
+    max: (max: string) => `بیشترین مقدار ${max} است.`,
+    dateMin: 'این تاریخ زودتر از حد مجاز است.',
+    dateMax: 'این تاریخ دیرتر از حد مجاز است.',
+    step: 'این مقدار مجاز نیست؛ عدد نزدیک دیگری وارد کنید.',
+    number: 'یک عدد وارد کنید.',
+    date: 'تاریخ را کامل وارد کنید.',
+    invalid: 'این مقدار درست نیست.',
+  },
   site: {
     // Brand approved Oct 17, 2026: the name, the line under it and the slogan
     name: 'پیدو',
@@ -296,6 +325,8 @@ export const messages = {
     descriptionHint: 'وضعیت، ویژگی‌ها و هر چیزی که خریدار باید بداند. شماره تلفن یا آدرس دقیق ننویسید.',
     details: 'مشخصات',
     choose: 'انتخاب کنید',
+    // Under a dependent select (model) before its parent (brand) is chosen; the list is grouped by parent
+    chooseParentFirst: (parent: string) => `اول «${parent}» را انتخاب کنید تا فهرست کوتاه شود. فهرست کامل هم بر اساس ${parent} دسته‌بندی شده است.`,
     month: 'ماه',
     year: 'سال',
     // Gregorian months: TÜV and similar dates in Germany and Austria are by Gregorian month
@@ -556,7 +587,7 @@ export const messages = {
       place: 'کد پستی یا شهر',
       phone: 'تلفن (اختیاری)',
       email: 'ایمیل تماس (روی صفحه نمایش داده می‌شود)',
-      website: 'وب‌سایت (اختیاری، با https://)',
+      website: `وب‌سایت (اختیاری، با ${ltr('https://')})`,
       registerCourt: 'دادگاه ثبت (Registergericht، اختیاری)',
       registrationNumber: 'شماره ثبت (HRB، اختیاری)',
       vatId: 'شماره مالیات بر ارزش افزوده (USt-IdNr، اختیاری)',
@@ -755,6 +786,7 @@ export const messages = {
     title: 'کد ورود',
     intro: (email: string) => `کد ۶ رقمی را که به ${email} فرستادیم وارد کنید.`,
     codeLabel: 'کد ورود',
+    codePattern: 'کد ۶ رقمی را که در ایمیل آمده وارد کنید.',
     submit: 'ورود',
     resend: 'ارسال دوباره کد',
     changeEmail: 'ایمیل دیگری دارید؟',
@@ -898,7 +930,7 @@ export const messages = {
     code: (code: string) => `کد تأیید شما: ${code}\nاین کد را به کسی ندهید.`,
     title: 'تأیید شماره با پیامک',
     numberLabel: 'شماره موبایل',
-    numberHint: 'مثلاً ‎+49 170 1234567‎ یا ‎0170 1234567‎ برای شماره‌های آلمان',
+    numberHint: `مثلاً ${ltr('+49 170 1234567')} یا ${ltr('0170 1234567')} برای شماره‌های آلمان`,
     send: 'ارسال کد',
     codeLabel: 'کد پیامک',
     codeIntro: (phone: string) => `کد ۶ رقمی را که به ${phone} پیامک کردیم وارد کنید.`,

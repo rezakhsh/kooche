@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { Alert, Button, Card, Field } from '../../components/ui';
+import { fieldDir } from '../../lib/field-dir';
 import { messages } from '../../messages/fa';
 import { LEGAL_FORMS } from '../../modules/organizations/legal-forms';
 
@@ -32,7 +33,7 @@ export function BusinessForm({
   const [state, formAction, pending] = useActionState(action, undefined);
   const v = state?.values ?? initial;
   const f = state?.fields ?? {};
-  const field = (name: string, props: Omit<React.ComponentProps<typeof Field>, 'label' | 'name'> & { label: string }) => (
+  const field = (name: string, props: Omit<React.ComponentProps<typeof Field>, 'label' | 'name'> & { label: string; 'data-pattern-message'?: string; 'data-auto-dir'?: string }) => (
     <div>
       <Field name={name} defaultValue={v[name] ?? ''} aria-invalid={!!f[name]} {...props} />
       <Err code={f[name]} />
@@ -42,27 +43,27 @@ export function BusinessForm({
     <form action={formAction} className="space-y-5">
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       <Card className="space-y-4">
-        {field('name', { label: t.fields.name, required: true, minLength: 2, maxLength: 80, dir: 'auto' })}
+        {field('name', { label: t.fields.name, required: true, minLength: 2, maxLength: 80, dir: fieldDir(v.name), 'data-auto-dir': '' })}
         {slugLocked ? (
           <p className="text-sm text-neutral-600">
             {t.fields.slug}: <bdi dir="ltr">/b/{v.slug}</bdi>
             <input type="hidden" name="slug" value={v.slug} />
           </p>
         ) : (
-          field('slug', { label: t.fields.slug, hint: t.fields.slugHint, required: true, minLength: 3, maxLength: 40, pattern: '[a-z0-9]+(-[a-z0-9]+)*', dir: 'ltr', autoCapitalize: 'none' })
+          field('slug', { label: t.fields.slug, hint: t.fields.slugHint, required: true, minLength: 3, maxLength: 40, pattern: '[a-z0-9]+(-[a-z0-9]+)*', 'data-pattern-message': t.fields.slugHint, dir: 'ltr', autoCapitalize: 'none' })
         )}
         <div>
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-neutral-700">{t.fields.description}</span>
-            <textarea name="description" defaultValue={v.description ?? ''} maxLength={5000} rows={5} dir="auto" className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" />
+            <textarea name="description" defaultValue={v.description ?? ''} maxLength={5000} rows={5} dir={fieldDir(v.description)} data-auto-dir="" className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" />
           </label>
           <Err code={f.description} />
         </div>
       </Card>
       <Card className="space-y-4">
-        {field('addressLine1', { label: t.fields.addressLine1, required: true, maxLength: 120, dir: 'auto', autoComplete: 'address-line1' })}
-        {field('addressLine2', { label: t.fields.addressLine2, maxLength: 120, dir: 'auto', autoComplete: 'address-line2' })}
-        {field('place', { label: t.fields.place, required: true, maxLength: 120, dir: 'auto', autoComplete: 'postal-code' })}
+        {field('addressLine1', { label: t.fields.addressLine1, required: true, maxLength: 120, dir: fieldDir(v.addressLine1), 'data-auto-dir': '', autoComplete: 'address-line1' })}
+        {field('addressLine2', { label: t.fields.addressLine2, maxLength: 120, dir: fieldDir(v.addressLine2), 'data-auto-dir': '', autoComplete: 'address-line2' })}
+        {field('place', { label: t.fields.place, required: true, maxLength: 120, dir: fieldDir(v.place), 'data-auto-dir': '', autoComplete: 'postal-code' })}
         {field('phone', { label: t.fields.phone, type: 'tel', maxLength: 40, dir: 'ltr', autoComplete: 'tel' })}
         {field('email', { label: t.fields.email, type: 'email', required: true, maxLength: 200, dir: 'ltr', autoComplete: 'email' })}
         {field('website', { label: t.fields.website, type: 'url', maxLength: 300, dir: 'ltr', placeholder: 'https://' })}
@@ -86,7 +87,7 @@ export function BusinessForm({
         <div>
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-neutral-700">{t.fields.imprintExtra}</span>
-            <textarea name="imprintExtra" defaultValue={v.imprintExtra ?? ''} maxLength={2000} rows={3} dir="auto" className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" />
+            <textarea name="imprintExtra" defaultValue={v.imprintExtra ?? ''} maxLength={2000} rows={3} dir={fieldDir(v.imprintExtra)} data-auto-dir="" className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" />
           </label>
           <Err code={f.imprintExtra} />
         </div>

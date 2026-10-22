@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { Alert, Button, Field, PageShell } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { users } from '../../../db/schema';
+import { fieldDir } from '../../../lib/field-dir';
 import { messages } from '../../../messages/fa';
 import { isPlaceholderName, MAX_DISPLAY_NAME } from '../../../modules/users/profile';
 import { requireSession } from '../../../modules/users/server';
@@ -35,7 +36,8 @@ export default async function NamePage({ searchParams }: { searchParams: Promise
           minLength={2}
           required
           autoComplete="name"
-          dir="auto"
+          dir={fieldDir(current)}
+          data-auto-dir=""
         />
         <Button type="submit" className="w-full">
           {t.nameSave}

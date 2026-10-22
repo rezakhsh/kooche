@@ -4,7 +4,7 @@ import { Alert, Button, PageShell } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { users } from '../../../db/schema';
 import { valkey } from '../../../lib/valkey';
-import { messages } from '../../../messages/fa';
+import { ltr, messages } from '../../../messages/fa';
 import { isUnreachableMarked } from '../../../modules/notifications/telegram-reach';
 import { chatNoticesOn, savedSearchAlertsOn } from '../../../modules/users/notification-prefs';
 import { requireSession } from '../../../modules/users/server';
@@ -27,7 +27,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const on = chatNoticesOn(row?.prefs);
   const tg = row?.telegramUserId ?? null;
   const blocked = tg !== null && (await isUnreachableMarked(valkey(), tg).catch(() => false));
-  const via = tg === null ? t.viaEmail(row!.email) : blocked ? t.viaEmailBlocked(row!.email) : t.viaTelegram;
+  const via = tg === null ? t.viaEmail(ltr(row!.email)) : blocked ? t.viaEmailBlocked(ltr(row!.email)) : t.viaTelegram;
 
   return (
     <PageShell title={t.title}>

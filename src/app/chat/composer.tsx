@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/icons';
+import { fieldDir } from '../../lib/field-dir';
 import { messages } from '../../messages/fa';
 import type { WireMessage } from '../../modules/chat/realtime';
 import { sendAction, type SendState } from './actions';
@@ -11,6 +12,7 @@ import { sendAction, type SendState } from './actions';
 // button sends. Without JavaScript it is a plain form.
 
 const MAX = 4_000;
+const MAX_HEIGHT = 168;
 const t = messages.chat;
 
 export function Composer({
@@ -50,12 +52,16 @@ export function Composer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.message?.id, state?.at]);
 
-  // Grow with the text, up to about six lines
+  // Grow with the text, up to about six lines. The height is the border box, so the border goes
+  // on top of scrollHeight: without it the text overflowed by 2px and a scrollbar showed on an
+  // empty box. The scrollbar only comes once the text is taller than the six lines.
   useEffect(() => {
     const el = area.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+    const full = el.scrollHeight + el.offsetHeight - el.clientHeight;
+    el.style.height = `${Math.min(full, MAX_HEIGHT)}px`;
+    el.style.overflowY = full > MAX_HEIGHT ? 'auto' : 'hidden';
   }, [text]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -92,7 +98,7 @@ export function Composer({
             rows={1}
             required
             maxLength={MAX}
-            dir="auto"
+            dir={fieldDir(text)}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}

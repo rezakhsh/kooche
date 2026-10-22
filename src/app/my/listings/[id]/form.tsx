@@ -8,6 +8,7 @@ import { Alert, Button, Card, Field } from '../../../../components/ui';
 import { PlaceField, type PlaceFieldValue } from '../../../../components/place-field';
 import { messages } from '../../../../messages/fa';
 import type { AttributeDef } from '../../../../modules/listings/catalog';
+import { dependentOptions, parentOf } from '../../../../modules/listings/dependent-options';
 import type { FieldError } from '../../../../modules/listings/listings';
 import { saveListingAction, type SaveState } from '../actions';
 
@@ -150,8 +151,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               key={d.key}
               def={d}
               value={v.attributes[d.key]}
-              parentValue={d.dependsOn ? selects[d.dependsOn] : undefined}
-              onSelect={(val) => setSelects((s) => ({ ...s, [d.key]: val }))}
+              parent={d.dependsOn ? props.defs.find((p) => p.key === d.dependsOn) : undefined}
+              selects={selects}
+              onSelect={(val) => setSelects((s) => chooseSelect(props.defs, s, d, val))}
               error={errors[`attr.${d.key}`]}
               currencySymbol={currencySymbol}
             />
@@ -283,17 +285,36 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   );
 }
 
+/**
+ * The chosen selects after one changes: a model chosen before its brand fills the brand; a brand
+ * change empties a model of another brand.
+ */
+function chooseSelect(defs: AttributeDef[], current: Record<string, string>, def: AttributeDef, value: string): Record<string, string> {
+  const next = { ...current, [def.key]: value };
+  if (def.dependsOn && value && !next[def.dependsOn]) next[def.dependsOn] = parentOf(def, value) ?? '';
+  for (const child of defs) {
+    if (child.dependsOn !== def.key || !next[child.key]) continue;
+    const p = parentOf(child, next[child.key]!);
+    if (p && p !== value) next[child.key] = '';
+  }
+  return next;
+}
+
 function AttributeField({
   def,
   value,
-  parentValue,
+  parent,
+  selects,
   onSelect,
   error,
   currencySymbol,
 }: {
   def: AttributeDef;
   value: unknown;
-  parentValue?: string;
+  /** The select this one depends on (brand for model) */
+  parent?: AttributeDef;
+  /** The chosen value of every select (the selects are controlled) */
+  selects: Record<string, string>;
   onSelect: (value: string) => void;
   error?: FieldError;
   /** The listing country's currency, for amounts */
@@ -370,29 +391,40 @@ function AttributeField({
         </label>,
       );
     case 'select': {
-      // A dependent select (model) shows only the options of the chosen parent (brand)
-      const options = def.dependsOn ? def.options.filter((o) => !o.parentValue || o.parentValue === parentValue) : def.options;
+      // A dependent select (model): the chosen brand's models; before a brand, all of them under
+      // their brand's name. Never disabled, so it opens with and without JavaScript.
+      const parentValue = def.dependsOn ? selects[def.dependsOn] : undefined;
+      const choice = dependentOptions(def, parent, parentValue);
       // Nothing to choose for this parent (karat when the material isn't gold): no field
-      if (def.dependsOn && parentValue && options.length === 0) return null;
-      return wrap(
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
-          <select
-            name={name}
-            defaultValue={typeof value === 'string' ? value : ''}
-            onChange={(e) => onSelect(e.target.value)}
-            disabled={!!def.dependsOn && !parentValue}
-            className={selectClass}
-            key={def.dependsOn ? parentValue : undefined}
-          >
-            <option value="">{t.choose}</option>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.labelFa}
-              </option>
-            ))}
-          </select>
-        </label>,
+      if (choice.kind === 'flat' && def.dependsOn && parentValue && choice.options.length === 0) return null;
+      const option = (o: { value: string; labelFa: string }) => (
+        <option key={o.value} value={o.value}>
+          {o.labelFa}
+        </option>
+      );
+      return (
+        <div>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
+            <select name={name} value={selects[def.key] ?? ''} onChange={(e) => onSelect(e.target.value)} className={selectClass}>
+              <option value="">{t.choose}</option>
+              {choice.kind === 'flat'
+                ? choice.options.map(option)
+                : choice.groups.map((g) =>
+                    g.value ? (
+                      <optgroup key={g.value} label={g.labelFa}>
+                        {g.options.map(option)}
+                      </optgroup>
+                    ) : (
+                      g.options.map(option)
+                    ),
+                  )}
+            </select>
+          </label>
+          {choice.kind === 'grouped' && parent && <span className="mt-1 block text-xs text-neutral-500">{t.chooseParentFirst(parent.labelFa)}</span>}
+          {def.helpFa && <span className="mt-1 block text-xs text-neutral-500">{def.helpFa}</span>}
+          <ErrorText code={error} />
+        </div>
       );
     }
     case 'multi_select': {

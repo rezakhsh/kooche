@@ -102,6 +102,14 @@ export function validateAttributes(
   minorUnit = 2,
 ): AttributeResult {
   const active = defs.filter((d) => d.isActive);
+  // A model chosen without a brand (the grouped list in the posting form) brings its brand along
+  raw = { ...raw };
+  for (const def of active) {
+    const v = raw[def.key];
+    if (!def.dependsOn || typeof v !== 'string' || raw[def.dependsOn] !== undefined) continue;
+    const parent = def.options.find((o) => o.value === v)?.parentValue;
+    if (parent) raw[def.dependsOn] = parent;
+  }
   const errors: Record<string, AttributeErrorCode> = {};
   const value: AttributeValues = {};
   const known = new Set(active.map((d) => d.key));

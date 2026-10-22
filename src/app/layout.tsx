@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
+import { AutoDirection } from '../components/auto-direction';
+import { FormValidation } from '../components/form-validation';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { webEnv } from '../lib/env';
 import { messages } from '../messages/fa';
@@ -42,6 +44,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />
+        <FormValidation />
+        <AutoDirection />
       </body>
     </html>
   );

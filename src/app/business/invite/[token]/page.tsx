@@ -1,6 +1,6 @@
 import { Alert, Button, PageShell } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
-import { messages } from '../../../../messages/fa';
+import { ltr, messages } from '../../../../messages/fa';
 import { invitationByToken } from '../../../../modules/organizations/members';
 import { requireSession } from '../../../../modules/users/server';
 import { acceptInvitationAction } from '../../actions';
@@ -22,7 +22,7 @@ export default async function InvitationPage({ params, searchParams }: { params:
         {!inv || !inv.usable || error === 'expired' || error === 'not_found' ? (
           <Alert tone="error">{t.invitation.expired}</Alert>
         ) : wrong || error === 'wrong_account' ? (
-          <Alert tone="error">{t.invitation.wrongAccount(inv.email!)}</Alert>
+          <Alert tone="error">{t.invitation.wrongAccount(ltr(inv.email!))}</Alert>
         ) : (
           <>
             {error === 'no_seats' && <Alert tone="error">{t.invitation.noSeats}</Alert>}

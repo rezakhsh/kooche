@@ -53,6 +53,7 @@ export function CodeForm() {
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9۰-۹]{6}"
+          data-pattern-message={t.codePattern}
           maxLength={6}
           required
           autoFocus

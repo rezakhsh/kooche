@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { Point } from '../db/types';
+import { fieldDir } from '../lib/field-dir';
 import { snapToGrid } from '../lib/geo';
 import { messages } from '../messages/fa';
 import type { PlaceSuggestion } from '../modules/listings/places';
@@ -194,7 +195,7 @@ export function PlaceField({
           onBlur={() => setTimeout(() => setSuggestions(null), 150)}
           autoComplete="off"
           // "12045 Berlin" must not turn into "Berlin 12045" on a right-to-left page
-          dir="auto"
+          dir={fieldDir(text)}
           role="combobox"
           aria-expanded={!!suggestions?.length}
           aria-controls={listId}
