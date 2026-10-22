@@ -273,14 +273,14 @@ export async function BrowsePage({ b }: { b: Browse }) {
         </aside>
 
         <div className="min-w-0 px-4 sm:px-0">
-          {/* The page's own box searches within its city and category; on computers the header's box covers the plain country page */}
+          {/* The page's own box searches within its city and category; from 1024 px the header's box covers the plain country page */}
           <SearchBox
             id="q"
             action={b.path}
             q={state.q}
             placeholder={messages.search.placeholderIn(scope)}
             hidden={keptFields(state, ctx.minorUnit)}
-            className={`mt-3 lg:mt-0 lg:mb-4 ${state.q || city || category ? '' : 'md:hidden'}`}
+            className={`mt-3 lg:mt-0 lg:mb-4 ${state.q || city || category ? '' : 'lg:hidden'}`}
           />
           {(city || path.length > 0) && (
             <nav aria-label={tb.breadcrumb} className="mt-4 flex flex-wrap gap-1 text-xs text-neutral-500 lg:mt-0">

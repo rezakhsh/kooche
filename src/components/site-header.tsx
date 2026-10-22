@@ -13,7 +13,9 @@ import { SearchBox } from './search-box';
 // The header on every page: the logo with its line, the chosen country (the way back to the list
 // of countries), on computers the keyword box and the main actions. On phones the actions are in
 // the bottom bar (approved Oct 17, 2026) and the keyword box is on the browse pages, so the header
-// stays one short row with a search button that leads there.
+// stays one short row with a search button that leads there. Nothing in the row ever wraps: the
+// keyword box gives way first, and below 1280 px chat, my listings and account are icons (with
+// their names as tooltips and for screen readers).
 
 export async function SiteHeader() {
   const [session, country] = await Promise.all([currentSession(), chosenCountry(appDb())]);
@@ -25,17 +27,17 @@ export async function SiteHeader() {
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
-          <Link href={home} className="flex items-center gap-2.5" aria-label={messages.site.logoAlt}>
+          <Link href={home} className="flex shrink-0 items-center gap-2.5" aria-label={messages.site.logoAlt}>
             <LogoMark className="size-9" />
             <span className="flex flex-col">
               <span className="text-xl font-black leading-none">{messages.site.name}</span>
-              <span className="mt-1 hidden text-[11px] leading-none text-neutral-500 sm:block">{messages.site.tagline}</span>
+              <span className="mt-1 hidden text-[11px] leading-none whitespace-nowrap text-neutral-500 lg:block">{messages.site.tagline}</span>
             </span>
           </Link>
           {country && (
             <Link
               href="/?choose"
-              className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-1 ps-2 pe-3 text-xs font-medium text-neutral-700 hover:border-brand-300"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-1 ps-2 pe-3 text-xs font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
               title={messages.country.change}
             >
               <Icon name="pin" className="size-3.5 text-brand-700" />
@@ -47,14 +49,14 @@ export async function SiteHeader() {
               id="header-q"
               action={`/${country.slug}`}
               placeholder={messages.search.placeholderIn(country.nameFa)}
-              className="ms-auto hidden w-full max-w-xs md:block lg:max-w-sm"
+              className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
-          <nav aria-label={t.label} className={`${country ? '' : 'ms-auto'} hidden items-center gap-2 sm:flex`}>
+          <nav aria-label={t.label} className={`${country ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
             {session && (
-              <Link href="/chat" className="relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
-                <Icon name="chat" className="size-4" />
-                {t.chat}
+              <Link href="/chat" title={t.chat} className="relative flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3">
+                <Icon name="chat" className="size-[18px] xl:size-4" />
+                <Label text={t.chat} />
                 <UnreadBadge count={unread} />
               </Link>
             )}
@@ -64,17 +66,18 @@ export async function SiteHeader() {
               </Link>
             )}
             {session && (
-              <Link href="/my/listings" className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
-                <Icon name="doc" className="size-4" />
-                {t.myListings}
+              <Link href="/my/listings" title={t.myListings} className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3">
+                <Icon name="doc" className="size-[18px] xl:size-4" />
+                <Label text={t.myListings} />
               </Link>
             )}
             <Link
               href={session ? '/account' : '/login'}
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50"
+              title={session ? t.account : undefined}
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3"
             >
               <Icon name="user" className="size-4" />
-              {session ? t.account : t.signIn}
+              {session ? <Label text={t.account} /> : t.signIn}
             </Link>
             <Link href="/new" className="flex items-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800">
               <Icon name="plus" className="size-4" />
@@ -86,7 +89,7 @@ export async function SiteHeader() {
               href={`/${country.slug}#q`}
               aria-label={messages.search.label}
               title={messages.search.label}
-              className="ms-auto flex items-center rounded-xl p-2 text-neutral-700 hover:bg-neutral-50 md:hidden"
+              className="ms-auto flex items-center rounded-xl p-2 text-neutral-700 hover:bg-neutral-50 lg:hidden"
             >
               <Icon name="search" className="size-5" />
             </Link>
@@ -99,6 +102,16 @@ export async function SiteHeader() {
         </div>
       </header>
       <BottomNav home={home} signedIn={!!session} unread={unread} />
+    </>
+  );
+}
+
+/** A nav label shown from 1280 px; below, the icon stands alone and the label is for screen readers */
+function Label({ text }: { text: string }) {
+  return (
+    <>
+      <span className="hidden xl:inline">{text}</span>
+      <span className="sr-only xl:hidden">{text}</span>
     </>
   );
 }
