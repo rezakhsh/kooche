@@ -1,7 +1,8 @@
 import { webEnv } from '../../lib/env';
 import { Meili } from './meili';
 
-// The web app's Meilisearch client, with the key that may only search the listings index.
+// The web app's Meilisearch client, with the key that may only search the listings and
+// suggestions indexes.
 // Null without MEILI_URL and MEILI_SEARCH_KEY: keyword search then runs on PostgreSQL.
 
 const globalForMeili = globalThis as typeof globalThis & { webMeili?: Meili | null };

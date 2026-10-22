@@ -1,13 +1,15 @@
 // The two Meilisearch API keys (docs/setup.md, "Keyword search and saved searches"), created once
 // per environment from the master key with scripts/meili-keys.ts. A key's value is derived from
-// its uid and the master key, so the same uids give the same values again after a restore.
+// its uid and the master key, so the same uids give the same values again after a restore, and
+// after the script recreates a key whose definition changed (Meilisearch can't change a key's
+// actions or indexes in place).
 
 export const WEB_KEY = {
   uid: '6f1d6a1e-6c3b-4d0b-9a51-1e0c7a5e2b01',
   name: 'classifieds-web',
-  description: 'Web app: search the listings index, nothing else',
+  description: 'Web app: search the listings and suggestions indexes, nothing else',
   actions: ['search'],
-  indexes: ['listings'],
+  indexes: ['listings', 'suggestions'],
   expiresAt: null,
 } as const;
 
@@ -16,7 +18,7 @@ export const WEB_KEY = {
 export const WORKER_KEY = {
   uid: '6f1d6a1e-6c3b-4d0b-9a51-1e0c7a5e2b02',
   name: 'classifieds-worker',
-  description: 'Worker: keep the listings index in line with PostgreSQL',
+  description: 'Worker: keep the listings and suggestions indexes in line with PostgreSQL',
   actions: [
     'search',
     'documents.add',

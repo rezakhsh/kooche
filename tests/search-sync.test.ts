@@ -11,8 +11,10 @@ import { eventInputSchema } from '../src/modules/events/input';
 import { LISTING_OUTBOX } from '../src/modules/listings/events';
 import { changeListingStatus, createDraft, expireDueListings, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { runListingChecks } from '../src/modules/moderation/checks';
-import { DOC_VERSION, documentsFor, indexSettings, type ListingDocument } from '../src/modules/search/documents';
+import { DOC_VERSION, documentsFor, indexSettings, LISTINGS_INDEX, type ListingDocument } from '../src/modules/search/documents';
 import { WEB_KEY, WORKER_KEY } from '../src/modules/search/keys';
+import { rebuildPhrases, SUGGESTIONS_INDEX } from '../src/modules/search/phrases';
+import { findSuggestions } from '../src/modules/search/suggest';
 import { Meili } from '../src/modules/search/meili';
 import { indexState, rebuildIndex, settingsMatch, syncListings } from '../src/modules/search/sync';
 import { eraseRequestedUser } from '../src/modules/users/erasure';
@@ -20,7 +22,7 @@ import { startSearchJobs, SYNC_EVENTS } from '../src/worker/search';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
 import { categoryBySlug, user } from './listings-fixtures';
-import { keyLike, meili, meiliUrl, settled, testIndex } from './meili';
+import { indexName, keyLike, meili, meiliUrl, settled, testIndex } from './meili';
 
 // The index follows PostgreSQL (approved Oct 22, 2026): every change that can move a listing in or
 // out of search reaches the worker through the outbox, the job re-reads the listing, and a rebuild
@@ -245,6 +247,7 @@ describe('outbox handlers', () => {
     const jobs = await startSearchJobs(workerDb, connection, {
       meili,
       index,
+      suggestIndex: indexName('sync_phrases_a'),
       prefix: `test-${randomUUID()}`,
       schedules: false,
       afterPublish: async (id) => {
@@ -263,6 +266,34 @@ describe('outbox handlers', () => {
       expect(handed).toEqual([id]);
       expect(await finds('پیکسل', id)).toBe(true);
     } finally {
+      await jobs.close();
+      await connection.quit();
+    }
+  });
+});
+
+describe('the phrase index of suggestions', () => {
+  it('follows listing changes a moment later, one rebuild for a burst of them', async () => {
+    const connection = new Redis(process.env.TEST_REDIS_URL!, { maxRetriesPerRequest: null });
+    const suggestIndex = indexName('sync_phrases');
+    const jobs = await startSearchJobs(workerDb, connection, { meili, index, suggestIndex, suggestDelayMs: 1_000, prefix: `test-${randomUUID()}`, schedules: false });
+    const events = new (await import('bullmq')).QueueEvents('search-sync', { connection: connection.duplicate(), prefix: jobs.queue.opts.prefix });
+    try {
+      const u = await seller();
+      const ids = [await publish(u.id, { title: 'گوشی شیائومی' }), await publish(u.id, { title: 'گوشی شیائومی دو' })];
+      for (const id of ids) {
+        const job = await jobs.queue.add('search_sync', { outboxId: randomUUID(), eventType: LISTING_OUTBOX.published, aggregateId: id, payload: {} });
+        await job.waitUntilFinished(events, 30_000);
+      }
+      // Both changes joined one waiting rebuild
+      const waiting = await jobs.queue.getJobs(['delayed', 'waiting']);
+      expect(waiting.map((j) => j.name)).toEqual(['suggest-rebuild']);
+      await waiting[0]!.waitUntilFinished(events, 30_000);
+      const phones = await meili.search(suggestIndex, { q: 'گوشی موبایل', filter: 'scope = "DE"', limit: 1, attributesToRetrieve: ['label', 'count'] });
+      expect(phones.hits[0]).toMatchObject({ label: 'گوشی موبایل' });
+      expect(Number(phones.hits[0]!.count)).toBeGreaterThanOrEqual(2);
+    } finally {
+      await events.close();
       await jobs.close();
       await connection.quit();
     }
@@ -314,6 +345,18 @@ describe('rebuild', () => {
     await expect(web.deleteDocuments(index, [id])).rejects.toMatchObject({ status: 403 });
     await expect(web.getSettings(index)).rejects.toMatchObject({ status: 403 });
     await expect(web.search(`${index}_other`, { q: '' })).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('the same for the phrase index: the worker builds it, the web key searches both indexes at once', async () => {
+    expect(WEB_KEY.indexes).toEqual([LISTINGS_INDEX, SUGGESTIONS_INDEX]);
+    const phrases = indexName('keys_phrases');
+    const worker = new Meili({ url: meiliUrl!, key: await keyLike({ ...WORKER_KEY, uid: randomUUID() }) });
+    const web = new Meili({ url: meiliUrl!, key: await keyLike({ ...WEB_KEY, uid: randomUUID(), indexes: [index, phrases] }) });
+    expect(await rebuildPhrases(workerDb, worker, phrases, catalog)).toBeGreaterThan(0);
+    const scope = { country: { code: 'DE', slug: 'germany', nameFa: 'آلمان', minorUnit: 2 }, city: null };
+    const found = await findSuggestions(web, { listings: index, suggestions: phrases }, scope, 'گوشی');
+    expect(found.phrases.length).toBeGreaterThan(0);
+    await expect(web.addDocuments(phrases, [{ id: 'x' }])).rejects.toMatchObject({ status: 403 });
   });
 
   it('compares settings the way Meilisearch returns them', async () => {

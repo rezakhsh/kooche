@@ -23,6 +23,13 @@ export async function testIndex(name = 'listings'): Promise<string> {
   return index;
 }
 
+/** A name for an index the code under test creates itself (deleted at the end like the rest) */
+export function indexName(name: string): string {
+  const index = `${prefix}_${name}`;
+  made.push(index, `${index}_new`);
+  return index;
+}
+
 /** A key made exactly like the server's (src/modules/search/keys.ts), its value */
 export async function keyLike(def: { uid: string } & Record<string, unknown>): Promise<string> {
   const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };

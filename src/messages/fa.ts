@@ -131,7 +131,8 @@ export const messages = {
     suggestions: 'پیشنهادها',
     inAll: 'در همه آگهی‌ها',
     inPlace: (place: string) => `در ${place}`,
-    matches: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
+    /** Approximate from a thousand on, like Divar: «۱۲ آگهی», «۳ هزار آگهی» */
+    matches: (n: number) => (n < 1000 ? `${n.toLocaleString('fa-IR')} آگهی` : `${Math.floor(n / 1000).toLocaleString('fa-IR')} هزار آگهی`),
   },
   // Saved searches and their alerts (src/modules/search/saved.ts, /my/searches)
   savedSearches: {

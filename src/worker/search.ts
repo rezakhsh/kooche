@@ -6,6 +6,7 @@ import { EVENT_OUTBOX } from '../modules/events/events';
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import { LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
+import { rebuildPhrases, SUGGESTIONS_INDEX } from '../modules/search/phrases';
 import { indexState, rebuildIndex, syncListings } from '../modules/search/sync';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 
@@ -16,13 +17,21 @@ import type { OutboxHandlers, OutboxJobData } from './outbox';
 // - `reindex`: at start when the index is missing or outdated, and nightly at 04:00 UTC (after the
 //   03:15 backup), which also repairs anything missed while Meilisearch was down.
 // - `task-cleanup`: daily, deletes Meilisearch's finished tasks older than 7 days.
+// - `suggest-rebuild`: the phrase index of suggestions while typing (src/modules/search/phrases.ts),
+//   at start, a minute after listing changes (one job gathers a burst of them) and every 15
+//   minutes; skipped when its records wouldn't change.
 // After a listing is published and indexed, `afterPublish` hands it to the saved-search matching.
 // Without MEILI_URL the queue still runs, writes nothing and hands publications on.
 
 const SCHEDULES = {
   reindex: { pattern: '0 4 * * *', tz: 'UTC' },
   'task-cleanup': { pattern: '30 4 * * *', tz: 'UTC' },
+  'suggest-rebuild': { pattern: '*/15 * * * *', tz: 'UTC' },
 } as const;
+
+/** After a listing change, the phrase counts are rebuilt this much later, once for all changes meanwhile */
+export const SUGGEST_DELAY_MS = 60_000;
+const SUGGEST_SOON = { jobId: 'suggest-rebuild-soon', delay: SUGGEST_DELAY_MS, attempts: 3, backoff: { type: 'exponential' as const, delay: 10_000 }, removeOnComplete: true, removeOnFail: true };
 
 const RETRY = { attempts: 8, backoff: { type: 'exponential' as const, delay: 10_000 } };
 const KEEP = { removeOnComplete: 200, removeOnFail: 1_000 };
@@ -48,6 +57,9 @@ export const SYNC_EVENTS = [
 export type SearchJobOptions = {
   meili: Meili | null;
   index?: string;
+  suggestIndex?: string;
+  /** Tests: the delay before the phrase counts follow a change */
+  suggestDelayMs?: number;
   /** Called once a newly published listing is in the index (saved-search matching) */
   afterPublish?: (listingId: string) => Promise<void>;
   /** Tests: a BullMQ key prefix of their own, no schedules, no start-up check */
@@ -57,6 +69,8 @@ export type SearchJobOptions = {
 
 export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJobOptions) {
   const index = opts.index ?? LISTINGS_INDEX;
+  const suggestIndex = opts.suggestIndex ?? SUGGESTIONS_INDEX;
+  const soon = { ...SUGGEST_SOON, delay: opts.suggestDelayMs ?? SUGGEST_DELAY_MS };
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('search-sync', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
   if (opts.schedules !== false) {
@@ -77,6 +91,8 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
           const r = await syncListings(db, meili, index, await cachedCatalog(db), [data.aggregateId]);
           // Matching asks the index about this listing, so it must be in it first
           if (published && r.upserted.length) for (const t of r.tasks) await meili.wait(t);
+          // Already waiting (same job id): this change joins it
+          await queue.add('suggest-rebuild', { reason: 'changes' }, soon);
         }
         if (published && opts.afterPublish) await opts.afterPublish(data.aggregateId);
       } else if (job.name === 'reindex') {
@@ -84,6 +100,11 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
         const started = Date.now();
         const n = await rebuildIndex(db, meili, index, await cachedCatalog(db));
         console.log(`search: index rebuilt (${job.data?.reason ?? 'nightly'}): ${n} documents, ${Date.now() - started} ms`);
+      } else if (job.name === 'suggest-rebuild') {
+        if (!meili) return;
+        const started = Date.now();
+        const n = await rebuildPhrases(db, meili, suggestIndex, await cachedCatalog(db));
+        if (n !== null) console.log(`search: suggestions rebuilt (${job.data?.reason ?? 'schedule'}): ${n} phrases, ${Date.now() - started} ms`);
       } else if (job.name === 'task-cleanup') {
         if (meili) await meili.deleteTasks(new Date(Date.now() - TASKS_KEPT_MS));
       } else throw new Error(`search: unknown job ${job.name}`);
@@ -95,6 +116,7 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
   // At start: rebuild when the index can't be used as it is. A Meilisearch that doesn't answer is
   // only logged; the nightly rebuild and the retries of single writes catch up later.
   if (meili && opts.schedules !== false) {
+    await queue.add('suggest-rebuild', { reason: 'start' }, { removeOnComplete: true, removeOnFail: 50 });
     try {
       const state = await indexState(db, meili, index);
       if (state !== 'ok') {

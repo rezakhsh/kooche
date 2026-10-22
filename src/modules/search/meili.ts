@@ -30,10 +30,12 @@ export type SearchQuery = {
   attributesToRetrieve?: string[];
   /** `all`: every word (or a synonym) must match, as people expect from classifieds */
   matchingStrategy?: 'all' | 'last' | 'frequency';
+  /** Each hit says which fields matched (`_matchesPosition`) */
+  showMatchesPosition?: boolean;
 };
 
 export type SearchResult = {
-  hits: { id: string }[];
+  hits: ({ id: string; _matchesPosition?: Record<string, unknown> } & Record<string, unknown>)[];
   estimatedTotalHits?: number;
   facetDistribution?: Record<string, Record<string, number>>;
 };

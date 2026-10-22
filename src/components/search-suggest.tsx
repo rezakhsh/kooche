@@ -8,7 +8,8 @@ import type { Suggestion } from '../modules/search/suggest';
 import { Icon } from './icons';
 
 // The keyword input with suggestions while typing (approved Oct 22, 2026; rows from
-// src/modules/search/suggest.ts through /api/search/suggest). An ARIA combobox: arrow keys move
+// src/modules/search/suggest.ts through /api/search/suggest): the search as typed, then phrases
+// that complete it, each with its category and an approximate count. An ARIA combobox: arrow keys move
 // through the rows, Enter opens the highlighted one or submits the form as typed, Escape closes,
 // every row is a real link. Without JavaScript the input is a plain field of the GET form.
 
@@ -164,16 +165,20 @@ function Row({ r }: { r: Suggestion }) {
       return (
         <>
           <Icon name="grid" className="size-4 shrink-0 text-brand-700" />
-          <span className="min-w-0 truncate font-medium">{r.label}</span>
-          {r.parent && <span className="ms-auto shrink-0 text-xs text-neutral-500">{r.parent}</span>}
+          <span className="min-w-0 truncate">
+            <b className="font-medium">{r.label}</b> {r.parent && <span className="text-neutral-500">{t.inPlace(r.parent)}</span>}
+          </span>
+          {r.count !== null && <span className="ms-auto shrink-0 text-xs text-neutral-500">{t.matches(r.count)}</span>}
         </>
       );
     case 'field':
       return (
         <>
           <Icon name="sliders" className="size-4 shrink-0 text-brand-700" />
-          <span className="min-w-0 truncate font-medium">{r.label}</span>
-          <span className="ms-auto shrink-0 text-xs text-neutral-500">{t.inPlace(r.where)}</span>
+          <span className="min-w-0 truncate">
+            <b className="font-medium">{r.label}</b> <span className="text-neutral-500">{t.inPlace(r.where)}</span>
+          </span>
+          {r.count !== null && <span className="ms-auto shrink-0 text-xs text-neutral-500">{t.matches(r.count)}</span>}
         </>
       );
   }
