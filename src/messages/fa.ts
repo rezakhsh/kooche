@@ -128,6 +128,10 @@ export const messages = {
     events: 'رویدادهای مرتبط',
     allEvents: 'همه رویدادها',
     count: (n: number) => `(${n.toLocaleString('fa-IR')})`,
+    suggestions: 'پیشنهادها',
+    inAll: 'در همه آگهی‌ها',
+    inPlace: (place: string) => `در ${place}`,
+    matches: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
   },
   // Saved searches and their alerts (src/modules/search/saved.ts, /my/searches)
   savedSearches: {

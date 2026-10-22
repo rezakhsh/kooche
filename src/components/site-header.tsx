@@ -48,6 +48,7 @@ export async function SiteHeader() {
             <SearchBox
               id="header-q"
               action={`/${country.slug}`}
+              country={country.slug}
               placeholder={messages.search.placeholderIn(country.nameFa)}
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />

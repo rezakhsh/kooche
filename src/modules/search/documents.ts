@@ -12,7 +12,7 @@ import { STOP_WORDS, synonymSettings } from './synonyms';
 
 export const LISTINGS_INDEX = 'listings';
 /** Raised when the document's shape changes, so the worker rebuilds the index at its next start */
-export const DOC_VERSION = 1;
+export const DOC_VERSION = 2;
 
 export type ListingDocument = {
   id: string;
@@ -90,10 +90,17 @@ export function indexedAttributes(defs: AttributeDef[], values: Record<string, u
   return out;
 }
 
-/** The Persian labels of a listing's chosen options (a search for «بنز» finds the make) */
+/** Fields whose chosen label is searchable text: what a listing *is*, not how it is described */
+const SEARCHABLE_FIELDS = new Set(['brand', 'model']);
+
+/**
+ * The Persian names of a listing's make and model (a search for «بنز» finds the make). Not every
+ * choice: «بنزین» (petrol) would make every petrol car match «بنز» while it is being typed.
+ */
 function attributeLabels(defs: AttributeDef[], values: Record<string, unknown>): string {
   const labels: string[] = [];
   for (const d of defs) {
+    if (!SEARCHABLE_FIELDS.has(d.key)) continue;
     const v = values[d.key];
     const chosen = d.type === 'select' && typeof v === 'string' ? [v] : d.type === 'multi_select' && Array.isArray(v) ? v : [];
     for (const c of chosen) {

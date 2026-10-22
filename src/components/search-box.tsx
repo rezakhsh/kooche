@@ -1,9 +1,11 @@
 import { messages } from '../messages/fa';
 import { Icon } from './icons';
+import { SearchSuggest } from './search-suggest';
 
 // The keyword box (approved Oct 22, 2026): a plain GET form, so it works without JavaScript. The
 // header's box searches the chosen country; a browse page's own box searches within its city and
-// category and keeps the place and filters as hidden fields.
+// category and keeps the place and filters as hidden fields. With JavaScript the input suggests
+// where to look while typing (./search-suggest.tsx).
 
 export function SearchBox({
   action,
@@ -12,6 +14,8 @@ export function SearchBox({
   hidden = [],
   id,
   className = '',
+  country,
+  city = null,
 }: {
   action: string;
   q?: string | null;
@@ -21,6 +25,9 @@ export function SearchBox({
   /** Unique per page (the box can appear twice) */
   id: string;
   className?: string;
+  /** The country (and city) slugs the suggestions are for */
+  country: string;
+  city?: string | null;
 }) {
   const t = messages.search;
   return (
@@ -31,17 +38,7 @@ export function SearchBox({
       <label htmlFor={id} className="sr-only">
         {t.label}
       </label>
-      <input
-        id={id}
-        type="search"
-        name="q"
-        defaultValue={q ?? ''}
-        placeholder={placeholder}
-        maxLength={100}
-        autoComplete="off"
-        enterKeyHint="search"
-        className="block w-full rounded-xl border border-neutral-300 bg-white py-2 ps-3 pe-10 text-sm placeholder:text-neutral-400 focus:border-brand-700 focus:outline-none"
-      />
+      <SearchSuggest id={id} defaultValue={q ?? ''} placeholder={placeholder} country={country} city={city} />
       <button type="submit" aria-label={t.submit} title={t.submit} className="absolute inset-y-0 end-0 flex items-center px-3 text-neutral-500 hover:text-brand-700">
         <Icon name="search" className="size-[18px]" />
       </button>

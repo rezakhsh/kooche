@@ -280,6 +280,8 @@ export async function BrowsePage({ b }: { b: Browse }) {
             q={state.q}
             placeholder={messages.search.placeholderIn(scope)}
             hidden={keptFields(state, ctx.minorUnit)}
+            country={country.slug}
+            city={city?.slug ?? null}
             className={`mt-3 lg:mt-0 lg:mb-4 ${state.q || city || category ? '' : 'lg:hidden'}`}
           />
           {(city || path.length > 0) && (
