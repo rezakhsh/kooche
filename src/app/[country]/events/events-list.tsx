@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 import { EventCard } from '../../../components/event-card';
+import { Icon } from '../../../components/icons';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { messages } from '../../../messages/fa';
 import { DEFAULT_TIME_ZONE } from '../../../modules/events/events';
 import { eventCardOf } from '../../../modules/events/card';
 import { WHEN, cityBySlug, eventCities, upcomingEvents, whenWindow, type When } from '../../../modules/events/queries';
+import { featuredEventIds, featuredListingIds } from '../../../modules/payments/plans';
 import { EVENT_ROOT_SLUG, cachedCatalog } from '../../../modules/listings/catalog';
 import { activeCountries } from '../../../modules/listings/queries';
 import { eventsPath } from '../../../modules/search/paths';
@@ -97,6 +99,11 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
     now,
   );
 
+  // Featured events (roadmap step 6): a strip on the first page, and the badge on featured cards
+  const featuredIds = after.success ? [] : await featuredEventIds(db, country.code, city?.id ?? null, now);
+  const featured = featuredIds.length ? (await upcomingEvents(db, { countryCode: country.code, locationId: city?.id ?? null, from: now, to: null, listingIds: featuredIds }, now)).items : [];
+  const badged = new Set([...featured.map((e) => e.id), ...(await featuredListingIds(db, page.items.map((e) => e.id), now))]);
+
   const query = (patch: Partial<Search>) => {
     const q = new URLSearchParams();
     const merged: Search = { when: when === 'all' ? undefined : when, type: type?.slug, online: s.online === '1' ? '1' : undefined, free: s.free === '1' ? '1' : undefined, ...patch };
@@ -182,10 +189,25 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
           </p>
         </div>
       )}
+      {featured.length > 0 && (
+        <section aria-labelledby="featured-events" className="mb-6 rounded-2xl bg-saffron-50/60 p-3">
+          <h2 id="featured-events" className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-saffron-700" title={messages.featured.stripHint}>
+            <Icon name="star" className="size-4" />
+            {t.featured}
+          </h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {featured.slice(0, 4).map((e) => (
+              <li key={e.id}>
+                <EventCard e={{ ...eventCardOf(catalog, e), featured: true }} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {page.items.map((e) => (
           <li key={e.id}>
-            <EventCard e={eventCardOf(catalog, e)} />
+            <EventCard e={{ ...eventCardOf(catalog, e), featured: badged.has(e.id) }} />
           </li>
         ))}
       </ul>

@@ -7,6 +7,7 @@ import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon } from '../../../../components/icons';
+import { isFeatured } from '../../../../modules/payments/plans';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
@@ -111,9 +112,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const countryName = country?.nameFa ?? '';
   const city = countrySlug && l.locationId ? ((await allCities(appDb())).find((c) => c.id === l.locationId) ?? null) : null;
   // The ♡ for visitors; the seller sees how many saved it instead (nobody else does)
-  const [savedByMe, favCount] = await Promise.all([
+  const [savedByMe, favCount, featured] = await Promise.all([
     session && !isOwner ? savedAmong(appDb(), session.user.id, [l.id]).then((s) => s.has(l.id)) : Promise.resolve(false),
     isOwner ? favoriteCounts(appDb(), session!.user.id, [l.id]).then((m) => m.get(l.id) ?? 0) : Promise.resolve(null),
+    l.status === 'active' ? isFeatured(appDb(), l.id) : Promise.resolve(false),
   ]);
 
   // schema.org Product with an Offer. Price in major units as a decimal string, never a float.
@@ -192,9 +194,17 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         </p>
       )}
       {isOwner ? (
-        <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
-          {t.edit}
-        </LinkButton>
+        <>
+          <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="w-full">
+            {t.edit}
+          </LinkButton>
+          {l.status === 'active' && (
+            <LinkButton href={`/my/listings/${l.id}/promote`} variant="accent" className="mt-2 w-full">
+              <Icon name="arrow-up" className="size-4" />
+              {messages.promote.link}
+            </LinkButton>
+          )}
+        </>
       ) : chat && l.status === 'active' ? (
         <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
       ) : null}
@@ -257,6 +267,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 ))}
               </nav>
               <h1 className="text-xl leading-relaxed font-extrabold text-balance sm:text-2xl">
+                {featured && (
+                  <span className="me-2 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2.5 py-0.5 align-middle text-xs font-bold text-neutral-900">
+                    <Icon name="star" className="size-3" />
+                    {messages.featured.badge}
+                  </span>
+                )}
                 {l.kind === 'wanted' && <span className="me-2 inline-block rounded-full bg-saffron-50 px-2.5 py-0.5 align-middle text-xs font-bold text-saffron-700">{t.wanted}</span>}
                 {l.title}
               </h1>

@@ -111,3 +111,17 @@ export async function listingPromotions(db: Queryable, listingId: string, now: D
     pendingBumps: rows.filter((r) => r.type === 'bump').map((r) => r.startsAt),
   };
 }
+
+/** Live events in a country (and city) with a running `featured` entitlement, for the events list */
+export async function featuredEventIds(db: Queryable, countryCode: string, locationId: string | null, now: Date = new Date()): Promise<string[]> {
+  const at = now.toISOString();
+  const rows = await db.execute<{ id: string }>(sql`
+    SELECT DISTINCT e.listing_id AS id
+    FROM entitlements e
+    JOIN listings l ON l.id = e.listing_id AND l.status = 'active'
+    JOIN event_dates d ON d.listing_id = l.id AND d.country_code = ${countryCode} AND d.ends_at > ${at}::timestamptz
+      ${locationId ? sql`AND d.location_id = ${locationId}` : sql``}
+    WHERE e.type = 'featured' AND e.revoked_at IS NULL AND e.starts_at <= ${at}::timestamptz AND e.ends_at > ${at}::timestamptz
+    LIMIT 8`);
+  return rows.map((r) => r.id);
+}

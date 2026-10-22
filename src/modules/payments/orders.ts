@@ -57,7 +57,7 @@ export async function ownOrders(db: Queryable, userId: string, limit = 50) {
     .from(orders)
     .innerJoin(products, eq(products.id, orders.productId))
     .leftJoin(listings, eq(listings.id, orders.listingId))
-    .where(and(eq(orders.buyerUserId, userId), sql`${orders.status} NOT IN ('pending', 'expired') OR ${orders.paidAt} IS NOT NULL`))
+    .where(and(eq(orders.buyerUserId, userId), sql`(${orders.status} NOT IN ('pending', 'expired') OR ${orders.paidAt} IS NOT NULL)`))
     .orderBy(desc(orders.createdAt))
     .limit(limit);
 }

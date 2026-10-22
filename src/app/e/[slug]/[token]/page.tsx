@@ -329,9 +329,17 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 </p>
               )}
               {isOwner ? (
-                <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="w-full">
-                  {t.edit}
-                </LinkButton>
+                <>
+                  <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="w-full">
+                    {t.edit}
+                  </LinkButton>
+                  {l.status === 'active' && (
+                    <LinkButton href={`/my/listings/${l.id}/promote`} variant="accent" className="mt-2 w-full">
+                      <Icon name="arrow-up" className="size-4" />
+                      {messages.promote.link}
+                    </LinkButton>
+                  )}
+                </>
               ) : chat && l.status === 'active' ? (
                 <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
               ) : null}

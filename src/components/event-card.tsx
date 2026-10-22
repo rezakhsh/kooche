@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { messages } from '../messages/fa';
+import { Icon } from './icons';
 import { cardDate } from '../modules/events/format';
 import { eventPath } from '../modules/events/slug';
 
@@ -18,6 +19,8 @@ export type EventCardData = {
   scheduleStatus: string;
   moreDates: number;
   cover: string | null;
+  /** A running `featured` entitlement (roadmap step 6) */
+  featured?: boolean;
 };
 
 export function EventCard({ e }: { e: EventCardData }) {
@@ -39,6 +42,12 @@ export function EventCard({ e }: { e: EventCardData }) {
           <span className="block text-sm font-bold">{when.day}</span>
           <span className="block text-xs text-neutral-600">{when.weekday}</span>
         </div>
+        {e.featured && (
+          <span className="absolute start-2 bottom-2 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-[11px] font-bold leading-5 text-neutral-900">
+            <Icon name="star" className="size-3" />
+            {messages.featured.badge}
+          </span>
+        )}
         {label && (
           <span
             className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-brand-700 text-white' : 'bg-red-700 text-white'}`}

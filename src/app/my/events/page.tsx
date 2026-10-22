@@ -85,6 +85,11 @@ export default async function MyEventsPage({ searchParams }: { searchParams: Pro
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {l.status === 'active' && (
+                      <LinkButton href={`/my/listings/${l.id}/promote`} variant="accent" className="px-3 py-2">
+                        {messages.promote.titleEvent}
+                      </LinkButton>
+                    )}
                     {editable && (
                       <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="px-3 py-2">
                         {l.status === 'draft' ? messages.my.continue : messages.my.edit}

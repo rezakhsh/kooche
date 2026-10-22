@@ -20,7 +20,8 @@ import { cardOf } from '../../../modules/listings/card';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { currentSession } from '../../../modules/users/server';
 import { searchListings, type SearchResult } from '../../../modules/search';
-import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP } from '../../../modules/search/browse';
+import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP, featuredForPage } from '../../../modules/search/browse';
+import { featuredListingIds } from '../../../modules/payments/plans';
 import { webMeili } from '../../../modules/search/client';
 import { browseQuery, defaultSort, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
 import { KEYWORD_LIMIT } from '../../../modules/search/keyword';
@@ -69,7 +70,11 @@ const pageData = cache(async (b: Browse) => {
   const events = result.eventIds.length
     ? (await upcomingEvents(db, { countryCode: b.country.code, from: new Date(), to: null, listingIds: result.eventIds })).items
     : [];
-  return { result, leafCounts, cities, perCity, limited, events };
+  // Paid featured listings (roadmap step 6): a strip on the first page without a keyword, and the
+  // badge on any card of the page that is featured
+  const featured = !b.state.q && !b.state.after ? await featuredForPage(db, b.filters) : [];
+  const featuredIds = await featuredListingIds(db, result.items.map((l) => l.id));
+  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds };
 });
 
 function titleOf(b: Browse): string {
@@ -121,14 +126,14 @@ function keptFields(state: BrowseState, minorUnit: number): [string, string][] {
 
 export async function BrowsePage({ b }: { b: Browse }) {
   const { country, city, category, catalog, state, ctx } = b;
-  const { result, leafCounts, cities, perCity, limited, events } = await pageData(b);
+  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds } = await pageData(b);
   const env = webEnv();
   const t = messages.country;
   const tb = messages.browse;
   const remembered = (await cookies()).get(VIEW_COOKIE)?.value;
   // Filled hearts for a signed-in visitor; logged-out pages are the same for everyone
   const session = await currentSession();
-  const saved = session ? await savedAmong(appDb(), session.user.id, result.items.map((l) => l.id)) : new Set<string>();
+  const saved = session ? await savedAmong(appDb(), session.user.id, [...result.items, ...featured].map((l) => l.id)) : new Set<string>();
   // Any page narrower than a whole country can be saved as a search with alerts
   const saveable = !!(state.q || isFiltered(state) || city || category);
   const searchSaved = saveable && session && !state.near ? await isSaved(appDb(), session.user.id, { country, city, category, ctx, state }) : false;
@@ -155,7 +160,8 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const eventsHref = eventsPath(country.slug, city?.slug ?? null);
   const withState = (s: Partial<BrowseState>) => `${b.path}${browseQuery({ ...state, after: null, ...s }, ctx.minorUnit)}`;
 
-  const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: cardOf(b.catalog, l, env.APP_TIME_ZONE) }));
+  const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: { ...cardOf(b.catalog, l, env.APP_TIME_ZONE), featured: featuredIds.has(l.id) } }));
+  const featuredCards = featured.map((l) => ({ id: l.id, token: l.publicToken, card: { ...cardOf(b.catalog, l, env.APP_TIME_ZONE), featured: true } }));
   const filtered = isFiltered(state);
   const filterCount = filterChips(b).length;
   const sorts = SORTS.filter((s) => (s === 'relevance' ? !!state.q : s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));
@@ -387,6 +393,22 @@ export async function BrowsePage({ b }: { b: Browse }) {
                 {events.map((e) => (
                   <li key={e.id}>
                     <EventCard e={eventCardOf(catalog, e)} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {featuredCards.length > 0 && (
+            <section aria-labelledby="featured-listings" className="mb-6 rounded-2xl bg-saffron-50/60 p-3">
+              <h2 id="featured-listings" className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-saffron-700" title={messages.featured.stripHint}>
+                <Icon name="star" className="size-4" />
+                {messages.featured.strip}
+              </h2>
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {featuredCards.map(({ id, token, card }) => (
+                  <li key={id}>
+                    <ListingCard card={card} view="grid" favorite={<FavoriteButton token={token} saved={saved.has(id)} back={here} />} />
                   </li>
                 ))}
               </ul>

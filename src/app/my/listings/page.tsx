@@ -115,6 +115,12 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                         </Button>
                       </form>
                     ))}
+                    {l.status === 'active' && (
+                      <LinkButton href={`/my/listings/${l.id}/promote`} variant="accent" className="px-3 py-1.5 text-xs">
+                        <Icon name="arrow-up" className="size-3.5" />
+                        {messages.promote.link}
+                      </LinkButton>
+                    )}
                     {editable && (
                       <LinkButton href={`/my/listings/${l.id}`} variant="secondary" className="px-3 py-1.5 text-xs">
                         {l.status === 'draft' ? t.continue : t.edit}

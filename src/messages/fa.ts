@@ -449,6 +449,70 @@ export const messages = {
     ownerPreview: 'این آگهی هنوز منتشر نشده است و فقط شما آن را می‌بینید.',
     edit: 'ویرایش آگهی',
   },
+  // Paid visibility for a listing or an event (roadmap step 6, prices decided Oct 22, 2026)
+  promote: {
+    title: 'ارتقای آگهی',
+    titleEvent: 'ویژه کردن رویداد',
+    link: 'ارتقای آگهی',
+    intro: 'آگهی‌تان را بیشتر ببینند. ثبت آگهی همیشه رایگان است؛ این‌ها فقط برای دیده شدن بیشتر است.',
+    choose: 'یکی را انتخاب کنید',
+    price: (amount: string) => `قیمت: ${amount}`,
+    noVat: 'قیمت نهایی است (بدون مالیات بر ارزش افزوده، طبق §۱۹ قانون مالیات آلمان).',
+    waiver:
+      'موافقم که این خدمت همین حالا شروع شود و می‌دانم با شروع آن، حق انصراف ۱۴ روزه‌ام از بین می‌رود.',
+    pay: 'ادامه و پرداخت',
+    methods: 'پرداخت با کارت، Apple Pay، Google Pay، PayPal یا EPS (اتریش) در صفحه امن Stripe.',
+    cancelled: 'پرداخت انجام نشد. اگر خواستید دوباره امتحان کنید.',
+    notLive: 'فقط آگهی‌های فعال را می‌شود ارتقا داد.',
+    off: 'پرداخت فعلاً در دسترس نیست.',
+    running: 'ارتقاهای فعال این آگهی',
+    featuredUntil: (date: string) => `ویژه تا ${date}`,
+    bumpsWaiting: (n: number) => `${n.toLocaleString('fa-IR')} نردبان در نوبت`,
+    terms: 'شرایط خدمات پولی',
+    errors: {
+      waiver_required: 'برای شروع فوری، تیک موافقت را بزنید.',
+      not_allowed: 'این گزینه برای این آگهی ممکن نیست.',
+      not_found: 'این آگهی پیدا نشد.',
+      payments_off: 'پرداخت فعلاً در دسترس نیست.',
+      failed: 'اتصال به درگاه پرداخت نشد. کمی بعد دوباره امتحان کنید.',
+      rate_limited: 'چند بار پشت هم امتحان کردید. چند دقیقه بعد دوباره امتحان کنید.',
+    },
+    // Included in a business's Pro plan (worker-checked)
+    plan: {
+      title: 'از اشتراک پرو کسب‌وکار',
+      bump: (n: number) => `نردبان رایگان (${n.toLocaleString('fa-IR')} مانده)`,
+      featured: (n: number) => `ویژه ۷ روزه رایگان (${n.toLocaleString('fa-IR')} مانده)`,
+      requested: 'درخواست ثبت شد؛ تا یک دقیقه دیگر اعمال می‌شود.',
+      none_left: 'سهم این دوره تمام شده است.',
+    },
+  },
+  featured: {
+    badge: 'ویژه',
+    strip: 'آگهی‌های ویژه',
+    stripHint: 'آگهی‌دهنده‌ها برای نمایش در این ردیف پول پرداخته‌اند.',
+  },
+  orders: {
+    title: 'خریدهای من',
+    empty: 'هنوز خریدی ندارید.',
+    order: 'خرید',
+    waiting: 'در انتظار تأیید پرداخت…',
+    waitingHint: 'معمولاً چند ثانیه طول می‌کشد. این صفحه خودش به‌روز می‌شود.',
+    paid: 'پرداخت انجام شد. سپاس!',
+    paidHint: 'رسید و فاکتور به ایمیل‌تان فرستاده شد.',
+    status: {
+      pending: 'در انتظار پرداخت',
+      paid: 'پرداخت‌شده',
+      failed: 'ناموفق',
+      expired: 'نیمه‌کاره',
+      refunded: 'بازپرداخت‌شده',
+      partially_refunded: 'بخشی بازپرداخت شد',
+    },
+    failedHint: 'پرداخت انجام نشد و پولی از حساب‌تان کم نشده است.',
+    listing: 'آگهی',
+    backToListing: 'دیدن آگهی',
+    backToMine: 'آگهی‌های من',
+    on: (date: string) => `در ${date}`,
+  },
   moderation: {
     // The statement of reasons sent with an automatic take-down (DSA art. 17)
     // Each takes the section of the terms it cites («۵.۲»), from the decision's policy_ground.
@@ -688,6 +752,7 @@ export const messages = {
   // The events section («رویدادها»): src/app/[country]/events, src/app/e, src/app/events, src/app/my/events
   events: {
     section: 'رویدادها',
+    featured: 'رویدادهای ویژه',
     title: (country: string) => `رویدادهای ایرانیان در ${country}`,
     description: (country: string) =>
       `کنسرت، جشن نوروز و یلدا، تئاتر، فیلم، شب شعر، کلاس و دورهمی‌های ایرانیان در ${country}.`,

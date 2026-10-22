@@ -21,6 +21,8 @@ export type CardData = {
   facts: CardFact[];
   /** "حدود ۳ کیلومتر" when the page measures from a place; never more exact than the stored point */
   distance?: string | null;
+  /** A running `featured` entitlement (computed, never stored on the listing) */
+  featured?: boolean;
 };
 
 /** `favorite`: the ♡ button, laid over the card next to the link (a button can't sit inside a link) */
@@ -34,6 +36,12 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
         <div className="flex size-full items-center justify-center text-neutral-400">
           <Icon name="image" className="size-8" />
         </div>
+      )}
+      {card.featured && (
+        <span className="absolute top-1.5 start-1.5 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-[11px] font-bold leading-5 text-neutral-900">
+          <Icon name="star" className="size-3" />
+          {messages.featured.badge}
+        </span>
       )}
       {card.photoCount > 1 && (
         <span className="absolute bottom-1.5 start-1.5 flex items-center gap-1 rounded-md bg-neutral-900/70 px-1.5 text-[11px] leading-5 text-white">

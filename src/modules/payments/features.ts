@@ -23,3 +23,9 @@ export function planFeatures(value: unknown): PlanFeatures {
   const parsed = planFeaturesSchema.safeParse(value);
   return parsed.success ? parsed.data : FREE_BUSINESS;
 }
+
+/** Starting checkouts (Valkey, src/lib/rate-limit.ts): each one creates a Stripe session */
+export const PAYMENT_LIMITS = {
+  checkoutsPerUserHour: { name: 'checkout:user:1h', max: 20, windowSeconds: 3_600 },
+  allowancesPerUserHour: { name: 'allowance:user:1h', max: 60, windowSeconds: 3_600 },
+} as const;

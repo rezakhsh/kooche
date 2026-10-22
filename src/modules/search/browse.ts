@@ -268,6 +268,32 @@ export async function browseListings(db: Queryable, f: SearchFilters, cursor: st
   };
 }
 
+/** How many featured listings a browse page shows above its results */
+export const FEATURED_ON_PAGE = 3;
+
+/**
+ * Featured listings for a browse page (roadmap step 6): active listings matching the page's own
+ * filters with a running `featured` entitlement, shuffled, at most three. Featured is never stored
+ * on the listing; the small set of running entitlements is looked up first.
+ */
+export async function featuredForPage(db: Queryable, f: SearchFilters, now: Date = new Date()): Promise<BrowseItem[]> {
+  const at = now.toISOString();
+  const rows = await db
+    .select({ ...cardColumns, distanceM: f.around ? sql<number>`ST_Distance(${listings.point}, ${geography(f.around.point)})` : sql<null>`NULL` })
+    .from(listings)
+    .leftJoin(locations, eq(locations.id, listings.locationId))
+    .where(
+      and(
+        ...conditions({ ...f, keyword: null }),
+        sql`${listings.id} IN (SELECT listing_id FROM entitlements WHERE type = 'featured' AND revoked_at IS NULL AND starts_at <= ${at}::timestamptz AND ends_at > ${at}::timestamptz)`,
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(FEATURED_ON_PAGE);
+  const covers = await coverKeys(db, rows.map((r) => r.id));
+  return rows.map(({ distanceM, ...r }) => ({ ...r, coverKey: covers.get(r.id) ?? null, distanceKm: distanceM === null ? null : roundKm(Number(distanceM)) }));
+}
+
 /**
  * Which of the searches would show this listing, by the browse query itself (saved-search
  * alerts): one round trip for up to 50 searches.
