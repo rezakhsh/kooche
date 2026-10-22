@@ -77,7 +77,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
 
-  const { listing: l, images, seller, cityFa, cityLocal } = data;
+  const { listing: l, images, seller, business, cityFa, cityLocal } = data;
   const env = webEnv();
   const t = messages.listing;
   const catalog = await cachedCatalog(appDb());
@@ -150,7 +150,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           addressCountry: l.countryCode ?? undefined,
         },
       },
-      seller: { '@type': 'Person', name: seller.displayName },
+      seller: business ? { '@type': 'Organization', name: business.name, url: `${env.APP_URL}/b/${business.slug}` } : { '@type': 'Person', name: seller.displayName },
     },
   };
 
@@ -166,22 +166,50 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   const sellerBox = (
     <Card className="space-y-4">
-      <div className="flex items-center gap-3">
-        <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-saffron-50 text-lg font-extrabold text-saffron-700">
-          {[...seller.displayName][0]}
-        </span>
-        <div className="min-w-0">
-          <span className="block text-xs text-neutral-500">{t.seller}</span>
-          <Link href={sellerPath(seller.publicToken)} className="block truncate font-bold hover:underline">
-            <bdi>{seller.displayName}</bdi>
+      {business ? (
+        <>
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-lg font-extrabold text-brand-700">
+              {[...business.name][0]}
+            </span>
+            <div className="min-w-0">
+              <span className="flex items-center gap-1 text-xs text-neutral-500">
+                <Icon name="store" className="size-3.5" />
+                {messages.business.label}
+              </span>
+              <Link href={`/b/${business.slug}`} className="flex items-center gap-1 truncate font-bold hover:underline">
+                <bdi>{business.name}</bdi>
+                {business.verificationStatus === 'verified' && <Icon name="verified" className="size-4 text-brand-700" />}
+              </Link>
+              <span className="block text-xs text-neutral-500">{messages.business.page.memberSince(formatMonth(business.createdAt, env.APP_TIME_ZONE))}</span>
+            </div>
+          </div>
+          {business.verificationStatus === 'verified' && <p className="text-xs font-medium text-brand-800">{messages.business.verified}</p>}
+          <Link href={`/b/${business.slug}`} className="flex items-center gap-1 text-sm font-medium text-brand-800 hover:underline">
+            <Icon name="store" className="size-4" />
+            {messages.seller.allListings}
           </Link>
-          <span className="block text-xs text-neutral-500">{t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}</span>
-        </div>
-      </div>
-      <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-1 text-sm font-medium text-brand-800 hover:underline">
-        <Icon name="store" className="size-4" />
-        {messages.seller.allListings}
-      </Link>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-saffron-50 text-lg font-extrabold text-saffron-700">
+              {[...seller.displayName][0]}
+            </span>
+            <div className="min-w-0">
+              <span className="block text-xs text-neutral-500">{t.seller}</span>
+              <Link href={sellerPath(seller.publicToken)} className="block truncate font-bold hover:underline">
+                <bdi>{seller.displayName}</bdi>
+              </Link>
+              <span className="block text-xs text-neutral-500">{t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}</span>
+            </div>
+          </div>
+          <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-1 text-sm font-medium text-brand-800 hover:underline">
+            <Icon name="store" className="size-4" />
+            {messages.seller.allListings}
+          </Link>
+        </>
+      )}
       <p className="flex items-center gap-1.5 text-xs font-medium text-brand-800">
         <Icon name="shield" className="size-4" />
         {t.phoneVerified}

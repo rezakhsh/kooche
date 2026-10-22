@@ -53,7 +53,17 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
           {t.newListing}
         </LinkButton>
         {done && <Alert tone="success">{done}</Alert>}
-        {params.error && <Alert tone="error">{t.notAllowed}</Alert>}
+        {params.error && (
+          <Alert tone="error">
+            {params.error === 'private_service_limit'
+              ? messages.business.limits.privateServices
+              : params.error === 'business_limit'
+                ? messages.business.limits.businessListings
+                : params.error === 'business_only'
+                  ? messages.business.limits.businessOnly
+                  : t.notAllowed}
+          </Alert>
+        )}
         {rows.length > 0 && (
           <nav aria-label={t.tabs} className="no-scrollbar -mx-4 flex overflow-x-auto border-b border-neutral-200 px-4 sm:mx-0 sm:px-0">
             <Link href="/my/listings" className={tabClass(!tab)} aria-current={!tab ? 'page' : undefined}>

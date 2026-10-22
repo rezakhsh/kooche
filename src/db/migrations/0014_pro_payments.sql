@@ -2,6 +2,7 @@ ALTER TABLE "organizations" ADD COLUMN "legal_form" text;--> statement-breakpoin
 ALTER TABLE "organizations" ADD COLUMN "representative_name" text;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "register_court" text;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "imprint_extra" text;--> statement-breakpoint
+ALTER TABLE "organizations" ADD COLUMN "place_name" text;--> statement-breakpoint
 ALTER TABLE "entitlements" ADD COLUMN "provider_invoice_id" text;--> statement-breakpoint
 ALTER TABLE "orders" ADD COLUMN "buyer_country" text;--> statement-breakpoint
 CREATE UNIQUE INDEX "entitlements_provider_invoice_id_key" ON "entitlements" USING btree ("provider_invoice_id") WHERE provider_invoice_id IS NOT NULL;--> statement-breakpoint

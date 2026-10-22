@@ -8,6 +8,7 @@ import { amountInputValue } from '../../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
 import { postingCountry } from '../../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
+import { myBusinesses } from '../../../modules/organizations/organizations';
 import { storage } from '../../../modules/media/server';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
@@ -28,11 +29,12 @@ export async function editorData(
   images: Image[] = [],
   preferredCountry: string | null = null,
 ): Promise<{ form: FormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
-  const [catalog, countries, saved, [me]] = await Promise.all([
+  const [catalog, countries, saved, [me], businesses] = await Promise.all([
     cachedCatalog(db),
     activeCountries(db),
     savedPlace(db, userId),
     db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)),
+    myBusinesses(db, userId),
   ]);
   const category = catalog.byId.get(categoryId)!;
   const currency = listing?.currency ? catalog.currencies.get(listing.currency) : undefined;
@@ -78,6 +80,12 @@ export async function editorData(
       countryChangeable: !listing?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
       turnstileSiteKey: turnstileSiteKey(),
+      // "Post as" (roadmap step 6): the businesses the user belongs to, chosen while it is a draft
+      postAs: {
+        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name })),
+        locked: !!listing && listing.status !== 'draft',
+        businessOnly: !!category.businessOnly,
+      },
       values: {
         kind: listing?.kind ?? 'offer',
         title: listing?.title ?? '',
@@ -97,6 +105,7 @@ export async function editorData(
         rememberPlace: !saved,
         allowPhoneContact: listing?.allowPhoneContact ?? false,
         shippingOffered: listing?.shippingOffered ?? false,
+        organizationId: listing?.organizationId ?? (category.businessOnly ? (businesses[0]?.id ?? '') : ''),
       },
     },
     photos: { max: maxImages(category), initial: images.map(photoView), enabled: storage() !== null },

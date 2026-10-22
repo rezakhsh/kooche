@@ -35,6 +35,8 @@ export type FormProps = {
   needsName: boolean;
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
+  /** "Post as": the user's businesses; fixed once the listing is out; some categories need one */
+  postAs: { options: { id: string; name: string }[]; locked: boolean; businessOnly: boolean };
   values: {
     kind: 'offer' | 'wanted';
     title: string;
@@ -46,6 +48,8 @@ export type FormProps = {
     rememberPlace: boolean;
     allowPhoneContact: boolean;
     shippingOffered: boolean;
+    /** '' posts privately */
+    organizationId: string;
   };
 };
 
@@ -209,6 +213,30 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
           {t.rememberPlace}
         </label>
       </Card>
+
+      {props.postAs.options.length > 0 && (
+        <Card className="space-y-2">
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">{t.postAs}</span>
+            {props.postAs.locked ? (
+              <>
+                <input type="hidden" name="organizationId" value={v.organizationId} />
+                <span className="block text-sm">{props.postAs.options.find((o) => o.id === v.organizationId)?.name ?? t.postAsPrivate}</span>
+              </>
+            ) : (
+              <select name="organizationId" defaultValue={v.organizationId} className={selectClass}>
+                {!props.postAs.businessOnly && <option value="">{t.postAsPrivate}</option>}
+                {props.postAs.options.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+          <span className="block text-xs text-neutral-500">{props.postAs.locked ? t.postAsLocked : t.postAsHint}</span>
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <h2 className="font-semibold">{t.options}</h2>

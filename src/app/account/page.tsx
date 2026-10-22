@@ -52,6 +52,7 @@ export default async function AccountPage() {
           <Row href="/my/listings" icon="doc" label={t.myListings} />
           <Row href="/my/favorites" icon="heart" label={messages.favorites.title} />
           <Row href="/my/orders" icon="card" label={messages.orders.title} />
+          <Row href="/business" icon="store" label={messages.business.mine} />
           <Row href="/my/searches" icon="bell" label={messages.savedSearches.title} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
           {prefs && <Row href={sellerPath(prefs.publicToken)} icon="store" label={t.publicPage} />}

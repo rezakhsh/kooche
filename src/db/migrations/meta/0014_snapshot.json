@@ -1,5 +1,5 @@
 {
-  "id": "cee8700b-a689-4cb2-8aa3-78d3d425f2f7",
+  "id": "f1e790d1-c611-480f-a9a4-46feed174236",
   "prevId": "41d4ab7d-79f6-4a59-96a2-cd5bb5b22807",
   "version": "7",
   "dialect": "postgresql",
@@ -4028,6 +4028,12 @@
         },
         "postal_code": {
           "name": "postal_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "place_name": {
+          "name": "place_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false

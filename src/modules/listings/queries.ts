@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { countries, currencies, listingImages, listings, locations, moderationDecisions, postalPlaces, users } from '../../db/schema';
+import { countries, currencies, listingImages, listings, locations, moderationDecisions, organizations, postalPlaces, users } from '../../db/schema';
 import type { Place } from './places';
 
 // Reads for the posting pages, "my listings" and the public listing page.
@@ -136,10 +136,13 @@ export async function publicListing(db: Queryable, token: string) {
       cityFa: locations.nameFa,
       cityLocal: locations.nameLocal,
       seller: { displayName: users.displayName, publicToken: users.publicToken, createdAt: users.createdAt },
+      // Posted for a business (roadmap step 6): the business is the seller shown
+      business: { name: organizations.name, slug: organizations.slug, verificationStatus: organizations.verificationStatus, createdAt: organizations.createdAt },
     })
     .from(listings)
     .innerJoin(users, eq(users.id, listings.userId))
     .leftJoin(locations, eq(locations.id, listings.locationId))
+    .leftJoin(organizations, and(eq(organizations.id, listings.organizationId), eq(organizations.status, 'active')))
     .where(and(eq(listings.publicToken, token), ne(listings.status, 'deleted')));
   if (!row) return null;
   const images = await db
@@ -153,7 +156,7 @@ export async function publicListing(db: Queryable, token: string) {
     .from(listingImages)
     .where(and(eq(listingImages.listingId, row.listing.id), eq(listingImages.status, 'ready')))
     .orderBy(asc(listingImages.position));
-  return { ...row, images };
+  return { ...row, business: row.business?.slug ? row.business : null, images };
 }
 
 /**

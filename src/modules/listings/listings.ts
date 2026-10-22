@@ -8,6 +8,8 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
 import { reviewPolicy } from '../moderation/policy';
+import { manageableBy, postingRefusal } from '../organizations/limits';
+import { roleIn } from '../organizations/organizations';
 import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
@@ -78,6 +80,8 @@ export const listingInputSchema = z.object({
   shippingOffered: z.boolean().default(false),
   /** Asked only while the account still has the placeholder name */
   displayName: z.string().max(500).optional(),
+  /** Post for this business (a member's choice while the listing is a draft); null: privately */
+  organizationId: z.preprocess((v) => (v === '' ? null : v), z.uuid().nullable()).default(null),
 });
 export type ListingInput = z.infer<typeof listingInputSchema>;
 
@@ -318,7 +322,19 @@ async function prepare(
 // Operations
 // ---------------------------------------------------------------------------
 
-export type Refusal = Denied | 'not_found' | 'not_allowed' | 'category_not_postable' | 'business_only' | 'new_account_limit';
+export type Refusal =
+  | Denied
+  | 'not_found'
+  | 'not_allowed'
+  | 'category_not_postable'
+  | 'business_only'
+  | 'new_account_limit'
+  /** A private person's third active service or lesson offer (src/modules/organizations/limits.ts) */
+  | 'private_service_limit'
+  /** The business's plan allows no more active listings */
+  | 'business_limit'
+  /** "Post as" a business the user isn't a member of */
+  | 'not_member';
 export type Refused = { ok: false; reason: Refusal };
 
 /**
@@ -360,14 +376,23 @@ export type ListingExtension = {
   >;
 };
 
-/** The owner's listing, locked for the rest of the transaction. Deleted ones are not found. */
+/**
+ * The listing, locked for the rest of the transaction, if the user may manage it: their own, or
+ * one of a business where they are owner or manager. Deleted ones are not found.
+ */
 async function lockOwn(tx: Queryable, userId: string, listingId: string): Promise<Listing | null> {
   const [row] = await tx
     .select()
     .from(listings)
-    .where(and(eq(listings.id, listingId), eq(listings.userId, userId), ne(listings.status, 'deleted')))
+    .where(and(eq(listings.id, listingId), manageableBy(userId), ne(listings.status, 'deleted')))
     .for('update');
   return row ?? null;
+}
+
+/** Whether the user belongs to any business (business-only categories need one) */
+async function hasBusiness(tx: Queryable, userId: string): Promise<boolean> {
+  const [row] = await tx.execute<{ yes: boolean }>(sql`SELECT EXISTS (SELECT 1 FROM organization_members m JOIN organizations o ON o.id = m.organization_id AND o.status = 'active' WHERE m.user_id = ${userId}) AS yes`);
+  return !!row?.yes;
 }
 
 /** Columns of the account's saved place (users.home_*) for a place and district */
@@ -404,8 +429,8 @@ export async function createDraft(
     const allowed = canPostListing(await loadActor(tx, userId));
     if (!allowed.ok) return allowed;
     if (!isPostable(catalog, categoryId)) return { ok: false, reason: 'category_not_postable' };
-    // Business-only categories need organizations, which come later
-    if (catalog.byId.get(categoryId)!.businessOnly) return { ok: false, reason: 'business_only' };
+    // Business-only categories need a business; which one is chosen in the form
+    if (catalog.byId.get(categoryId)!.businessOnly && !(await hasBusiness(tx, userId))) return { ok: false, reason: 'business_only' };
     if (isEventCategory(catalog, categoryId) !== !!afterCreate) return { ok: false, reason: 'category_not_postable' };
 
     for (let attempt = 0; ; attempt++) {
@@ -444,7 +469,7 @@ export async function changeDraftCategory(
     if (!listing) return { ok: false, reason: 'not_found' };
     if (listing.status !== 'draft') return { ok: false, reason: 'not_allowed' };
     if (!isPostable(catalog, categoryId)) return { ok: false, reason: 'category_not_postable' };
-    if (catalog.byId.get(categoryId)!.businessOnly) return { ok: false, reason: 'business_only' };
+    if (catalog.byId.get(categoryId)!.businessOnly && !(await hasBusiness(tx, userId))) return { ok: false, reason: 'business_only' };
     // An event stays an event (its details row), a listing stays a listing
     if (isEventCategory(catalog, categoryId) !== isEventCategory(catalog, listing.categoryId)) {
       return { ok: false, reason: 'category_not_postable' };
@@ -532,8 +557,19 @@ export async function saveListing(
     if (!category) return { ok: false, reason: 'category_not_postable' };
     if (isEventCategory(catalog, category.id) !== !!opts.extension) return { ok: false, reason: 'category_not_postable' };
     const goingOut = opts.intent === 'publish' && (listing.status === 'draft' || listing.status === 'rejected');
-    if (goingOut && (!isPostable(catalog, category.id) || category.businessOnly)) {
+    if (goingOut && !isPostable(catalog, category.id)) {
       return { ok: false, reason: 'category_not_postable' };
+    }
+    // "Post as": chosen while the listing is a draft, fixed once it is out
+    let organizationId = listing.organizationId;
+    if (listing.status === 'draft' && opts.input.organizationId !== listing.organizationId) {
+      if (opts.input.organizationId && !(await roleIn(tx, opts.userId, opts.input.organizationId))) return { ok: false, reason: 'not_member' };
+      organizationId = opts.input.organizationId;
+    }
+    // Private and business limits (decided Oct 22, 2026), when the listing goes live
+    if (goingOut && !opts.extension) {
+      const refused = await postingRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind }, now);
+      if (refused) return { ok: false, reason: refused };
     }
     // Accounts in their first 7 days publish only a few listings a day (events count apart, in
     // src/modules/events/events.ts)
@@ -601,7 +637,7 @@ export async function saveListing(
 
     const [saved] = await tx
       .update(listings)
-      .set({ ...values, ...dates, status, revision })
+      .set({ ...values, ...dates, status, revision, ...(listing.status === 'draft' ? { organizationId } : {}) })
       .where(eq(listings.id, listing.id))
       .returning();
 
@@ -697,6 +733,11 @@ export async function changeListingStatus(
     if (!canApply(opts.action, { ...listing, isEvent: isEventCategory(catalog, listing.categoryId) }, now)) {
       return { ok: false, reason: 'not_allowed' };
     }
+    // Going live again counts like publishing for the private and business limits
+    if ((opts.action === 'renew' || opts.action === 'resume') && !isEventCategory(catalog, listing.categoryId)) {
+      const refused = await postingRefusal(tx, catalog, listing, now);
+      if (refused) return { ok: false, reason: refused };
+    }
     const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * DAY_MS;
     const freshExpiry = new Date(now.getTime() + duration);
 
@@ -791,12 +832,12 @@ export async function expireDueListings(db: Queryable, now: Date = new Date()): 
 // Reads
 // ---------------------------------------------------------------------------
 
-/** The owner's listing for the edit form, with its images in order */
+/** A listing the user may manage (own, or a business's as owner or manager), with its images in order */
 export async function ownListing(db: Queryable, userId: string, listingId: string) {
   const [listing] = await db
     .select()
     .from(listings)
-    .where(and(eq(listings.id, listingId), eq(listings.userId, userId), ne(listings.status, 'deleted')));
+    .where(and(eq(listings.id, listingId), manageableBy(userId), ne(listings.status, 'deleted')));
   if (!listing) return null;
   const images = await db
     .select()

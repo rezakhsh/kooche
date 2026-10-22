@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, billingCustomers, eventDates, listings, orders, organizationMembers, organizations, productPrices, products, users } from '../../db/schema';
+import { manageableBy } from '../organizations/limits';
 import { activeSubscription } from './plans';
 import type { PaymentGateway } from './gateway';
 
@@ -96,7 +97,8 @@ export async function startListingCheckout(
   const [listing] = await db
     .select({ id: listings.id, status: listings.status, currency: listings.currency, countryCurrency: sql<string | null>`(SELECT default_currency FROM countries c WHERE c.code = ${listings.countryCode})` })
     .from(listings)
-    .where(and(eq(listings.id, opts.listingId), eq(listings.userId, opts.userId)));
+    // Own listings, and a business's for its owners and managers
+    .where(and(eq(listings.id, opts.listingId), manageableBy(opts.userId)));
   if (!listing) return { ok: false, reason: 'not_found' };
   if (listing.status !== 'active') return { ok: false, reason: 'not_allowed' };
   const [event] = await db.select({ id: eventDates.listingId }).from(eventDates).where(eq(eventDates.listingId, listing.id)).limit(1);

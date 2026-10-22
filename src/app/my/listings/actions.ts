@@ -43,10 +43,17 @@ function refusal(reason: string): string {
     case 'not_allowed':
       return t.form.notEditable;
     case 'category_not_postable':
-    case 'business_only':
       return t.post.categoryNotPostable;
+    case 'business_only':
+      return t.business.limits.businessOnly;
     case 'new_account_limit':
       return t.post.newAccountListings(NEW_ACCOUNT_LISTINGS_PER_DAY);
+    case 'private_service_limit':
+      return t.business.limits.privateServices;
+    case 'business_limit':
+      return t.business.limits.businessListings;
+    case 'not_member':
+      return t.business.limits.notMember;
     default:
       return t.genericError;
   }
@@ -134,6 +141,7 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
     allowPhoneContact: form.get('allowPhoneContact') === 'on',
     shippingOffered: form.get('shippingOffered') === 'on',
     displayName: typeof form.get('displayName') === 'string' ? String(form.get('displayName')) : undefined,
+    organizationId: form.get('organizationId') ?? '',
   });
   if (!parsed.success) return { error: messages.form.fixErrors, listingId: created };
 

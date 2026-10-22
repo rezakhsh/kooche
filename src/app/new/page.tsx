@@ -9,6 +9,7 @@ import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
+import { myBusinesses } from '../../modules/organizations/organizations';
 import { chosenCountry } from '../country-choice';
 import { pickCategory } from './actions';
 
@@ -44,7 +45,9 @@ export default async function NewListingPage({
 
   const params = await searchParams;
   const db = appDb();
-  const [catalog, countries, chosen, saved] = await Promise.all([cachedCatalog(db), activeCountries(db), chosenCountry(db), savedPlace(db, user.id)]);
+  const [catalog, countries, chosen, saved, businesses] = await Promise.all([cachedCatalog(db), activeCountries(db), chosenCountry(db), savedPlace(db, user.id), myBusinesses(db, user.id)]);
+  // Business-only categories open for members of a business (roadmap step 6)
+  const member = businesses.length > 0;
   // The country a new listing goes into (decided Oct 17, 2026); changing it happens on the home page
   const code = postingCountry({ listingCountry: null, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: countries.map((c) => c.code) });
   const country = countries.find((c) => c.code === code);
@@ -97,7 +100,7 @@ export default async function NewListingPage({
         <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
           {items.map((c) => (
             <li key={c.id}>
-              <CategoryRow category={c} keep={keep} listingId={params.listing} root={!parent} />
+              <CategoryRow category={c} keep={keep} listingId={params.listing} root={!parent} member={member} />
             </li>
           ))}
         </ul>
@@ -106,7 +109,8 @@ export default async function NewListingPage({
   );
 }
 
-function CategoryRow({ category, keep, listingId, root }: { category: CategoryNode; keep: string; listingId?: string; root: boolean }) {
+function CategoryRow({ category, keep, listingId, root, member }: { category: CategoryNode; keep: string; listingId?: string; root: boolean; member: boolean }) {
+  const closed = category.businessOnly && !member;
   const row = 'flex w-full items-center gap-3 px-4 py-4 text-start hover:bg-neutral-50';
   const icon = root && (
     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
@@ -136,7 +140,7 @@ function CategoryRow({ category, keep, listingId, root }: { category: CategoryNo
   // Picking a category only opens its empty form; changing an existing draft's category moves it
   if (!listingId) {
     return (
-      <Link href={category.businessOnly ? '#' : `/new/${category.slug}`} aria-disabled={category.businessOnly} className={row}>
+      <Link href={closed ? '/business' : `/new/${category.slug}`} className={row}>
         {icon}
         <span>{category.nameFa}</span>
         {category.businessOnly && <span className="ms-auto text-xs text-neutral-500">{messages.post.businessOnly}</span>}
@@ -147,7 +151,7 @@ function CategoryRow({ category, keep, listingId, root }: { category: CategoryNo
     <form action={pickCategory}>
       <input type="hidden" name="categoryId" value={category.id} />
       {listingId && <input type="hidden" name="listingId" value={listingId} />}
-      <button type="submit" className={row} disabled={category.businessOnly}>
+      <button type="submit" className={row} disabled={closed}>
         {icon}
         <span>{category.nameFa}</span>
         {category.businessOnly && <span className="ms-auto text-xs text-neutral-500">{messages.post.businessOnly}</span>}

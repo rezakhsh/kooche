@@ -237,7 +237,8 @@ describe('publishing', () => {
     const r = await saveListing(appDb, {
       userId: u.id,
       listingId: job,
-      input: await input({ title: 'برنامه‌نویس وب', attributes: { employment_type: 'full_time' }, amount: '100' }),
+      // A job seeker's listing: job offers need a business since Oct 22, 2026 (tests/business.test.ts)
+      input: await input({ kind: 'wanted', title: 'برنامه‌نویس وب', attributes: { employment_type: 'full_time' }, amount: '100' }),
       intent: 'publish',
     });
     expect(r).toMatchObject({ ok: true });

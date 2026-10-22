@@ -46,6 +46,8 @@ export const organizations = pgTable(
     addressLine1: text('address_line1'),
     addressLine2: text('address_line2'),
     postalCode: text('postal_code'),
+    /** The town of the postal code ("Berlin", "Wien"), for the address and the Impressum (migration 0014) */
+    placeName: text('place_name'),
     /** Exact: a shop's address is public, unlike a private seller's */
     point: geographyPoint('point'),
     phoneE164: text('phone_e164'),

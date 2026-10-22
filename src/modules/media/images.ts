@@ -5,6 +5,7 @@ import { listingImages, listings, outboxEvents } from '../../db/schema';
 import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
 import { maxImages } from '../listings/listings';
+import { manageableBy } from '../organizations/limits';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from './limits';
 import type { ObjectStorage, PresignedPut } from './storage';
@@ -31,12 +32,12 @@ async function lockOwnListing(tx: Queryable, userId: string, listingId: string) 
   const [row] = await tx
     .select()
     .from(listings)
-    .where(and(eq(listings.id, listingId), eq(listings.userId, userId), ne(listings.status, 'deleted')))
+    .where(and(eq(listings.id, listingId), manageableBy(userId), ne(listings.status, 'deleted')))
     .for('update');
   return row && (EDITABLE as readonly string[]).includes(row.status) ? row : null;
 }
 
-/** The image row with its listing, if the user owns the listing; the listing row is locked */
+/** The image row with its listing, if the user may manage the listing; the listing row is locked */
 async function lockOwnImage(tx: Queryable, userId: string, imageId: string) {
   const [image] = await tx.select().from(listingImages).where(eq(listingImages.id, imageId));
   if (!image) return null;
