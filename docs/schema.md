@@ -640,8 +640,8 @@ Standard columns, plus:
 | --- | --- | --- |
 | `user_id` | `uuid` FK → `users` CASCADE | |
 | `name` | `text null` | `CHECK (char_length <= 60)` |
-| `filters` | `jsonb` | The canonical `SearchFilters` object, the same Zod type the search module accepts: keyword, category, city, radius, price range, attributes |
-| `filters_hash` | `bytea` | SHA-256 of the canonical JSON |
+| `filters` | `jsonb` | The browse page it was saved from (since Oct 22, 2026): `{v: 1, country, categoryId, locationId, query}`, where `query` is the page's canonical filter address (keyword, price, postal code and radius, fields, sort; no cursor or layout). Read back through the page's own parser (`src/modules/search/saved.ts`, `savedFiltersSchema`), so a field retired since simply drops out |
+| `filters_hash` | `bytea` | SHA-256 of the canonical JSON, without the sort (the same search in another order is one search) |
 | `country_code` | `text null` FK | Copied from `filters` when written, used for matching |
 | `category_id` | `uuid null` FK → `categories` RESTRICT | " |
 | `location_id` | `uuid null` FK → `locations` | " |
@@ -650,11 +650,12 @@ Standard columns, plus:
 | `keyword_normalized` | `text null` | " |
 | `notify_frequency` | `text DEFAULT 'instant'` | `CHECK IN ('off','instant','daily')` |
 | `notify_channels` | `text[] DEFAULT '{telegram}'` | `CHECK (notify_channels <@ ARRAY['email','telegram','push'])` |
-| `last_notified_at` | `timestamptz null` | Daily digests send what was published since then |
+| `last_notified_at` | `timestamptz null` | When the last notice went out (the 15-minute debounce of instant alerts) |
+| `unsubscribe_token` | `text UNIQUE DEFAULT replace(gen_random_uuid()::text, '-', '')` | Migration 0013. The "turn this alert off" link in alert emails (`/alerts/off?t=…`, RFC 8058 one-click at `/alerts/off/one-click`). Random, so the link never carries the id; the worker can't sign links (it has no `AUTH_SECRET`) |
 
-The app limits each user to 20 saved searches.
+The app limits each user to 20 saved searches and 30 saves an hour. "Near me" is never saved (the position is never stored); a postal code with a radius stores the postal area's centre in `point`.
 
-**Matching.** When a listing is published, the worker selects candidates with the extracted columns, then applies the full `filters` (price, attributes, keyword) in code:
+**Matching** (built Oct 22, 2026, `src/modules/search/alerts.ts`). When a listing is published and indexed, the worker selects candidates with the extracted columns (only searches saved before the listing went out, of other active users with alerts on), then checks each one against the listing with the browse query itself (`searchesShowing()` in `browse.ts`: the page's own conditions plus `id = $listing`), keyword searches through Meilisearch restricted to that id. So a listing alerts a search exactly when it shows up on that search's page:
 
 ```sql
 WHERE notify_frequency = 'instant' AND country_code = $country
@@ -667,6 +668,20 @@ WHERE notify_frequency = 'instant' AND country_code = $country
 | --- | --- |
 | `UNIQUE (user_id, filters_hash)` | No duplicate saved searches. Also "my saved searches". |
 | `(country_code, category_id) WHERE notify_frequency <> 'off'` | The candidate query above. The B-tree serves both `category_id IS NULL` and `= ANY(…)` (bitmap OR). |
+| `UNIQUE (unsubscribe_token)` | The unsubscribe link |
+
+### `saved_search_hits`
+
+Migration 0013, Oct 22, 2026. A listing that matched a saved search: one row per pair, so a listing alerts a search at most once, and matches wait here for their notice.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `saved_search_id` | `uuid` FK → `saved_searches` CASCADE | Primary key with `listing_id` |
+| `listing_id` | `uuid` FK → `listings` CASCADE | |
+| `created_at` | `timestamptz DEFAULT now()` | Purged by the worker after 30 days, sent or not (index `(created_at)`) |
+| `notified_at` | `timestamptz null` | Set when the matches go out in a notice, or are dropped (listing gone, alert turned off) |
+
+Grants: the worker reads and writes; the app and the backup role only read (deleting a saved search cascades).
 
 ### `sitemap_files`
 
@@ -1218,3 +1233,9 @@ Written as code on Oct 16, 2026 (`src/db/`, `seed/`, `tests/`). Where the sectio
   - **Favorites:** the table from section 8, unchanged. `addFavorite()` takes a per-user advisory lock for the 1,000 limit; removing works whatever state the listing is in; `erase_user` already deletes them.
   - **Seed:** `validation.filter = 'all'` on `features` and `car_extras`. Four new seed checks: city slugs, category slugs and `events` stay apart; free-text fields are not filters; attribute keys stay clear of the browse parameters (`sort`, `price`, `ship`, `postal`, `near`, `r`, `after`, `view`, `q`, `page`, `category`, `city`, and another key or `price` plus `_min`, `_max`, `_from`, `_to`); `filter` only on a filterable multi-select. `chat`, `favorites` and `sitemaps` joined the reserved country slugs.
 - **Account page, seller page, export and deletion (Oct 21, 2026).** No migration and no grant change. `users.public_token` serves `/u/{token}` as planned (section 6); `sellerProfile()` reads it with the `public_token` unique index and the listings with `listings_user_id_created_at_idx`. The display-name rule is in `src/modules/users/profile.ts` and the `CHECK (char_length BETWEEN 1 AND 50)` stays the database's limit. Deletion: section 14. New outbox event types: `user.erase_requested` (handler: queue `accounts`) and `user.erased` registered with no handler yet (avatars don't exist). `u` joined the reserved country slugs.
+- **Keyword search, saved searches and alerts (Oct 22, 2026).** Plan approved by the owner. Details in `docs/setup.md`, "Keyword search and saved searches".
+  - **Migration `0013`:** `saved_search_hits` with its grants and index, and `saved_searches.unsubscribe_token` (a column with a default and a unique index). Additive only.
+  - **Search index:** Meilisearch holds one document per active listing and event (`src/modules/search/documents.ts`): ids, the filterable fields, the stored (rounded) point and the normalized text. Never a user, an email, a phone or an exact position. Rebuilt from PostgreSQL at any time; no backup of its own.
+  - **Outbox:** the search sync subscribes to every `listing.*` event except `listing.created`, and to `event.published|changed|cancelled` (queue `search-sync`). `erase_user` and the expiry job already write `listing.deleted` / `listing.expired`, so they need nothing new.
+  - **`SearchFilters`** gained `keyword` (the address's `q`, as typed); `BrowseState` gained `q` and the sort `relevance` (the default with a keyword). Saved searches store the address form, as planned above.
+  - **`alerts`** joined the reserved country slugs.
