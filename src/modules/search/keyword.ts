@@ -3,6 +3,7 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { COUNT_CAP, PAGE_SIZE, type SearchFilters } from './browse';
 import { dateNumber } from './documents';
 import type { AttributeFilter, Sort } from './filters';
+import type { Limit } from '../../lib/rate-limit';
 import { filterValue, type Meili, type SearchQuery } from './meili';
 
 // Keyword search with Meilisearch (approved Oct 22, 2026). The filters are the browse page's,
@@ -10,6 +11,9 @@ import { filterValue, type Meili, type SearchQuery } from './meili';
 // quoted. Meilisearch returns listing ids in order; the page loads the cards from PostgreSQL
 // (browse.ts, cardsByIds). Paging is by offset (a keyword's order isn't a stored key), carried
 // in an opaque cursor checked against the sort, up to the index's 1,001 hits.
+
+/** Keyword searches per visitor's IP (pages over it show a notice instead of results) */
+export const KEYWORD_LIMIT: Limit = { name: 'search:ip', max: 60, windowSeconds: 60 };
 
 /** The facet name of a filterable field */
 export const attrFacet = (key: string) => `attrs.${key}`;
@@ -36,9 +40,10 @@ function attributeFilter(f: AttributeFilter): string {
 }
 
 /**
- * The filter expression of a search. `omit` leaves out the category or one field, for the counts
- * shown next to that field's own options (they would otherwise only count the chosen ones).
- * `events` searches the events section instead of the listings.
+ * The filter expression of a search. `omit` leaves out one field, for the counts shown next to
+ * that field's own options (they would otherwise only count the chosen ones), or the category
+ * together with its fields, for the counts next to the categories. `events` searches the events
+ * section instead of the listings.
  */
 export function meiliFilter(f: SearchFilters, opts: { omit?: 'category' | string; events?: boolean } = {}): string {
   const parts: string[] = [`country = ${filterValue(f.countryCode)}`, `is_event = ${opts.events ? 'true' : 'false'}`];
@@ -50,7 +55,7 @@ export function meiliFilter(f: SearchFilters, opts: { omit?: 'category' | string
     if (f.price?.min != null) parts.push(`price_value >= ${f.price.min}`);
     if (f.price?.max != null) parts.push(`price_value <= ${f.price.max}`);
     if (f.shipping) parts.push('shipping = true');
-    for (const a of f.attributes) if (a.key !== opts.omit) parts.push(`(${attributeFilter(a)})`);
+    if (opts.omit !== 'category') for (const a of f.attributes) if (a.key !== opts.omit) parts.push(`(${attributeFilter(a)})`);
   }
   return parts.join(' AND ');
 }
@@ -128,6 +133,7 @@ export async function keywordSearch(
     {
       indexUid: index,
       q,
+      matchingStrategy: 'all',
       filter: meiliFilter(f),
       ...(sort ? { sort } : {}),
       offset,
@@ -140,10 +146,10 @@ export async function keywordSearch(
   // Categories counted without the category; each filtered field without its own filter
   const extra: string[] = ['category', ...facetKeys.filter((k) => filtered.has(k))];
   for (const omit of extra) {
-    queries.push({ indexUid: index, q, filter: meiliFilter(f, { omit }), limit: 0, facets: [omit === 'category' ? 'category_id' : attrFacet(omit)] });
+    queries.push({ indexUid: index, q, matchingStrategy: 'all', filter: meiliFilter(f, { omit }), limit: 0, facets: [omit === 'category' ? 'category_id' : attrFacet(omit)] });
   }
   const withEvents = !!opts.events && offset === 0;
-  if (withEvents) queries.push({ indexUid: index, q, filter: meiliFilter(f, { events: true }), limit: EVENTS_STRIP, attributesToRetrieve: ['id'] });
+  if (withEvents) queries.push({ indexUid: index, q, matchingStrategy: 'all', filter: meiliFilter(f, { events: true }), limit: EVENTS_STRIP, attributesToRetrieve: ['id'] });
 
   const results = await meili.multiSearch(queries);
   const main = results[0]!;
@@ -171,6 +177,7 @@ export async function keywordMatches(meili: Meili, index: string, listingId: str
     searches.map((s) => ({
       indexUid: index,
       q: normalizePersian(s.filters.keyword ?? ''),
+      matchingStrategy: 'all',
       filter: `id = ${filterValue(listingId)} AND ${meiliFilter(s.filters)}`,
       limit: 1,
       attributesToRetrieve: ['id'],

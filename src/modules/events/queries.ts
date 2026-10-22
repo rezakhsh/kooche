@@ -55,6 +55,8 @@ export type EventFilter = {
   free?: boolean;
   /** The next date's start and the listing id of the last event on the previous page */
   after?: { startsAt: Date; id: string } | null;
+  /** Only these events (found by keyword search) */
+  listingIds?: string[];
 };
 
 export type EventCardRow = {
@@ -115,6 +117,7 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
         AND d.ends_at > ${f.from.toISOString()}::timestamptz
         ${f.to ? sql`AND d.starts_at < ${f.to.toISOString()}::timestamptz` : sql``}
         ${f.locationId ? sql`AND d.location_id = ${f.locationId}` : sql``}
+        ${f.listingIds ? sql`AND d.listing_id IN (${f.listingIds.length ? sql.join(f.listingIds.map((id) => sql`${id}::uuid`), sql`, `) : sql`NULL`})` : sql``}
       ORDER BY d.listing_id, d.starts_at
     )
     SELECT l.id, l.public_token, l.title, l.category_id, l.price_type, l.price_minor, l.currency,

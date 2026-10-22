@@ -23,6 +23,7 @@ export function filterChips(b: Browse): Chip[] {
   const href = (s: BrowseState) => `${path}${browseQuery(s, ctx.minorUnit)}`;
   const chips: Chip[] = [];
 
+  if (state.q) chips.push({ label: messages.search.chip(state.q), href: href(without(state, 'q')) });
   if (b.place?.kind === 'near') chips.push({ label: t.near(b.place.radiusKm), href: href(without(state, 'place')) });
   if (b.place?.kind === 'postal') {
     chips.push({

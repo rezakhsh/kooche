@@ -28,6 +28,8 @@ export type SearchQuery = {
   limit?: number;
   facets?: string[];
   attributesToRetrieve?: string[];
+  /** `all`: every word (or a synonym) must match, as people expect from classifieds */
+  matchingStrategy?: 'all' | 'last' | 'frequency';
 };
 
 export type SearchResult = {

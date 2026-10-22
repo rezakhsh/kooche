@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { AttributeDef } from '../../../modules/listings/catalog';
 import { amountInputValue } from '../../../modules/listings/price';
-import { RADII_KM, type AttributeFilter, type BrowseState } from '../../../modules/search/filters';
+import { attrFacet } from '../../../modules/search/keyword';
+import { browseQuery, defaultSort, RADII_KM, without, type AttributeFilter, type BrowseState } from '../../../modules/search/filters';
 import type { City } from '../../../modules/search/places';
 import { messages } from '../../../messages/fa';
 import type { Browse } from './resolve';
@@ -16,7 +17,10 @@ const CHECKBOX_LIMIT = 10;
 const inputClass = 'block w-full min-w-0 rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none';
 const legendClass = 'mb-1.5 text-xs font-bold text-neutral-600';
 
-export function FilterForm({ b, cities, id }: { b: Browse; cities: City[]; id: string }) {
+/** Matches per option, keyed by facet (`attrs.<key>`): keyword searches only (src/modules/search/keyword.ts) */
+type Facets = Record<string, Record<string, number>> | null;
+
+export function FilterForm({ b, cities, id, facets = null }: { b: Browse; cities: City[]; id: string; facets?: Facets }) {
   const t = messages.browse;
   const { state, ctx, country } = b;
   const byKey = new Map(state.attributes.map((f) => [f.key, f]));
@@ -25,7 +29,8 @@ export function FilterForm({ b, cities, id }: { b: Browse; cities: City[]; id: s
 
   return (
     <form method="get" action={b.path} className="flex flex-col gap-5">
-      {state.sort !== 'newest' && <input type="hidden" name="sort" value={state.sort} />}
+      {state.q && <input type="hidden" name="q" value={state.q} />}
+      {state.sort !== defaultSort(state.q) && <input type="hidden" name="sort" value={state.sort} />}
       {state.view && <input type="hidden" name="view" value={state.view} />}
       {state.near && <input type="hidden" name="near" value={state.near.token} />}
 
@@ -91,7 +96,16 @@ export function FilterForm({ b, cities, id }: { b: Browse; cities: City[]; id: s
       </label>
 
       {ctx.defs.map((def) => (
-        <AttributeField key={def.key} def={def} value={byKey.get(def.key)} state={state} id={`${id}-${def.key}`} currencySymbol={currency.symbol} minorUnit={currency.minorUnit} />
+        <AttributeField
+          key={def.key}
+          def={def}
+          value={byKey.get(def.key)}
+          state={state}
+          id={`${id}-${def.key}`}
+          currencySymbol={currency.symbol}
+          minorUnit={currency.minorUnit}
+          counts={facets?.[attrFacet(def.key)] ?? null}
+        />
       ))}
 
       {/* The shadow covers the sheet's bottom padding, so nothing shows through under the bar */}
@@ -99,7 +113,7 @@ export function FilterForm({ b, cities, id }: { b: Browse; cities: City[]; id: s
         <button type="submit" className="flex-1 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800">
           {t.apply}
         </button>
-        <Link href={b.path} className="text-sm text-neutral-600 hover:underline">
+        <Link href={`${b.path}${browseQuery(without(state, 'all'), ctx.minorUnit)}`} className="text-sm text-neutral-600 hover:underline">
           {t.clearAll}
         </Link>
       </div>
@@ -132,6 +146,7 @@ function AttributeField({
   id,
   currencySymbol,
   minorUnit,
+  counts,
 }: {
   def: AttributeDef;
   value: AttributeFilter | undefined;
@@ -139,8 +154,11 @@ function AttributeField({
   id: string;
   currencySymbol: string;
   minorUnit: number;
+  /** Matches per option with a keyword (without this field's own filter), else null */
+  counts: Record<string, number> | null;
 }) {
   const t = messages.browse;
+  const count = (v: string) => (counts ? messages.search.count(counts[v] ?? 0) : '');
   const unit = def.validation.money ? currencySymbol : def.unitFa;
   const legend = (
     <legend className={legendClass}>
@@ -173,6 +191,7 @@ function AttributeField({
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name={def.key} value="1" defaultChecked={!!value} className="size-4 accent-brand-700" />
           {def.labelFa}
+          {counts && <span className="text-xs text-neutral-500">{count('true')}</span>}
         </label>
       );
     case 'select':
@@ -196,6 +215,7 @@ function AttributeField({
                   <input type="checkbox" name={def.key} value={o.value} defaultChecked={chosen.has(o.value)} className="peer sr-only" />
                   <span className="block rounded-full border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 peer-checked:border-brand-700 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700">
                     {o.labelFa}
+                    {counts && <span className="ms-1 font-normal text-neutral-500">{count(o.value)}</span>}
                   </span>
                 </label>
               ))}
@@ -215,7 +235,7 @@ function AttributeField({
             <option value="">{t.any}</option>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.labelFa}
+                {counts ? `${o.labelFa} ${count(o.value)}` : o.labelFa}
               </option>
             ))}
           </select>

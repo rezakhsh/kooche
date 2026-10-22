@@ -2,19 +2,28 @@ import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import { cache } from 'react';
+import { EventCard } from '../../../components/event-card';
 import { FavoriteButton } from '../../../components/favorite-button';
 import { categoryIcon, Icon } from '../../../components/icons';
 import { ListingCard } from '../../../components/listing-card';
+import { SearchBox } from '../../../components/search-box';
 import { appDb } from '../../../db/drizzle';
+import { clientIp } from '../../../lib/client-ip';
 import { webEnv } from '../../../lib/env';
+import { hit } from '../../../lib/rate-limit';
+import { valkey } from '../../../lib/valkey';
 import { messages } from '../../../messages/fa';
+import { eventCardOf } from '../../../modules/events/card';
+import { upcomingEvents } from '../../../modules/events/queries';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
 import { cardOf } from '../../../modules/listings/card';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { currentSession } from '../../../modules/users/server';
-import { searchListings } from '../../../modules/search';
+import { searchListings, type SearchResult } from '../../../modules/search';
 import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP } from '../../../modules/search/browse';
-import { browseQuery, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
+import { webMeili } from '../../../modules/search/client';
+import { browseQuery, defaultSort, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
+import { KEYWORD_LIMIT } from '../../../modules/search/keyword';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { citiesOf } from '../../../modules/search/places';
 import { VIEW_COOKIE } from '../../country-cookie-name';
@@ -29,19 +38,36 @@ import type { Browse } from './resolve';
 // (approved Oct 18, 2026). Server-rendered; categories in a sidebar on computers and a row plus a
 // sheet on phones (approved Oct 17, 2026), filters in the sidebar or a second sheet, active
 // filters as removable chips, sort links, 24 listings a page with a "more" link (keyset cursor).
+// With a keyword (?q=, approved Oct 22, 2026) the same page shows Meilisearch's matches, with
+// counts per category and option, and up to four matching events above them.
 
 type View = 'grid' | 'list';
+
+const NO_RESULT: SearchResult = { items: [], next: null, total: 0, facets: null, eventIds: [], fallback: false };
+
+/** Whether this visitor may run another keyword search now (per IP; no IP in development) */
+async function keywordAllowed(): Promise<boolean> {
+  const ip = clientIp(await headers());
+  if (!ip) return true;
+  return (await hit(valkey(), [[KEYWORD_LIMIT, ip]]).catch(() => ({ ok: true }))).ok;
+}
 
 /** Listings, counts and cities for the page, once per request (metadata and page share it) */
 const pageData = cache(async (b: Browse) => {
   const db = appDb();
+  const limited = !!b.state.q && !(await keywordAllowed());
+  // Counts per option for the choice and yes/no fields of the page's category
+  const facetKeys = b.ctx.defs.filter((d) => d.type === 'select' || d.type === 'multi_select' || d.type === 'boolean').map((d) => d.key);
   const [result, leafCounts, cities, perCity] = await Promise.all([
-    searchListings(db, b.filters, b.state.after),
+    limited ? NO_RESULT : searchListings(db, b.filters, b.state.after, { meili: webMeili(), facetKeys, events: !b.category }),
     cachedCategoryCounts(db, b.country.code, b.city?.id ?? null),
     citiesOf(db, b.country.code),
     cachedCityCounts(db, b.country.code),
   ]);
-  return { result, leafCounts, cities, perCity };
+  const events = result.eventIds.length
+    ? (await upcomingEvents(db, { countryCode: b.country.code, from: new Date(), to: null, listingIds: result.eventIds })).items
+    : [];
+  return { result, leafCounts, cities, perCity, limited, events };
 });
 
 function titleOf(b: Browse): string {
@@ -73,21 +99,27 @@ export function indexable(b: Browse, total: number): boolean {
 export async function browseMetadata(b: Browse): Promise<Metadata> {
   const { result } = await pageData(b);
   return {
-    title: `${titleOf(b)} | ${messages.site.name}`,
+    title: `${b.state.q ? `${messages.search.title(b.state.q)} ${messages.search.within(titleOf(b))}` : titleOf(b)} | ${messages.site.name}`,
     description: descriptionOf(b),
     alternates: { canonical: `${webEnv().APP_URL}${b.path}` },
     robots: indexable(b, result.total) ? undefined : { index: false, follow: true },
   };
 }
 
-/** What a category link keeps from the current page: the place, shipping, the layout */
+/** What a category link keeps from the current page: the keyword, the place, shipping, the layout */
 function carried(state: BrowseState): BrowseState {
-  return { ...EMPTY_STATE, near: state.near, postal: state.postal, ship: state.ship, view: state.view, sort: state.sort === 'distance' ? 'distance' : 'newest' };
+  return { ...EMPTY_STATE, q: state.q, near: state.near, postal: state.postal, ship: state.ship, view: state.view, sort: state.sort === 'distance' ? 'distance' : defaultSort(state.q) };
+}
+
+/** The hidden fields of the page's own keyword box: everything but the keyword, sort and cursor */
+function keptFields(state: BrowseState, minorUnit: number): [string, string][] {
+  const query = browseQuery({ ...state, q: null, after: null, sort: state.sort === 'distance' ? 'distance' : 'newest' }, minorUnit);
+  return [...new URLSearchParams(query)];
 }
 
 export async function BrowsePage({ b }: { b: Browse }) {
   const { country, city, category, catalog, state, ctx } = b;
-  const { result, leafCounts, cities, perCity } = await pageData(b);
+  const { result, leafCounts, cities, perCity, limited, events } = await pageData(b);
   const env = webEnv();
   const t = messages.country;
   const tb = messages.browse;
@@ -98,10 +130,14 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const here = `${b.path}${browseQuery(state, ctx.minorUnit)}`;
   const view: View = state.view ?? (remembered === 'list' ? 'list' : 'grid');
 
-  // A listing counts for its category and every category above it
+  // A listing counts for its category and every category above it. With a keyword, the counts are
+  // the keyword's matches (from the same search), else all active listings (cached for a minute).
+  const keywordCounts = result.facets?.category_id;
+  const leaves = keywordCounts ? new Map(Object.entries(keywordCounts)) : leafCounts;
   const counts = new Map<string, number>();
   let total = 0;
-  for (const [id, n] of leafCounts) {
+  for (const [id, n] of leaves) {
+    if (!catalog.byId.has(id)) continue;
     total += n;
     for (const c of ancestry(catalog, id)) counts.set(c.id, (counts.get(c.id) ?? 0) + n);
   }
@@ -117,7 +153,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: cardOf(b.catalog, l, env.APP_TIME_ZONE) }));
   const filtered = isFiltered(state);
   const filterCount = filterChips(b).length;
-  const sorts = SORTS.filter((s) => (s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));
+  const sorts = SORTS.filter((s) => (s === 'relevance' ? !!state.q : s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));
   const topCities = city
     ? []
     : cities
@@ -133,7 +169,11 @@ export async function BrowsePage({ b }: { b: Browse }) {
           ? tb.near.outside(country.nameFa)
           : b.notice === 'postal_unknown'
             ? tb.postalUnknown
-            : null;
+            : limited
+              ? messages.search.rateLimited
+              : result.fallback
+                ? messages.search.fallback
+                : null;
 
   // Structured data: where the page sits (country › city › categories) and the listings on it
   const crumbs = [
@@ -158,7 +198,9 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   const categoryLinks = <CategoryLinks roots={roots} counts={counts} total={total} root={root} selected={category} childrenOfRoot={children} link={link} />;
-  const filterForm = (id: string) => <FilterForm b={b} cities={cities} id={id} />;
+  const filterForm = (id: string) => <FilterForm b={b} cities={cities} id={id} facets={result.facets} />;
+  const scope = city && category ? `${category.nameFa}، ${city.nameFa}` : city ? city.nameFa : category ? category.nameFa : country.nameFa;
+  const widen = state.q && (city || category) ? `${browsePath(country.slug, null, null)}?q=${encodeURIComponent(state.q)}` : null;
 
   return (
     <main className="mx-auto w-full max-w-6xl pb-6 sm:px-6">
@@ -226,6 +268,15 @@ export async function BrowsePage({ b }: { b: Browse }) {
         </aside>
 
         <div className="min-w-0 px-4 sm:px-0">
+          {/* The page's own box searches within its city and category; on computers the header's box covers the plain country page */}
+          <SearchBox
+            id="q"
+            action={b.path}
+            q={state.q}
+            placeholder={messages.search.placeholderIn(scope)}
+            hidden={keptFields(state, ctx.minorUnit)}
+            className={`mt-3 lg:mt-0 lg:mb-4 ${state.q || city || category ? '' : 'md:hidden'}`}
+          />
           {(city || path.length > 0) && (
             <nav aria-label={tb.breadcrumb} className="mt-4 flex flex-wrap gap-1 text-xs text-neutral-500 lg:mt-0">
               <Link href={browsePath(country.slug, null, null)} className="hover:underline">
@@ -251,8 +302,19 @@ export async function BrowsePage({ b }: { b: Browse }) {
           )}
           <div className="mt-3 mb-3 flex items-end justify-between gap-3 lg:mt-1">
             <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">{titleOf(b)}</h1>
-              <p className="text-xs text-neutral-500">{result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}</p>
+              <h1 className="text-xl font-extrabold sm:text-2xl">{state.q ? messages.search.title(state.q) : titleOf(b)}</h1>
+              <p className="text-xs text-neutral-500">
+                {state.q && `${messages.search.within(titleOf(b))} · `}
+                {result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}
+                {widen && (
+                  <>
+                    {' · '}
+                    <Link href={widen} className="text-brand-700 hover:underline">
+                      {messages.search.widen(country.nameFa)}
+                    </Link>
+                  </>
+                )}
+              </p>
             </div>
             <div role="group" aria-label={t.view} className="flex shrink-0 overflow-hidden rounded-xl border border-neutral-200">
               <ViewLink href={withState({ view: 'grid', after: state.after })} on={view === 'grid'} label={t.viewGrid} icon="grid" />
@@ -293,10 +355,31 @@ export async function BrowsePage({ b }: { b: Browse }) {
             ))}
           </nav>
 
-          {cards.length === 0 && (
+          {events.length > 0 && (
+            <section aria-labelledby="search-events" className="mb-6">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 id="search-events" className="flex items-center gap-1.5 text-sm font-extrabold text-saffron-700">
+                  <Icon name="calendar" className="size-4" />
+                  {messages.search.events}
+                </h2>
+                <Link href={eventsHref} className="text-xs text-neutral-600 hover:underline">
+                  {messages.search.allEvents}
+                </Link>
+              </div>
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {events.map((e) => (
+                  <li key={e.id}>
+                    <EventCard e={eventCardOf(catalog, e)} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {cards.length === 0 && !limited && (
             <div className="rounded-2xl border border-dashed border-neutral-300 px-6 py-12 text-center text-neutral-600">
               <Icon name="search" className="mx-auto mb-3 size-8 text-neutral-400" />
-              <p>{filtered ? tb.emptyFiltered : category ? t.emptyCategory : t.empty}</p>
+              <p>{state.q ? messages.search.empty(state.q) : filtered ? tb.emptyFiltered : category ? t.emptyCategory : t.empty}</p>
               {filtered ? (
                 <Link href={b.path} className="mt-4 inline-flex rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-bold hover:bg-neutral-50">
                   {tb.clearFilters}

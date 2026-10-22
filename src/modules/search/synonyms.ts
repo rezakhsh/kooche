@@ -88,5 +88,7 @@ export function synonymsOf(word: string, settings: Record<string, string[]> = sy
   return settings[normalizePersian(word)] ?? [];
 }
 
-// Words too common to help ranking; Meilisearch ignores them in queries (never in phrases)
-export const STOP_WORDS = ['و', 'در', 'به', 'از', 'با', 'برای', 'را', 'که', 'این', 'آن', 'یک', 'تا', 'هم', 'یا', 'بر', 'ها', 'های'].map(normalizePersian);
+// Words too common to help ranking; Meilisearch ignores them in queries (never in phrases). Not
+// the plural «ها»/«های»: Meilisearch splits «کتاب‌های» at the ZWNJ, and a search for «کتابهای» only
+// finds it by splitting the query into the same two words, which fails if one is a stop word.
+export const STOP_WORDS = ['و', 'در', 'به', 'از', 'با', 'برای', 'را', 'که', 'این', 'آن', 'یک', 'تا', 'هم', 'یا', 'بر'].map(normalizePersian);

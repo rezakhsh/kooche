@@ -8,10 +8,12 @@ import { currentSession } from '../modules/users/server';
 import { BottomNav } from './bottom-nav';
 import { Icon } from './icons';
 import { LogoMark } from './logo';
+import { SearchBox } from './search-box';
 
 // The header on every page: the logo with its line, the chosen country (the way back to the list
-// of countries), and on computers the main actions. On phones the actions are in the bottom bar
-// (approved Oct 17, 2026), so the header stays one short row.
+// of countries), on computers the keyword box and the main actions. On phones the actions are in
+// the bottom bar (approved Oct 17, 2026) and the keyword box is on the browse pages, so the header
+// stays one short row with a search button that leads there.
 
 export async function SiteHeader() {
   const [session, country] = await Promise.all([currentSession(), chosenCountry(appDb())]);
@@ -40,7 +42,15 @@ export async function SiteHeader() {
               {country.nameFa}
             </Link>
           )}
-          <nav aria-label={t.label} className="ms-auto hidden items-center gap-2 sm:flex">
+          {country && (
+            <SearchBox
+              id="header-q"
+              action={`/${country.slug}`}
+              placeholder={messages.search.placeholderIn(country.nameFa)}
+              className="ms-auto hidden w-full max-w-xs md:block lg:max-w-sm"
+            />
+          )}
+          <nav aria-label={t.label} className={`${country ? '' : 'ms-auto'} hidden items-center gap-2 sm:flex`}>
             {session && (
               <Link href="/chat" className="relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-neutral-50">
                 <Icon name="chat" className="size-4" />
@@ -71,8 +81,18 @@ export async function SiteHeader() {
               {t.post}
             </Link>
           </nav>
+          {country && (
+            <Link
+              href={`/${country.slug}#q`}
+              aria-label={messages.search.label}
+              title={messages.search.label}
+              className="ms-auto flex items-center rounded-xl p-2 text-neutral-700 hover:bg-neutral-50 md:hidden"
+            >
+              <Icon name="search" className="size-5" />
+            </Link>
+          )}
           {!session && (
-            <Link href="/login" className="ms-auto rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium sm:hidden">
+            <Link href="/login" className={`${country ? '' : 'ms-auto'} rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium sm:hidden`}>
               {t.signIn}
             </Link>
           )}
