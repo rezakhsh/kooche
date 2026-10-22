@@ -610,3 +610,7 @@ Deployed to staging Oct 22, 2026 (approved by the owner; scratch containers remo
 **Deploy race fixed (approved by the owner).** The first deploy's logs showed the old worker, still running during Coolify's rolling update, taking the new worker's start-up rebuild: it rebuilt the listings index with the old document version (the second deploy corrected it; checked in Meilisearch: version-2 documents, right counts). Start-up rebuilds now carry the stamp of the code that asked for them and other code puts them back until that worker takes them (30 minutes at most); phrase records carry the stamp, so an index built by other code is rebuilt at the next 15-minute run (`docs/setup.md`, "Keeping the index in line"). 3 new tests (497 in all, passing). This deploy itself still started next to a worker without the check.
 
 For the owner: type in the box on a phone and a computer once real listings arrive; phrases appear as soon as a make or category has a listing.
+
+## Oct 22, 2026: launch strategy (research, no code)
+
+Research study on how to launch: market by country and city, Telegram and other competitors, one country or many, the cold start without fake listings, weaknesses and advantages, ranked future features, and 90-day and 12-month plans. Full study in a Claude Doc ("Peydoo launch strategy", https://claude.ai/artifact/CRYapwgCPUn9duJiKZWk14); summary, gates and the owner's open decisions in `docs/strategy.md`. Nothing decided yet: the owner chooses the launch date, seeding city, free-Pro length, Telegram partners and trademark timing.
