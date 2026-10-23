@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Card } from '../../../../components/ui';
 import { messages } from '../../../../messages/fa';
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from '../../../../modules/media/limits';
+import { createShrinker, type Shrinker } from '../../../../modules/media/shrink-client';
 import {
   confirmUploadAction,
   moveImageAction,
@@ -13,8 +14,9 @@ import {
 } from '../actions';
 import type { PhotoView } from '../photo-view';
 
-// The photo editor. Files go from the browser straight to R2 through a presigned PUT; the server
-// only hands out the URL and then learns that the upload is done. While the worker processes a
+// The photo editor. Each photo is first shrunk in the browser to at most 2560 px (or sent as it
+// is when that fails, see modules/media/shrink.ts), then goes straight to R2 through a presigned
+// PUT; the server only hands out the URL and then learns that the upload is done. While the worker processes a
 // photo, the list asks the server again every two seconds.
 
 const t = messages.form;
@@ -59,7 +61,10 @@ export function PhotoEditor({
     if (id) setPhotos(await photosAction(id));
   }
 
-  async function uploadOne(id: string, file: File, local: Local) {
+  async function uploadOne(id: string, original: File, local: Local, shrinker: Shrinker) {
+    const file = await shrinker.shrink(original);
+    if (!(ACCEPTED_TYPES as readonly string[]).includes(file.type)) throw new Error(t.photoBadType);
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error(t.photoTooLarge);
     const ticket = await requestUploadAction({ listingId: id, contentType: file.type, size: file.size });
     if (!ticket.ok) throw new Error(ticket.error);
     const res = await fetch(ticket.url, { method: 'PUT', body: file, headers: ticket.headers });
@@ -86,17 +91,20 @@ export function PhotoEditor({
     const locals = chosen.map((f) => ({ tempId: crypto.randomUUID(), preview: URL.createObjectURL(f) }));
     setUploading((u) => [...u, ...locals]);
     // One after another: phones on mobile data do better than with parallel uploads
-    for (const [i, file] of chosen.entries()) {
-      const local = locals[i]!;
-      try {
-        if (!(ACCEPTED_TYPES as readonly string[]).includes(file.type)) throw new Error(t.photoBadType);
-        if (file.size > MAX_UPLOAD_BYTES) throw new Error(t.photoTooLarge);
-        await uploadOne(id, file, local);
-        setUploading((u) => u.filter((x) => x.tempId !== local.tempId));
-      } catch (e) {
-        setUploading((u) => u.map((x) => (x.tempId === local.tempId ? { ...x, error: e instanceof Error ? e.message : t.photoUploadFailed } : x)));
+    const shrinker = createShrinker();
+    try {
+      for (const [i, file] of chosen.entries()) {
+        const local = locals[i]!;
+        try {
+          await uploadOne(id, file, local, shrinker);
+          setUploading((u) => u.filter((x) => x.tempId !== local.tempId));
+        } catch (e) {
+          setUploading((u) => u.map((x) => (x.tempId === local.tempId ? { ...x, error: e instanceof Error ? e.message : t.photoUploadFailed } : x)));
+        }
+        await refresh(id);
       }
-      await refresh(id);
+    } finally {
+      shrinker.close();
     }
     if (input.current) input.current.value = '';
   }

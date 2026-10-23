@@ -73,6 +73,9 @@ export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_UR
     `img-src 'self' blob: data:${imageOrigin}`,
     "font-src 'self'",
     `connect-src 'self'${uploadOrigin}`,
+    // The photo editor shrinks photos in a Web Worker from our own /_next/static (roadmap step
+    // 10). Without this, worker-src falls back to script-src, where 'strict-dynamic' ignores 'self'.
+    "worker-src 'self'",
     // Turnstile's widget on sign-in and publishing. On every page, not just those: a page reached
     // by an in-app link keeps the CSP of the page the visit started on.
     `frame-src ${TURNSTILE_ORIGIN}`,
