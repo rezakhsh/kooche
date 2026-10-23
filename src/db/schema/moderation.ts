@@ -87,6 +87,18 @@ export const reports = pgTable(
       .where(
         sql`status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND listing_id IS NOT NULL`,
       ),
+    // One open report per person per user and per business (migration 0015)
+    uniqueIndex('reports_open_per_reporter_user_key')
+      .on(t.reporterUserId, t.reportedUserId)
+      .where(
+        sql`status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND reported_user_id IS NOT NULL`,
+      ),
+    uniqueIndex('reports_open_per_reporter_organization_key')
+      .on(t.reporterUserId, t.organizationId)
+      .where(
+        sql`status IN ('open', 'in_review') AND reporter_user_id IS NOT NULL AND organization_id IS NOT NULL`,
+      ),
+    index('reports_organization_id_idx').on(t.organizationId).where(sql`organization_id IS NOT NULL`),
     // One open report per person per chat message (migration 0011)
     uniqueIndex('reports_open_per_reporter_message_key')
       .on(t.reporterUserId, t.messageId)
@@ -232,5 +244,36 @@ export const userSanctions = pgTable(
       sql`${t.type} NOT IN ('banned', 'warning') OR ${t.endsAt} IS NULL`,
     ),
     index('user_sanctions_active_idx').on(t.userId, t.startsAt).where(sql`revoked_at IS NULL`),
+  ],
+);
+
+export const APPEAL_STATUSES = ['open', 'decided'] as const;
+
+/**
+ * A user's appeal against a decision about them (migration 0015; not required of a small
+ * enterprise by the DSA, offered anyway, terms 7.4). One per decision. Answered by a new
+ * moderation_decisions row with appeal_of_decision_id; deleted with the decision it appeals.
+ */
+export const moderationAppeals = pgTable(
+  'moderation_appeals',
+  {
+    ...standardColumns(),
+    decisionId: uuid('decision_id')
+      .notNull()
+      .unique('moderation_appeals_decision_id_key')
+      .references(() => moderationDecisions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    body: text('body').notNull(),
+    status: text('status', { enum: APPEAL_STATUSES }).notNull().default('open'),
+    decidedAt: tstz('decided_at'),
+  },
+  (t) => [
+    check('moderation_appeals_body_check', sql`char_length(${t.body}) BETWEEN 1 AND 2000`),
+    check('moderation_appeals_status_check', isIn(t.status, APPEAL_STATUSES)),
+    check('moderation_appeals_decided_check', sql`(${t.status} = 'decided') = (${t.decidedAt} IS NOT NULL)`),
+    index('moderation_appeals_queue_idx').on(t.createdAt).where(sql`status = 'open'`),
+    index('moderation_appeals_user_id_idx').on(t.userId),
   ],
 );

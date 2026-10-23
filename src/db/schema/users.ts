@@ -5,6 +5,7 @@ import {
   check,
   index,
   inet,
+  integer,
   pgTable,
   primaryKey,
   smallint,
@@ -104,6 +105,11 @@ export const sessions = pgTable(
     /** text: Better Auth writes whatever the request gives it */
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
+    /**
+     * Staff only: when this session last passed the TOTP check for the admin page (migration
+     * 0015). Valid for a few hours and only for this session (src/modules/admin/access.ts).
+     */
+    staffVerifiedAt: tstz('staff_verified_at'),
   },
   (t) => [
     index('sessions_user_id_idx').on(t.userId),
@@ -161,6 +167,10 @@ export const twoFactors = pgTable('two_factors', {
     .references(() => users.id, { onDelete: 'cascade' }),
   secret: text('secret').notNull(),
   backupCodes: text('backup_codes').notNull(),
+  // The plugin's own fields (migration 0015): false until the first code from the app is accepted
+  verified: boolean('verified').notNull().default(true),
+  failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+  lockedUntil: tstz('locked_until'),
 });
 
 export const PHONE_VERIFICATION_STATUSES = ['pending', 'verified', 'failed', 'expired'] as const;

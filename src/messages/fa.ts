@@ -2091,3 +2091,58 @@ export const pages = {
     impressum: 'نشانی پستی در اطلاعات حقوقی (Impressum) است.',
   },
 } as const;
+
+/**
+ * The admin page (roadmap step 8). A separate export like `pages`, so the public pages' client
+ * bundles don't carry it.
+ */
+export const admin = {
+  title: 'پنل پیدو',
+  nav: {
+    overview: 'نمای کلی',
+    queue: 'صف بررسی',
+    fresh: 'آگهی‌های تازه',
+    listings: 'آگهی‌ها و رویدادها',
+    users: 'کاربران',
+    businesses: 'کسب‌وکارها',
+    payments: 'پرداخت‌ها',
+    audit: 'گزارش کارها',
+    system: 'وضعیت سیستم',
+    staff: 'همکاران',
+    menu: 'منو',
+    site: 'سایت',
+  },
+  roles: { moderator: 'ناظر', admin: 'مدیر' } as Record<'moderator' | 'admin', string>,
+  error: {
+    title: 'مشکلی پیش آمد',
+    body: 'این کار انجام نشد. اگر در چند دقیقه گذشته کارهای زیادی انجام داده‌اید، کمی صبر کنید و دوباره امتحان کنید.',
+    retry: 'دوباره',
+  },
+  rateLimited: (minutes: number) => `تلاش‌ها زیاد بود. ${minutes.toLocaleString('fa-IR')} دقیقه دیگر دوباره امتحان کنید.`,
+  verify: {
+    title: 'تأیید دومرحله‌ای',
+    intro: 'کد ۶ رقمی برنامه تأیید هویت (مثلاً Google Authenticator یا ۲FAS) را وارد کنید. این تأیید تا ۸ ساعت در همین مرورگر معتبر است.',
+    afterSetup: 'تأیید دومرحله‌ای روشن شد. برای ورود، کد بعدی برنامه را وارد کنید.',
+    codeLabel: 'کد ۶ رقمی',
+    submit: 'ورود به پنل',
+    backupSummary: 'به برنامه دسترسی ندارم',
+    backupLabel: 'کد پشتیبان',
+    backupHint: 'یکی از کدهای پشتیبانی که هنگام راه‌اندازی گرفتید (هر کد یک بار).',
+    backupSubmit: 'ورود با کد پشتیبان',
+    invalid: 'کد درست نیست.',
+    reused: 'این کد یک بار به کار رفته است. کد بعدی برنامه را وارد کنید.',
+  },
+  setup: {
+    title: 'راه‌اندازی تأیید دومرحله‌ای',
+    intro: 'برای ورود به پنل، علاوه بر کد ایمیل، کد یک برنامه تأیید هویت روی گوشی‌تان لازم است. یک برنامه مثل Google Authenticator، Microsoft Authenticator یا ۲FAS نصب کنید و شروع را بزنید.',
+    start: 'شروع',
+    scan: 'این کد QR را با برنامه بخوانید.',
+    manual: 'یا این کلید را دستی وارد کنید:',
+    backupTitle: 'کدهای پشتیبان',
+    backupIntro: 'اگر گوشی‌تان در دسترس نبود، با یکی از این کدها وارد شوید. هر کد یک بار کار می‌کند. همین حالا آن‌ها را جایی امن نگه دارید؛ دوباره نشان داده نمی‌شوند.',
+    codeLabel: 'کد ۶ رقمی که برنامه نشان می‌دهد',
+    confirm: 'تأیید و روشن کردن',
+    invalid: 'کد درست نیست. کد تازه برنامه را وارد کنید، یا اگر کد QR را دوباره ساختید، آن را دوباره بخوانید.',
+    qrLabel: 'کد QR برای برنامه تأیید هویت',
+  },
+} as const;

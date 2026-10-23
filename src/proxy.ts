@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv, type WebEnv } from './lib/env';
+import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath } from './modules/admin/gate';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
 // request's CSP header and puts it on its own scripts. The other security headers are static and
@@ -15,6 +16,8 @@ const NOT_BROWSE = new Set([
   'alerts',
   // Business pages, creating a business, the Pro page (Oct 22, 2026)
   ...['b', 'business', 'pro'],
+  // Reporting content; the admin page's internal route (Oct 23, 2026)
+  ...['report', 'admin'],
 ]);
 /**
  * Stripe's hosted Checkout and Customer Portal. A purchase form posts to our server action, which
@@ -87,17 +90,38 @@ export function proxy(request: NextRequest) {
   const csp = contentSecurityPolicy(nonce, env, process.env.NODE_ENV === 'development');
 
   // A browse page shows its own country in the header, whatever was chosen before (see above)
-  const country = browseCountry(request.nextUrl.pathname);
+  const country = adminRoute(request.nextUrl.pathname, env.ADMIN_PATH) ? null : browseCountry(request.nextUrl.pathname);
   if (country) request.cookies.set(COUNTRY_COOKIE, country);
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
+  // Only this proxy marks a request as coming through the admin page's secret address
+  requestHeaders.delete(ADMIN_GATE_HEADER);
+
+  // The admin page (src/modules/admin/gate.ts): /<ADMIN_PATH>/… becomes /admin/… with the mark.
+  // Never indexed, never kept by any cache; /admin itself goes on unmarked and answers 404.
+  const pathname = request.nextUrl.pathname;
+  const internal = adminRoute(pathname, env.ADMIN_PATH);
+  if (internal || isInternalAdminPath(pathname)) {
+    let response: NextResponse;
+    if (internal) {
+      requestHeaders.set(ADMIN_GATE_HEADER, adminGateValue(env.AUTH_SECRET));
+      const url = request.nextUrl.clone();
+      url.pathname = internal;
+      response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+    } else response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', csp);
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
+  }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  const cacheControl = browseCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
+  const cacheControl = browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
   return response;
 }

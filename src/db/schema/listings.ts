@@ -281,6 +281,14 @@ export const listings = pgTable(
   {
     ...standardColumns(),
     publicToken: text('public_token').notNull().unique('listings_public_token_key'),
+    /**
+     * The listing's code («کد آگهی», like Kleinanzeigen's Anzeigen-ID; migration 0015): 9 digits,
+     * unique, from a sequence through a fixed shuffle (listing_ref_number()), never typed by anyone.
+     */
+    refNumber: bigint('ref_number', { mode: 'number' })
+      .notNull()
+      .unique('listings_ref_number_key')
+      .default(sql`listing_ref_number(nextval('listings_ref_number_seq'))`),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),

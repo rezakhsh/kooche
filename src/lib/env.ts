@@ -13,6 +13,13 @@ const optional = <T extends z.ZodType>(schema: T) =>
 // Photo storage over the S3 API: Cloudflare R2 with EU jurisdiction on the server
 // (https://<account>.eu.r2.cloudflarestorage.com, region auto). Optional in development: without
 // it, photo upload is switched off.
+/**
+ * The admin page's secret first path segment (docs/setup.md, "Admin page"): /<ADMIN_PATH>/… is the
+ * only way in, so the address can't be guessed. Unset: there is no admin page. Also in the worker,
+ * for the link in the n8n alert.
+ */
+const adminPath = optional(z.string().regex(/^[a-z0-9]{16,64}$/, '16 to 64 lowercase letters and digits'));
+
 const s3Fields = {
   S3_ENDPOINT: optional(z.url({ protocol: /^https?$/ })),
   S3_REGION: z.string().default('auto'),
@@ -83,6 +90,7 @@ const webSchema = z.object({
   ...stripeFields,
   // Signing secret of the webhook endpoint (/api/stripe/webhook); made by scripts/stripe-setup.ts
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[0-9A-Za-z]{10,}$/)),
+  ADMIN_PATH: adminPath,
 })
   .refine(liveKeyAllowed, liveKeyRule)
   .refine((e) => !e.STRIPE_SECRET_KEY === !e.STRIPE_WEBHOOK_SECRET, {
@@ -125,12 +133,29 @@ const workerSchema = z.object({
   MEILI_WRITE_KEY: optional(z.string().min(16)),
   // Applies payment webhooks: reads subscriptions and invoices back from Stripe
   ...stripeFields,
+  ADMIN_PATH: adminPath,
+  // The owner's Telegram alert for new reports and appeals, through n8n (src/modules/admin/alert.ts),
+  // signed with HMAC-SHA256. Unset: no alert.
+  N8N_ADMIN_ALERT_URL: optional(z.url({ protocol: /^https$/ })),
+  N8N_WEBHOOK_SECRET: optional(z.string().min(32)),
+  // Purging the browse pages a taken-down listing was on (src/modules/admin/purge.ts); the same
+  // token the web's post-deployment command uses. Unset: the 60-second edge cache bound applies.
+  CLOUDFLARE_ZONE_ID: optional(z.string().regex(/^[0-9a-f]{32}$/)),
+  CLOUDFLARE_PURGE_TOKEN: optional(z.string().min(1)),
 })
   .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
     message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
     path: ['S3_ENDPOINT'],
   })
-  .refine(liveKeyAllowed, liveKeyRule);
+  .refine(liveKeyAllowed, liveKeyRule)
+  .refine((e) => !e.N8N_ADMIN_ALERT_URL === !e.N8N_WEBHOOK_SECRET, {
+    message: 'N8N_ADMIN_ALERT_URL and N8N_WEBHOOK_SECRET are set together',
+    path: ['N8N_WEBHOOK_SECRET'],
+  })
+  .refine((e) => !e.CLOUDFLARE_ZONE_ID === !e.CLOUDFLARE_PURGE_TOKEN, {
+    message: 'CLOUDFLARE_ZONE_ID and CLOUDFLARE_PURGE_TOKEN are set together',
+    path: ['CLOUDFLARE_PURGE_TOKEN'],
+  });
 
 // The `migrate` Docker target: after the migrations it asks Coolify to deploy web and worker.
 const deploySchema = z.object({

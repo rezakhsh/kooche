@@ -3,11 +3,12 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { emailOTP } from 'better-auth/plugins/email-otp';
+import { twoFactor } from 'better-auth/plugins/two-factor';
 import { eq } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import type { Db } from '../../db/drizzle';
-import { authAccounts, sessions, users, verifications } from '../../db/schema';
+import { authAccounts, sessions, twoFactors, users, verifications } from '../../db/schema';
 import { clientIp } from '../../lib/client-ip';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { hit, reset } from '../../lib/rate-limit';
@@ -25,6 +26,8 @@ export const CODE_TTL_SECONDS = 10 * 60;
 /** Wrong codes before the code is locked and a new one is needed */
 export const CODE_ATTEMPTS = 5;
 export const SESSION_DAYS = 30;
+/** The account name authenticator apps show next to the staff member's email */
+export const TOTP_ISSUER = 'Peydoo';
 
 export type AuthDeps = {
   db: Db;
@@ -69,7 +72,7 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
     telemetry: { enabled: false },
     database: drizzleAdapter(db, {
       provider: 'pg',
-      schema: { users, sessions, authAccounts, verifications },
+      schema: { users, sessions, authAccounts, verifications, twoFactors },
     }),
     emailAndPassword: { enabled: false },
     user: {
@@ -183,6 +186,16 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
           if (type !== 'sign-in') throw new APIError('BAD_REQUEST', { code: 'UNSUPPORTED' });
           await sendLoginCode(email, otp);
         },
+      }),
+      // TOTP for staff (docs/setup.md, "Admin page"). The plugin only steps into password sign-ins,
+      // which we don't have, so sign-in stays the email code for everyone; the admin page asks
+      // staff for a TOTP code on top (src/modules/admin/access.ts). The secret and the backup codes
+      // are stored encrypted with AUTH_SECRET.
+      twoFactor({
+        issuer: TOTP_ISSUER,
+        allowPasswordless: true,
+        schema: { twoFactor: { modelName: 'twoFactors' } },
+        backupCodeOptions: { amount: 10, length: 10, storeBackupCodes: 'encrypted' },
       }),
       // Sets the session cookie when auth.api.* runs inside a server action. Must be last.
       ...(nextJs ? [nextCookies()] : []),
