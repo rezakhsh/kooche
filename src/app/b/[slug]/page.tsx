@@ -6,6 +6,7 @@ import { FavoriteButton } from '../../../components/favorite-button';
 import { Icon } from '../../../components/icons';
 import { ListingCard } from '../../../components/listing-card';
 import { OutlineMap } from '../../../components/outline-map';
+import { ReportLink } from '../../../components/report-link';
 import { Card, LinkButton } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
@@ -202,6 +203,11 @@ export default async function BusinessPage({ params }: { params: Promise<Params>
               {org.imprintExtra && <p className="whitespace-pre-line">{org.imprintExtra}</p>}
             </div>
           </Card>
+          {!member && (
+            <div className="mt-4">
+              <ReportLink kind="business" id={org.slug} label={messages.report.button.business} />
+            </div>
+          )}
         </aside>
       </div>
     </main>

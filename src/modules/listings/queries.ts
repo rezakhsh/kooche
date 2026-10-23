@@ -1,7 +1,9 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { countries, currencies, listingImages, listings, locations, moderationDecisions, organizations, postalPlaces, users } from '../../db/schema';
+import { eventPath } from '../events/slug';
 import type { Place } from './places';
+import { listingPath } from './slug';
 
 // Reads for the posting pages, "my listings" and the public listing page.
 
@@ -177,4 +179,19 @@ export async function listingPhone(db: Queryable, token: string): Promise<{ list
       ),
     );
   return row?.phone ? { listingId: row.listingId, phone: row.phone } : null;
+}
+
+/**
+ * The page of the live listing or event with this code (the 9 digits on every listing page, typed
+ * into a search box in Persian or Latin digits), else null
+ */
+export async function pathOfListingCode(db: Queryable, text: string): Promise<string | null> {
+  const digits = text.trim().replace(/[۰-۹٠-٩]/g, (d) => String(d.charCodeAt(0) - (d >= '۰' ? 0x06f0 : 0x0660)));
+  if (!/^[1-9][0-9]{8}$/.test(digits)) return null;
+  const [l] = await db
+    .select({ title: listings.title, token: listings.publicToken, isEvent: sql<boolean>`EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})` })
+    .from(listings)
+    .where(and(eq(listings.refNumber, Number(digits)), eq(listings.status, 'active')));
+  if (!l) return null;
+  return l.isEvent ? eventPath(l.title, l.token) : listingPath(l.title, l.token);
 }

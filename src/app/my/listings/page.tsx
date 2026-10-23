@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ListingCode } from '../../../components/report-link';
 import { Icon } from '../../../components/icons';
 import { Alert, Button, LinkButton, PageShell, Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
@@ -106,6 +107,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                   )}
                   <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
                     <Pill tone={ending ? 'warning' : (STATUS_TONE[l.status] ?? 'neutral')}>{messages.status[l.status]}</Pill>
+                    {l.status !== 'draft' && <ListingCode value={l.refNumber} />}
                     {l.status === 'active' && days !== null && <span title={t.expires(formatDate(l.expiresAt!, zone))}>{t.daysLeft(days)}</span>}
                     {l.expiresAt && l.status === 'expired' && <span>{t.expiredOn(formatDate(l.expiresAt, zone))}</span>}
                     {(saves.get(l.id) ?? 0) > 0 && (

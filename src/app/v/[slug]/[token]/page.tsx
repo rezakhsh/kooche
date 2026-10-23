@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
+import { ListingFooter } from '../../../../components/report-link';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon } from '../../../../components/icons';
 import { clientIp } from '../../../../lib/client-ip';
@@ -377,6 +378,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <figcaption className="text-xs text-neutral-500">{mapLabel}</figcaption>
               </figure>
             )}
+            <ListingFooter refNumber={l.refNumber} token={l.publicToken} isOwner={isOwner} isEvent={false} />
           </div>
         </div>
         <aside className="hidden lg:block">

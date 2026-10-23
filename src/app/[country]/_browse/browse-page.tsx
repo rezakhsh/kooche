@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import { BrowseLink as Link } from '../../../components/browse-link';
@@ -15,6 +16,7 @@ import { valkey } from '../../../lib/valkey';
 import { messages } from '../../../messages/fa';
 import { eventCardOf } from '../../../modules/events/card';
 import { upcomingEvents } from '../../../modules/events/queries';
+import { pathOfListingCode } from '../../../modules/listings/queries';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
 import { cardOf } from '../../../modules/listings/card';
 import { savedAmong } from '../../../modules/listings/favorites';
@@ -126,6 +128,9 @@ function keptFields(state: BrowseState, minorUnit: number): [string, string][] {
 
 export async function BrowsePage({ b }: { b: Browse }) {
   const { country, city, category, catalog, state, ctx } = b;
+  // A listing's code typed into the search box opens that listing (like Kleinanzeigen's ID)
+  const coded = state.q ? await pathOfListingCode(appDb(), state.q) : null;
+  if (coded) redirect(coded);
   const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds } = await pageData(b);
   const env = webEnv();
   const t = messages.country;

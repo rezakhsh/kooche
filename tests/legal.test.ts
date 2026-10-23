@@ -4,6 +4,7 @@ import { faDigits, messages, pages } from '../src/messages/fa';
 import { legalDe } from '../src/messages/legal-de';
 import type { LegalDoc } from '../src/messages/legal-types';
 import { operator } from '../src/messages/operator';
+import { REASON_SECTIONS } from '../src/modules/moderation/reasons';
 import { BANNED_TERM_SECTION, BANNED_TERMS, bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from '../src/modules/moderation/terms';
 import { browseCacheControl, browseCountry } from '../src/proxy';
 
@@ -67,6 +68,13 @@ describe('policy grounds name real sections of the terms', () => {
 
   it('every section the automatic checks cite exists in both versions', () => {
     for (const s of [...Object.values(BANNED_TERM_SECTION), OWN_PHOTOS_SECTION, EVENT_LINKS_SECTION]) {
+      expect(sections.has(s), s).toBe(true);
+      expect(ids(pages.terms)).toContain(s);
+    }
+  });
+
+  it('every section a report or decision reason can name exists in both versions', () => {
+    for (const s of new Set(Object.values(REASON_SECTIONS).flat())) {
       expect(sections.has(s), s).toBe(true);
       expect(ids(pages.terms)).toContain(s);
     }

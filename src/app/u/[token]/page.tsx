@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ReportLink } from '../../../components/report-link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { EventCard } from '../../../components/event-card';
@@ -130,6 +131,11 @@ export default async function SellerPage({ params, searchParams }: { params: Pro
             </div>
           )}
         </section>
+      )}
+      {!p.isOwner && (
+        <div className="mt-10 border-t border-neutral-200 pt-4">
+          <ReportLink kind="user" id={token} label={messages.report.button.user} />
+        </div>
       )}
     </main>
   );

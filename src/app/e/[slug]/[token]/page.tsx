@@ -8,6 +8,7 @@ import { Icon } from '../../../../components/icons';
 import { clientIp } from '../../../../lib/client-ip';
 import { valkey } from '../../../../lib/valkey';
 import { countView } from '../../../../modules/listings/views';
+import { ListingFooter } from '../../../../components/report-link';
 import { OutlineMap } from '../../../../components/outline-map';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -352,6 +353,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
               ) : null}
             </Card>
+            <ListingFooter refNumber={l.refNumber} token={l.publicToken} isOwner={isOwner} isEvent />
           </div>
         </div>
       </div>

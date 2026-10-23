@@ -218,7 +218,7 @@ const terms: LegalDoc = {
       id: '7.4',
       heading: '7.4 Widerspruch',
       body: [
-        'Wenn Sie eine Entscheidung für falsch halten, können Sie den Inhalt korrigieren und erneut einreichen oder uns unter der in Ziffer 1.1 genannten E-Mail-Adresse schreiben. Ein Mensch prüft die Entscheidung dann erneut. Der Rechtsweg zu den Gerichten bleibt Ihnen offen.',
+        'Wenn Sie eine Entscheidung für falsch halten, können Sie über die Schaltfläche „Widerspruch“ bei der Entscheidung (unter „Mein Konto“ → „Entscheidungen von Peydoo“) innerhalb von sechs Monaten widersprechen, den Inhalt korrigieren und erneut einreichen oder uns unter der in Ziffer 1.1 genannten E-Mail-Adresse schreiben. Ein Mensch prüft die Entscheidung dann erneut, nach Möglichkeit eine andere Person als beim ersten Mal. Der Rechtsweg zu den Gerichten bleibt Ihnen offen.',
       ],
     },
     {
@@ -233,7 +233,7 @@ const terms: LegalDoc = {
       id: '8.1',
       heading: '8.1 Meldungen',
       body: [
-        'Jede Person kann uns Inhalte melden, die sie für rechtswidrig hält (Art. 16 Digital Services Act). Schreiben Sie dazu an die in Ziffer 1.1 genannte E-Mail-Adresse und geben Sie an:',
+        'Jede Person kann uns Inhalte melden, die sie für rechtswidrig oder für einen Verstoß gegen diese Bedingungen hält (Art. 16 Digital Services Act): über die Schaltfläche „Melden“ auf der Seite jeder Anzeige, Veranstaltung, jedes Nutzers und jedes Unternehmens, auch ohne Anmeldung, oder per E-Mail an die in Ziffer 1.1 genannte Adresse. Eine Meldung enthält:',
         {
           list: [
             'die genaue Adresse (URL) des Inhalts,',
@@ -242,7 +242,7 @@ const terms: LegalDoc = {
             'die Erklärung, dass Ihre Angaben nach bestem Wissen richtig und vollständig sind.',
           ],
         },
-        'Wir bestätigen den Eingang, entscheiden zügig und sorgfältig und teilen Ihnen unsere Entscheidung mit. Nachrichten können Sie direkt im Gespräch melden.',
+        'Wir bestätigen den Eingang per E-Mail, entscheiden zügig und sorgfältig und teilen Ihnen unsere Entscheidung mit. Nachrichten können Sie direkt im Gespräch melden.',
       ],
     },
     {
@@ -512,6 +512,7 @@ const privacy: LegalDoc = {
       heading: '7. Moderation und Sicherheit',
       body: [
         'Anzeigen prüfen wir automatisch (Ziffer 7 der Nutzungsbedingungen): auf verbotene Begriffe, auf Fotos, die schon ein anderes Konto verwendet hat (über einen Fingerabdruck der Bilddatei), und auf unzulässige Links. Entscheidungen speichern wir mit dem geprüften Inhalt, um sie begründen und überprüfen zu können. Wichtige Vorgänge (zum Beispiel Bestätigung der Telefonnummer, Datenexport, Löschantrag) halten wir in einem Sicherheitsprotokoll fest.',
+        'Meldungen: Wenn Sie etwas melden, speichern wir die Meldung und, falls Sie nicht angemeldet sind, Ihren Namen und Ihre E-Mail-Adresse, um sie zu prüfen und Ihnen Eingang und Ergebnis mitzuteilen. Ihren Namen und Ihre E-Mail-Adresse geben wir nicht an die gemeldete Person weiter. Um eine gemeldete Nachricht zu prüfen, sehen unsere Mitarbeitenden auch einige Nachrichten davor und danach in demselben Gespräch.',
         'Rechtsgrundlagen: Art. 6 Abs. 1 lit. c DSGVO (Pflichten aus dem Digital Services Act) und lit. f (Sicherheit, Schutz der Nutzer). Gegen automatische Entscheidungen können Sie Widerspruch einlegen; dann prüft ein Mensch.',
       ],
     },
