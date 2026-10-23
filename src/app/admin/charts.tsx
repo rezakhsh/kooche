@@ -73,13 +73,15 @@ export function LineChart({ points, title, money = false }: { points: Point[]; t
 
 /** A horizontal bar inside a table cell: the value as text, the bar for comparison */
 export function Bar({ value, max, ok }: { value: number; max: number; ok?: boolean }) {
-  const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
+  const pct = max > 0 && value > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-2">
       <span className="w-10 shrink-0 text-end tabular-nums">{value.toLocaleString('fa-IR')}</span>
-      <span className="h-2 flex-1 rounded-full bg-neutral-100">
-        <span className={`block h-2 rounded-full ${ok ? 'bg-brand-700' : 'bg-brand-300'}`} style={{ width: `${pct}%` }} />
-      </span>
+      {/* SVG, not a style attribute: the CSP allows no inline styles. Drawn from the start side. */}
+      <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="h-2 flex-1 -scale-x-100" aria-hidden="true">
+        <rect width={100} height={8} className="fill-neutral-100" />
+        {pct > 0 && <rect width={pct} height={8} className={ok ? 'fill-brand-700' : 'fill-brand-300'} />}
+      </svg>
     </div>
   );
 }
