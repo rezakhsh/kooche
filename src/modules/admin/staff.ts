@@ -1,6 +1,6 @@
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { auditLog, users } from '../../db/schema';
+import { auditLog, sessions, twoFactors, users } from '../../db/schema';
 import type { StaffRole } from './access';
 import { staffAudit, type StaffContext } from './audit';
 
@@ -41,4 +41,19 @@ export function staffList(db: Queryable) {
     .from(users)
     .where(and(isNotNull(users.staffRole)))
     .orderBy(sql`${users.staffRole} = 'moderator'`, asc(users.createdAt));
+}
+
+/**
+ * A staff member lost their phone and their backup codes: two-factor is switched off for the
+ * account (they set it up again on their next visit) and their admin checks end. Script only,
+ * as classifieds_owner (scripts/make-staff.ts --reset-2fa); writes staff.two_factor_reset.
+ */
+export async function resetTwoFactor(tx: Queryable, email: string): Promise<{ ok: true; userId: string } | { ok: false; reason: 'not_found' }> {
+  const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email.trim().toLowerCase())).for('update');
+  if (!user) return { ok: false, reason: 'not_found' };
+  await tx.delete(twoFactors).where(eq(twoFactors.userId, user.id));
+  await tx.update(users).set({ twoFactorEnabled: false }).where(eq(users.id, user.id));
+  await tx.update(sessions).set({ staffVerifiedAt: null }).where(eq(sessions.userId, user.id));
+  await tx.insert(auditLog).values({ actorType: 'system', action: 'staff.two_factor_reset', targetType: 'user', targetId: user.id, data: { by: 'make-staff' } });
+  return { ok: true, userId: user.id };
 }

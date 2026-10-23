@@ -287,7 +287,9 @@ These follow Better Auth's core model with snake_case column names. Better Auth 
 
 **`verifications`** (Better Auth `verification`: email login codes). Standard columns, plus `identifier text`, `value text`, `expires_at`. A login code is one row with identifier `sign-in-otp-<email>` and value `<SHA-256 of the code>:<wrong attempts>`; the code itself is never stored. Indexes: `(identifier)` (code check), `(expires_at)` (cleanup).
 
-**`two_factors`** (Better Auth two-factor plugin, required for staff). Standard columns, plus `user_id` FK CASCADE `UNIQUE`, `secret text`, `backup_codes text`. Both are encrypted by Better Auth.
+**`two_factors`** (Better Auth two-factor plugin, required for staff). Standard columns, plus `user_id` FK CASCADE `UNIQUE`, `secret text`, `backup_codes text`. Both are encrypted by Better Auth. Migration 0015 adds the plugin's own fields: `verified boolean DEFAULT true` (false until the first code from the app), `failed_verification_count integer DEFAULT 0`, `locked_until timestamptz null`.
+
+`sessions.staff_verified_at timestamptz null` (migration 0015): when this session last passed the admin page's TOTP check; valid 8 hours, for this session only (`docs/setup.md`, "Admin page").
 
 ### `phone_verifications`
 
@@ -787,6 +789,8 @@ Standard columns, plus:
 
 Constraint: `CHECK (num_nonnulls(listing_id, reported_user_id, organization_id, message_id) = 1)`.
 
+Migration 0015 adds `UNIQUE (reporter_user_id, reported_user_id)` and `UNIQUE (reporter_user_id, organization_id)` for open reports (one open report per person per user and per business) and `(organization_id) WHERE organization_id IS NOT NULL`. Signed-out notices are limited to one open report per email per thing in the app (`createReport()`).
+
 | Index | Serves |
 | --- | --- |
 | `(created_at) WHERE status IN ('open','in_review')` | Report queue, oldest first |
@@ -865,7 +869,11 @@ WHERE user_id = $1 AND revoked_at IS NULL AND type <> 'warning'
   AND starts_at <= now() AND (ends_at IS NULL OR ends_at > now())
 ```
 
-Index: `(user_id, starts_at) WHERE revoked_at IS NULL`, the query above.
+Index: `(user_id, starts_at) WHERE revoked_at IS NULL`, the query above. (No Valkey cache in the end: `loadActor()` runs the indexed query directly.)
+
+### `moderation_appeals`
+
+Migration 0015. A user's appeal against a decision about them (not required of a small enterprise by the DSA, offered anyway, terms 7.4). Standard columns, plus `decision_id uuid UNIQUE` FK → `moderation_decisions` CASCADE (one appeal per decision; purged with the decision), `user_id` FK → `users` RESTRICT, `body text` (1–2,000 characters), `status text DEFAULT 'open'` (`open`, `decided`), `decided_at timestamptz null` (`CHECK ((status = 'decided') = (decided_at IS NOT NULL))`). Answered by a new decision with `appeal_of_decision_id`. Indexes: `(created_at) WHERE status = 'open'` (the queue), `(user_id)`. Grants: `SELECT, INSERT, UPDATE` for app and worker, `SELECT` for readonly.
 
 ---
 
@@ -1257,3 +1265,13 @@ Roadmap step 6; details in `docs/setup.md`, "Payments and Pro". Migration `0014_
 - `listings.view_count` is now filled: Valkey counts, the worker adds them every 5 minutes.
 - Grants were already enough for everything else (the app writes `organizations`, `organization_members`, `organization_invitations`, `billing_customers`, `webhook_events`, `outbox_events`; the worker the money tables).
 
+### Admin page (Oct 23, 2026)
+
+Roadmap step 8; details in `docs/setup.md`, "Admin page". Migration `0015_admin` is additive:
+
+- `listings.ref_number bigint NOT NULL UNIQUE`, the listing's code: `DEFAULT listing_ref_number(nextval('listings_ref_number_seq'))`. The sequence runs 0 to 899,999,999; `listing_ref_number(n) = 100000000 + (n × 738147101 + 417793233) mod 900000000` is a bijection (738147101 is coprime to 900,000,000), so codes are 9 digits, unique and don't count up visibly. Existing listings got theirs in the migration. `USAGE` on the sequence for app and worker, `SELECT` for readonly.
+- `two_factors.verified`, `failed_verification_count`, `locked_until`; `sessions.staff_verified_at` (section 6).
+- `moderation_appeals` with its trigger and grants; two partial unique indexes and an index on `reports` (section 11).
+- **Outbox event types:** `listing.restored` (search sync, chats reopen, purge), `moderation.decided` (the statement to the person concerned, the outcome to reporters), `appeal.created` and `report.created` (the receipt and the owner's alert), `user.phone_released` (an email). Handlers in `src/worker/moderation.ts`, queue `moderation`.
+- **Decisions by staff** use the existing columns: `decided_by = 'staff'`, `moderator_user_id`, the statement in `statement_fa`; a suspension's take-downs are `listing_events` rows pointing at the account's decision, and a restore points at its own. `restore` decisions by rule (`ai_output = {rule: 'suspension_ended'}`) bring listings back when a suspension runs out.
+- Grants were otherwise enough: the app already wrote `reports`, `user_sanctions`, `listings`, `organizations`, `messages` and inserted decisions and audit rows.

@@ -254,3 +254,18 @@ describe('every admin page and action checks staff itself', () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe('resetting two-factor (script)', () => {
+  it('switches it off, ends the admin checks and writes the audit row', async () => {
+    const { resetTwoFactor } = await import('../src/modules/admin/staff');
+    const v = visitor();
+    const s = await signIn(v.email, v.headers);
+    await db.update(users).set({ staffRole: 'admin', twoFactorEnabled: true }).where(eq(users.id, s.user.id));
+    await db.update(sessions).set({ staffVerifiedAt: new Date() }).where(eq(sessions.userId, s.user.id));
+    expect(await db.transaction((tx) => resetTwoFactor(tx, v.email))).toMatchObject({ ok: true });
+    expect((await db.select().from(users).where(eq(users.id, s.user.id)))[0]!.twoFactorEnabled).toBe(false);
+    expect((await db.select().from(sessions).where(eq(sessions.userId, s.user.id))).every((x) => x.staffVerifiedAt === null)).toBe(true);
+    expect(await db.select().from(auditLog).where(and(eq(auditLog.targetId, s.user.id), eq(auditLog.action, 'staff.two_factor_reset')))).toHaveLength(1);
+    expect(await db.transaction((tx) => resetTwoFactor(tx, 'nobody@example.test'))).toEqual({ ok: false, reason: 'not_found' });
+  });
+});
