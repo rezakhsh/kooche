@@ -18,10 +18,11 @@ import {
   telegramNotice,
   type NoticeJob,
 } from '../modules/notifications/chat-notice';
-import type { Mailer } from '../modules/notifications/mailer';
+import type { Mail, Mailer } from '../modules/notifications/mailer';
 import { alertContent, emailAlert, telegramAlert } from '../modules/notifications/search-alert';
 import type { AlertJob } from '../modules/search/alerts';
 import { isUnreachable, TelegramError, type TelegramClient } from '../modules/notifications/telegram-api';
+import type { ReplyMarkup } from '../modules/users/telegram-bot';
 import { markUnreachable } from '../modules/notifications/telegram-reach';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 
@@ -47,8 +48,12 @@ export const TELEGRAM_RETRY = { attempts: 10, backoff: { type: 'exponential' as 
 const EMAIL_RETRY = { attempts: 10, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
 type DeliverJob = NoticeJob;
-type SendJob = (NoticeJob | AlertJob) & { fallbackFrom?: 'telegram' };
+/** A message written in full by another feature (moderation notices): `plain_email`, `plain_telegram` */
+export type PlainEmailJob = { mail: Mail };
+export type PlainTelegramJob = { telegramUserId: number; text: string; replyMarkup?: ReplyMarkup };
+type SendJob = ((NoticeJob | AlertJob) & { fallbackFrom?: 'telegram' }) | PlainEmailJob | PlainTelegramJob;
 const isAlert = (job: Job<SendJob>): job is Job<AlertJob & { fallbackFrom?: 'telegram' }> => job.name.startsWith('search_');
+const isPlain = (job: Job<SendJob>) => job.name.startsWith('plain_');
 
 export type ChatJobOptions = {
   /** Null without TELEGRAM_BOT_TOKEN: every notice goes by email */
@@ -140,6 +145,26 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   const telegramWorker: Worker<SendJob> = new Worker<SendJob>(
     'telegram-send',
     async (job) => {
+      if (isPlain(job)) {
+        // Its email goes out separately, so an unreachable bot only drops this copy
+        const p = job.data as PlainTelegramJob;
+        if (!opts.telegram) return 'off';
+        try {
+          await opts.telegram.sendMessage(p.telegramUserId, p.text, p.replyMarkup);
+          return 'sent';
+        } catch (e) {
+          if (e instanceof TelegramError && e.status === 429) {
+            await telegramWorker.rateLimit(Math.max(1, e.retryAfter ?? 1) * 1_000);
+            throw Worker.RateLimitError();
+          }
+          if (isUnreachable(e)) {
+            await markUnreachable(connection, p.telegramUserId);
+            return 'unreachable';
+          }
+          if (e instanceof TelegramError && e.status >= 400 && e.status < 500) throw new UnrecoverableError(e.message);
+          throw e;
+        }
+      }
       const content = isAlert(job) ? await alertContent(db, job.data, opts.appUrl) : await noticeContent(db, job.data as NoticeJob, opts.appUrl);
       if (!content) return 'gone';
       if (!opts.telegram || content.telegramUserId === null) {
@@ -183,6 +208,10 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   const emailWorker = new Worker<SendJob>(
     'email-send',
     async (job) => {
+      if (isPlain(job)) {
+        await opts.mailer((job.data as PlainEmailJob).mail);
+        return 'sent';
+      }
       if (isAlert(job)) {
         const content = await alertContent(db, job.data, opts.appUrl);
         if (!content) return 'gone';
@@ -204,7 +233,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   telegramWorker.on('failed', (job, e) => {
     onFailed(job, e);
     // After the last attempt the notice still arrives, by email
-    if (job && !(e instanceof UnrecoverableError) && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+    if (job && !isPlain(job) && !(e instanceof UnrecoverableError) && job.attemptsMade >= (job.opts.attempts ?? 1)) {
       void emailInstead(job).catch((err) => console.error('chat: email fallback failed:', err.message));
     }
   });
@@ -217,7 +246,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
     'conversation.started': [],
     'conversation.closed': [],
     'conversation.reopened': [],
-    'report.created': [],
+    // report.created: the receipt and the owner's alert (./moderation.ts)
   };
 
   return {

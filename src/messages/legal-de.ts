@@ -585,3 +585,19 @@ export const legalDe = {
   binding: 'Diese deutsche Fassung ist rechtlich maßgeblich.',
   contents: 'Inhalt',
 } as const;
+
+/**
+ * German lines in the emails to people who report something (DSA art. 16(4) and (5)): anyone may
+ * send a notice, also someone who reads no Persian, so the receipt and the outcome carry a short
+ * German version under the Persian text (src/modules/moderation/notices.ts).
+ */
+export const reportMailDe = {
+  receivedSubject: 'Ihre Meldung ist eingegangen',
+  received: (what: string) =>
+    `Ihre Meldung zu „${what}“ ist bei uns eingegangen (Art. 16 Digital Services Act). Ein Mensch prüft sie; das Ergebnis teilen wir Ihnen per E-Mail mit.`,
+  outcomeSubject: 'Ergebnis Ihrer Meldung',
+  removed: (what: string) => `Wir haben Ihre Meldung zu „${what}“ geprüft und den Inhalt entfernt bzw. das Konto eingeschränkt.`,
+  kept: (what: string) => `Wir haben Ihre Meldung zu „${what}“ geprüft und keinen Verstoß gegen unsere Nutzungsbedingungen oder das Gesetz festgestellt. Der Inhalt bleibt sichtbar.`,
+  redress: (email: string) => `Wenn Sie mit der Entscheidung nicht einverstanden sind, schreiben Sie uns an ${email}. Der Rechtsweg zu den Gerichten bleibt Ihnen offen.`,
+  message: 'eine Nachricht im Chat',
+} as const;

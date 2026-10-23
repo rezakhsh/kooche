@@ -7,6 +7,7 @@ import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
 import { eventCheckFields } from '../events/events';
 import { checkLink } from '../events/links';
+import { lastTakeDown } from './history';
 import { bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from './terms';
 
 // Automatic checks after publishing (decided Oct 17, 2026). Listings go live at once; the worker
@@ -131,9 +132,11 @@ export const CHECKS: readonly ListingCheck[] = [bannedTerms, duplicatePhotos, ev
 /** Statuses the checks look at: live, paused (can come back) and waiting for review */
 const CHECKED = new Set<Listing['status']>(['active', 'paused', 'pending_review']);
 
-export type ChecksResult = 'skipped' | 'passed' | 'published' | 'taken_down' | 'flagged';
+/** `held`: a resubmission after a take-down by staff waits for a person (the admin queue) */
+export type ChecksResult = 'skipped' | 'passed' | 'published' | 'taken_down' | 'flagged' | 'held';
 
-async function snapshot(tx: Queryable, listing: Listing) {
+/** The listing as judged, for moderation_decisions.content_snapshot */
+export async function snapshot(tx: Queryable, listing: Listing) {
   const images = await tx
     .select({ key: listingImages.storageKey })
     .from(listingImages)
@@ -234,7 +237,9 @@ export async function runListingChecks(
       flagged = true;
     }
 
-    // A resubmitted listing that passes goes live again
+    // A resubmitted listing that passes goes live again, unless a person took it down: then a
+    // person decides again (it waits in the admin queue), so it can't be flipped back up unchanged
+    if (listing.status === 'pending_review' && (await lastTakeDown(tx, listing.id))?.decidedBy === 'staff') return 'held';
     if (listing.status === 'pending_review') {
       const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * 86_400_000;
       const [decision] = await tx

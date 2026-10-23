@@ -27,3 +27,8 @@ export async function activeSanctions(db: Queryable, userId: string, now = new D
 export function restrictsMessaging(types: readonly SanctionType[]): boolean {
   return types.some((t) => t === 'messaging_restricted' || t === 'suspended' || t === 'banned');
 }
+
+/** Sanctions that stop someone from publishing listings, events or a business */
+export function restrictsPosting(types: readonly SanctionType[]): boolean {
+  return types.some((t) => t === 'posting_restricted' || t === 'suspended' || t === 'banned');
+}

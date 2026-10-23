@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { users } from '../../db/schema';
+import { activeSanctions, restrictsMessaging, restrictsPosting, type SanctionType } from '../moderation/sanctions';
 
 // Who may do what (decided Oct 16, 2026): browsing and favorites need no verification; posting a
 // listing and sending a chat message need a verified phone number. The posting and chat features
@@ -12,9 +13,11 @@ export type Actor = {
   phoneVerifiedAt: Date | null;
   /** For the new-account limits (./new-account.ts) */
   createdAt: Date;
+  /** Active sanctions (user_sanctions, set by moderators); none when left out */
+  restrictions?: readonly SanctionType[];
 };
 
-export type Denied = 'sign_in_required' | 'account_disabled' | 'phone_required';
+export type Denied = 'sign_in_required' | 'account_disabled' | 'phone_required' | 'restricted';
 export type Decision = { ok: true } | { ok: false; reason: Denied };
 
 export async function loadActor(db: Queryable, userId: string | null | undefined): Promise<Actor | null> {
@@ -23,7 +26,8 @@ export async function loadActor(db: Queryable, userId: string | null | undefined
     .select({ id: users.id, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, userId));
-  return actor ?? null;
+  if (!actor) return null;
+  return { ...actor, restrictions: await activeSanctions(db, userId) };
 }
 
 function signedIn(actor: Actor | null): Decision {
@@ -38,6 +42,17 @@ function verified(actor: Actor | null): Decision {
   return actor!.phoneVerifiedAt ? { ok: true } : { ok: false, reason: 'phone_required' };
 }
 
-export const canPostListing = verified;
-export const canSendMessage = verified;
+/** Posting a listing, an event or a business: a verified phone and no posting restriction */
+export function canPostListing(actor: Actor | null): Decision {
+  const base = verified(actor);
+  if (!base.ok) return base;
+  return restrictsPosting(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
+}
+
+/** Sending a chat message or seeing a phone number: a verified phone and no messaging restriction */
+export function canSendMessage(actor: Actor | null): Decision {
+  const base = verified(actor);
+  if (!base.ok) return base;
+  return restrictsMessaging(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
+}
 export const canFavorite = signedIn;

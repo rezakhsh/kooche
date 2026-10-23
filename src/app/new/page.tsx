@@ -31,7 +31,7 @@ export default async function NewListingPage({
       <PageShell title={t.title}>
         <Card className="space-y-4">
           <p className="leading-relaxed text-neutral-700">
-            {allowed.reason === 'phone_required' ? t.phoneRequired : t.accountDisabled}
+            {allowed.reason === 'phone_required' ? t.phoneRequired : allowed.reason === 'restricted' ? messages.post.restricted : t.accountDisabled}
           </p>
           {allowed.reason === 'phone_required' && (
             <LinkButton href="/account/phone" className="w-full">

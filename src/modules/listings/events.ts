@@ -22,6 +22,8 @@ export const LISTING_OUTBOX = {
   /** A paid bump moved ranked_at (written by the worker, src/modules/payments/bumps.ts) */
   bumped: 'listing.bumped',
   rejected: 'listing.rejected',
+  /** Back after a take-down: staff restored it, an appeal was granted, a suspension ended */
+  restored: 'listing.restored',
   deleted: 'listing.deleted',
 } as const;
 

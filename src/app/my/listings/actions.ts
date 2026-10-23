@@ -40,6 +40,8 @@ function refusal(reason: string): string {
       return t.post.phoneRequired;
     case 'account_disabled':
       return t.post.accountDisabled;
+    case 'restricted':
+      return t.post.restricted;
     case 'not_allowed':
       return t.form.notEditable;
     case 'category_not_postable':

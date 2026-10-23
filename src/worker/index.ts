@@ -1,3 +1,4 @@
+import { Queue } from 'bullmq';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Redis } from 'ioredis';
 import { writeFile } from 'node:fs/promises';
@@ -14,6 +15,7 @@ import { startAccountJobs } from './accounts';
 import { startChatJobs } from './chat';
 import { startEventJobs } from './events';
 import { startListingJobs } from './listings';
+import { startModerationJobs } from './moderation';
 import { startPaymentJobs } from './payments';
 import { startRetention } from './retention';
 import { startSearchJobs } from './search';
@@ -83,7 +85,17 @@ async function main(): Promise<void> {
   const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });
   // Applies payment webhooks; reads subscriptions and invoices back from Stripe
   const paymentJobs = await startPaymentJobs(db, connection, { gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null });
-  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers, paymentJobs.handlers);
+  // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
+  const seoQueue = new Queue('seo', { connection });
+  const moderationJobs = await startModerationJobs(db, connection, {
+    appUrl: env.APP_URL,
+    adminPath: env.ADMIN_PATH,
+    send: chatJobs.queues,
+    alert: env.N8N_ADMIN_ALERT_URL && env.N8N_WEBHOOK_SECRET ? { url: env.N8N_ADMIN_ALERT_URL, secret: env.N8N_WEBHOOK_SECRET } : null,
+    purge: env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_PURGE_TOKEN ? { zoneId: env.CLOUDFLARE_ZONE_ID, token: env.CLOUDFLARE_PURGE_TOKEN } : null,
+    seo: seoQueue,
+  });
+  handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers, paymentJobs.handlers, moderationJobs.handlers);
   const done = pollOutbox();
   const bot = env.TELEGRAM_BOT_TOKEN
     ? runTelegramBot(db, connection, env.TELEGRAM_BOT_TOKEN, abort.signal)
@@ -94,7 +106,7 @@ async function main(): Promise<void> {
     stopping = true;
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
-    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close(), paymentJobs.close()]);
+    await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close(), paymentJobs.close(), moderationJobs.close(), seoQueue.close()]);
     await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
     process.exit(0);
   };

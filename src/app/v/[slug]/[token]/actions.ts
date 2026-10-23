@@ -36,6 +36,8 @@ export async function revealPhoneAction(token: string): Promise<PhoneState> {
       return { error: messages.rateLimited(Math.ceil((result.retryAfterSeconds ?? 60) / 60)) };
     case 'hidden':
       return { error: messages.listing.phoneHidden };
+    case 'restricted':
+      return { error: messages.chat.errors.restricted };
     default:
       return { error: messages.genericError };
   }

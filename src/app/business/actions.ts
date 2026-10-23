@@ -35,6 +35,8 @@ function businessError(reason: string): string {
     case 'phone_required':
     case 'sign_in_required':
       return t.phoneRequired;
+    case 'restricted':
+      return messages.post.restricted;
     case 'too_many':
       return t.tooMany;
     case 'place_not_found':

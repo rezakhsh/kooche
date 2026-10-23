@@ -279,6 +279,7 @@ export const messages = {
     phoneRequired: 'برای ثبت آگهی، اول شماره تلفنتان را تأیید کنید. شماره شما به کسی نشان داده نمی‌شود.',
     verifyPhone: 'تأیید شماره تلفن',
     accountDisabled: 'این حساب غیرفعال است.',
+    restricted: 'انتشار آگهی از حساب شما فعلاً ممکن نیست. دلیلش را در «حساب من» ← «تصمیم‌های پیدو» ببینید.',
     tooManyDrafts: 'امروز آگهی زیادی شروع کرده‌اید. فردا دوباره امتحان کنید.',
     categoryNotPostable: 'در این دسته نمی‌توان آگهی ثبت کرد.',
     // New-account limits (first 7 days, docs/setup.md "Bot protection")
@@ -766,6 +767,41 @@ export const messages = {
         `این رویداد به‌طور خودکار برداشته شد، چون لینک بلیت یا لینک آنلاین آن از لینک‌های کوتاه‌شده است که مقصدشان معلوم نیست (بند ${faDigits(section)} شرایط استفاده). این تصمیم با بررسی خودکار گرفته شده است. لینک اصلی را بگذارید و رویداد را دوباره بفرستید.`,
     },
     termsSection: (section: string) => `بند ${faDigits(section)} شرایط استفاده`,
+    // Statements of reasons for decisions by staff (DSA art. 17), put together by
+    // src/modules/moderation/statement.ts: what was decided, the facts, whether it followed a
+    // report, the ground, that a person decided, and how to challenge it.
+    staff: {
+      what: {
+        listing_removed: (title: string) => `پیدو آگهی «${title}» را برداشت.`,
+        event_removed: (title: string) => `پیدو رویداد «${title}» را برداشت.`,
+        listing_rejected: (title: string) => `آگهی «${title}» که دوباره فرستادید منتشر نشد.`,
+        warning: 'پیدو به حساب شما هشدار داد. این هشدار فعلاً محدودیتی ندارد، اما تکرار تخلف به محدودیت حساب می‌رسد.',
+        posting_restricted: (until: string) => `انتشار آگهی و رویداد از حساب شما ${until} محدود شد.`,
+        messaging_restricted: (until: string) => `فرستادن پیام از حساب شما ${until} محدود شد.`,
+        suspended: (until: string) => `حساب شما ${until} مسدود شد. در این مدت نمی‌توانید آگهی منتشر کنید یا پیام بفرستید، و آگهی‌های شما نمایش داده نمی‌شوند.`,
+        banned: 'حساب شما برای همیشه مسدود شد. نمی‌توانید آگهی منتشر کنید یا پیام بفرستید، و آگهی‌های شما نمایش داده نمی‌شوند.',
+        business_suspended: (name: string) => `حساب کسب‌وکار «${name}» تعلیق شد و آگهی‌هایش نمایش داده نمی‌شوند.`,
+        message_hidden: 'یکی از پیام‌های شما در گفتگو پنهان شد و طرف گفتگو دیگر آن را نمی‌بیند.',
+      },
+      until: (date: string) => `تا ${date}`,
+      untilFurther: 'تا اطلاع بعدی',
+      facts: (facts: string) => `دلیل: ${facts}`,
+      onReport: 'این بررسی پس از گزارش یک کاربر یا بازدیدکننده انجام شد.',
+      onOwn: 'این مورد را خودمان هنگام بررسی دیدیم.',
+      ground: (section: string) => `این تصمیم بر پایه بند ${faDigits(section)} شرایط استفاده پیدو است.`,
+      legal: (law: string) => `به نظر ما این محتوا خلاف قانون است (${law}).`,
+      byPerson: 'این تصمیم را یکی از همکاران پیدو گرفته است، نه بررسی خودکار.',
+      redress: 'اگر فکر می‌کنید اشتباه شده، تا شش ماه در «حساب من» ← «تصمیم‌های پیدو» اعتراض کنید، یا محتوا را اصلاح کنید و دوباره بفرستید. یک نفر دوباره بررسی می‌کند. راه دادگاه هم برایتان باز است.',
+      restored: {
+        listing: (title: string) => `آگهی «${title}» دوباره نمایش داده می‌شود.`,
+        sanction: 'محدودیت حساب شما برداشته شد.',
+        business: (name: string) => `تعلیق کسب‌وکار «${name}» برداشته شد.`,
+        message: 'پیام پنهان‌شده شما دوباره نمایش داده می‌شود.',
+        expired: 'مدت محدودیت حساب شما تمام شد و آگهی‌هایتان دوباره نمایش داده می‌شوند.',
+      },
+      appealKept: (note: string) => `اعتراض شما را بررسی کردیم. تصمیم پابرجاست: ${note}`,
+      appealGranted: 'اعتراض شما را بررسی کردیم و تصمیم را پس گرفتیم.',
+    },
   },
   login: {
     title: 'ورود یا ثبت‌نام',
@@ -1257,7 +1293,7 @@ export const messages = {
       sign_in_required: 'برای فرستادن پیام وارد شوید.',
       account_disabled: 'حساب شما فعال نیست.',
       phone_required: 'برای فرستادن پیام، اول شماره تلفنتان را تأیید کنید.',
-      restricted: 'فرستادن پیام از حساب شما فعلاً ممکن نیست.',
+      restricted: 'فرستادن پیام از حساب شما فعلاً ممکن نیست. دلیلش را در «حساب من» ← «تصمیم‌های پیدو» ببینید.',
       not_found: 'این گفتگو پیدا نشد.',
       own_listing: 'نمی‌توانید درباره آگهی خودتان گفتگو کنید.',
       listing_unavailable: 'این آگهی دیگر فعال نیست و گفتگوی تازه ممکن نیست.',
@@ -1306,6 +1342,28 @@ export const messages = {
     },
   },
   // New listings for a saved search (Telegram bot, email): src/modules/notifications/search-alert.ts
+  // Emails and Telegram notices about moderation: src/modules/moderation/notices.ts
+  moderationMail: {
+    // To the person a decision is about
+    subject: {
+      restricted: 'تصمیم پیدو درباره حساب یا آگهی شما',
+      restored: 'خبر خوب از پیدو: محدودیت برداشته شد',
+      appeal: 'نتیجه اعتراض شما',
+    },
+    about: { listing: (title: string) => `درباره: «${title}»`, message: 'درباره: یکی از پیام‌های شما', user: 'درباره: حساب شما', business: (name: string) => `درباره: کسب‌وکار «${name}»` },
+    code: (code: string) => `کد آگهی: ${code}`,
+    notices: 'همه تصمیم‌ها و راه اعتراض',
+    telegram: (about: string) => `پیدو تصمیمی گرفت. ${about}\nدلیل و راه اعتراض را در «تصمیم‌های پیدو» ببینید.`,
+    // To the person who reported
+    receivedSubject: 'گزارش شما رسید',
+    received: (what: string) => `گزارش شما درباره «${what}» رسید. یک نفر آن را بررسی می‌کند و نتیجه را با ایمیل برایتان می‌فرستیم.`,
+    outcomeSubject: 'نتیجه بررسی گزارش شما',
+    removed: (what: string) => `گزارش شما درباره «${what}» را بررسی کردیم و محتوا را برداشتیم یا حساب را محدود کردیم. ممنون که خبر دادید.`,
+    kept: (what: string) => `گزارش شما درباره «${what}» را بررسی کردیم و خلافی با شرایط استفاده یا قانون ندیدیم. این محتوا نمایش داده می‌شود.`,
+    redress: (email: string) => `اگر با این تصمیم موافق نیستید، به ${email} بنویسید. راه دادگاه هم باز است.`,
+    message: 'یک پیام در گفتگو',
+    germanBelow: 'Deutsch:',
+  },
   searchAlert: {
     telegram: (n: number, name: string) => `🔔 ${n === 1 ? 'یک آگهی تازه' : `${n.toLocaleString('fa-IR')} آگهی تازه`} برای جستجوی «${name}»`,
     subject: (n: number, name: string) => `${n === 1 ? 'آگهی تازه' : `${n.toLocaleString('fa-IR')} آگهی تازه`} برای «${name}»`,
@@ -2180,6 +2238,15 @@ export const admin = {
     invalid: 'کد درست نیست.',
     reused: 'این کد یک بار به کار رفته است. کد بعدی برنامه را وارد کنید.',
   },
+  // The owner's Telegram alert through n8n (src/modules/admin/alert.ts)
+  alert: (s: { newReports: number; newAppeals: number; illegal: number; open: number; oldestMinutes: number | null }) =>
+    [
+      `🚩 پیدو: ${s.newReports.toLocaleString('fa-IR')} گزارش تازه${s.newAppeals ? ` و ${s.newAppeals.toLocaleString('fa-IR')} اعتراض` : ''}.`,
+      s.illegal ? `⚠️ ${s.illegal.toLocaleString('fa-IR')} مورد «خلاف قانون» گزارش شده؛ همین امروز بررسی شود.` : null,
+      `در صف: ${s.open.toLocaleString('fa-IR')} مورد${s.oldestMinutes !== null ? `، قدیمی‌ترین ${s.oldestMinutes < 120 ? `${s.oldestMinutes.toLocaleString('fa-IR')} دقیقه` : `${Math.round(s.oldestMinutes / 60).toLocaleString('fa-IR')} ساعت`}` : ''}.`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
   setup: {
     title: 'راه‌اندازی تأیید دومرحله‌ای',
     intro: 'برای ورود به پنل، علاوه بر کد ایمیل، کد یک برنامه تأیید هویت روی گوشی‌تان لازم است. یک برنامه مثل Google Authenticator، Microsoft Authenticator یا ۲FAS نصب کنید و شروع را بزنید.',

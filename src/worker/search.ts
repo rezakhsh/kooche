@@ -56,6 +56,7 @@ export const SYNC_EVENTS = [
   LISTING_OUTBOX.renewed,
   LISTING_OUTBOX.bumped,
   LISTING_OUTBOX.rejected,
+  LISTING_OUTBOX.restored,
   LISTING_OUTBOX.deleted,
   EVENT_OUTBOX.published,
   EVENT_OUTBOX.changed,

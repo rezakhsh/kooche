@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { countries, currencies, listingImages, listings, locations, moderationDecisions, organizations, postalPlaces, users } from '../../db/schema';
 import { eventPath } from '../events/slug';
+import { lastTakeDown } from '../moderation/history';
 import type { Place } from './places';
 import { listingPath } from './slug';
 
@@ -119,15 +120,10 @@ export async function coverKeys(db: Queryable, listingIds: string[]): Promise<Ma
   return new Map(rows.map((r) => [r.listingId, r.key]));
 }
 
-/** Why a listing was taken down: the latest restricting decision's statement */
+/** Why a listing was taken down: the statement of its last take-down (also a suspension's) */
 export async function takeDownStatement(db: Queryable, listingId: string): Promise<{ statement: string | null; policyGround: string | null } | null> {
-  const [row] = await db
-    .select({ statement: moderationDecisions.statementFa, policyGround: moderationDecisions.policyGround })
-    .from(moderationDecisions)
-    .where(and(eq(moderationDecisions.listingId, listingId), inArray(moderationDecisions.decision, ['reject', 'remove'])))
-    .orderBy(desc(moderationDecisions.createdAt))
-    .limit(1);
-  return row ?? null;
+  const last = await lastTakeDown(db, listingId);
+  return last ? { statement: last.statement, policyGround: last.policyGround } : null;
 }
 
 /** Everything the public listing page shows, by public token. Deleted listings are not found. */

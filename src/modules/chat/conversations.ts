@@ -356,7 +356,7 @@ export const CLOSING_EVENTS: Record<string, SystemCode> = {
   'listing.rejected': 'listing_removed',
 };
 /** Events after which a listing may be live again */
-export const REOPENING_EVENTS = ['listing.renewed', 'listing.published', 'listing.resumed'] as const;
+export const REOPENING_EVENTS = ['listing.renewed', 'listing.published', 'listing.resumed', 'listing.restored'] as const;
 
 async function writeStatusChange(
   tx: Queryable,

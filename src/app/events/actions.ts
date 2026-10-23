@@ -32,6 +32,8 @@ function refusal(reason: string): string {
       return messages.post.phoneRequired;
     case 'account_disabled':
       return messages.post.accountDisabled;
+    case 'restricted':
+      return messages.post.restricted;
     case 'not_allowed':
       return messages.events.form.ended;
     case 'category_not_postable':
