@@ -743,5 +743,7 @@ Checked in headless Chromium (production build behind TLS as `staging.peydoo.com
 - Fallbacks in the real browser: a small photo (201 KB, 1200×900) sent byte for byte; a file Chrome can't decode sent as the original and rejected by the worker as before; no `OffscreenCanvas` → no worker, shrunk on the page; the worker script blocked → the page took over for both photos of the batch; no `createImageBitmap` → the 7.7 MB original sent and processed as before.
 - No CSP violations and no console errors from our page, no sideways scroll. The only console errors came from inside Cloudflare's Turnstile frame (its own CSP), as before. The check's 21 test objects were deleted from the staging bucket afterwards.
 
+Deployed to staging Oct 23, 2026 (fast-forward of `main` to `fd35a66`, 1.9 GB memory and 11 GB disk free before): web, worker and migrate healthy. Live through Cloudflare, phone 390×844: 10/10. `/germany` sends `worker-src 'self'`, the worker bootstrap and its three chunks answer 200, and on `/germany` the live worker, started under the live CSP, shrank a 6.5 MB 12 MP JPEG drawn in the page to a 0.8 MB 2560×1920 WebP with no CSP violation. `/germany` and `/login` showed no CSP or console errors from our page and no sideways scroll. The signed-in photo editor wasn't checked live: that needs a temporary account in the staging database.
+
 For the owner: on a phone, add a fresh camera photo to a listing once; it should upload in a second or two on mobile data instead of several.
 
