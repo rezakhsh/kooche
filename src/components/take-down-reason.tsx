@@ -23,7 +23,10 @@ export function TakeDownReason({ notice, reason }: { notice: string; reason: { s
             {messages.moderation.termsSection(section)}
           </Link>
         </>
-      )}
+      )}{' '}
+      <Link href="/account/notices" className="font-semibold underline">
+        {messages.notices.link}
+      </Link>
     </Alert>
   );
 }

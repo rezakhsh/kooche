@@ -56,6 +56,7 @@ export default async function AccountPage() {
           <Row href="/my/searches" icon="bell" label={messages.savedSearches.title} />
           <Row href="/account/devices" icon="devices" label={t.devices} />
           {prefs && <Row href={sellerPath(prefs.publicToken)} icon="store" label={t.publicPage} />}
+          <Row href="/account/notices" icon="flag" label={messages.notices.title} />
           <Row href="/account/data" icon="shield" label={t.myData} />
         </ul>
         <form action={signOut}>
