@@ -1,0 +1,53 @@
+'use server';
+
+import { redirect } from 'next/navigation';
+import { appDb } from '../../db/drizzle';
+import { organizations } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import { setStaffRole } from '../../modules/admin/staff';
+import { adminHref, requireStaffAction } from '../../modules/admin/server';
+import { releasePhone, signOutEverywhere } from '../../modules/admin/users';
+import { setVerification } from '../../modules/organizations/organizations';
+
+// Admin-only changes outside moderation decisions: sessions, phone numbers, business verification
+// and staff roles. Each checks its permission first and writes audit_log with the change.
+
+const uuid = (v: FormDataEntryValue | null) => (typeof v === 'string' && /^[0-9a-f-]{36}$/.test(v) ? v : null);
+const note = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim().slice(0, 500) : '');
+
+export async function signOutAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('user.sessions');
+  const id = uuid(form.get('userId'));
+  if (!id) redirect(adminHref('/users'));
+  const n = await signOutEverywhere(appDb(), staff.ctx, id);
+  redirect(adminHref(`/users/${id}?signedOut=${n}`));
+}
+
+export async function releasePhoneAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('user.release_phone');
+  const id = uuid(form.get('userId'));
+  if (!id) redirect(adminHref('/users'));
+  await releasePhone(appDb(), staff.ctx, id, note(form.get('note')));
+  redirect(adminHref(`/users/${id}?released=1`));
+}
+
+export async function verificationAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('organization.verify');
+  const id = uuid(form.get('organizationId'));
+  const status = form.get('status');
+  if (!id || (status !== 'verified' && status !== 'rejected' && status !== 'unverified')) redirect(adminHref('/businesses'));
+  const db = appDb();
+  await db.transaction(async (tx) => {
+    const [o] = await tx.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, id));
+    if (o) await setVerification(tx, { slug: o.slug, status, byUserId: staff.ctx.userId, staff: staff.ctx, note: note(form.get('note')) });
+  });
+  redirect(adminHref(`/businesses?done=1${form.get('tab') === 'all' ? '&tab=all' : ''}`));
+}
+
+export async function staffRoleAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('staff.manage');
+  const email = String(form.get('email') ?? '').slice(0, 254);
+  const role = form.get('role') === 'moderator' ? 'moderator' : null;
+  const r = await appDb().transaction((tx) => setStaffRole(tx, { email, role, by: staff.ctx }));
+  redirect(adminHref(`/staff?${r.ok ? 'done=1' : `error=${r.reason}`}`));
+}

@@ -94,6 +94,7 @@ async function main(): Promise<void> {
     alert: env.N8N_ADMIN_ALERT_URL && env.N8N_WEBHOOK_SECRET ? { url: env.N8N_ADMIN_ALERT_URL, secret: env.N8N_WEBHOOK_SECRET } : null,
     purge: env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_PURGE_TOKEN ? { zoneId: env.CLOUDFLARE_ZONE_ID, token: env.CLOUDFLARE_PURGE_TOKEN } : null,
     seo: seoQueue,
+    meili,
   });
   handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers, paymentJobs.handlers, moderationJobs.handlers);
   const done = pollOutbox();

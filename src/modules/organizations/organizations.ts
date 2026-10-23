@@ -5,6 +5,7 @@ import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, countries, organizationMembers, organizations } from '../../db/schema';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
+import { staffAudit, type StaffContext } from '../admin/audit';
 import { placeByValue, resolvePlace } from '../listings/places';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 
@@ -233,13 +234,15 @@ export async function businessBySlug(db: Queryable, slug: string) {
  * scripts/verify-business.ts as classifieds_owner, later from the admin page (roadmap step 8).
  * Never by the business itself; editing the legal details clears it again.
  */
-export async function setVerification(db: Queryable, opts: { slug: string; status: 'verified' | 'rejected' | 'unverified'; byUserId: string | null }) {
+export async function setVerification(db: Queryable, opts: { slug: string; status: 'verified' | 'rejected' | 'unverified'; byUserId: string | null; staff?: StaffContext; note?: string }) {
   const [org] = await db
     .update(organizations)
     .set({ verificationStatus: opts.status, verifiedAt: opts.status === 'verified' ? new Date() : null, verifiedByUserId: opts.status === 'verified' ? opts.byUserId : null })
     .where(eq(organizations.slug, opts.slug))
     .returning({ id: organizations.id });
   if (!org) return null;
-  await db.insert(auditLog).values({ actorType: 'staff', actorUserId: opts.byUserId, action: 'organization.verification', targetType: 'organization', targetId: org.id, data: { status: opts.status } });
+  // From the admin page with the session and IP; from the script as the owner
+  if (opts.staff) await staffAudit(db, opts.staff, 'organization.verification', { type: 'organization', id: org.id }, { status: opts.status, ...(opts.note ? { note: opts.note } : {}) });
+  else await db.insert(auditLog).values({ actorType: 'staff', actorUserId: opts.byUserId, action: 'organization.verification', targetType: 'organization', targetId: org.id, data: { status: opts.status } });
   return org.id;
 }

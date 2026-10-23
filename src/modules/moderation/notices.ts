@@ -152,3 +152,12 @@ export async function reportReceipt(db: Queryable, reportId: string): Promise<Ma
     html: html([t.received(label.fa)], undefined, [reportMailDe.received(label.de)]),
   };
 }
+
+/** The email after support released the account's phone number */
+export async function phoneReleasedMail(db: Queryable, userId: string, appUrl: string): Promise<Mail | null> {
+  const [u] = await db.select({ email: users.email, status: users.status }).from(users).where(eq(users.id, userId));
+  if (!u || u.status === 'deleted') return null;
+  const t = messages.moderationMail;
+  const url = `${appUrl}/account/phone`;
+  return { to: u.email, subject: t.phoneReleasedSubject, text: `${t.phoneReleased}\n\n${t.phoneLink}: ${url}`, html: html([t.phoneReleased], { url, label: t.phoneLink }) };
+}

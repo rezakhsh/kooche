@@ -93,3 +93,21 @@ export function Facts({ rows }: { rows: Array<[string, ReactNode]> }) {
     </dl>
   );
 }
+
+/** A plain GET search form (works without JavaScript; the address stays under the secret path) */
+export function SearchForm({ label, name = 'q', value, children }: { label: string; name?: string; value: string; children?: ReactNode }) {
+  return (
+    <form method="get" className="mb-5 flex flex-wrap items-end gap-2">
+      <label className="min-w-0 flex-1 basis-64">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
+        <input name={name} defaultValue={value} dir="auto" className="block w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20" />
+      </label>
+      {children}
+      <button type="submit" className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800">
+        {admin.common.search}
+      </button>
+    </form>
+  );
+}
+
+export const selectClass = 'rounded-xl border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-brand-600';
