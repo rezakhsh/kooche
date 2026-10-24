@@ -795,10 +795,10 @@ Done (branch `error-monitoring`, `/root/classifieds-sentry`):
 
 Tests: 18 new (`tests/monitoring.test.ts`: scrubbing, settings, budget and throttle against Valkey, the server client against a fake ingest, real BullMQ jobs, the tunnel); 672 in all, passing; typecheck and `check:rtl` clean. Headless Chromium on a local production build behind TLS with a fake ingest, phone 390×844 and computer 1280×800: 26/26 with monitoring on (each kind of error arrived exactly once, scrubbed; no CSP violations, no foreign requests), 20/20 off (nothing loaded or sent, tunnel 404). That run found that `global-error.tsx` replaces the `<meta>` with the rest of the document; fixed by reading the settings when the page starts. Memory on the scratch stack: web 97 MB, worker 68 MB.
 
-Not on staging yet: it waits for the owner's Sentry account. Nothing merged or deployed.
+Sentry set up the same day: the owner created organization `peydoo` in the EU region and a personal API token; through the API, project `peydoo`, its DSN straight into `/root/.secrets/sentry.env`, data scrubbing and IP removal, inbound filters, and three email alerts (new issue, regression, more than 20 in an hour; Sentry's new workflows API, the old rules endpoint is gone). A real test event from `scripts/monitoring-check.ts` arrived scrubbed, with environment and release, without IP or user.
 
-For the owner (details in `docs/setup.md`, "Error monitoring" → "What the owner does"):
-- Create the Sentry account with reza.khodamehri@gmail.com in the **EU (Germany)** region, organization and project `peydoo`, two-factor login on.
-- Save the DSN on staging with the `read -rsp` command there (it never goes through a conversation).
-- Turn on the project's IP and data scrubbing settings and the three email alert rules.
-- Then approve the merge and staging deploy; a session sets the variables, deploys, runs `scripts/monitoring-check.ts` and creates the n8n "Peydoo – Sentry alerts" workflow (email → Telegram).
+Not on staging yet: nothing merged or deployed; waiting for the owner's approval. Then: variables on web and worker, merge, deploy, the check script again (browser half through the live tunnel), the n8n "Peydoo – Sentry alerts" workflow (email → Telegram).
+
+For the owner:
+- Check that Sentry's "new issue" email for the test event («monitoring check (server)») arrived; the n8n workflow will read that inbox.
+- Turn on two-factor login in Sentry; delete the personal API token there once the setup is finished.
