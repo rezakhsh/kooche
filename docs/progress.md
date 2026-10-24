@@ -767,6 +767,8 @@ First deploy Oct 24, 2026 (`peydoo-deploy --wait`, commit `84b2664`): migrate ("
 
 Checked through Cloudflare from staging (with the Access service token where needed): `/health` ok without a token (bypass); `/` without a token → Access login, with it 200; `X-Robots-Tag: noindex, nofollow`, `robots.txt` `Disallow: /`, `/sitemap.xml` 404 (`SEARCH_INDEXING` off); `/germany` cached (HIT); HSTS two years with `includeSubDomains`; `/admin` 404; `/login` 200 with the production Turnstile site key; a keyword search 200; `/api/stripe/webhook` 404 (no Stripe key yet, as designed); `coolify-prod.peydoo.com/api/health` OK. Photos: a test image in `classifieds-media`, a signed imgproxy URL through `img.peydoo.com` gave AVIF (MISS, then HIT), a changed signature 403, the image deleted. Memory right after: 1.6 GB used, 6.2 GB available (`docs/setup.md`, "Production" → "Memory").
 
+Release path tested Oct 24, 2026: merged this branch into `main` (staging deployed `c13d2f5`, healthy), then `peydoo-promote --yes` moved `production` from `84b2664` to `c13d2f5` (two docs commits, no migrations), production's migrate deployed web and worker, and the web purged `peydoo.com`. Running it again says production is already there; promoting an older commit is refused (no force pushes). Production now runs `c13d2f5`; later docs-only commits on `main` need no promote.
+
 Not checked yet (they need a person): signing in by email on `peydoo.com` (Turnstile stops headless browsers), posting with a photo, phone verification with @peydoobot, the admin two-step login. `make-staff` waits for the owner's first sign-in (production's database is empty, so the account doesn't exist yet).
 
 For the owner:
