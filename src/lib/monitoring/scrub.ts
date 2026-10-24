@@ -17,7 +17,8 @@ function foldDigits(text: string): string {
   return text.replace(/[۰-۹٠-٩]/g, (c) => String((c.charCodeAt(0) - 0x0660) % 0x90));
 }
 
-const DATE = /^(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})$/;
+/** A date inside a run of digits (2026-10-24 10:00, 24.10.2026) makes it a date, not a phone */
+const DATE = /\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?!\d)|(?<!\d)\d{1,2}[-/.]\d{1,2}[-/.]\d{4}/;
 
 /** [pattern, replacement]; the order matters (a URL's password before emails, cards before phones) */
 const RULES: Array<[RegExp, string | ((match: string, ...groups: string[]) => string)]> = [

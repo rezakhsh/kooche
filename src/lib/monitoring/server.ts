@@ -108,7 +108,7 @@ export function reportError(error: unknown, context: ReportContext = {}): void {
     scope.setClient(client);
     scope.setTags({ component, ...context.tags });
     if (context.job) scope.setContext('peydoo', context.job);
-    client.captureException(error, { mechanism: { handled: true, type: 'generic' } }, scope);
+    client.captureException(error, { originalException: error, syntheticException: new Error(), mechanism: { handled: true, type: 'generic' } }, scope);
   } catch (e) {
     console.error('monitoring: report failed:', e instanceof Error ? e.message : e);
   }

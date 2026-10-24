@@ -57,5 +57,5 @@ export function capture(error: unknown, mechanism: string, paths: Array<{ path: 
   for (let i = 1; i < paths.length; i++) {
     scope.addBreadcrumb({ category: 'navigation', timestamp: paths[i]!.at, data: { from: paths[i - 1]!.path, to: paths[i]!.path } }, 5);
   }
-  client.captureException(error, { mechanism: { type: mechanism, handled: mechanism === 'generic' } }, scope);
+  client.captureException(error, { originalException: error, syntheticException: new Error(), mechanism: { type: mechanism, handled: mechanism === 'generic' } }, scope);
 }

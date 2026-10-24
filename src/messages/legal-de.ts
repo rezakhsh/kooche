@@ -371,7 +371,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 22. Oktober 2026',
+  updated: 'Stand: 24. Oktober 2026',
   draft: true,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
@@ -407,6 +407,7 @@ const privacy: LegalDoc = {
       body: [
         'Jeder Aufruf läuft über Cloudflare (Ziffer 8), das die Website vor Angriffen schützt und Seiten zwischenspeichert. Dabei werden Ihre IP-Adresse, Zeitpunkt, aufgerufene Adresse, Browser und die verweisende Seite verarbeitet. Unser Server speichert keine Zugriffsprotokolle mit IP-Adressen; technische Fehlerprotokolle werden nach kurzer Zeit überschrieben.',
         'Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und schnellen Website (Art. 6 Abs. 1 lit. f DSGVO).',
+        'Fehlerberichte: Tritt auf der Website oder auf unseren Servern ein technischer Fehler auf, senden wir einen Bericht darüber an Sentry (Ziffer 8). Er enthält die Fehlermeldung, die Stelle im Programmcode, die Art der Seite, Browser und Betriebssystem, den Zeitpunkt und die Programmversion. IP-Adressen, E-Mail-Adressen, Telefonnummern, Cookies und Nachrichteninhalte entfernen wir auf unserem eigenen Server, bevor der Bericht ihn verlässt; Sentry sieht nur die Adresse unseres Servers. Die Berichte werden nach 30 Tagen gelöscht. Rechtsgrundlage ist unser berechtigtes Interesse an einer fehlerfreien Website (Art. 6 Abs. 1 lit. f DSGVO).',
       ],
     },
     {
@@ -527,6 +528,7 @@ const privacy: LegalDoc = {
             'Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA: Schutz vor Angriffen, Zwischenspeicher, DNS, Speicherung der Fotos (R2, EU-Rechtsraum) und Weiterleitung von E-Mails an unsere Kontaktadresse. Ein Zugriff aus den USA ist nicht auszuschließen; Cloudflare ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
             'Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg: Versand von E-Mails (Amazon SES, Region Frankfurt). Für einen möglichen Zugriff aus den USA gelten das EU-U.S. Data Privacy Framework und Standardvertragsklauseln.',
             'Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland: Abwicklung von Zahlungen, Rechnungen und Kundenportal für Abonnements. Stripe erhebt die Zahlungsdaten (etwa Kartennummer oder IBAN) selbst; wir erhalten Name, E-Mail-Adresse, das Land der Rechnungsadresse (bei Abonnements die Rechnungsadresse), Betrag und Zahlungsstatus, nie Karten- oder Kontonummern. Stripe verarbeitet Daten auch in den USA (Stripe, Inc.; EU-U.S. Data Privacy Framework und Standardvertragsklauseln) und ist für die Betrugsprävention und eigene gesetzliche Pflichten selbst verantwortlich. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. c (Aufbewahrungspflichten).',
+            'Functional Software, Inc. (Sentry), 45 Fremont Street, 8th Floor, San Francisco, CA 94105, USA: Fehlerberichte (Ziffer 3.1), gespeichert in der EU-Region (Frankfurt am Main, Deutschland). Ein Zugriff aus den USA ist nicht auszuschließen; Sentry ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
             'n8n: Software für Benachrichtigungen und die Veröffentlichung in unseren Kanälen, die wir selbst auf einem eigenen Server bei Hetzner in Helsinki betreiben. Sie erhält keine Kontodaten, nur Serverwarnungen und öffentliche Anzeigendaten.',
           ],
         },
@@ -549,6 +551,7 @@ const privacy: LegalDoc = {
             'Meldungen und Moderationsentscheidungen: zwei Jahre nach der Entscheidung.',
             'Sicherheitsprotokoll: zwei Jahre; IP-Adressen und Browserangaben darin 90 Tage.',
             'Bestellungen, Zahlungen, Abonnements und Rechnungen: zehn Jahre wegen der handels- und steuerrechtlichen Aufbewahrungspflichten (§ 147 AO, § 257 HGB), auch nach Löschung des Kontos.',
+            'Fehlerberichte bei Sentry: 30 Tage.',
             'Verschlüsselte Sicherungskopien: bis zu sechs Monate (tägliche für eine Woche, wöchentliche für einen Monat, monatliche für sechs Monate).',
           ],
         },
