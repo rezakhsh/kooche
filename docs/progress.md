@@ -769,11 +769,12 @@ Checked through Cloudflare from staging (with the Access service token where nee
 
 Release path tested Oct 24, 2026: merged this branch into `main` (staging deployed `c13d2f5`, healthy), then `peydoo-promote --yes` moved `production` from `84b2664` to `c13d2f5` (two docs commits, no migrations), production's migrate deployed web and worker, and the web purged `peydoo.com`. Running it again says production is already there; promoting an older commit is refused (no force pushes). Production now runs `c13d2f5`; later docs-only commits on `main` need no promote.
 
-Not checked yet (they need a person): signing in by email on `peydoo.com` (Turnstile stops headless browsers), posting with a photo, phone verification with @peydoobot, the admin two-step login. `make-staff` waits for the owner's first sign-in (production's database is empty, so the account doesn't exist yet).
+Checked by the owner on the phone, Oct 24, 2026: signing in through Access and then on the site by email (the SES code arrived), phone verification with @peydoobot (`phone.verified` in `audit_log`). Then `make-staff.ts reza.khodamehri@gmail.com admin` on production (`staff.role_changed`). Stripe: the owner created the sandbox `peydoo-production` and pasted its key; `stripe-setup.ts` made the products, prices, coupon, portal and webhook there, web and worker were redeployed with the key, and the webhook takes a correctly signed event (200) and refuses unsigned ones (400). The temporary copy of the code on production was deleted afterwards.
+
+Not checked yet: posting with a photo through the site (the photo path itself was checked above), a test-mode purchase, the admin two-step login.
 
 For the owner:
-- Open https://peydoo.com (Access asks for a code sent to reza.khodamehri@gmail.com), sign in on the site with the same email, then tell the session: it runs `make-staff.ts … admin`, and you set up two-step login at `https://peydoo.com/<ADMIN_PATH>` (the value is in production's `/root/.secrets/admin.env`).
-- On the phone: verify the phone with @peydoobot and post one listing with a photo; delete it afterwards (the go-live reset empties the database anyway).
-- Create the Stripe sandbox `peydoo-production` and store its secret key (`ssh root@2.31.122.66 peydoo-secret stripe.env STRIPE_SECRET_KEY`), or paste it to the session.
+- Set up two-step login at `https://peydoo.com/<ADMIN_PATH>` (the value is in production's `/root/.secrets/admin.env`) and keep the backup codes.
+- On the phone: post one listing with a photo, and buy a bump with Stripe's test card 4242 4242 4242 4242 (the sandbox charges nothing). The go-live reset empties the database anyway.
 - Save production's restic password (`/root/.secrets/restic.env` on production) in the password manager; turn on two-factor login in both Coolify dashboards.
 - The launch checklist in `docs/setup.md` ("Launch checklist for the owner").
