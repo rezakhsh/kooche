@@ -54,6 +54,8 @@ export function capture(error: unknown, mechanism: string, paths: Array<{ path: 
   const scope = new Scope();
   scope.setClient(client);
   scope.setTag('component', 'browser');
+  // The page, without its query string (the tunnel cuts it too)
+  scope.addEventProcessor((event) => ({ ...event, request: { url: location.origin + location.pathname } }));
   for (let i = 1; i < paths.length; i++) {
     scope.addBreadcrumb({ category: 'navigation', timestamp: paths[i]!.at, data: { from: paths[i - 1]!.path, to: paths[i]!.path } }, 5);
   }

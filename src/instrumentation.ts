@@ -27,6 +27,7 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
   if (process.env.NEXT_RUNTIME !== 'nodejs' || !process.env.SENTRY_DSN || isControlFlow(error)) return;
   const { reportError } = await import('./lib/monitoring/server');
   reportError(error, {
+    handled: false,
     tags: {
       route_type: context.routeType,
       route: context.routePath,

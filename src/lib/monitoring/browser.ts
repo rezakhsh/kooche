@@ -69,6 +69,8 @@ let started = false;
 export function startBrowserMonitoring(): void {
   if (started || typeof window === 'undefined') return;
   started = true;
+  // Read now: global-error.tsx replaces the whole document, <meta> included
+  if (!readConfig()) return;
   noteNavigation(location.href);
   window.addEventListener('error', (e) => {
     // "Script error." from other origins has no error object and nothing useful

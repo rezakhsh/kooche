@@ -24,6 +24,8 @@ export type ReportContext = {
   tags?: Record<string, string | number | boolean>;
   /** Queue, job name and attempts of a worker job (never its data) */
   job?: { queue: string; job: string; attempts: number };
+  /** false for what reached the user as an error page or failed request (Next.js's onRequestError) */
+  handled?: boolean;
 };
 
 const SEND_TIMEOUT_MS = 5_000;
@@ -108,7 +110,7 @@ export function reportError(error: unknown, context: ReportContext = {}): void {
     scope.setClient(client);
     scope.setTags({ component, ...context.tags });
     if (context.job) scope.setContext('peydoo', context.job);
-    client.captureException(error, { originalException: error, syntheticException: new Error(), mechanism: { handled: true, type: 'generic' } }, scope);
+    client.captureException(error, { originalException: error, syntheticException: new Error(), mechanism: { handled: context.handled ?? true, type: context.handled === false ? 'onRequestError' : 'generic' } }, scope);
   } catch (e) {
     console.error('monitoring: report failed:', e instanceof Error ? e.message : e);
   }

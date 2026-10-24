@@ -778,3 +778,27 @@ For the owner:
 - On the phone: post one listing with a photo, and buy a bump with Stripe's test card 4242 4242 4242 4242 (the sandbox charges nothing). The go-live reset empties the database anyway.
 - Save production's restic password (`/root/.secrets/restic.env` on production) in the password manager; turn on two-factor login in both Coolify dashboards.
 - The launch checklist in `docs/setup.md` ("Launch checklist for the owner").
+
+## Oct 24, 2026: error monitoring (Sentry, EU region)
+
+Plan approved by the owner (Oct 24, 2026): **Sentry's EU region** on the free plan, through our own tunnel, with our own scrubbing. GlitchTip was looked at on the n8n server (`n8nworkerReza`) first and rejected: ~356 MB available, 3 of 4 GB swap in use, an n8n worker killed for memory three weeks earlier (`docs/setup.md`, "Error monitoring").
+
+Done (branch `error-monitoring`, `/root/classifieds-sentry`):
+- **Packages:** `@sentry/core` and `@sentry/browser` 11.5.0, pinned. No `@sentry/nextjs`, no build plugin, no OpenTelemetry; the build needs no Sentry token.
+- **Web:** `src/instrumentation.ts` reports what Next.js catches in rendering, route handlers, server actions and the proxy, tagged with the route's pattern (never the real path). `reportError()` beside the login, checkout, portal and chat-replay log lines.
+- **Worker:** every queue's `failed` handler reports a job once, when it fails for good, with queue and job name only; the outbox loop, the Telegram loop (not the deploy-time 409), expiry-reminder sends, unhandled rejections and uncaught exceptions (flushed before exit).
+- **Browser:** a 0.6 KB loader on every page; the SDK (21 KB gzipped) loads only after an error. New Persian `global-error.tsx`; the admin error page reports too. Errors with a digest are skipped (reported on the server), so one event per error.
+- **Tunnel** `/api/monitoring`: the CSP is unchanged (`connect-src 'self'`). The page has a placeholder DSN, the tunnel adds the real one; only error events, 64 KB, our Origin, 10 a minute and 50 a day per IP.
+- **Privacy:** events are rebuilt from known fields and every text redacted (emails, phones with Persian digits too, IPs, IBANs, card numbers, UUIDs, tokens and keys, passwords in URLs; no query strings, headers, cookies, bodies, user, local variables or extra data). Sentry added to the privacy policy in German and Persian (3.1, 8, 9; still drafts for the lawyer).
+- **Quota:** 160 events a day in Valkey for everything (browsers at most 60), so 5,000 a month can't be exceeded; 20 an hour per process without Valkey; the same server error at most once per 10 minutes per process.
+- **Settings:** `SENTRY_DSN` (only the EU region is accepted) and `SENTRY_ENVIRONMENT` (staging | production) on web and worker; the release comes from Coolify's `SOURCE_COMMIT`. No DSN = off (development, tests).
+
+Tests: 18 new (`tests/monitoring.test.ts`: scrubbing, settings, budget and throttle against Valkey, the server client against a fake ingest, real BullMQ jobs, the tunnel); 690 in all, passing; typecheck and `check:rtl` clean. Headless Chromium on a local production build behind TLS with a fake ingest, phone 390×844 and computer 1280×800: 26/26 with monitoring on (each kind of error arrived exactly once, scrubbed; no CSP violations, no foreign requests), 20/20 off (nothing loaded or sent, tunnel 404). That run found that `global-error.tsx` replaces the `<meta>` with the rest of the document; fixed by reading the settings when the page starts. Memory on the scratch stack: web 97 MB, worker 68 MB.
+
+Not on staging yet: it waits for the owner's Sentry account. Nothing merged or deployed.
+
+For the owner (details in `docs/setup.md`, "Error monitoring" → "What the owner does"):
+- Create the Sentry account with reza.khodamehri@gmail.com in the **EU (Germany)** region, organization and project `peydoo`, two-factor login on.
+- Save the DSN on staging with the `read -rsp` command there (it never goes through a conversation).
+- Turn on the project's IP and data scrubbing settings and the three email alert rules.
+- Then approve the merge and staging deploy; a session sets the variables, deploys, runs `scripts/monitoring-check.ts` and creates the n8n "Peydoo – Sentry alerts" workflow (email → Telegram).
