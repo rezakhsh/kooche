@@ -801,8 +801,10 @@ Tests: 18 new (`tests/monitoring.test.ts`: scrubbing, settings, budget and throt
 
 Sentry set up the same day: the owner created organization `peydoo` in the EU region and a personal API token; through the API, project `peydoo`, its DSN straight into `/root/.secrets/sentry.env`, data scrubbing and IP removal, inbound filters, and three email alerts (new issue, regression, more than 20 in an hour; Sentry's new workflows API, the old rules endpoint is gone). A real test event from `scripts/monitoring-check.ts` arrived scrubbed, with environment and release, without IP or user.
 
-Not on staging yet: nothing merged or deployed; waiting for the owner's approval. Then: variables on web and worker, merge, deploy, the check script again (browser half through the live tunnel), the n8n "Peydoo – Sentry alerts" workflow (email → Telegram).
+Deployed to staging Oct 24, 2026 (approved by the owner; `main` fast-forwarded to `badfc62`; migrate, web and worker healthy): the two variables on web and worker through the Coolify API (temporary token deleted), the meta tag with release `peydoo@badfc6293e09`, the tunnel live (403 for another Origin). `scripts/monitoring-check.ts` on the live site: server and browser events arrived scrubbed with environment and release, no IP. The n8n workflow **Peydoo – Sentry alerts** (Sentry's email → Telegram) delivered the first new issue (PEYDOO-2) to Telegram.
+
+Not done: production (its own `sentry.env`, `SENTRY_ENVIRONMENT=production`, `peydoo-set-env`, then a release with `peydoo-promote`); browser source maps (only if browser reports turn out hard to read).
 
 For the owner:
-- Check that Sentry's "new issue" email for the test event («monitoring check (server)») arrived; the n8n workflow will read that inbox.
-- Turn on two-factor login in Sentry; delete the personal API token there once the setup is finished.
+- Turn on two-factor login in Sentry; delete the personal API token there (User Settings → Personal Tokens) when no more Sentry changes are planned. It is also in `/root/.secrets/sentry-user.env`.
+- The test issues PEYDOO-1 to PEYDOO-3 in Sentry can be resolved.
