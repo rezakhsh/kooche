@@ -3,6 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { ERASED, ERASE_REQUESTED, eraseRequestedUser } from '../modules/users/erasure';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // Worker jobs for accounts: queue `accounts` erases an account after its owner asked for it
 // (src/modules/users/erasure.ts). Retried like the other outbox jobs; a retry after a success
@@ -25,7 +26,10 @@ export async function startAccountJobs(db: Db, connection: Redis, opts: { prefix
     },
     { connection: own, concurrency: 1, ...prefix },
   );
-  worker.on('failed', (job, e) => console.error(`accounts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`accounts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
 
   const handlers: OutboxHandlers = {
     [ERASE_REQUESTED]: [{ name: 'erase', queue }],

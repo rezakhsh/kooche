@@ -8,6 +8,7 @@ import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // Worker jobs for payments (docs/setup.md, "Payments"): queue `payments` applies stored provider
 // webhooks and grants included Pro allowances, one at a time; the job scheduler runs due bumps
@@ -67,6 +68,7 @@ export async function startPaymentJobs(
   worker.on('failed', (job, e) => {
     const level = e instanceof NotReady ? 'warn' : 'error';
     console[level](`payments: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
   });
 
   const handlers: OutboxHandlers = {

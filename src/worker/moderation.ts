@@ -10,6 +10,7 @@ import { decisionNotices, phoneReleasedMail, reportReceipt } from '../modules/mo
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // Worker jobs of moderation (roadmap step 8; docs/setup.md, "Admin page"), queue `moderation`:
 // - `report.created`: the reporter's receipt (email), and the owner's alert;
@@ -121,7 +122,10 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     },
     { connection: own, concurrency: 2, ...prefix },
   );
-  worker.on('failed', (job, e) => console.error(`moderation: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`moderation: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
 
   const handlers: OutboxHandlers = {
     'report.created': [{ name: 'report_received', queue }],

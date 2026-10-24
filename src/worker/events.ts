@@ -4,6 +4,7 @@ import type { Db } from '../db/drizzle';
 import { writeWeeklyDigests } from '../modules/events/digest';
 import { DEFAULT_TIME_ZONE, EVENT_OUTBOX } from '../modules/events/events';
 import type { OutboxHandlers } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // Worker jobs of the events section: the weekly digest (queue `events`, Mondays 08:00 Berlin
 // time), which writes one outbox event per country for the planned channel posting. Ending an
@@ -28,7 +29,10 @@ export async function startEventJobs(db: Db, connection: Redis): Promise<{ handl
     },
     { connection: own, concurrency: 1 },
   );
-  worker.on('failed', (job, e) => console.error(`events: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`events: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
 
   // Search sync subscribes to these too (./search.ts); the n8n webhook (channel posting) later
   const handlers: OutboxHandlers = {

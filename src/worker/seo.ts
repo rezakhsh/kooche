@@ -2,6 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { buildSitemaps, writeSitemaps } from '../modules/search/sitemap';
+import { reportJobFailure } from './monitoring';
 
 // The XML sitemaps (src/modules/search/sitemap.ts): rebuilt every hour on queue `seo`, and once
 // when the worker starts, so a deploy never leaves the web app without them for long.
@@ -29,7 +30,10 @@ export async function startSeoJobs(db: Db, connection: Redis, appUrl: string): P
     },
     { connection: own, concurrency: 1 },
   );
-  worker.on('failed', (job, e) => console.error(`seo: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`seo: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
   return {
     close: async () => {
       await worker.close();

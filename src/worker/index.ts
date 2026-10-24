@@ -6,6 +6,8 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import postgres from 'postgres';
 import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
+import { monitoringConfig } from '../lib/monitoring/config';
+import { flushMonitoring, initMonitoring, reportError } from '../lib/monitoring/server';
 import { notificationMailer } from '../modules/notifications/mailer';
 import { TelegramClient } from '../modules/notifications/telegram-api';
 import { StripeGateway } from '../modules/payments/gateway';
@@ -43,6 +45,20 @@ const db = drizzle(sql, { schema });
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 connection.on('error', (e) => console.error('valkey:', e.message));
 
+// Error monitoring (docs/setup.md, "Error monitoring"): jobs that fail for good (./monitoring.ts),
+// the outbox, the Telegram bot and crashes. Off without SENTRY_DSN.
+initMonitoring(monitoringConfig(env), 'worker', () => connection);
+process.on('unhandledRejection', (reason) => {
+  console.error('worker: unhandled rejection:', reason instanceof Error ? reason.message : reason);
+  reportError(reason, { tags: { mechanism: 'unhandledRejection' } });
+});
+process.on('uncaughtException', (e) => {
+  // Node's default: log and exit. Coolify restarts the container; the report goes out first.
+  console.error('worker: uncaught exception:', e);
+  reportError(e, { tags: { mechanism: 'uncaughtException' } });
+  void flushMonitoring(2_000).finally(() => process.exit(1));
+});
+
 // Event type → handlers, registered by the features in main()
 let handlers: OutboxHandlers = {};
 
@@ -57,6 +73,7 @@ async function pollOutbox(): Promise<void> {
       await writeFile(HEARTBEAT_FILE, String(Date.now()));
     } catch (e) {
       console.error('outbox: poll failed:', e instanceof Error ? e.message : e);
+      reportError(e, { tags: { loop: 'outbox' } });
       await sleep(ERROR_BACKOFF_MS);
       continue;
     }
@@ -108,14 +125,17 @@ async function main(): Promise<void> {
     console.log(`worker: ${signal}, shutting down`);
     abort.abort();
     await Promise.all([done, bot, retention.close(), listingJobs.close(), eventJobs.close(), chatJobs.close(), seoJobs.close(), accountJobs.close(), searchJobs.close(), alertJobs.close(), paymentJobs.close(), moderationJobs.close(), seoQueue.close()]);
-    await Promise.all([sql.end({ timeout: 5 }), connection.quit()]);
+    await Promise.all([sql.end({ timeout: 5 }), flushMonitoring()]);
+    await connection.quit();
     process.exit(0);
   };
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error('worker: failed to start:', e instanceof Error ? e.message : e);
+  reportError(e, { tags: { loop: 'start' } });
+  await flushMonitoring();
   process.exit(1);
 });

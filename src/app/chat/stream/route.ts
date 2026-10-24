@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { appDb } from '../../../db/drizzle';
+import { reportError } from '../../../lib/monitoring/server';
 import { valkey } from '../../../lib/valkey';
 import { chatHub } from '../../../modules/chat/hub';
 import { INBOX_SCOPE, markViewing, stopViewing } from '../../../modules/chat/presence';
@@ -113,6 +114,7 @@ export async function GET(request: Request): Promise<Response> {
         }
       } catch (e) {
         console.error('chat stream: replay failed:', e instanceof Error ? e.message : e);
+        reportError(e, { tags: { action: 'chat.replay' } });
         write(`event: reload\ndata: {}\n\n`);
       }
       const waiting = buffer;

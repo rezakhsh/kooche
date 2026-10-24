@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { appDb } from '../../../../../db/drizzle';
 import { clientIp } from '../../../../../lib/client-ip';
 import { webEnv } from '../../../../../lib/env';
+import { reportError } from '../../../../../lib/monitoring/server';
 import { hit } from '../../../../../lib/rate-limit';
 import { valkey } from '../../../../../lib/valkey';
 import { requestAllowance } from '../../../../../modules/payments/allowances';
@@ -38,6 +39,7 @@ export async function startPromotionAction(form: FormData): Promise<void> {
   }).catch((e: unknown) => {
     // Stripe unreachable or refusing: the pending order (if any) expires by itself
     console.error('payments: checkout failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'payments.checkout' } });
     return { ok: false, reason: 'failed' } as const;
   });
   if (!r.ok) redirect(`${back}?error=${r.reason}&product=${parsed.data.product}`);

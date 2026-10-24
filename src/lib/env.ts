@@ -20,6 +20,24 @@ const optional = <T extends z.ZodType>(schema: T) =>
  */
 const adminPath = optional(z.string().regex(/^[a-z0-9]{16,64}$/, '16 to 64 lowercase letters and digits'));
 
+/**
+ * Error monitoring (docs/setup.md, "Error monitoring"): Sentry's EU region only, so a DSN for
+ * another region is refused (a local one is allowed for the test ingest). Unset: monitoring is off.
+ * SOURCE_COMMIT is set by Coolify at runtime and names the release.
+ */
+const sentryDsn = z
+  .url({ protocol: /^https?$/ })
+  .refine((v) => /^https:\/\/[0-9a-f]{16,64}@o\d+\.ingest\.de\.sentry\.io\/\d+$/.test(v) || isLocal(v), {
+    message: "a DSN of Sentry's EU region (https://<key>@o<org>.ingest.de.sentry.io/<project>)",
+  });
+const monitoringFields = {
+  SENTRY_DSN: optional(sentryDsn),
+  SENTRY_ENVIRONMENT: optional(z.enum(['staging', 'production'])),
+  SOURCE_COMMIT: optional(z.string().max(64)),
+};
+const environmentNamed = (e: { SENTRY_DSN?: string; SENTRY_ENVIRONMENT?: string }) => !e.SENTRY_DSN || !!e.SENTRY_ENVIRONMENT;
+const environmentRule = { message: 'SENTRY_ENVIRONMENT (staging or production) is required with SENTRY_DSN', path: ['SENTRY_ENVIRONMENT'] };
+
 const s3Fields = {
   S3_ENDPOINT: optional(z.url({ protocol: /^https?$/ })),
   S3_REGION: z.string().default('auto'),
@@ -91,8 +109,10 @@ const webSchema = z.object({
   // Signing secret of the webhook endpoint (/api/stripe/webhook); made by scripts/stripe-setup.ts
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[0-9A-Za-z]{10,}$/)),
   ADMIN_PATH: adminPath,
+  ...monitoringFields,
 })
   .refine(liveKeyAllowed, liveKeyRule)
+  .refine(environmentNamed, environmentRule)
   .refine((e) => !e.STRIPE_SECRET_KEY === !e.STRIPE_WEBHOOK_SECRET, {
     message: 'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together',
     path: ['STRIPE_WEBHOOK_SECRET'],
@@ -142,7 +162,9 @@ const workerSchema = z.object({
   // token the web's post-deployment command uses. Unset: the 60-second edge cache bound applies.
   CLOUDFLARE_ZONE_ID: optional(z.string().regex(/^[0-9a-f]{32}$/)),
   CLOUDFLARE_PURGE_TOKEN: optional(z.string().min(1)),
+  ...monitoringFields,
 })
+  .refine(environmentNamed, environmentRule)
   .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {
     message: 'S3_*, SMTP_URL and EMAIL_FROM are required in production',
     path: ['S3_ENDPOINT'],

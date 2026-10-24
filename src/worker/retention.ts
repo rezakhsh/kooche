@@ -4,6 +4,7 @@ import type postgres from 'postgres';
 import { purgeEventData, purgeHistory } from '../db/retention';
 import { purgeChatsOfDeletedUsers } from '../modules/chat/retention';
 import { purgeAccountData } from '../modules/users/retention';
+import { reportJobFailure } from './monitoring';
 
 // Daily retention jobs (docs/schema.md, section 14). A BullMQ job scheduler keeps the schedule in
 // Valkey, so a restart doesn't reset it and the old and new worker of a rolling deploy run each
@@ -64,7 +65,10 @@ export async function startRetention(
     },
     { connection: workerConnection, concurrency: 1 },
   );
-  worker.on('failed', (job, e) => console.error(`retention: ${job?.name} failed:`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`retention: ${job?.name} failed:`, e.message);
+    reportJobFailure(job, e);
+  });
 
   return {
     close: async () => {

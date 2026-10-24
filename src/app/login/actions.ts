@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
 import { webEnv } from '../../lib/env';
+import { reportError } from '../../lib/monitoring/server';
 import type { FormState } from '../../lib/form';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { valkey } from '../../lib/valkey';
@@ -47,6 +48,7 @@ async function sendCode(email: string): Promise<string | null> {
     const limited = rateLimitMessage(e);
     if (limited) return limited;
     console.error('login: sending the code failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'login.send_code' } });
     return messages.login.sendFailed;
   }
 }
@@ -105,6 +107,7 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
         return { error: t.accountDisabled };
     }
     console.error('login: sign-in failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'login.sign_in' } });
     return { error: messages.genericError };
   }
 

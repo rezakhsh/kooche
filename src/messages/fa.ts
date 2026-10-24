@@ -241,6 +241,13 @@ export const messages = {
     body: 'صفحه‌ای که دنبالش هستید وجود ندارد یا جابه‌جا شده است.',
     home: 'بازگشت به صفحه اصلی',
   },
+  // When a page breaks completely (src/app/global-error.tsx)
+  globalError: {
+    title: 'مشکلی پیش آمد',
+    body: 'این صفحه درست باز نشد. خطا برای ما ثبت شد. دوباره امتحان کنید یا به صفحه اصلی بروید.',
+    retry: 'دوباره امتحان کنید',
+    home: 'صفحه اصلی',
+  },
   header: {
     signIn: 'ورود',
     account: 'حساب من',

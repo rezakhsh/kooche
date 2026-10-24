@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
 import { webEnv } from '../../lib/env';
+import { reportError } from '../../lib/monitoring/server';
 import { hit } from '../../lib/rate-limit';
 import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
@@ -143,6 +144,7 @@ export async function subscribeAction(form: FormData): Promise<void> {
     appUrl: webEnv().APP_URL,
   }).catch((e: unknown) => {
     console.error('payments: plan checkout failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'payments.plan_checkout' } });
     return { ok: false, reason: 'failed' } as const;
   });
   if (!r.ok) redirect(`${back}?error=${r.reason}`);
@@ -156,6 +158,7 @@ export async function portalAction(form: FormData): Promise<void> {
   const { user } = await requireSession(back);
   const r = await openBillingPortal(appDb(), paymentGateway(), { userId: user.id, organizationId: parsed.data.organizationId, appUrl: webEnv().APP_URL }).catch((e: unknown) => {
     console.error('payments: portal failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'payments.portal' } });
     return { ok: false, reason: 'failed' } as const;
   });
   if (!r.ok) redirect(`${back}?error=${r.reason}`);

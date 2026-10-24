@@ -11,6 +11,7 @@ import { runListingChecks } from '../modules/moderation/checks';
 import { sendExpiryReminders } from '../modules/notifications/expiry-reminder';
 import { notificationMailer } from '../modules/notifications/mailer';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // Worker jobs of the posting feature:
 // - queue `media` (from the outbox): process an uploaded photo, delete a removed photo's file.
@@ -97,6 +98,7 @@ export async function startListingJobs(
 
   const onFailed = (job: Job<OutboxJobData> | undefined, e: Error) => {
     console.error(`${job?.queueName}: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
     // After the last retry, the photo is marked failed so the seller sees it and can remove it
     if (job?.name === 'media_process' && job.attemptsMade >= (job.opts.attempts ?? 1)) {
       void markImageFailed(db, job.data.aggregateId).catch(() => {});

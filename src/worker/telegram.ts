@@ -1,6 +1,7 @@
 import type { Redis } from 'ioredis';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { Queryable } from '../db/drizzle';
+import { reportError } from '../lib/monitoring/server';
 import { TelegramClient, TelegramError } from '../modules/notifications/telegram-api';
 import { type TelegramUpdate, handleUpdate } from '../modules/users/telegram-bot';
 
@@ -33,6 +34,7 @@ export async function runTelegramBot(
     } catch (e) {
       if (signal.aborted) return;
       console.error('telegram: start failed:', e instanceof Error ? e.message : e);
+      reportError(e, { tags: { loop: 'telegram' } });
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
     }
   }
@@ -48,7 +50,11 @@ export async function runTelegramBot(
     } catch (e) {
       if (signal.aborted) return;
       const conflict = e instanceof TelegramError && e.status === 409;
-      if (!conflict) console.error('telegram: getUpdates failed:', e instanceof Error ? e.message : e);
+      // 409: the old container still polls during a deploy, not an error
+      if (!conflict) {
+        console.error('telegram: getUpdates failed:', e instanceof Error ? e.message : e);
+        reportError(e, { tags: { loop: 'telegram' } });
+      }
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
       continue;
     }
@@ -61,6 +67,7 @@ export async function runTelegramBot(
           `telegram: update ${update.update_id} failed:`,
           e instanceof Error ? e.message : e,
         );
+        reportError(e, { tags: { loop: 'telegram' } });
       }
     }
   }

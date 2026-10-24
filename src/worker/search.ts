@@ -9,6 +9,7 @@ import type { Meili } from '../modules/search/meili';
 import { phraseCode, rebuildPhrases, SUGGESTIONS_INDEX } from '../modules/search/phrases';
 import { indexState, rebuildIndex, syncListings } from '../modules/search/sync';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
+import { reportJobFailure } from './monitoring';
 
 // The Meilisearch index (docs/setup.md, "Keyword search and saved searches"), on queue
 // `search-sync` with concurrency 1, so a publish and a quick delete can never overtake each other
@@ -138,7 +139,10 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
     },
     { connection: own, concurrency: 1, ...prefix },
   );
-  worker.on('failed', (job, e) => console.error(`search: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`search: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
 
   // At start: rebuild when the index can't be used as it is. A Meilisearch that doesn't answer is
   // only logged; the nightly rebuild and the retries of single writes catch up later.

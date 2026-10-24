@@ -6,6 +6,8 @@ import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { webEnv } from '../lib/env';
+import { MONITORING_META } from '../lib/monitoring/browser';
+import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
 import { messages } from '../messages/fa';
 import './globals.css';
 
@@ -37,9 +39,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Every page is rendered per request: the CSP nonce from src/proxy.ts changes on each one, and
   // Next.js can only put it on its scripts when it renders the page.
   await connection();
+  const env = webEnv();
+  // Browser error monitoring's settings (src/lib/monitoring/browser.ts); none when it is off
+  const monitoring = browserMonitoringConfig(monitoringConfig(env), env.APP_URL);
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+      <head>{monitoring && <meta name={MONITORING_META} content={JSON.stringify(monitoring)} />}</head>
       <body className="flex min-h-dvh flex-col bg-white font-sans text-neutral-900 antialiased">
         <SiteHeader />
         <div className="flex-1">{children}</div>

@@ -5,6 +5,7 @@ import { cachedCatalog } from '../modules/listings/catalog';
 import { claimAlert, dueForDaily, matchListing, noticeDelay, purgeHits, type AlertJob } from '../modules/search/alerts';
 import { LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
+import { reportJobFailure } from './monitoring';
 
 // Saved-search notices (src/modules/search/alerts.ts), on queue `search-alerts`:
 // - `match`: a listing was published and indexed (handed over by ./search.ts); records the
@@ -88,7 +89,10 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
     },
     { connection: own, ...prefix, concurrency: 2 },
   );
-  worker.on('failed', (job, e) => console.error(`search-alerts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message));
+  worker.on('failed', (job, e) => {
+    console.error(`search-alerts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    reportJobFailure(job, e);
+  });
 
   return {
     queue,

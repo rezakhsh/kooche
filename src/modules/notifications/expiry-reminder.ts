@@ -1,6 +1,7 @@
 import type { Redis } from 'ioredis';
 import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
+import { reportError } from '../../lib/monitoring/server';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from './mailer';
 
@@ -64,6 +65,7 @@ export async function sendExpiryReminders(
       // Free the guards so a manual rerun can send this one
       await redis.del(...list.map((r) => `expiry-reminder:${r.id}:${new Date(r.expires_at).getTime()}`));
       console.error('expiry-reminder: send failed:', e instanceof Error ? e.message : e);
+      reportError(e, { tags: { job: 'expiry-reminder' } });
     }
   }
   return { emails, listings };
