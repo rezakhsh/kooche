@@ -6,13 +6,16 @@ This file records the infrastructure as it actually exists and the decisions tak
 
 ## What exists now
 
+Two servers since Oct 24, 2026: **staging** on the CX23 below (everything in this table unless it says production), and **production** on `peydoo-prod`, a CX33 with its own Coolify, database, secrets, backups and alerts. Production is described in "Production"; nothing is shared between the two except the Cloudflare zone, the R2 account, the SES identity, the Storage Box (separate sub-account) and the n8n instance (separate workflows).
+
 | Item | Value |
 | --- | --- |
+| Production | `peydoo-prod`, Hetzner CX33 (4 vCPU, 8 GB, 80 GB), Nuremberg `nbg1`, `2.31.122.66`, server id 172041819, firewall `peydoo-prod`. https://peydoo.com behind Cloudflare Access until go-live. See "Production" |
 | Server | Hetzner CX23 (2 vCPU, 4 GB RAM, 40 GB disk), Helsinki `hel1`, `135.181.253.129`, server id 170743334 |
 | Firewall | `classifieds-app` (id 11815492): inbound 22 (tcp) and ping from anywhere; 80 and 443 (tcp) only from Cloudflare's IP ranges (see "Domain and Cloudflare"). Everything else closed, including 443/udp, Coolify's raw ports 8000/6001/6002 and Traefik's 8080 |
 | SSH | Root login by key only (password login for root is off) |
-| Coolify | 4.4.6 at https://coolify.peydoo.com (behind the Cloudflare proxy, Let's Encrypt at the server). Public registration disabled; one admin account. API on, but only for the `coolify` Docker network (see "App deployment") |
-| Domain | `peydoo.com`, bought Oct 17, 2026, Cloudflare zone (Free plan). `staging.peydoo.com` (app) and `coolify.peydoo.com` (dashboard) are proxied A records to the server; `peydoo.com` and `www` have no records until launch. See "Domain and Cloudflare" |
+| Coolify | 4.5.0 at https://coolify.peydoo.com (behind the Cloudflare proxy, Let's Encrypt at the server). Installed as 4.4.6; auto-update is on here and updated it to 4.5.0 by itself (found Oct 24, 2026). Public registration disabled; one admin account. API on, but only for the `coolify` Docker network (see "App deployment") |
+| Domain | `peydoo.com`, bought Oct 17, 2026, Cloudflare zone (Free plan). `staging.peydoo.com` (app) and `coolify.peydoo.com` (dashboard) are proxied A records to this server; `peydoo.com`, `www`, `img` and `coolify-prod` to production (since Oct 24, 2026). See "Domain and Cloudflare" |
 | Backup storage | Hetzner Storage Box BX11 `classifieds-backups` (id 674924), 1 TB, Falkenstein `fsn1`, `u692990.your-storagebox.de`, SSH/SFTP on port 23 only |
 | Photo storage | Cloudflare R2, EU jurisdiction (data stays in the EU), account BerlinWedding. Buckets `classifieds-media-staging` (testing) and `classifieds-media` (production, starts empty at launch). Both private: public `r2.dev` access is off. S3 endpoint `https://fe5720006c80324ed7b6bdd00d63b774.eu.r2.cloudflarestorage.com`, region `auto` |
 | Secrets on server | `/root/.secrets/*.env` (root-only, never in Git). The admin page's address is `ADMIN_PATH` in `/root/.secrets/admin.env` |
@@ -30,7 +33,7 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
 
 ## Changes from the plan
 
-1. **Server size.** The plan assumes 8 GB in Germany; the server is 4 GB in Helsinki. Helsinki is in the EU, so GDPR is unaffected and the latency to Germany is ~25 ms. 4 GB is enough until the first app deploy. Then resize to **CX33 (4 vCPU, 8 GB, €8.49/month net)** using "CPU and RAM only", which keeps the 40 GB disk so the server can be downgraded again.
+1. **Server size.** The plan assumes 8 GB in Germany; the server is 4 GB in Helsinki. Helsinki is in the EU, so GDPR is unaffected and the latency to Germany is ~25 ms. 4 GB is enough until the first app deploy. Then resize to **CX33 (4 vCPU, 8 GB, €8.49/month net)** using "CPU and RAM only", which keeps the 40 GB disk so the server can be downgraded again. Superseded on Oct 23, 2026: staging stays on the CX23, and the CX33 is the separate production server (decision 10).
 
 2. **PostgreSQL 18 + PostGIS 3.6** (`postgis/postgis:18-3.6`) instead of 17. Version 18 has a built-in `uuidv7()` function (decision 1 in the plan) and faster disk reads. No extension needed for IDs.
 
@@ -61,7 +64,7 @@ The Coolify install had failed: Docker had created the `coolify` network with a 
    - Use one-level names such as `img-staging.peydoo.com`, not `img.staging.peydoo.com`. Cloudflare's free edge certificate covers only one subdomain level.
    - Storage names stay brand-neutral (`classifieds-…`); bucket names can't be changed.
 
-10. **Environments.** Until launch this server is staging. At launch it becomes production, and staging moves to its own small CX23 (€5.49/month). Staging and production never share a database.
+10. **Environments.** Decided by the owner on Oct 23, 2026 (this replaces the earlier plan to turn this server into production): this CX23 stays staging for good and is not resized. Production is a new, clean CX33, `peydoo-prod` (bought Oct 24, 2026 by the watcher, set up the same day), with its own Coolify. Production starts from an empty database (migrations plus seeds); nothing is copied from staging, and staging data never goes to production. Staging and production never share a database, a secret or a backup repository. Releases reach production only by hand, after staging ("Production" → "Releases").
 
 11. **Development stays off the server.** Develop locally (WSL, as decided) or in Claude Code sessions. This server only runs what Coolify deploys from GitHub. A dev server here would compete with production for memory.
 
@@ -210,13 +213,103 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 - **Dashboard domain.** When the instance domain changes, the GitHub App's webhook URL must follow, or pushes stop deploying. On Oct 17, 2026 it was changed with the App's own key, which Coolify stores (`PATCH https://api.github.com/app/hook/config`). The App's homepage and callback URLs can only be changed in GitHub's App settings.
 - **Application domain.** Coolify keeps the generated Traefik labels in the app's `custom_labels`. It regenerates them only when the domain is changed in its UI, so a domain changed any other way keeps routing the old host. Regenerate them ("Reset to default labels" in the UI) and restart the app.
 
-**At launch** (decision 10):
-- This server's app gets `peydoo.com` and `www.peydoo.com` (www redirects to the apex), with `APP_URL=https://peydoo.com`, `SEARCH_INDEXING=on` and a new Telegram bot.
-- `staging.peydoo.com` moves to the new staging server.
-- Decide on HSTS `preload`.
-- A production Turnstile widget for `peydoo.com` with its own keys in the production web app ("Bot protection").
-- The Cache Rule covers `staging.peydoo.com` only: add `peydoo.com` to its host condition when production gets the domain ("Browsing and favorites").
-- Production's web app gets the same post-deployment command and the two `CLOUDFLARE_*` variables (it purges its own APP_URL host, `peydoo.com`); if production runs on another server, the purge token's IP condition needs that server's IPv4.
+**Production records** (Oct 24, 2026): `peydoo.com`, `www.peydoo.com`, `img.peydoo.com` and `coolify-prod.peydoo.com` are proxied A records (no AAAA) to `peydoo-prod` (`2.31.122.66`). `peydoo.com`, `www` and `coolify-prod` are behind Cloudflare Access until go-live; what happens at go-live (Access off for the app, `SEARCH_INDEXING=on`, HSTS `preload`) is in "Production" → "Go-live". The Cache Rule's host condition covers both `staging.peydoo.com` and `peydoo.com` since Oct 24, 2026.
+
+## Production
+
+Set up Oct 24, 2026 (roadmap step 9; plan approved by the owner the same day with own Coolify, Cloudflare Access until go-live and a `production` branch). Everything here is production's own: no secret, database, token or backup repository is shared with staging.
+
+**Server.** `peydoo-prod`, Hetzner CX33 (4 vCPU, 8 GB, 75 GB usable disk), Nuremberg `nbg1`, `2.31.122.66` (IPv6 `2a01:4f8:1c16:9c56::1`, unused), server id 172041819, labels `role=production`, `app=peydoo`, delete and rebuild protection, no Hetzner backups (the owner's call). Ubuntu 24.04, fully upgraded and rebooted on Oct 24, 2026; unattended security upgrades on, no automatic reboots. 2 GB swap (`/swapfile`, `vm.swappiness=10`). Same `/etc/docker/daemon.json` as staging (log rotation, address pools).
+- **SSH:** root by key only (`/etc/ssh/sshd_config.d/10-peydoo.conf`: no passwords, no keyboard-interactive, `prohibit-password`; tested that password login is refused). Two keys: the owner's `rsa-key-20240507` and staging's `peydoo-staging-to-prod` (`/root/.ssh/peydoo_prod` on staging; `ssh peydoo-prod` there). Claude sessions run on staging only and reach production through that key.
+- **Firewall:** Hetzner firewall `peydoo-prod` (id 11871753), a copy of staging's: ICMP and 22 from anywhere, 80 and 443 only from Cloudflare's ranges, everything else closed (checked from staging: 80, 443, 8000, 6001 and 8080 closed). No ufw, as on staging (Docker bypasses it).
+
+**Coolify** 4.5.0 (the same version staging runs), installed with `install.sh 4.5.0` on Oct 24, 2026. **Auto-update off**: upgrade production by hand, after staging has run the new version for a while. Dashboard https://coolify-prod.peydoo.com behind Cloudflare Access (the owner's email) and Coolify's own login (`/root/.secrets/coolify-admin.env` on production; turn on Coolify's two-factor login). Registration off, root user and team 0 made with `tinker` before anything was public, concurrent builds 1, nightly forced Docker cleanup at 00:00 (threshold 80%, volumes and networks kept), API on for the `coolify` network without its gateway (same `allowed_ips` as staging). The installer created the `coolify` network dual-stack; it was recreated IPv4-only like staging's, so containers reach Cloudflare over IPv4 (the purge token is bound to the IPv4). Coolify project `peydoo` (`kcvae1pqx4fr2emy0zlnq63h`), environment `production`, server `localhost` (`hmjl1dmdbspqdzxe5rgerle6`).
+
+**Repository access.** A read-only GitHub deploy key `peydoo-prod-readonly` (private key `/root/.ssh/github_readonly` on production, in Coolify as `github-kooche-readonly`). Staging's GitHub App stays on staging; no GitHub webhook reaches production, on purpose.
+
+| Resource | Coolify uuid (= Docker hostname) | Image / target | Limit | Notes |
+| --- | --- | --- | --- | --- |
+| `classifieds-postgres` | `y3sspb9cstl1syonghgwxpsq` | `postgis/postgis:18-3.6` | 2 GB | Locale `b` / `C.UTF-8` (checked before anything else). Custom `postgresql.conf` (Coolify replaces the image's, hence `listen_addresses = '*'`): `shared_buffers` 512MB, `effective_cache_size` 1536MB, `work_mem` 8MB, `maintenance_work_mem` 128MB, `random_page_cost` 1.1, `dynamic_shared_memory_type = mmap` (Docker's /dev/shm is 64 MB), UTC |
+| `classifieds-valkey` | `yw7lfuof9pw552cf1gnqoj54` | `valkey/valkey:9.0.6-alpine` | 256 MB | `maxmemory 192mb`, `noeviction`, AOF on |
+| `classifieds-meilisearch` | `tsinhswmsp60iz6muh8avaiy` | `getmeili/meilisearch:v1.54.3` | 1 GB | `MEILI_MAX_INDEXING_MEMORY=384Mb`, 2 indexing threads, consistent container name, volume at `/meili_data` |
+| `classifieds-imgproxy` | `nzlfwag2ihkkwsg0h7x3wtba` | `ghcr.io/imgproxy/imgproxy:v4.0.16` | 512 MB | https://img.peydoo.com, `s3://classifieds-media/`, 3 workers, read-only R2 token |
+| `classifieds-migrate` | `tg5ppjvq4uzqcouuthfncrwu` | target `migrate` | 128 MB | `DEPLOY_APP_UUIDS` = web, worker |
+| `classifieds-web` | `lgxxyhlxwtzb4naboohavjtg` | target `web` | 1 GB | https://peydoo.com and https://www.peydoo.com (www redirects to the apex), post-deployment `node purge-cache.js` |
+| `classifieds-worker` | `2ydwgjkdmrjv4drl6ovcgznh` | target `worker` | 512 MB | Telegram bot @peydoobot |
+
+All on the `coolify` network, none public. Web, worker and migrate build from branch **`production`** with auto-deploy off. Their variables are runtime-only and literal; the list is the same as staging's ("App deployment") with production values, set by `/root/set-app-env.sh` on production from `/root/.secrets` (rerun it after changing a secret file, then redeploy). `APP_URL=https://peydoo.com` from the start; `SEARCH_INDEXING` unset (off) until go-live; `SMS_PROVIDER=log`; `SENTRY_DSN` is left for the error-monitoring step.
+
+**Database setup** followed "Database setup": created through the API with the 18 image (mount `/var/lib/postgresql`) and `POSTGRES_INITDB_ARGS` as a normal variable, started, locale checked, `01-classifieds.sh`, migrations 0000–0015 and the seed from a throwaway `node:24.22.0-bookworm-slim` container on the `coolify` network (16 migrations; 37 countries, 81 cities, 34,048 postal places, 141 categories, 289 attributes), `ALTER ROLE … LOGIN PASSWORD` with `\getenv`; each role's login tested. Meilisearch keys from `scripts/meili-keys.ts` straight into the secrets file. Since then migrations run on every deploy.
+
+### Releases
+
+Production never deploys on a push. A release is a commit that staging has run:
+
+```bash
+peydoo-promote            # on staging: promotes origin/main
+peydoo-promote <commit>   # a specific commit on main
+```
+
+`/usr/local/bin/peydoo-promote` (staging) checks that the commit is on `main` and is the commit staging's `classifieds-web` last deployed successfully (`--force-untested` skips that), shows the commits and new migrations, asks, fast-forwards `production` on GitHub (never a force push; it keeps its own bare clone in `/root/classifieds-promote`, so no checkout is touched) and runs `peydoo-deploy --wait` on production over SSH. `/usr/local/bin/peydoo-deploy` (production) starts `classifieds-migrate` with the deploy-only token `classifieds-deploy` (`/root/.secrets/coolify-api-tokens.env`) from a container on the `coolify` network and follows the three deployments. From there it is staging's chain: migrations first, `trigger.js` deploys web and worker, the web's post-deployment command purges `peydoo.com` (and only that host) from Cloudflare. A push to `production` reaches staging's Coolify through the GitHub App too, but staging's apps watch `main`, so nothing happens there. Without the scripts: push the branch, then Deploy on production's `classifieds-migrate`. Rolling back: redeploy an earlier deployment of web and worker in Coolify (migrations stay; undo a schema change with a new migration). The same rules as staging apply: migrations backward compatible, and "Deploy" on web or worker alone skips migrations.
+
+### Cloudflare for production
+
+- **Access until go-live** (Zero Trust organization `rezayalat.cloudflareaccess.com`, Free): application **Peydoo production (pre-launch)** on `peydoo.com`, `www.peydoo.com` and `coolify-prod.peydoo.com`: the owner's email with a one-time code, 24-hour session, plus the service token `peydoo-prelaunch-checks` (expires Jan 22, 2027; `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` in staging's `/root/.secrets/access-prod.env`) for scripted checks from staging. Application **Peydoo public paths** bypasses Access for `/.well-known/acme-challenge` on all three hosts (Let's Encrypt), `peydoo.com/api/stripe/webhook`, `peydoo.com/health` and `coolify-prod.peydoo.com/api/health` (n8n). `img.peydoo.com` is not behind Access (signed URLs only). Access needs no change in the app: it doesn't touch `CF-Connecting-IP`, and the Access cookie doesn't affect the Cache Rule.
+- **Purge token** `peydoo-cache-purge-prod` (id `34d479b54599e6aa95df164928ce37e3`): Cache Purge on `peydoo.com` only from `2.31.122.66/32`; on production's web (post-deployment purge) and worker (take-downs). Staging's `peydoo-cache-purge` is unchanged.
+- **Cache Rule:** the host condition is `http.host in {"staging.peydoo.com" "peydoo.com"}` (rule ref `staging_browse_logged_out`).
+- **Turnstile:** widget `peydoo-production` for `peydoo.com` ("Bot protection").
+- **R2:** bucket `classifieds-media`, tokens `classifieds-prod-rw` (web, worker) and `classifieds-prod-imgproxy` (imgproxy), CORS from `https://peydoo.com`, the same `uploads/` lifecycle rule ("Photos and imgproxy").
+
+### Other services
+
+- **Email:** the same SES identity and sender `پیدو <noreply@peydoo.com>`. Production reuses the SES SMTP login (copied to production's `/root/.secrets/ses-smtp.env`, which also holds `SMTP_URL`): the AWS key can't manage IAM, so a separate send-only user would need the owner in the AWS console. Optional: create an IAM user with only `ses:SendRawEmail` for production and replace the login.
+- **Telegram:** @peydoobot, created by the owner with BotFather. The token goes into production's `/root/.secrets/auth.env` with `peydoo-secret auth.env TELEGRAM_BOT_TOKEN` (run over SSH by the owner), then `/root/set-app-env.sh` and a worker redeploy.
+- **Stripe:** test mode in its own Stripe **sandbox** `peydoo-production`, so staging's and production's test webhooks never cross (one test mode would send every event to both endpoints). The owner stores the sandbox's secret key with `peydoo-secret stripe.env STRIPE_SECRET_KEY`; then `scripts/stripe-setup.ts --secrets-file /root/.secrets/stripe.env` runs on production against `https://peydoo.com/api/stripe/webhook` (it bypasses Access) and `/root/set-app-env.sh` adds the key and webhook secret to web and worker. Until then production's payment pages say payments aren't available. `PAYMENTS_LIVE` stays unset until the owner activates live payments ("Payments and Pro" → "At launch").
+- **Admin page:** `ADMIN_PATH` (24 characters) in production's `/root/.secrets/admin.env`, different from staging's. The worker's owner alert goes to the n8n workflow **Peydoo – production admin alerts** (id `TbFYug8177bs2YH1`, a copy of staging's with its own path and secret, messages start with «🚀 Production»; tested Oct 24, 2026 with a signed request).
+- **`/usr/local/bin/peydoo-secret <file> <VARIABLE>`** (production): asks for a value twice without showing it and writes it into `/root/.secrets/<file>` (mode 600). The way the owner hands over a secret without it passing through a conversation: `ssh root@2.31.122.66 peydoo-secret auth.env TELEGRAM_BOT_TOKEN`.
+
+### Secrets on production
+
+`/root/.secrets/` on production only (and in production's Coolify): `postgres.env` (superuser and the four role passwords), `valkey.env`, `meilisearch.env` (master key and the two derived keys), `imgproxy.env`, `r2.env` (both production tokens), `cloudflare.env` (zone id, production purge token), `turnstile.env`, `auth.env` (`AUTH_SECRET`, `PHONE_CODE_SECRET`, the bot token), `ses-smtp.env`, `admin.env` (`ADMIN_PATH`, the admin-alert URL and HMAC secret), `stripe.env` (once the sandbox key is in), `coolify-admin.env`, `coolify-api-tokens.env` (deploy-only token), `restic.env`, `storagebox.env` (sub-account password), `alerts.env` and `n8n.env` (server alerts). All were generated on production (`openssl rand`) or written there straight from an API response; none went through a conversation, except the Telegram token the owner pasted on Oct 24, 2026 (see "Security notes").
+
+### Backups and restore
+
+- **Repository:** restic on the Storage Box **sub-account** `u692990-sub1` (id 348656, home directory `peydoo-prod`, SSH on port 23 with production's key `/root/.ssh/storagebox`, host alias `storagebox` on production). The sub-account sees only its own directory, so production can't touch staging's backups. Its own restic password (`/root/.secrets/restic.env` on production): **the owner keeps a copy in the password manager**; without it the backups can't be read if the server is lost.
+- `/usr/local/bin/classifieds-backup` at 03:15 UTC (`/etc/cron.d/classifieds-backup`, log `/var/log/classifieds-backup.log`), the same as staging's: tags `config` (Coolify config, secrets, SSH keys, plus `/usr/local/bin` and `/etc/cron.d`), `postgres` (`pg_dump -Fc -Z0` as `classifieds_readonly`) and `coolify-db`; keep 7 daily, 4 weekly, 6 monthly; heartbeat to n8n; `peydoo:backup:last-ok` in production's Valkey for the admin page.
+- **Restore test** `/usr/local/bin/classifieds-restore-test` (production): dumps the newest `postgres` snapshot, restores it into a scratch `postgis/postgis:18-3.6` with the builtin locale (bootstrap from `/usr/local/share/peydoo/01-classifieds.sh`, the three roles `NOLOGIN`, `pg_restore --exit-on-error`), compares locale, tables, functions, triggers, indexes, migrations and every table's row count with the live database, and removes the scratch container. First run Oct 24, 2026: OK (43 tables, 862 functions, 23 triggers, 165 indexes, 16 migrations, 44,394 rows). The `config` snapshot restored Coolify's `.env` byte for byte. Run it once a month.
+
+### Alerts
+
+`/usr/local/bin/kooche-alert` and `kooche-healthcheck` are staging's scripts unchanged (disk, memory, containers, Meilisearch, failed Coolify deployments, heartbeat every 15 minutes; `/etc/cron.d/kooche-healthcheck`). They report to the n8n workflow **Peydoo – production alerts** (id `oM9CXCOHSEl21n5S`), a copy of "Kooche – server alerts" with its own webhook path, secret and memory, messages headed «🚀 Peydoo production», and URL checks of `https://peydoo.com/health` and `https://coolify-prod.peydoo.com/api/health` every 5 minutes (both bypass Access). Tested Oct 24, 2026 with a 🔴/🟢 pair. Keys are the same names as staging's (`disk`, `server`…), but in a separate workflow, so they never mix.
+
+### Memory
+
+MEASURED_MEMORY_PLACEHOLDER
+
+### Go-live
+
+When the owner says go:
+1. **Empty the database.** Production must start without test data: stop web and worker, drop and recreate `classifieds` (bootstrap script, migrations through a migrate deploy, the seed, `ALTER ROLE` passwords as above), empty `classifieds-media` and Meilisearch's indexes (the worker rebuilds them), `FLUSHDB` Valkey database 0, then `stripe-setup.ts` (test sandbox or live, see 3) and `make-staff.ts reza.khodamehri@gmail.com admin`. The owner sets up two-step login again. Run a backup and the restore test afterwards.
+2. **Open it:** delete the Access application **Peydoo production (pre-launch)**'s `peydoo.com` and `www.peydoo.com` destinations (keep `coolify-prod.peydoo.com` behind Access), set `SEARCH_INDEXING=on` on web (`/root/set-app-env.sh` or Coolify), redeploy web through `peydoo-deploy`. Check `robots.txt` names the sitemap and pages have no `X-Robots-Tag`.
+3. **Live payments** once Stripe is activated: restricted live keys ("Payments and Pro" → "At launch") with `PAYMENTS_LIVE=on` on web and worker, `stripe-setup.ts` in live mode, the launch codes.
+4. **HSTS preload:** recommended to wait 4–8 weeks after launch. It is hard to undo (removal takes months to reach browsers) and binds every subdomain to HTTPS; every peydoo.com host is HTTPS through Cloudflare already, so it adds little at first.
+5. Add `peydoo.com` to Google Search Console and submit `https://peydoo.com/sitemap.xml`.
+6. Delete the Access service token `peydoo-prelaunch-checks` once no scripted check needs it.
+
+## Launch checklist for the owner
+
+Everything that only the owner can do before or at launch, in one place (details in the sections named).
+
+- [ ] **Lawyer** (IT/UWG): terms, privacy policy and Impressum in both languages, especially Telegram (art. 49), the 18+ age, §12 changes, §13 dispute clause, terms section 14 (paid services, withdrawal right, subscriptions), 7.4 (appeals) and 8.1 (reports), the privacy paragraph on reports, and whether Austria needs anything extra. Then set `draft: false` ("Legal pages").
+- [ ] **Tax advisor:** the §19 UStG notes, the EU €10,000 threshold, Austria ("Payments and Pro").
+- [ ] **Native speaker:** the Persian names and labels in the seed (cities, categories, fields) and the search synonyms (`src/modules/search/synonyms.ts`).
+- [ ] **Stripe activation:** identity and bank account, statement descriptor `PEYDOO`, Steuernummer on invoices, PayPal recurring and SEPA in live mode, restricted live keys, then `stripe-setup.ts` live with `PAYMENTS_LIVE=on` and the launch codes ("Payments and Pro" → "At launch"). Until then: create the Stripe sandbox `peydoo-production` and store its key with `peydoo-secret` ("Production" → "Other services").
+- [ ] **Admin two-step login** on production: open `https://peydoo.com/<ADMIN_PATH>` (the value is in production's `/root/.secrets/admin.env`) as reza.khodamehri@gmail.com, set up the authenticator, keep the 10 backup codes. Again after the go-live database reset.
+- [ ] **Coolify two-factor login** on both dashboards (coolify.peydoo.com and coolify-prod.peydoo.com).
+- [ ] **restic password** of production (`/root/.secrets/restic.env` on production) in the password manager, next to staging's.
+- [ ] **Telegram bot** @peydoobot: token stored with `peydoo-secret`; then try phone verification with it on the phone.
+- [ ] **Strategy decisions** (`docs/strategy.md`): launch date (before Yalda, Dec 21), first seeding city (Berlin as planned), free-Pro length for founding businesses (12 months suggested), offering the @berlin_online family a partnership, filing the EU trademark before launch.
+- [ ] **Go-live:** say go; the steps are in "Production" → "Go-live".
 
 ## Accounts and phone verification
 
@@ -237,7 +330,7 @@ Built Oct 16, 2026 (code in `src/modules/users/`, pages under `src/app/login/` a
 4. One transaction marks the row verified, stores the number, `phone_verification_method = 'telegram'` and `telegram_user_id` on the user and writes `audit_log` (`phone.verified`). A number another account has fails with `phone_in_use`; a Telegram account linked to another user fails with `telegram_in_use`.
 5. The page asks `/account/phone/status` every 3 seconds and refreshes when the number is verified.
 
-Only one process may poll a bot token. During a rolling deploy the old and new worker overlap for a few seconds; Telegram answers 409 to one of them and it retries after 5 seconds. **Each environment needs its own bot**: staging uses the bot in `/root/.secrets/auth.env`, production gets a new one at launch.
+Only one process may poll a bot token. During a rolling deploy the old and new worker overlap for a few seconds; Telegram answers 409 to one of them and it retries after 5 seconds. **Each environment needs its own bot**: staging uses the bot in `/root/.secrets/auth.env` (@Peydoo_bot), production @peydoobot (token in production's `/root/.secrets/auth.env`, created by the owner on Oct 24, 2026).
 
 **SMS fallback.** `SmsProvider` interface (`src/modules/users/sms.ts`). `SMS_PROVIDER=log` writes the message to the log, which is what development and staging use. Codes are HMAC-SHA256 with `PHONE_CODE_SECRET`, valid 10 minutes, failed after 5 wrong tries. SMS goes only to mobile numbers in the 36 seeded countries (`seed/countries.ts`) against SMS-pumping fraud; Telegram accepts any number. Provider when needed (nothing bought): **seven.io** (Berlin, German DPA, pay as you go, REST API); alternative GatewayAPI (Denmark). Adding one is an adapter plus its key in env.
 
@@ -280,7 +373,7 @@ Built Oct 21, 2026 (roadmap step 3). Cloudflare Turnstile on sign-in and publish
 
 **Without JavaScript** (decided Oct 21, 2026): browsing, favorites, chat, saving drafts and the other forms work as before. Sending a login code and publishing need JavaScript: Turnstile has no mode without it, and a way around it would be the one every bot takes. A `<noscript>` note says so («برای این کار باید جاوااسکریپت مرورگرتان روشن باشد…»), the button is disabled, and a form that arrives without a token is refused («بررسی امنیتی هنوز تمام نشده است…»).
 
-**Widgets and keys.** One widget per environment, mode managed, limited to that environment's hostname: `peydoo-staging` for `staging.peydoo.com` now, a new one for `peydoo.com` at launch. `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are in the env of `classifieds-web` and in `/root/.secrets/turnstile.env`; both are required in production (`env.ts`), and without them in development the widget and the check are off. Staging's widget (site key `0x4AAAAAAFfyUwICex1hcXNk`) was created on Oct 21, 2026 through the API with a one-hour account token `peydoo-turnstile-setup` that had only "Turnstile Sites Write" (minted with the infra token, approved by the owner) and was deleted right after. The infra token itself can't manage Turnstile; do the same for production at launch, or use the dashboard (Turnstile → Add widget).
+**Widgets and keys.** One widget per environment, mode managed, limited to that environment's hostname: `peydoo-staging` for `staging.peydoo.com`, `peydoo-production` for `peydoo.com` (site key `0x4AAAAAAFjuICWzwq6tn6eH`, Oct 24, 2026; keys in production's `/root/.secrets/turnstile.env`). `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are in the env of `classifieds-web` and in `/root/.secrets/turnstile.env`; both are required in production (`env.ts`), and without them in development the widget and the check are off. Staging's widget (site key `0x4AAAAAAFfyUwICex1hcXNk`) was created on Oct 21, 2026 through the API with a one-hour account token `peydoo-turnstile-setup` that had only "Turnstile Sites Write" (minted with the infra token, approved by the owner) and was deleted right after. The infra token itself can't manage Turnstile. Production's widget was made the same way on Oct 24, 2026 (a two-hour token `peydoo-prod-setup-temp` with Turnstile and Access rights, deleted afterwards); the dashboard (Turnstile → Add widget) works too.
 
 **New-account limits** (accounts younger than 7 days by `users.created_at`; `isNewAccount()` in `src/modules/users/new-account.ts`, shared with chat):
 
@@ -301,10 +394,10 @@ Built Oct 17, 2026 with the posting feature (code in `src/modules/media/`).
 - `classifieds-staging-rw` (Object Read & Write): web and worker.
 - `classifieds-staging-imgproxy` (Object Read): imgproxy.
 
-The S3 credentials of an R2 token are its id (access key id) and the SHA-256 of its value (secret). They are only in `/root/.secrets/r2.env` and Coolify. Tested: the read-only token can't write, and neither token can reach `classifieds-media`. Production gets its own two tokens for `classifieds-media` at launch.
+The S3 credentials of an R2 token are its id (access key id) and the SHA-256 of its value (secret). They are only in `/root/.secrets/r2.env` and Coolify. Tested: the read-only token can't write, and neither token can reach `classifieds-media`. Production has its own two tokens for `classifieds-media` since Oct 24, 2026, `classifieds-prod-rw` and `classifieds-prod-imgproxy`, only in production's `/root/.secrets/r2.env` and Coolify; tested the same way (neither reaches the staging bucket).
 
 **Bucket settings** (Cloudflare API, `cf-r2-jurisdiction: eu`):
-- CORS: `PUT` from `https://staging.peydoo.com` with the `content-type` header, max age 1 hour. Production adds its origin at launch.
+- CORS: `PUT` from `https://staging.peydoo.com` with the `content-type` header, max age 1 hour. `classifieds-media` the same from `https://peydoo.com` (Oct 24, 2026).
 - Lifecycle: objects under `uploads/` are deleted after 1 day (originals that were never processed), next to R2's default rule that aborts multipart uploads after 7 days.
 
 **Upload.** The web reserves a `listing_images` row (`pending_upload`, key `uploads/<listing>/<random>`) and returns a presigned `PUT` URL valid for 5 minutes. R2 has no presigned POST with a size range, so `Content-Type` and `Content-Length` are signed into the URL (aws4fetch with `allHeaders`); R2 answers 403 to any other size or type (tested). Limits: JPEG, PNG or WebP, at most 15 MB, at most 10 photos per listing (fewer where `categories.max_images` says so). The browser then confirms, which writes the `listing_image.uploaded` outbox event.
@@ -319,7 +412,7 @@ The S3 credentials of an R2 token are its id (access key id) and the SHA-256 of 
 
 ## Alerts
 
-One n8n workflow, **Kooche – server alerts**, receives reports from the server and checks from outside. It sends a Telegram message only when something changes: one 🔴 when a check fails and one 🟢 when it recovers. Events, such as a failed backup, are always sent. Its memory between runs lives in the workflow's static data. Successful runs aren't stored, so the 5-minute timer doesn't fill the n8n database; failed runs are.
+One n8n workflow, **Kooche – server alerts**, receives reports from the staging server and checks from outside (production has its own copy, **Peydoo – production alerts**: "Production" → "Alerts"). It sends a Telegram message only when something changes: one 🔴 when a check fails and one 🟢 when it recovers. Events, such as a failed backup, are always sent. Its memory between runs lives in the workflow's static data. Successful runs aren't stored, so the 5-minute timer doesn't fill the n8n database; failed runs are.
 
 | Check | Where | Alerts when |
 | --- | --- | --- |
@@ -355,7 +448,7 @@ Why these choices:
 
 Configuration (type, locations, name, role, image, SSH key, firewall, `DRY_RUN`) is in constants at the top of its "Config" Code node. `DRY_RUN = true` does everything except the create and emails the request instead. Tested on Oct 23, 2026 (and again with the second key: login from staging works) with the name `peydoo-prod-test`, role `test` and CPX22/CPX02 in place of CX33: dry run, a real create (two CPX02 in `fsn1`, deleted within minutes; Ubuntu 24.04, firewall applied, protection on), the "already exists" path, and a failed create (bad image name, stopped for good). Each sent its email; every following run stopped at "Config". Note: the Hetzner API returns the server's `location` at the top level now; `datacenter` is `null`. Reset or restart it by sending the workflow with `staticData: {}` through the n8n API. Successful runs aren't stored; failed ones are.
 
-It uses the n8n credential **Hetzner Cloud – Peydoo project** (`httpBearerAuth`, limited to `api.hetzner.cloud`). That is the project-wide read/write token from `/root/.secrets/infra.env`, the owner's choice, so it also lives in n8n's credential store on `n8nworkerReza`, where it could change any server in the project. Delete the workflow and the credential once production exists.
+It uses the n8n credential **Hetzner Cloud – Peydoo project** (`httpBearerAuth`, limited to `api.hetzner.cloud`). That is the project-wide read/write token from `/root/.secrets/infra.env`, the owner's choice, so it also lives in n8n's credential store on `n8nworkerReza`, where it could change any server in the project. Both were deleted on Oct 24, 2026, once production existed (the workflow had stopped with `done: created` after buying `peydoo-prod`).
 
 ## Countries, places and the map
 
@@ -694,12 +787,11 @@ Keyword search and saved searches (Oct 22, 2026): one new service, Meilisearch a
 
 | Item | Net | Incl. 19% VAT |
 | --- | --- | --- |
-| CX23 server | €5.49 | €6.53 |
-| Storage Box BX11 | €3.20 | €3.81 |
-| Cloudflare R2 (within free tier) | €0 | €0 |
-| **Total** | **€8.69** | **€10.34** |
-
-After the resize to CX33: +€3.00 net.
+| CX23 server (staging) | €5.49 | €6.53 |
+| CX33 server `peydoo-prod` (production, since Oct 24, 2026) with its IPv4 | €8.99 | €10.70 |
+| Storage Box BX11 (both environments, sub-account for production at no cost) | €3.20 | €3.81 |
+| Cloudflare R2, Access, Turnstile (within free tiers) | €0 | €0 |
+| **Total** | **€17.68** | **€21.04** |
 
 ## Security notes
 
@@ -718,6 +810,9 @@ After the resize to CX33: +€3.00 net.
 - Stripe: `/root/.secrets/stripe.env` holds the test-mode secret key and the webhook signing secret, also in Coolify (key on web and worker, secret on web). The key can create charges and refunds in test mode only; a live key is refused without `PAYMENTS_LIVE=on`. A rotated key or a new webhook secret (`--rotate-webhook`) must reach Coolify at once, or webhooks are refused (Stripe retries for 3 days).
 - Meilisearch: `/root/.secrets/meilisearch.env` holds the master key (also on `classifieds-meilisearch` in Coolify, nowhere else) and the derived web and worker keys (also on `classifieds-web` and `classifieds-worker`). A new master key changes both derived keys: run `scripts/meili-keys.ts` again and update both apps.
 - The restic password is in `/root/.secrets/restic.env`. Save a copy in your password manager. Without it, the backups cannot be read if the server is lost.
+- **Production** keeps every secret in its own `/root/.secrets/` on `peydoo-prod` and in its own Coolify ("Production" → "Secrets on production"); staging's files hold nothing of production except the Access service token for scripted checks (`/root/.secrets/access-prod.env`) and the SSH key `peydoo_prod`. Whoever has root on staging can log in to production with that key: it is how setup and promote sessions work, and the reason only the owner's tools and Claude sessions run on staging. Remove the key from production's `authorized_keys` if that ever changes.
+- On Oct 24, 2026 two values reached the setup conversation: staging's PostgreSQL superuser password (printed while reading a Coolify compose file; the database has no published port and is reachable only on staging's `coolify` network) and production's Telegram bot token (pasted by the owner; the owner was advised to `/revoke` it in BotFather and store the new one with `peydoo-secret`). Rotate either if that conversation is ever shared.
+- The setup used two temporary tokens, both deleted the same day: a production Coolify `root` token (`setup-session-oct24`, expired after 4 hours) and the Cloudflare token `peydoo-prod-setup-temp` (Turnstile and Access, 2 hours).
 
 ## Open decisions
 
