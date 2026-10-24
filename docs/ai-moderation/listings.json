@@ -1,0 +1,20 @@
+{
+  "short": {
+    "title": "دوچرخه شهری ۲۸ اینچ، تمیز",
+    "description": "دوچرخه شهری با ۷ دنده، چراغ و قفل. فقط تحویل حضوری در نویکلن. قیمت کمی قابل مذاکره است.",
+    "attributes": {"condition": "used_good", "brand": "Gazelle", "frame_size": "56 cm"},
+    "district": "Neukölln"
+  },
+  "typical": {
+    "title": "اتاق مبله در آپارتمان دو نفره، Anmeldung ممکن",
+    "description": "سلام، یک اتاق ۱۴ متری مبله در آپارتمان ۶۵ متری در شارلوتنبورگ از اول دسامبر خالی می‌شود. آشپزخانه و حمام مشترک با یک خانم دانشجو. اجاره گرم ماهانه ۶۲۰ یورو شامل اینترنت و برق، دپوزیت دو ماه که فقط بعد از دیدن اتاق و امضای قرارداد پرداخت می‌شود. Anmeldung امکان‌پذیر است. ترجیحاً خانم، غیرسیگاری و حداقل برای شش ماه. نزدیک ایستگاه U7 و ۱۰ دقیقه تا TU. لطفاً در پیام کمی درباره خودتان بنویسید که کار یا تحصیل می‌کنید و از چه تاریخی نیاز دارید. بازدید فقط آخر هفته‌ها امکان دارد. پول قبل از بازدید نمی‌گیرم و لطفاً شما هم به کسی که چنین درخواستی دارد پول ندهید.",
+    "attributes": {"room_size_m2": 14, "rent_warm_minor": 62000, "deposit_months": 2, "furnished": true, "anmeldung": true, "available_from": "2026-12-01", "smoking": "no", "gender_pref": "female"},
+    "district": "Charlottenburg"
+  },
+  "finglish": {
+    "title": "Forooshe mobile iPhone 13, salem",
+    "description": "Salam, gooshi kheili tamiz, battery 89%. Ba jabe va charger. Faghat hozoori Hamburg, pool ro naghd ya PayPal. Mamnoon",
+    "attributes": {"condition": "used_good", "brand": "Apple"},
+    "district": "Altona"
+  }
+}

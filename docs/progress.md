@@ -812,3 +812,13 @@ Not done: production (its own `sentry.env`, `SENTRY_ENVIRONMENT=production`, `pe
 For the owner:
 - Turn on two-factor login in Sentry; delete the personal API token there (User Settings → Personal Tokens) when no more Sentry changes are planned. It is also in `/root/.secrets/sentry-user.env`.
 - The test issues PEYDOO-1 to PEYDOO-3 in Sentry can be resolved.
+
+## Oct 24, 2026: AI moderation research (roadmap step 11, in progress, no code)
+
+Branch `ai-mod-research` (`/root/classifieds-ai-mod-research`). Notes in `docs/ai-moderation-notes.md`; sample listings, prompt draft and scripts in `docs/ai-moderation/`.
+
+Done: token counts on synthetic Persian listings with offline tokenizers (typical listing about 300 tokens, maximum about 2,000, prompt about 970); image-token rules and prices from the providers' own pages (Anthropic, Google, OpenAI, Mistral, Cloudflare Workers AI, OpenRouter); cost per listing for text and photos separately; first look at Persian evidence and at Cloudflare's and OpenRouter's data terms.
+
+Result so far: a typical listing with 4 photos costs $0.0003–0.0015 with any realistic model, at most about $40 a month even at 30,000 listings, so cost doesn't decide. First recommendation: **Claude Haiku 5.5 direct** (~$2.20 a month at 3,000 listings), with GPT-5.4-nano or Gemini 3.1 Flash-Lite direct as fallback. Not Cloudflare (open models with weak Persian evidence, no EU guarantee); OpenRouter only if direct isn't possible. Pending a live test: no benchmark covers Haiku 5.5, Finglish or slang in moderation.
+
+Still to do: the live test (150–200 labelled synthetic listings, under $1, needs the owner's API keys), DPA, retention and EU processing per provider, rate limits, shadow mode, DSA and privacy-policy wording, then `docs/ai-moderation.md`.
