@@ -803,6 +803,8 @@ Sentry set up the same day: the owner created organization `peydoo` in the EU re
 
 Deployed to staging Oct 24, 2026 (approved by the owner; `main` fast-forwarded to `badfc62`; migrate, web and worker healthy): the two variables on web and worker through the Coolify API (temporary token deleted), the meta tag with release `peydoo@badfc6293e09`, the tunnel live (403 for another Origin). `scripts/monitoring-check.ts` on the live site: server and browser events arrived scrubbed with environment and release, no IP. The n8n workflow **Peydoo – Sentry alerts** (Sentry's email → Telegram) delivered the first new issue (PEYDOO-2) to Telegram.
 
+Still to be confirmed: a second test issue (PEYDOO-3, 12:23 UTC) came close behind PEYDOO-2, so Sentry held its email for a digest (then 5–30 minutes; the project's digest delay is now 1–5 minutes, and the n8n step lists every issue link of a digest). It hadn't reached n8n by 12:33 UTC; check that a «🐞 staging» message for PEYDOO-3, or a digest naming it, arrived in Telegram.
+
 Not done: production (its own `sentry.env`, `SENTRY_ENVIRONMENT=production`, `peydoo-set-env`, then a release with `peydoo-promote`); browser source maps (only if browser reports turn out hard to read).
 
 For the owner:
