@@ -45,3 +45,5 @@ const price = (l) => (l.from ? 'از ' : '') + fa(l.price) + ' €';
 function mount(html) {
   document.getElementById('app').innerHTML = html;
 }
+/** Persian digits without separators, for codes and years */
+const faDigits = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);

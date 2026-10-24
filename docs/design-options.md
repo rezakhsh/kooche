@@ -1,10 +1,117 @@
 # Design options
 
-Oct 24, 2026 · research only, no app changes. Waiting for the owner's choice.
+Oct 24, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look) and asked for a second, usability-focused round; the final proposal below waits for five decisions, then a build plan for approval.
 
-**Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+**Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
 
-**Recommendation:** Direction A «آشنا» (Divar's layout in Peydoo's colours). Optionally add two parts of C: the intent tiles on the city page and a category suggested from the title when posting. Do the eight shared fixes whichever direction is chosen.
+## Final design: «صیقل‌خورده», made easier to use (round 2)
+
+**The owner's choice (Oct 24, 2026):** keep today's look (turquoise, saffron, Vazirmatn, rounded cards; "this is my style"), make it much more user-friendly, and include the admin panel. Round 1's recommendation (A) was not taken.
+
+**How round 2 was done.**
+- **Signed-in pages:** captured on staging with the owner's account.
+  - The owner requested the email code on their phone, because Turnstile shows the interactive check to headless Chromium. I typed the code in.
+  - For the admin panel, the owner sent a TOTP code. The first one expired on the way; the second worked.
+  - Screenshots: posting steps and form, my listings, saved items, saved searches, chat inbox and thread, account, notifications, business page, event form and Pro, phone and computer. Names, emails, phones, IPs and chat texts were replaced before each shot.
+  - Nothing was posted, sent or changed. The session was signed out afterwards and its file deleted.
+- **Admin:** the overview, queue, new listings, listings, users, businesses, payments, audit log, system status and staff pages, plus one listing and one user page.
+- **Research:** a second agent (sources below and on the page).
+
+**What round 2 found, besides round 1's list:**
+1. **Posting form:** a WG room's form is about 9 phone screens (photos, kind, title, description, ~8 fields, price type and amount, place with map, "publish as", contact, Turnstile).
+   - Date fields are native `<input type=date>`, which shows «mm/dd/yyyy». The browser's language decides that, not the page's (MDN).
+   - Radio buttons use the browser's blue.
+2. **My listings:** five buttons per listing (pause, sold, promote, edit, delete), so two listings fill a phone screen. Views, chats and phone reveals are only shown on the business page.
+3. **Chat thread:** keeps the site header on phones and has a report flag beside every incoming message.
+4. **Account:** one flat list of 13 rows that mixes settings and "my things".
+5. **Admin panel:**
+   - It sits inside the public header and footer, and on phones it shows the public bottom bar.
+   - The item decision form preselects «برداشتن آگهی» and the first reason (`useState(0)` in `admin/items/decision-form.tsx`). The required facts text prevents an accidental submit, but a destructive default is the wrong default.
+   - System status shows 4 unapplied payment webhooks in plain grey, and the queue table cuts off the "failed" column at 1280px.
+   - On phones the overview's stat cards are 250px tall each.
+
+**The proposal (34 screens, phone and computer, on the page):**
+
+- **Everywhere:**
+  - Prices as «۸۷۰ €».
+  - «،» instead of «·».
+  - Nothing under 12px, 44px targets.
+  - The bottom bar only on browsing pages.
+  - Dark mode optional.
+- **Finding:**
+  - **First visit:** asks for the city (Berlin highlighted, with counts), offers search at once and says what Peydoo is in one line.
+  - **Browse pages:** one search field and one chip row (results from y≈220), applied filters as removable chips.
+  - **Filter sheet:** buttons instead of selects, a typical-price hint, «نمایش ۲۳ آگهی» on the button.
+  - **Result line:** «خبرم کن» saves the search.
+  - **Rooms and flats:** a rent-scam warning on those pages.
+- **Listing page:**
+  - On phones, a fixed bar with chat, phone and save. Back, share and save sit over the photo.
+  - On computers, title, price and contact sit beside a shorter photo.
+  - Rent shown in full (cold, with costs, deposit).
+  - A category-specific safety box, the seller with response time, and similar listings.
+- **Posting:**
+  - 4 steps on the existing draft: category (search with suggestions), photos and text, details and price, place and check.
+  - Autosave after each step; optional fields marked «(اختیاری)»; choices as buttons.
+  - Dates as day / Persian month name / year with the Jalali date beneath, plus «از همین حالا» / «اول ماه بعد».
+  - Photos moved with ⋯, no dragging.
+  - A check-answers page with «تغییر», and Turnstile only there.
+  - A published page with Telegram and WhatsApp sharing first and the bump (€1.99) second.
+- **My listings:**
+  - One button that fits the state (rented or sold, renew, continue), edit, and «بیشتر ⋯» opening a labelled sheet.
+  - Views, saves and chats per listing.
+  - Tabs by status.
+- **Chat:**
+  - Full screen with the listing bar.
+  - Report and block in ⋯ (and long press) instead of a flag on every message.
+  - One safety note per conversation, quick replies.
+- **Account:** a hub with a profile card, «فعالیت من» tiles with counts, the business only when there is one, one row into Settings (account, notifications, security and devices, privacy and data), help, sign out.
+- **Admin:**
+  - Its own dark bar with «پنل مدیریت» and the environment.
+  - Review one item at a time: large photos with a greyscale switch, risky phrases highlighted, reports, and the seller's history (account age, number origin, similar text). Nothing preselected; options from mild to severe; keys ۱–۵, J/K, Enter for «ثبت و بعدی»; reason chips that pick the terms section; the 24-hour clock on top.
+  - Overview: "needs attention" first, the week with its change, and Berlin against the gates in `docs/strategy.md`.
+  - System status: problems first and in red with what to do, and a table that scrolls.
+
+**Size: about 8–10 working days in five parts,** each deployable alone:
+
+| Part | Days | Main files |
+| --- | --- | --- |
+| Everywhere | 1 | `listing-card.tsx`, `bottom-nav.tsx`, price formatting, `globals.css` |
+| Finding | 2–3 | `src/app/page.tsx`, `[country]/_browse/*`, `v/[slug]/[token]/page.tsx`, `contact.tsx` |
+| Posting | 3 | `new/*`, `my/listings/[id]/*`, `messages/fa.ts` |
+| Me | 1–2 | `my/listings/page.tsx`, `chat/[id]/*`, `account/page.tsx` |
+| Admin | 2 | `admin/layout.tsx`, `admin/items/*`, `admin/page.tsx`, `admin/system` |
+
+No schema change is needed. "Where did you sell it?" would add one column and is optional.
+
+**Five decisions for the owner:**
+1. **First visit:** ask for the city (recommended), or go straight to Berlin?
+2. **Posting:** 4 steps (recommended), or one shorter page in sections?
+3. **Bottom bar:** keep «آگهی‌های من» (recommended), or swap it for «نشان‌ها» like Divar?
+4. **Admin:** keyboard shortcuts, yes or no?
+5. **Dark mode:** now, or after launch?
+
+**Round 2 sources:**
+- **Forms:**
+  - NN/g: [wizards](https://www.nngroup.com/articles/wizards/), [required fields](https://www.nngroup.com/articles/required-fields/), [form errors](https://www.nngroup.com/articles/errors-forms-design-guidelines/), [contextual menus](https://www.nngroup.com/articles/contextual-menus-guidelines/)
+  - GOV.UK: [form structure](https://www.gov.uk/service-manual/design/form-structure), [check answers](https://design-system.service.gov.uk/patterns/check-answers/), [date input](https://design-system.service.gov.uk/components/date-input/), [radios](https://design-system.service.gov.uk/components/radios/) ("do not pre-select"), [confirmation pages](https://design-system.service.gov.uk/patterns/confirmation-pages/)
+  - Baymard: [required and optional fields](https://baymard.com/blog/required-optional-form-fields), [inline validation](https://baymard.com/blog/inline-form-validation)
+  - [MDN: input type=date](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/date)
+- **Marketplaces:**
+  - Kleinanzeigen help: [drafts](https://hilfe.kleinanzeigen.de/hc/de/articles/17083044980764), [renewing](https://hilfe.kleinanzeigen.de/hc/de/articles/17042140225948), [chat report and block](https://hilfe.kleinanzeigen.de/hc/de/articles/17153500099868)
+  - Vinted: [uploading](https://www.vinted.com/help/375), [bumps](https://www.vinted.co.uk/help/450)
+  - Divar: [Zoomit: hidden conversations](https://www.zoomit.ir/tech-iran/429579-hidden-conversations-on-divar-platform), [anti-fraud](https://www.zoomit.ir/tech-iran/417701-measures-to-deal-with-fraudsters)
+  - Rental scams: [Verbraucherzentrale](https://www.verbraucherzentrale-niedersachsen.de/wissen/vertraege-reklamation/kundenrechte/sechs-miese-maschen-bei-der-wohnungssuche-120143)
+  - [Airbnb account settings](https://www.airbnb.com/help/article/280), [Telegram share link](https://core.telegram.org/widgets/share)
+- **Moderation and monitoring:**
+  - [TSPA: setting up moderators](https://www.tspa.org/curriculum/ts-fundamentals/content-moderation-and-operations/setting-up-a-content-moderator-for-success/), [moderation tooling design](https://vale.rocks/posts/moderation-tooling-design)
+  - [Das et al. 2020 (blur and greyscale)](https://ischool.utexas.edu/ml/papers/das_hcomp20.pdf)
+  - [Stripe test mode](https://docs.stripe.com/test-mode), [Google SRE monitoring](https://sre.google/sre-book/monitoring-distributed-systems/)
+  - [DSA Art. 17](https://www.eu-digital-services-act.com/Digital_Services_Act_Article_17.html)
+- **Persian Gregorian month names (CLDR):** ژانویه، فوریه، مارس، آوریل، مه، ژوئن، ژوئیه، اوت، سپتامبر، اکتبر، نوامبر، دسامبر.
+
+## Round 1: three directions
+
+**Round 1 recommendation (not taken):** Direction A «آشنا» (Divar's layout in Peydoo's colours). Optionally add two parts of C: the intent tiles on the city page and a category suggested from the title when posting. Do the eight shared fixes whichever direction is chosen.
 
 ## How this was done
 

@@ -828,3 +828,19 @@ Not done:
 - The Oct 17 brand plan artifact couldn't be opened from this session's account; its decisions came from `docs/setup.md`.
 
 Next: the owner picks a direction or mixes parts; then a change plan for approval. No code was changed.
+
+Round 2 (same day): the owner chose B «صیقل‌خورده» (today's look, "this is my style") and asked for a usability round including the admin panel.
+- **Signed-in screenshots** with the owner's staging account:
+  - The owner requested the email code on their phone (Turnstile blocks headless Chromium), and the code was typed in a headless browser.
+  - The admin two-step check took a TOTP code the owner sent; the first expired in transit.
+  - Nothing was posted, sent or changed. The session was signed out and its file deleted.
+- **Found:**
+  - The WG posting form is about 9 phone screens with «mm/dd/yyyy» date fields.
+  - Five buttons per listing in "my listings".
+  - A report flag beside every chat message, and a flat 13-row account page.
+  - The admin panel sits inside the public chrome.
+  - The admin decision form preselects «برداشتن آگهی» and the first reason.
+  - The system page shows 4 unapplied payment webhooks in plain grey and cuts off the "failed" column.
+- **Final proposal** on the same artifact: 34 screens, phone and computer, before/after. Details, sizes (about 8–10 days in five parts, no schema change) and five open decisions are in `docs/design-options.md`. Sources in `docs/design-options/mockups/final/`.
+
+Next: the owner answers the five decisions on the page; then a build plan for approval. No code changed.
