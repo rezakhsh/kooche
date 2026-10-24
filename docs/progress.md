@@ -812,3 +812,19 @@ Not done: production (its own `sentry.env`, `SENTRY_ENVIRONMENT=production`, `pe
 For the owner:
 - Turn on two-factor login in Sentry; delete the personal API token there (User Settings → Personal Tokens) when no more Sentry changes are planned. It is also in `/root/.secrets/sentry-user.env`.
 - The test issues PEYDOO-1 to PEYDOO-3 in Sentry can be resolved.
+
+## Oct 24, 2026: design research, three directions (no app changes)
+
+Asked by the owner: review staging's look and structure (phone first), research classifieds apps and Persian/RTL conventions, propose three directions with mockups, and wait for a choice before planning any change.
+
+Done (branch `design-research`, `/root/classifieds-design-research`):
+- **Staging review** in headless Chromium (Playwright image, one browser at a time), phone 390×844 and computer 1280×800, logged out; seller names, emails and phone-like numbers replaced before each shot. Main findings: on phones the first listing starts at y≈356 (country) and y≈485 (category) of 844; no contact on the first screen of a listing page (phone or 1280×800); prices render «€۸۷۰»; «·» next to Persian digits reads as zero; 20 places with 10–11px text; empty pages keep full controls.
+- **Research** (cited): Divar, Sheypoor, Kleinanzeigen, Vinted and Airbnb from their live pages; Leboncoin, OLX and Facebook Marketplace from articles; Persian fonts (competitors' live CSS), RTL mirroring, WCAG 2.2 AA, the EAA micro-enterprise exemption, one-handed use.
+- **Three directions with mockups** (country page, category list, listing page, posting start; phone and computer; staging next to them): A «آشنا» (Divar's layout in Peydoo's colours, recommended), B «صیقل‌خورده» (today's look with the problems fixed), C «محله» (a city hub with Estedad and bigger photos; needs a migration for drafts without a category). Plus eight fixes for any direction.
+- `docs/design-options.md` (findings, directions, costs and files, research, sources); page with all screenshots: https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ. Mockup sources in `docs/design-options/mockups/`.
+
+Not done:
+- Signed-in pages (posting form, chat, account, business) weren't screenshotted: email-code sign-in, no test inbox. Judged from code.
+- The Oct 17 brand plan artifact couldn't be opened from this session's account; its decisions came from `docs/setup.md`.
+
+Next: the owner picks a direction or mixes parts; then a change plan for approval. No code was changed.
