@@ -237,7 +237,7 @@ Set up Oct 24, 2026 (roadmap step 9; plan approved by the owner the same day wit
 | `classifieds-web` | `lgxxyhlxwtzb4naboohavjtg` | target `web` | 1 GB | https://peydoo.com and https://www.peydoo.com (www redirects to the apex), post-deployment `node purge-cache.js` |
 | `classifieds-worker` | `2ydwgjkdmrjv4drl6ovcgznh` | target `worker` | 512 MB | Telegram bot @peydoobot |
 
-All on the `coolify` network, none public. Web, worker and migrate build from branch **`production`** with auto-deploy off. Their variables are runtime-only and literal; the list is the same as staging's ("App deployment") with production values, set by `/root/set-app-env.sh` on production from `/root/.secrets` (rerun it after changing a secret file, then redeploy). `APP_URL=https://peydoo.com` from the start; `SEARCH_INDEXING` unset (off) until go-live; `SMS_PROVIDER=log`; `SENTRY_DSN` is left for the error-monitoring step.
+All on the `coolify` network, none public. Web, worker and migrate build from branch **`production`** with auto-deploy off. Their variables are runtime-only and literal; the list is the same as staging's ("App deployment") with production values, set by `peydoo-set-env` on production from `/root/.secrets` (after changing a secret file: `coolify-api token`, `peydoo-set-env`, `coolify-api revoke`, then `peydoo-deploy`). `APP_URL=https://peydoo.com` from the start; `SEARCH_INDEXING` unset (off) until go-live; `SMS_PROVIDER=log`; `SENTRY_DSN` is left for the error-monitoring step.
 
 **Database setup** followed "Database setup": created through the API with the 18 image (mount `/var/lib/postgresql`) and `POSTGRES_INITDB_ARGS` as a normal variable, started, locale checked, `01-classifieds.sh`, migrations 0000–0015 and the seed from a throwaway `node:24.22.0-bookworm-slim` container on the `coolify` network (16 migrations; 37 countries, 81 cities, 34,048 postal places, 141 categories, 289 attributes), `ALTER ROLE … LOGIN PASSWORD` with `\getenv`; each role's login tested. Meilisearch keys from `scripts/meili-keys.ts` straight into the secrets file. Since then migrations run on every deploy.
 
@@ -263,9 +263,10 @@ peydoo-promote <commit>   # a specific commit on main
 ### Other services
 
 - **Email:** the same SES identity and sender `پیدو <noreply@peydoo.com>`. Production reuses the SES SMTP login (copied to production's `/root/.secrets/ses-smtp.env`, which also holds `SMTP_URL`): the AWS key can't manage IAM, so a separate send-only user would need the owner in the AWS console. Optional: create an IAM user with only `ses:SendRawEmail` for production and replace the login.
-- **Telegram:** @peydoobot, created by the owner with BotFather. The token goes into production's `/root/.secrets/auth.env` with `peydoo-secret auth.env TELEGRAM_BOT_TOKEN` (run over SSH by the owner), then `/root/set-app-env.sh` and a worker redeploy.
-- **Stripe:** test mode in its own Stripe **sandbox** `peydoo-production`, so staging's and production's test webhooks never cross (one test mode would send every event to both endpoints). The owner stores the sandbox's secret key with `peydoo-secret stripe.env STRIPE_SECRET_KEY`; then `scripts/stripe-setup.ts --secrets-file /root/.secrets/stripe.env` runs on production against `https://peydoo.com/api/stripe/webhook` (it bypasses Access) and `/root/set-app-env.sh` adds the key and webhook secret to web and worker. Until then production's payment pages say payments aren't available. `PAYMENTS_LIVE` stays unset until the owner activates live payments ("Payments and Pro" → "At launch").
+- **Telegram:** @peydoobot, created by the owner with BotFather. The token goes into production's `/root/.secrets/auth.env` with `peydoo-secret auth.env TELEGRAM_BOT_TOKEN` (run over SSH by the owner), then `peydoo-set-env` and a redeploy.
+- **Stripe:** test mode in its own Stripe **sandbox** `peydoo-production`, so staging's and production's test webhooks never cross (one test mode would send every event to both endpoints). The owner stores the sandbox's secret key with `peydoo-secret stripe.env STRIPE_SECRET_KEY`; then `scripts/stripe-setup.ts --secrets-file /root/.secrets/stripe.env` runs on production against `https://peydoo.com/api/stripe/webhook` (it bypasses Access) and `peydoo-set-env` adds the key and webhook secret to web and worker. Until then production's payment pages say payments aren't available. `PAYMENTS_LIVE` stays unset until the owner activates live payments ("Payments and Pro" → "At launch").
 - **Admin page:** `ADMIN_PATH` (24 characters) in production's `/root/.secrets/admin.env`, different from staging's. The worker's owner alert goes to the n8n workflow **Peydoo – production admin alerts** (id `TbFYug8177bs2YH1`, a copy of staging's with its own path and secret, messages start with «🚀 Production»; tested Oct 24, 2026 with a signed request).
+- **`/usr/local/bin/coolify-api`** (production): `coolify-api token` makes a one-hour root API token (with `tinker`, into `/root/.secrets/tmp-coolify-api.env`), `coolify-api GET /applications` calls the API from a container on the `coolify` network, `coolify-api revoke` deletes the token. Only the deploy-only token `classifieds-deploy` stays in Coolify.
 - **`/usr/local/bin/peydoo-secret <file> <VARIABLE>`** (production): asks for a value twice without showing it and writes it into `/root/.secrets/<file>` (mode 600). The way the owner hands over a secret without it passing through a conversation: `ssh root@2.31.122.66 peydoo-secret auth.env TELEGRAM_BOT_TOKEN`.
 
 ### Secrets on production
@@ -284,13 +285,25 @@ peydoo-promote <commit>   # a specific commit on main
 
 ### Memory
 
-MEASURED_MEMORY_PLACEHOLDER
+Limits as in the table above (the plan's 8 GB budget, with Meilisearch at 1 GB). Measured Oct 24, 2026 right after the first deploy, empty database: Coolify with its database, Redis and proxy ~480 MB, PostgreSQL 154 MB, web 65 MB, worker 75 MB, Meilisearch 15 MB, imgproxy 16 MB, Valkey 5 MB, migrate under 1 MB. Whole server: 1.6 GB used, 6.2 GB available, swap unused; disk 13 GB of 75 GB. Builds run on production itself (one at a time) and fit easily.
+
+| Service | Limit |
+| --- | --- |
+| Coolify (not limited) | ~1 GB budgeted |
+| PostgreSQL + PostGIS | 2 GB |
+| Meilisearch | 1 GB |
+| Next.js app | 1 GB |
+| Worker | 512 MB |
+| imgproxy | 512 MB |
+| Valkey | 256 MB |
+| Migrate | 128 MB |
+| System reserve | ~1.4 GB + 2 GB swap |
 
 ### Go-live
 
 When the owner says go:
 1. **Empty the database.** Production must start without test data: stop web and worker, drop and recreate `classifieds` (bootstrap script, migrations through a migrate deploy, the seed, `ALTER ROLE` passwords as above), empty `classifieds-media` and Meilisearch's indexes (the worker rebuilds them), `FLUSHDB` Valkey database 0, then `stripe-setup.ts` (test sandbox or live, see 3) and `make-staff.ts reza.khodamehri@gmail.com admin`. The owner sets up two-step login again. Run a backup and the restore test afterwards.
-2. **Open it:** delete the Access application **Peydoo production (pre-launch)**'s `peydoo.com` and `www.peydoo.com` destinations (keep `coolify-prod.peydoo.com` behind Access), set `SEARCH_INDEXING=on` on web (`/root/set-app-env.sh` or Coolify), redeploy web through `peydoo-deploy`. Check `robots.txt` names the sitemap and pages have no `X-Robots-Tag`.
+2. **Open it:** delete the Access application **Peydoo production (pre-launch)**'s `peydoo.com` and `www.peydoo.com` destinations (keep `coolify-prod.peydoo.com` behind Access), set `SEARCH_INDEXING=on` on web (in Coolify, or add it to `peydoo-set-env`), redeploy web through `peydoo-deploy`. Check `robots.txt` names the sitemap and pages have no `X-Robots-Tag`.
 3. **Live payments** once Stripe is activated: restricted live keys ("Payments and Pro" → "At launch") with `PAYMENTS_LIVE=on` on web and worker, `stripe-setup.ts` in live mode, the launch codes.
 4. **HSTS preload:** recommended to wait 4–8 weeks after launch. It is hard to undo (removal takes months to reach browsers) and binds every subdomain to HTTPS; every peydoo.com host is HTTPS through Cloudflare already, so it adds little at first.
 5. Add `peydoo.com` to Google Search Console and submit `https://peydoo.com/sitemap.xml`.
@@ -781,7 +794,7 @@ Browsing and favorites (Oct 18, 2026): no new service and no new setting. One sm
 
 Keyword search and saved searches (Oct 22, 2026): one new service, Meilisearch at 384 MB with 1 indexing thread and 128 MB of indexing memory ("Keyword search and saved searches"). On the scratch stack after the browser checks: web 119 MB, worker 51 MB, Meilisearch 28 MB. Two new worker queues (`search-sync`, `search-alerts`), each one more blocking Valkey connection. Suggestions (Oct 22, 2026) add a small `suggestions` index (a few MB at staging's size, about 41 MB of Meilisearch in all with counts like 50,000 listings) and no new queue.
 
-**After resize (CX33, 8 GB):** the table in `docs/architecture.md`, with Meilisearch at 1 GB to start.
+**Production (CX33, 8 GB):** limits and the first measurement in "Production" → "Memory". Staging stays on the CX23 with the limits above.
 
 ## Monthly cost now
 
