@@ -805,6 +805,8 @@ Deployed to staging Oct 24, 2026 (approved by the owner; `main` fast-forwarded t
 
 Still to be confirmed: a second test issue (PEYDOO-3, 12:23 UTC) came close behind PEYDOO-2, so Sentry held its email for a digest (then 5–30 minutes; the project's digest delay is now 1–5 minutes, and the n8n step lists every issue link of a digest). It hadn't reached n8n by 12:33 UTC; check that a «🐞 staging» message for PEYDOO-3, or a digest naming it, arrived in Telegram.
 
+First real error, Oct 24, 2026 at 18:46 UTC: the worker's Telegram long poll lost its connection once (`fetch failed`, `ECONNRESET`); the bot retried and kept polling. At the owner's request, the Telegram loop now reports only from the third failure in a row (`failureStreak` in `src/worker/monitoring.ts`, one new test); every failure is still logged.
+
 Not done: production (its own `sentry.env`, `SENTRY_ENVIRONMENT=production`, `peydoo-set-env`, then a release with `peydoo-promote`); browser source maps (only if browser reports turn out hard to read).
 
 For the owner:

@@ -11,7 +11,7 @@ import { redact, scrubEvent } from '../src/lib/monitoring/scrub';
 import { closeMonitoring, flushMonitoring, initMonitoring, monitoringEnabled, reportError } from '../src/lib/monitoring/server';
 import { handleTunnel, MAX_ENVELOPE_BYTES } from '../src/lib/monitoring/tunnel';
 import { contentSecurityPolicy } from '../src/proxy';
-import { reportJobFailure } from '../src/worker/monitoring';
+import { failureStreak, reportJobFailure } from '../src/worker/monitoring';
 
 // Error monitoring (docs/setup.md, "Error monitoring"): what leaves our servers, how much, and that
 // nothing happens without a DSN. A local HTTP server stands in for Sentry's ingest.
@@ -194,6 +194,15 @@ describe('budget and throttle', () => {
     for (let i = 0; i < 30; i++) if (await takeBudget(null, 'server', day)) ok++;
     expect(ok).toBe(20);
     expect(await takeBudget(null, 'server', new Date('2030-01-01T13:00:00Z'))).toBe(true);
+  });
+
+  it("counts a retrying loop's failures only from the third in a row", () => {
+    const s = failureStreak(3);
+    expect([s.failed(), s.failed()]).toEqual([false, false]);
+    s.succeeded();
+    expect([s.failed(), s.failed(), s.failed(), s.failed()]).toEqual([false, false, true, true]);
+    s.succeeded();
+    expect(s.failed()).toBe(false);
   });
 
   it('sends the same error once per 10 minutes', () => {

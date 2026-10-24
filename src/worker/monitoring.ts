@@ -18,3 +18,20 @@ export function reportJobFailure(job: Job | undefined, error: Error): void {
     job: { queue, job: name, attempts: job?.attemptsMade ?? 0 },
   });
 }
+
+/**
+ * For loops that retry by themselves (the Telegram bot's long polling): a single dropped connection
+ * is normal and fixes itself, so a failure counts only from the `threshold`-th in a row on.
+ */
+export function failureStreak(threshold = 3) {
+  let count = 0;
+  return {
+    /** Counts one failure; true once `threshold` failures came in a row */
+    failed(): boolean {
+      return ++count >= threshold;
+    },
+    succeeded(): void {
+      count = 0;
+    },
+  };
+}

@@ -4,6 +4,7 @@ import type { Queryable } from '../db/drizzle';
 import { reportError } from '../lib/monitoring/server';
 import { TelegramClient, TelegramError } from '../modules/notifications/telegram-api';
 import { type TelegramUpdate, handleUpdate } from '../modules/users/telegram-bot';
+import { failureStreak } from './monitoring';
 
 // Telegram Bot API over long polling (getUpdates). The worker has no public URL, and only one
 // process may poll a token: during a rolling deploy the old and new worker overlap for a few
@@ -13,6 +14,8 @@ import { type TelegramUpdate, handleUpdate } from '../modules/users/telegram-bot
 
 const POLL_TIMEOUT_S = 25;
 const RETRY_MS = 5_000;
+/** Telegram's servers drop a long-polling connection now and then; only a streak is reported */
+const REPORT_AFTER_FAILURES = 3;
 
 /** Polls until `signal` aborts. Each update is handled once; a failing one is logged and skipped. */
 export async function runTelegramBot(
@@ -23,6 +26,7 @@ export async function runTelegramBot(
 ): Promise<void> {
   const api = new TelegramClient(token, signal);
   let offset: number | undefined;
+  const failures = failureStreak(REPORT_AFTER_FAILURES);
 
   while (!signal.aborted) {
     try {
@@ -30,11 +34,12 @@ export async function runTelegramBot(
       // Long polling and a webhook exclude each other
       await api.call('deleteWebhook', { drop_pending_updates: false });
       console.log(`telegram: polling as @${me.username}`);
+      failures.succeeded();
       break;
     } catch (e) {
       if (signal.aborted) return;
       console.error('telegram: start failed:', e instanceof Error ? e.message : e);
-      reportError(e, { tags: { loop: 'telegram' } });
+      if (failures.failed()) reportError(e, { tags: { loop: 'telegram' } });
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
     }
   }
@@ -47,13 +52,15 @@ export async function runTelegramBot(
         { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ['message', 'my_chat_member'] },
         (POLL_TIMEOUT_S + 10) * 1_000,
       );
+      failures.succeeded();
     } catch (e) {
       if (signal.aborted) return;
       const conflict = e instanceof TelegramError && e.status === 409;
-      // 409: the old container still polls during a deploy, not an error
+      // 409: the old container still polls during a deploy, not an error. Anything else is
+      // logged every time and reported from the third failure in a row (a real outage).
       if (!conflict) {
         console.error('telegram: getUpdates failed:', e instanceof Error ? e.message : e);
-        reportError(e, { tags: { loop: 'telegram' } });
+        if (failures.failed()) reportError(e, { tags: { loop: 'telegram' } });
       }
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
       continue;
