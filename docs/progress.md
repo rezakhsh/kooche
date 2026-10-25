@@ -902,11 +902,13 @@ Round 7 (Oct 25, 2026): the final plan for the owner's decision, https://claude.
 
 The owner decided to close Austria now and follow the gate plan. It is wave 0's first item; no app code has changed yet. Artifact (design page) version 8.
 
-Round 8 (Oct 25): phone verification costs, Telegram limits, Iran messaging, soft legal and solo moderation; the plan page is now in Persian (version 2). Next: the owner decides the plan page's 12 points; then the detailed build plan for wave 0 for approval.
+Round 8 (Oct 25): phone verification costs, Telegram limits, Iran messaging, soft legal and solo moderation; the plan page is now in Persian (version 2).
+
+Round 9 (Oct 25): phone verification without SMS (users send a code to our WhatsApp), Telegram limits per bot, the waitlist explained simply, private vs business rules, Turkey earlier with private listings in safe categories, sanctions checks, Stripe re-rated medium-low (plan page version 3). Next: the owner decides the plan page's 13 points; then the detailed build plan for wave 0 for approval.
 
 ### Owner decisions and preferences from the design research (Oct 24–25, 2026)
 
-Collected here so every tool sees them. Details in `docs/design-options.md` (round 8, then "Final plan (round 7)"). The plan page is in Persian since round 8. The two plan pages are private claude.ai artifacts in the VS Code account; the owner can share them, and a copy of the plan is `docs/design-options/launch-plan.html`.
+Collected here so every tool sees them. Details in `docs/design-options.md` (round 9, round 8, then "Final plan (round 7)"). The plan page is in Persian since round 8. The two plan pages are private claude.ai artifacts in the VS Code account; the owner can share them, and a copy of the plan is `docs/design-options/launch-plan.html`.
 
 **Decided by the owner:**
 - Design direction B «صیقل‌خورده»: keep today's look (turquoise, saffron, Vazirmatn, rounded cards) and make it easier to use. "This is my style."
@@ -919,22 +921,25 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 - Legal: "soft but inside a safe zone". Write paragraphs and self-assessments instead of hiring a lawyer per country; the red lines stay (round 8).
 - Moderation: the owner moderates alone with AI pre-screening, holds and user reports. No Minijob, no contractors (round 8).
 - The one-year plan: every country live within a year. Hurry the US, Canada and Australia (largest diasporas, copycat risk). No plan where one country's failure stops the others.
-- Turkey must make money (paid business listings), not cost money.
+- Turkey must make money (paid business listings), not cost money. The owner also wants private listings in Turkey and Turkey earlier (round 9: Istanbul businesses 1 Feb 2027, private listings in safe categories May 2027; housing and cars are never possible there).
+- Avoid SMS: phone verification through Telegram and WhatsApp (the user sends us a code); SMS stays built but off (round 9).
+- People in Iran never verify a phone; email only.
 - Close Austria for now and follow the country and gate plan (first item of the first build wave; not done yet).
 
-**Open for the owner** (the plan page's 12 decisions, round 8):
-1. the calendar and resilience rules;
+**Open for the owner** (the plan page's 13 decisions, round 9):
+1. the calendar and resilience rules (new: merge a city that stays below 50% for 6 months into a region);
 2. launch order;
-3. the phone verification ladder (Telegram, WhatsApp, GatewayAPI SMS, a verification API for +1);
-4. Iran message-only accounts and their rules;
-5. the travel rule (message-only in Iran);
-6. the soft legal minimum;
-7. solo moderation and the 15 h a week trigger;
-8. spending now (trademarks, standby server, WhatsApp number);
-9. Turkey prices;
-10. asking Stripe in writing;
-11. founding Pro after 6 months;
-12. the shorter list for the lawyer and the tax advisor.
+3. phone verification without SMS and the trigger for switching SMS on;
+4. private vs business (declaration, limits, review queue, free basic business profile, the always-business list);
+5. Turkey earlier (businesses 1 Feb, Nowruz, private listings in May, KVKK in January);
+6. Turkey prices;
+7. the Turkey sanctions process;
+8. Iran message-only accounts and the travel rule;
+9. soft legal and solo moderation;
+10. Stripe (no nationality questions, Radar rules, Mollie before May 2027);
+11. spending now;
+12. founding Pro after 6 months;
+13. the shorter list for the lawyer and the tax advisor.
 
 **Code gap found in round 8 (not fixed; no app changes yet):** the Telegram bot path (`telegramNumberToE164()` in `src/modules/users/phone-number.ts`) accepts any number, including +98 and anonymous +888 numbers. Only the SMS path refuses Iran. Planned for wave 0.
 

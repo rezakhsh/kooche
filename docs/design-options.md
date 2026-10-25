@@ -1,8 +1,81 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, and round 8 (below) changes phone verification, Iran, the legal minimum and moderation. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, round 8 changes phone verification, Iran, the legal minimum and moderation, and round 9 (top) drops SMS, explains the waitlist, adds private vs business rules, brings Turkey forward and re-rates Stripe. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 9 (Oct 25, 2026): no SMS, Telegram bots, the waitlist explained, private vs business, Turkey earlier, Stripe
+
+**Plan page version 3 (Persian):** https://claude.ai/artifact/1ZzHVpR7EvAdsPudG6Qbaw (copy: `docs/design-options/launch-plan.html`). Research: `research/round9-whatsapp-nosms.md`, `research/round9-business-stripe.md`, `research/round9-turkey.md`. Round 9 changes round 8 only where stated here.
+
+The owner asked:
+- to avoid SMS, with users sending a code to us on WhatsApp;
+- whether Telegram's limits apply per bot or per account;
+- for a simpler explanation of the waitlist, the pre-start and city openings, and what happens when a city misses;
+- how to tell private from business listings;
+- how sanctions checks work when people can lie;
+- for private listings in Turkey, Turkey earlier, and cheaper checks;
+- whether Stripe is really a problem for Iranians who live abroad.
+
+- **Phone verification without SMS:**
+  - **WhatsApp:** the user sends us a one-time code. Meta doesn't charge for messages from users, and we don't reply. With no payment method on the Meta account, paid messages are never sent, so the cost stays at €0. The only cost is a dedicated number (€0–10 a month).
+  - **Usernames (2026):** if the number is hidden, we answer with `request_contact_info`, which is inside the 1,000 free messages a month.
+  - **Phishing:** codes expire in 10 minutes, are single-use and tied to the session, and the prefilled text is explicit.
+  - **Order:** Telegram (with the +98/+888 refusal), then WhatsApp, then a limited email-only account. SMS is built but off.
+  - **SMS trigger:** over 4 weeks, at least 5% of people starting verification (or more than 50 a month) fail every messenger, or one country reaches 10% (switch on for that country only), or more than 5 complaints a week. Log the reason for every refusal per country from day one.
+  - **New:** Telegram's official OIDC login has a `phone` scope; worth a prototype.
+- **WhatsApp and Iran:**
+  - No Meta rule bans a business outside Iran from receiving +98 messages, and no ban case was found. Twilio says +98 numbers can't message business numbers at all.
+  - The documented trigger is running the business account from Iran or through an Iranian VPN.
+  - Rules for us: a dedicated verification-only number; never send to +98; the account managed only from outside Iran; Meta's `account_update` alerts on. Risk: low, or low to medium for some restriction within a year.
+- **Telegram:**
+  - Limits are per bot (Bot Developer Terms §6.2.5). An account can own 20 bots, or 40 with Premium.
+  - Separate staging and production bots are right. Using several bots to evade limits is forbidden (§5.2(f)) and doesn't work anyway, because a bot can only message users who started it.
+  - Bots belong in a dedicated owner account with 2FA.
+- **The waitlist, explained (plan page "باز شدن کشورها، به زبان ساده"):**
+  - **Four stages:** waitlist, pre-start (businesses and organisers only, 4–6 weeks before), Starter, then Open per city.
+  - **Why people sign up:** a concrete reward (prepared listings, 48 h early), status (the pioneer badge), the goal-gradient progress bar, control through invites, social proof, scarcity of founding places, and effort already invested.
+  - **When a city misses:** nothing closes. There is no date before 75%; a date moves once, by up to 4 weeks.
+  - **New proposal:** after 6 months below 50%, merge the city with neighbours into a region.
+- **Private vs business:**
+  - **Labels:** a private or business declaration on every listing (one logged checkbox), a seller label and a search filter.
+  - **Free private limits, counted as new per rolling 30 days, not only active:** goods 30 active / 40 new; cars 2 per 12 months; rooms 2; services 2 active / 4 new.
+  - **Detection:** a "probably a business" queue (rules plus one LLM field), about 3–10 cases a week.
+  - **Steps:** a nudge, then the owner asks with 14 days to answer, then a restriction in those categories. Only the owner bans, and never for volume alone (*Kamenova*).
+  - **Build items:** a "move to business" button, and a free basic business profile as the easy route.
+  - **Law:** a trader posing as private breaks UWG Anhang Nr. 22. The platform shows the seller's declaration and doesn't have to verify it. DSA Art. 30–32 don't apply to Peydoo (micro, Art. 29).
+- **Turkey:**
+  - **The war effect is companies, not residents:**
+    - new companies with an Iranian partner: 431 in Jan–Sep 2026 against 184, 74% in Istanbul;
+    - residence permits steady at 74,537 (Oct 2026);
+    - visitors: 3.05M in 2025.
+  - **Housing (rooms included) and cars are never possible** on Peydoo: EİDS e-Devlet verification is required, only owners may post, and there is no route for a foreign platform.
+  - **Safe private categories** (items, giveaways, lost and found, wanted, community events, pet adoption) are allowed from May 2027, with +90 numbers verified through WhatsApp.
+  - **Phased plan:**
+    - January: KVKK representative and VERBIS, before the first Turkish account (this changes round 8's "before the first payment");
+    - 1 Feb 2027: Istanbul businesses;
+    - 1 Mar: Nowruz events;
+    - May: private listings;
+    - Sep: jobs and services.
+  - **Sanctions:** no guarantee is possible or required. EU 267/2012 Art. 42 gives "did not know and had no reasonable cause to suspect". The written process:
+    - partners from the TTSG trade-registry gazette, free barcode checks;
+    - every partner and manager screened against all four lists, with Persian and Turkish spellings and the 50% rule;
+    - payment only from the company account;
+    - a signed declaration and forbidden sectors;
+    - an A.Ş. only by video;
+    - records kept 5 years.
+  - **Cheaper checks:** 15–20 minutes and €10–14 per Ltd company.
+  - **Prices:** verification €49 (or €29 for an Ltd) now includes a free profile, 2 featured events and the Nowruz and Yalda guides. Private users pay nothing. Turkey costs about €3–4.5k in year 1 and breaks even in year 1 in the mid case.
+- **Stripe:**
+  - The "citizen of Iran" wording is real (22 Sep 2026), but the law tests residence, and Stripe has no customer nationality data. No case was found.
+  - **Re-rated medium-low.** The real triggers are Iran content, Iranian-origin goods, Turkish sole traders with Iranian citizenship, and possibly the account holder's own ID.
+  - **To do:** never ask nationality; Radar rules (IR IP, card, billing address); Mollie and bank invoices before May 2027; the written question is no longer urgent.
+- **Build:** 48–65 days. The waves are renumbered:
+  - 3 is Turkey businesses, by January;
+  - 4 is safety at scale, including Iran accounts;
+  - 5 is Turkey private listings.
+- **Costs:** about €10–16k one-time and about €60–180 a month.
+- The plan page ends with 13 decisions.
 
 ## Round 8 (Oct 25, 2026): phone verification costs, Telegram limits, Iran messaging, soft legal, solo moderation
 
