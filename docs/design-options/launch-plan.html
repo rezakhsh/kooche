@@ -2,11 +2,11 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&family=Vazirmatn:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: one reading column (46rem) for the argument; the calendar and tables break out to the
-   full width in their own scroll boxes. Peydoo's turquoise and saffron carry meaning: turquoise =
-   open or starting, saffron = waiting or needs a decision. */
+/* Layout: one right-to-left reading column (44rem) for the argument; the calendar and tables break
+   out to the full width in their own scroll boxes. Peydoo's turquoise and saffron carry meaning:
+   turquoise = open or starting, saffron = waiting or needs a decision, red = risk. */
 :root {
   --bg: #f5f8f7; --surface: #ffffff; --ink: #16211f; --muted: #55625f; --line: #dce4e2;
   --brand: #0b6e77; --brand-ink: #095a62; --brand-soft: #e3f0ef; --brand-mid: #a6d3d2;
@@ -14,8 +14,7 @@
   --open: #0b6e77; --open-ink: #ffffff; --starter: #a6d3d2; --starter-ink: #06373b;
   --wait: #ebf0ef; --wait-ink: #44524f; --guide: #fbe6b8; --guide-ink: #6e4800; --off: #f4f7f6; --off-ink: #8a9996;
   --risk: #a23b2a; --risk-soft: #fbe9e5;
-  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --fa: "Vazirmatn", "IBM Plex Sans", Tahoma, sans-serif;
+  --fa: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -33,299 +32,491 @@
   --wait: #223230; --wait-ink: #bccac7; --guide: #4a3a17; --guide-ink: #f5c862; --off: #1b2826; --off-ink: #7d8f8b;
   --risk: #f08b78; --risk-soft: #3a1d18; color-scheme: dark; }
 
-body { background: var(--bg); color: var(--ink); font: 400 16px/1.65 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
-.fa { font-family: var(--fa); }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.95 var(--fa); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
 main { max-width: 60rem; margin: 0 auto; }
-.col { max-width: 46rem; }
-h1, h2, h3 { text-wrap: balance; line-height: 1.25; margin: 0; }
-h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
-h2 { font-size: clamp(21px, 3.2vw, 26px); font-weight: 700; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
+.col { max-width: 44rem; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.5; margin: 0; }
+h1 { font-size: clamp(27px, 4.8vw, 40px); font-weight: 900; }
+h2 { font-size: clamp(21px, 3.2vw, 26px); font-weight: 900; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
 h3 { font-size: 17px; font-weight: 700; margin-top: 22px; }
 p { margin: 10px 0 0; }
 ul, ol { margin: 10px 0 0; padding-inline-start: 22px; }
 li + li { margin-top: 4px; }
 a { color: var(--brand-ink); }
-b, strong { font-weight: 600; }
-.eyebrow { font: 500 12.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+b, strong { font-weight: 700; }
+.ltr { font-family: var(--mono); font-size: 0.86em; }
+.eyebrow { font-size: 13px; font-weight: 500; color: var(--muted); }
 .lede { font-size: 18px; color: var(--muted); margin-top: 12px; }
 header.top { padding-top: 36px; }
-.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.brand { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
 .brand svg { width: 34px; height: 34px; flex: none; }
-.brand .fa { font-weight: 900; font-size: 22px; }
-nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 18px; font-size: 14px; }
+.brand .name { font-weight: 900; font-size: 22px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 18px; font-size: 14.5px; }
 nav.toc a { text-decoration: none; border-bottom: 1px solid var(--brand-mid); }
 .summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin-top: 22px; }
 .summary div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
-.summary b { display: block; font-size: 15px; }
+.summary b { display: block; font-size: 15.5px; }
 .summary span { color: var(--muted); font-size: 14.5px; }
 .note { background: var(--saffron-soft); color: var(--ink); border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
 .note b { color: var(--saffron-ink); }
 .risk { background: var(--risk-soft); border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
 .risk b { color: var(--risk); }
+.small { font-size: 14.5px; color: var(--muted); }
 .scroll { overflow-x: auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
 th, td { text-align: start; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
-th { font-weight: 600; font-size: 13px; color: var(--muted); background: var(--bg); }
+th { font-weight: 700; font-size: 13px; color: var(--muted); background: var(--bg); }
 tr:last-child td { border-bottom: 0; }
 td.num, th.num { text-align: end; white-space: nowrap; }
+tr.hl td { background: var(--brand-soft); }
 /* Calendar grid */
 table.cal { min-width: 980px; font-size: 13px; }
 table.cal th, table.cal td { padding: 6px 5px; text-align: center; border-inline-start: 1px solid var(--line); }
-table.cal th:first-child, table.cal td:first-child { text-align: start; border-inline-start: 0; white-space: nowrap; padding-inline-start: 12px; font-weight: 600; font-size: 13.5px; position: sticky; inset-inline-start: 0; background: var(--surface); z-index: 1; }
+table.cal th:first-child, table.cal td:first-child { text-align: start; border-inline-start: 0; white-space: nowrap; padding-inline-start: 12px; font-weight: 700; font-size: 13.5px; position: sticky; inset-inline-start: 0; background: var(--surface); z-index: 1; }
 table.cal th small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
-.c { display: block; border-radius: 6px; padding: 5px 3px; line-height: 1.25; font-weight: 500; min-height: 30px; }
+.c { display: block; border-radius: 6px; padding: 5px 3px; line-height: 1.5; font-weight: 500; min-height: 30px; }
 .c.o { background: var(--open); color: var(--open-ink); }
 .c.s { background: var(--starter); color: var(--starter-ink); }
 .c.p { background: var(--wait); color: var(--wait-ink); outline: 1.5px dashed var(--brand-mid); outline-offset: -2px; }
 .c.w { background: var(--wait); color: var(--wait-ink); }
 .c.g { background: var(--guide); color: var(--guide-ink); }
 .c.x { background: var(--off); color: var(--off-ink); }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
 /* Steps (a real sequence) */
-ol.steps { list-style: none; padding: 0; counter-reset: s; display: grid; gap: 10px; margin-top: 14px; }
+ol.steps { list-style: none; padding: 0; counter-reset: s; display: grid; gap: 12px; margin-top: 14px; }
 ol.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; margin: 0; }
-ol.steps li::before { content: counter(s); grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: var(--bg); font: 600 13px/28px var(--mono); text-align: center; }
+ol.steps li::before { content: counter(s, persian); grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: var(--bg); font: 700 14px/28px var(--fa); text-align: center; }
 ol.steps b { font-size: 15.5px; }
 ol.steps span { color: var(--muted); font-size: 15px; }
 .two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); margin-top: 14px; }
 .two > div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
 .two h3 { margin-top: 0; }
 .decide { list-style: none; padding: 0; display: grid; gap: 10px; margin-top: 16px; counter-reset: d; }
-.decide li { counter-increment: d; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 14px 52px; position: relative; margin: 0; }
-[dir="rtl"] .decide li { padding: 14px 52px 14px 16px; }
-.decide li::before { content: counter(d); position: absolute; inset-inline-start: 14px; top: 14px; width: 26px; height: 26px; border-radius: 8px; background: var(--saffron-soft); color: var(--saffron-ink); font: 600 13px/26px var(--mono); text-align: center; }
+.decide li { counter-increment: d; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding-block: 14px; padding-inline: 52px 16px; position: relative; margin: 0; }
+.decide li::before { content: counter(d, persian); position: absolute; inset-inline-start: 14px; top: 16px; width: 26px; height: 26px; border-radius: 8px; background: var(--saffron-soft); color: var(--saffron-ink); font: 700 14px/26px var(--fa); text-align: center; }
 .decide b { display: block; }
 .decide span { color: var(--muted); font-size: 15px; }
-.tag { display: inline-block; font: 500 11.5px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 6px; border-radius: 5px; vertical-align: 2px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; line-height: 1; padding: 5px 7px; border-radius: 5px; white-space: nowrap; }
 .tag.h { background: var(--risk-soft); color: var(--risk); }
 .tag.m { background: var(--saffron-soft); color: var(--saffron-ink); }
 .tag.ok { background: var(--brand-soft); color: var(--brand-ink); }
+.tag.new { background: var(--brand); color: var(--bg); }
 footer.end { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
-a:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 3px; }
+a:focus-visible, .scroll:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 3px; }
 </style>
 
-<main>
+<main dir="rtl" lang="fa">
 <header class="top">
-  <div class="brand"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#0b6e77"/><circle cx="45" cy="44" r="21" fill="none" stroke="#fff" stroke-width="10"/><path d="M60 59 75 74" stroke="#fff" stroke-width="11" stroke-linecap="round"/><circle cx="45" cy="44" r="7.5" fill="#e9a21a"/></svg><span class="fa">پیدو</span><span class="eyebrow">Launch plan · Oct 25, 2026 · for the final decision</span></div>
-  <h1 class="col">Every country within a year, with no single point of failure</h1>
-  <p class="lede col">Canada, Australia and the US start in January and February instead of March. Each country stands on its own numbers, so one weak city can't stop the rest. Turkey pays for itself through business fees. Below that: what we got wrong in earlier rounds, and the decisions left for you.</p>
-  <nav class="toc" aria-label="Sections"><a href="#strategy">Strategy</a><a href="#calendar">Calendar</a><a href="#gate">How a city opens</a><a href="#resilience">No single point of failure</a><a href="#copycats">Copycats</a><a href="#turkey">Turkey makes money</a><a href="#money">Payments risk</a><a href="#build">What gets built</a><a href="#costs">Costs and people</a><a href="#fixes">Corrections</a><a href="#decide">Your decisions</a></nav>
+  <div class="brand"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#0b6e77"/><circle cx="45" cy="44" r="21" fill="none" stroke="#fff" stroke-width="10"/><path d="M60 59 75 74" stroke="#fff" stroke-width="11" stroke-linecap="round"/><circle cx="45" cy="44" r="7.5" fill="#e9a21a"/></svg><span class="name">پیدو</span><span class="eyebrow">برنامهٔ نهایی راه‌اندازی · نسخهٔ ۲ · ۲۵ اکتبر ۲۰۲۶ · برای تصمیم شما</span></div>
+  <h1 class="col">همهٔ کشورها در یک سال، بدون اینکه یک نقطه همه‌چیز را متوقف کند</h1>
+  <p class="lede col">تقویم، دروازهٔ شهرها و قیمت‌های ترکیه همان است که پسندیدید. در این نسخه پنج چیز عوض شده: تأیید شماره ارزان‌تر شده، محدودیت‌های ربات تلگرام روشن است، کاربران ایران می‌توانند با ایمیل پیام بدهند، قوانین کشورها نرم‌تر شده (ولی داخل منطقهٔ امن)، و نظارت را خودتان با کمک هوش مصنوعی انجام می‌دهید، بدون استخدام.</p>
+  <nav class="toc" aria-label="بخش‌ها"><a href="#new">تغییرات این نسخه</a><a href="#strategy">راهبرد</a><a href="#calendar">تقویم</a><a href="#gate">باز شدن شهر</a><a href="#phone">تأیید شماره</a><a href="#telegram">محدودیت تلگرام</a><a href="#iran">ایران</a><a href="#legal">قوانین کشورها</a><a href="#moderation">نظارت توسط شما</a><a href="#resilience">بدون نقطهٔ شکست</a><a href="#copycats">کپی‌کارها</a><a href="#turkey">ترکیه</a><a href="#money">خطر پرداخت</a><a href="#build">ساخت</a><a href="#costs">هزینه‌ها</a><a href="#fixes">اصلاحات</a><a href="#decide">تصمیم‌های شما</a></nav>
   <div class="summary">
-    <div><b>Starter in 9 countries by May 2027</b><span>Events, verified businesses, jobs and services. Canada 12 Jan, Australia 19 Jan, US 2 Feb, UK Feb, Austria and the Netherlands at Yalda.</span></div>
-    <div><b>Open cities only at their gate</b><span>Rooms, items and cars open per city when people, businesses and ready listings reach the goal. Targets: Toronto May, LA June, Sydney July.</span></div>
-    <div><b>No shared brake</b><span>Each country has its own health check. A weak country stays in Starter; it doesn't stop the others. A capacity check pauses only <i>new</i> openings.</span></div>
-    <div><b>Turkey: paid, business-to-business</b><span>Verification €49 a year, Pro €190 a year. Sanctions checks run on free official lists; the fee covers the rest.</span></div>
+    <div><b>تأیید شماره تقریباً رایگان</b><span>اول تلگرام، بعد واتس‌اپ (هر دو رایگان)، بعد پیامک. برای ۵٬۰۰۰ تأیید در ماه حدود ۴۴ € به‌جای ۴۶۹ €.</span></div>
+    <div><b>ایران: دیدن و پیام دادن</b><span>ثبت‌نام با ایمیل، فقط پیام، با برچسب «از ایران». بدون آگهی، بدون پرداخت، بدون شمارهٔ ‎+98.</span></div>
+    <div><b>قانون نرم، خط قرمز سفت</b><span>هزینهٔ حقوقی یک‌باره از حدود ۶ تا ۱۴ هزار یورو به حدود ۱٫۵ تا ۴ هزار یورو می‌رسد. خط قرمزهای تحریم و کلاهبرداری عوض نمی‌شوند.</span></div>
+    <div><b>نظارت: شما و هوش مصنوعی</b><span>بدون مینی‌جاب و پیمانکار. تا حدود ۲۰۰ آگهی در روز، روزی حدود ۲ ساعت از وقت شما.</span></div>
   </div>
 </header>
 
+<section aria-labelledby="new">
+  <h2 id="new">چه چیزی در این نسخه عوض شد</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>موضوع</th><th>نسخهٔ قبل</th><th>این نسخه</th></tr></thead>
+    <tbody>
+      <tr><td><b>پیامک</b></td><td><bdi>seven.io</bdi>، ۰٫۰۷۵ € برای هر پیامک در همه‌جا</td><td>پلکان ارزان‌ترین‌اول: تلگرام ← واتس‌اپ ← پیامک با <bdi>GatewayAPI</bdi> (ارزان‌تر در همهٔ کشورها)</td></tr>
+      <tr><td><b>تلگرام</b></td><td>«پیامک جایگزین تلگرام است»</td><td>محدودیت‌ها بررسی شد: برای تأیید شماره مشکلی نیست؛ برای خبرنامه باید صف گذاشت</td></tr>
+      <tr><td><b>ایران</b></td><td>فقط خواندنی، بدون حساب</td><td>فقط خواندنی برای آگهی؛ حساب با ایمیل که فقط پیام می‌دهد</td></tr>
+      <tr><td><b>قوانین کشورها</b></td><td>وکیل جدا برای هر کشور پیش از شروع</td><td>چند بند در شرایط استفاده و چند ارزیابی کتبی؛ وکیل فقط برای آلمان، تحریم و ترکیه</td></tr>
+      <tr><td><b>نظارت</b></td><td>مینی‌جاب در آلمان، پیمانکار در تورنتو و ونکوور (حدود ۱٫۵ تا ۲٫۴ هزار یورو در ماه)</td><td>خود شما، با غربالگری هوش مصنوعی، نگه‌داشتن شبانه و پنهان شدن خودکار با گزارش کاربران</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
 <section aria-labelledby="strategy">
-  <h2 id="strategy">The strategy in five lines</h2>
+  <h2 id="strategy">راهبرد در پنج خط</h2>
   <ol class="col">
-    <li><b>Claim everywhere now, fill city by city.</b> Spreading wide works for events and business directories (Eventbrite, Yelp). It fails for trade between private people: Craigslist is barely used in Germany, Kijiji failed in France, and Homejoy opened 30 cities in 6 months and shut down. So every country gets events, businesses, jobs and services early, and rooms, items and cars open per city.</li>
-    <li><b>Race for the big diasporas first.</b> Canada (≈281k), the US (≈750k) and Australia (≈96k) start before Nowruz. Nowruz events are promoted 1–3 months ahead, so starting in March would miss them.</li>
-    <li><b>Density beats features.</b> Features are easy to copy. Density in a city, founding businesses with their history and reviews, partner Telegram channels and an early lead in search results are hard to copy.</li>
-    <li><b>Every country stands alone.</b> Separate health checks, a moderator for each time zone, and a fallback for the server, payments and phone checks.</li>
-    <li><b>Money from businesses, never from risk.</b> Pro and verification are sold only to businesses outside the EU. Turkey is paid business-to-business only. Nothing touches Iran.</li>
+    <li><b>همه‌جا را از حالا ثبت کنید، شهر به شهر پر کنید.</b> گسترش سریع برای رویدادها و فهرست کسب‌وکارها جواب می‌دهد (<bdi>Eventbrite</bdi>، <bdi>Yelp</bdi>)، ولی برای خرید و فروش بین مردم نه: <bdi>Craigslist</bdi> در آلمان تقریباً استفاده نمی‌شود، <bdi>Kijiji</bdi> در فرانسه شکست خورد، و <bdi>Homejoy</bdi> در ۶ ماه ۳۰ شهر باز کرد و تعطیل شد. پس هر کشور زود رویداد، کسب‌وکار، کار و خدمات می‌گیرد، و اتاق، کالا و خودرو شهر به شهر باز می‌شود.</li>
+    <li><b>اول مسابقه برای جامعه‌های بزرگ.</b> کانادا (حدود ۲۸۱ هزار)، آمریکا (حدود ۷۵۰ هزار) و استرالیا (حدود ۹۶ هزار) پیش از نوروز شروع می‌کنند. رویدادهای نوروز ۱ تا ۳ ماه زودتر تبلیغ می‌شوند؛ شروع در مارس یعنی از دست دادن آن‌ها.</li>
+    <li><b>تراکم از امکانات مهم‌تر است.</b> امکانات را می‌شود کپی کرد. تراکم در یک شهر، کسب‌وکارهای بنیان‌گذار با سابقه و نظر، کانال‌های تلگرامی شریک و جایگاه زودهنگام در جستجو را نمی‌شود.</li>
+    <li><b>هر کشور روی پای خودش.</b> سلامت هر کشور جدا سنجیده می‌شود. برای سرور، پرداخت و تأیید شماره جایگزین هست. نظارت با شما و هوش مصنوعی، و قاعده‌ای روشن برای وقتی که کار از وقت شما بیشتر شود.</li>
+    <li><b>پول از کسب‌وکارها، هرگز از خطر.</b> پرو و تأیید بیرون از اتحادیهٔ اروپا فقط به کسب‌وکارها فروخته می‌شود. ترکیه فقط پولی و فقط برای شرکت‌ها. هیچ پولی به ایران یا از ایران نمی‌رسد.</li>
   </ol>
-  <div class="risk col"><b>Competitors already exist.</b> <b>Irania</b> (Trex Innovations, app version 1.0 on 25 Aug 2026) says it covers 57 cities in 26 countries, including Toronto, Vancouver, LA, Sydney and Melbourne. It sells business sponsorships at $19.99–99.99 and matches people who carry parcels to Iran, which Peydoo bans. <b>IraniLink</b> (Manchester) says it serves the UK and Turkey, with 689 businesses and 209 classifieds. Both figures come from their own pages. Neither has density yet, and that is the window.</div>
+  <div class="risk col"><b>رقیب‌ها همین حالا هستند.</b> <b>ایرانیا</b> (<bdi>Trex Innovations</bdi>، نسخهٔ ۱٫۰ اپ در ۲۵ اوت ۲۰۲۶) می‌گوید ۵۷ شهر در ۲۶ کشور را پوشش می‌دهد، از جمله تورنتو، ونکوور، لس‌آنجلس، سیدنی و ملبورن. حمایت مالی کسب‌وکار را ۱۹٫۹۹ تا ۹۹٫۹۹ دلار می‌فروشد و مسافران حامل بار به ایران را با هم جور می‌کند، که در پیدو ممنوع است. <b>ایرانی‌لینک</b> (منچستر) می‌گوید در بریتانیا و ترکیه ۶۸۹ کسب‌وکار و ۲۰۹ آگهی دارد. هر دو عدد از صفحه‌های خودشان است. هیچ‌کدام هنوز تراکم ندارند و فرصت ما همین است.</div>
 </section>
 
 <section aria-labelledby="calendar">
-  <h2 id="calendar">The calendar, November 2026 to October 2027</h2>
-  <p class="col">The dates for Starter are firm, as long as each country's legal checklist is done. Open dates are targets: a city opens only at its gate (next section). If it misses, it stays in Starter and the date moves. Fallbacks: Toronto August, LA September, Sydney February 2028.</p>
-  <div class="scroll" role="region" aria-label="Launch calendar" tabindex="0">
+  <h2 id="calendar">تقویم، نوامبر ۲۰۲۶ تا اکتبر ۲۰۲۷</h2>
+  <p class="col">تاریخ‌های «شروع» قطعی‌اند، به شرط اینکه حداقل‌های قانونی آن کشور آماده باشد (بخش قوانین). تاریخ‌های «باز» هدف‌اند: هر شهر فقط با دروازه‌اش باز می‌شود. اگر نرسد، در حالت شروع می‌ماند و تاریخ جابه‌جا می‌شود. تاریخ‌های جایگزین: تورنتو اوت، لس‌آنجلس سپتامبر، سیدنی فوریهٔ ۲۰۲۸.</p>
+  <div class="scroll" role="region" aria-label="تقویم راه‌اندازی" tabindex="0">
   <table class="cal">
-    <thead><tr><th>Country</th><th>Nov</th><th>Dec<small>Yalda 21</small></th><th>Jan</th><th>Feb</th><th>Mar<small>Nowruz 21</small></th><th>Apr<small>Sizdah 2</small></th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct<small>Mehregan</small></th></tr></thead>
+    <thead><tr><th>کشور</th><th>نوامبر</th><th>دسامبر<small>یلدا ۲۱</small></th><th>ژانویه</th><th>فوریه</th><th>مارس<small>نوروز ۲۱</small></th><th>آوریل<small>سیزده‌به‌در ۲</small></th><th>مه</th><th>ژوئن</th><th>ژوئیه</th><th>اوت</th><th>سپتامبر</th><th>اکتبر<small>مهرگان</small></th></tr></thead>
     <tbody>
-      <tr><td>Germany</td><td><span class="c o">Berlin open</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Hamburg*</span></td><td><span class="c o"></span></td><td><span class="c o">Cologne*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Frankfurt, Munich*</span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Canada</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c s">Starter 12 Jan</span></td><td><span class="c s"></span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c o">Toronto*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Vancouver*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Australia</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c s">Starter 19 Jan</span></td><td><span class="c s"></span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Sydney*</span></td><td><span class="c o">Melbourne*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>US</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c p"></span></td><td><span class="c s">Starter 2 Feb</span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">LA* (no cars yet)</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">LA cars</span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>UK</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">London rooms*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Austria</td><td><span class="c x">closed</span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Vienna*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Netherlands</td><td><span class="c w">waitlist</span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Randstad*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Italy</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Milan rooms*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
-      <tr><td>Sweden</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
-      <tr><td>France</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Paris Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
-      <tr><td>Turkey</td><td><span class="c w">waitlist</span></td><td><span class="c g">guide</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c g">Nowruz page</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c s">Istanbul, paid B2B†</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
-      <tr><td>UAE</td><td><span class="c x">hidden</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x">review</span></td></tr>
-      <tr><td>Iran</td><td><span class="c x">read-only</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td></tr>
+      <tr><td>آلمان</td><td><span class="c o">برلین باز</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">هامبورگ*</span></td><td><span class="c o"></span></td><td><span class="c o">کلن*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">فرانکفورت، مونیخ*</span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>کانادا</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c p">پیش‌شروع</span></td><td><span class="c s">شروع ۱۲ ژانویه</span></td><td><span class="c s"></span></td><td><span class="c s">نوروز</span></td><td><span class="c s"></span></td><td><span class="c o">تورنتو*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">ونکوور*</span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>استرالیا</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c p">پیش‌شروع</span></td><td><span class="c s">شروع ۱۹ ژانویه</span></td><td><span class="c s"></span></td><td><span class="c s">نوروز</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">سیدنی*</span></td><td><span class="c o">ملبورن*</span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>آمریکا</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c p">پیش‌شروع</span></td><td><span class="c p"></span></td><td><span class="c s">شروع ۲ فوریه</span></td><td><span class="c s">نوروز</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">لس‌آنجلس* (بدون خودرو)</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">خودرو در لس‌آنجلس</span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>بریتانیا</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">شروع</span></td><td><span class="c s">نوروز</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">اتاق در لندن*</span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>اتریش</td><td><span class="c x">بسته</span></td><td><span class="c s">شروع</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">وین*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>هلند</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c s">شروع</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">راندستاد*</span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>ایتالیا</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">شروع</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">اتاق در میلان*</span></td><td><span class="c o"></span></td><td><span class="c o">بازبینی</span></td></tr>
+      <tr><td>سوئد</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">شروع</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">بازبینی</span></td></tr>
+      <tr><td>فرانسه</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">شروع پاریس</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">بازبینی</span></td></tr>
+      <tr><td>ترکیه</td><td><span class="c w">فهرست انتظار</span></td><td><span class="c g">راهنما</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c g">صفحهٔ نوروز</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c s">استانبول، پولی برای شرکت‌ها†</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">بازبینی</span></td></tr>
+      <tr><td>امارات</td><td><span class="c x">پنهان</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x">بازبینی</span></td></tr>
+      <tr><td>ایران</td><td><span class="c x">فقط خواندنی</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x">+ پیام با ایمیل‡</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x">بازبینی</span></td></tr>
     </tbody>
   </table>
   </div>
-  <div class="legend"><span><i style="background:var(--open)"></i>Open: everything</span><span><i style="background:var(--starter)"></i>Starter: events, businesses, jobs, services</span><span><i style="background:var(--wait);outline:1.5px dashed var(--brand-mid);outline-offset:-2px"></i>Pre-start: waitlists, business and organiser sign-ups, Nowruz event drafts</span><span><i style="background:var(--wait)"></i>Waitlist</span><span><i style="background:var(--guide)"></i>Guide</span><span><i style="background:var(--off)"></i>Closed, hidden or read-only</span></div>
-  <p class="col" style="font-size:14.5px;color:var(--muted)">* Only at that city's gate, and only when the capacity check is green. † Only after the four Turkey preconditions (below). From Yalda, online services, online events and remote jobs show in every country, so no page is empty. Berlin's go-live date is still yours to set (before Yalda). The calendar assumes November.</p>
+  <div class="legend"><span><i style="background:var(--open)"></i>باز: همه‌چیز</span><span><i style="background:var(--starter)"></i>شروع: رویداد، کسب‌وکار، کار، خدمات</span><span><i style="background:var(--wait);outline:1.5px dashed var(--brand-mid);outline-offset:-2px"></i>پیش‌شروع: فهرست انتظار، ثبت کسب‌وکار و برگزارکننده، پیش‌نویس رویدادهای نوروز</span><span><i style="background:var(--wait)"></i>فهرست انتظار</span><span><i style="background:var(--guide)"></i>راهنما</span><span><i style="background:var(--off)"></i>بسته، پنهان یا فقط خواندنی</span></div>
+  <p class="col small">* فقط با دروازهٔ همان شهر و فقط وقتی بررسی ظرفیت سبز باشد. † فقط بعد از چهار پیش‌شرط ترکیه (پایین‌تر). ‡ فقط بعد از تأیید وکیل تحریم و موج ۳ ساخت. از یلدا، خدمات آنلاین، رویدادهای آنلاین و کارهای دورکاری در همهٔ کشورها دیده می‌شوند تا هیچ صفحه‌ای خالی نباشد. تاریخ باز شدن برلین با شماست (پیش از یلدا)؛ تقویم نوامبر را فرض کرده.</p>
 </section>
 
 <section aria-labelledby="gate">
-  <h2 id="gate">How a city opens</h2>
-  <p class="col">A country starts in Starter on its date, with no gate. The gate is for a <i>city</i>, and it opens the categories that need people in one place: rooms and flats, items, cars. Each city has three goals; its progress is the lowest of the three.</p>
+  <h2 id="gate">یک شهر چطور باز می‌شود</h2>
+  <p class="col">کشور در تاریخ خودش، بدون دروازه، در حالت شروع راه می‌افتد. دروازه مال <b>شهر</b> است و دسته‌هایی را باز می‌کند که آدم‌ها را در یک جا لازم دارند: اتاق و خانه، کالا، خودرو. هر شهر سه هدف دارد؛ پیشرفتش کمترینِ این سه است.</p>
   <div class="scroll"><table>
-    <thead><tr><th>City size</th><th class="num">Confirmed people</th><th class="num">Verified businesses</th><th class="num">Listings ready for day one</th><th class="num">Founding Pro places</th><th>Examples</th></tr></thead>
+    <thead><tr><th>اندازهٔ شهر</th><th class="num">نفر تأییدشده</th><th class="num">کسب‌وکار تأییدشده</th><th class="num">آگهی آماده برای روز اول</th><th class="num">جای پروی بنیان‌گذار</th><th>نمونه‌ها</th></tr></thead>
     <tbody>
-      <tr><td>Big</td><td class="num">1,000</td><td class="num">30</td><td class="num">150</td><td class="num">50</td><td>Berlin, Toronto, LA, London, Sydney</td></tr>
-      <tr><td>Medium</td><td class="num">500</td><td class="num">20</td><td class="num">100</td><td class="num">30</td><td>Hamburg, Randstad, Vancouver, Melbourne, Milan</td></tr>
-      <tr><td>Small</td><td class="num">300</td><td class="num">15</td><td class="num">60</td><td class="num">20</td><td>Vienna, Cologne, Frankfurt, Munich</td></tr>
+      <tr><td>بزرگ</td><td class="num">۱٬۰۰۰</td><td class="num">۳۰</td><td class="num">۱۵۰</td><td class="num">۵۰</td><td>برلین، تورنتو، لس‌آنجلس، لندن، سیدنی</td></tr>
+      <tr><td>متوسط</td><td class="num">۵۰۰</td><td class="num">۲۰</td><td class="num">۱۰۰</td><td class="num">۳۰</td><td>هامبورگ، راندستاد، ونکوور، ملبورن، میلان</td></tr>
+      <tr><td>کوچک</td><td class="num">۳۰۰</td><td class="num">۱۵</td><td class="num">۶۰</td><td class="num">۲۰</td><td>وین، کلن، فرانکفورت، مونیخ</td></tr>
     </tbody>
   </table></div>
   <ol class="steps col">
-    <li><b>Anyone can join</b><span>Only countries in the plan get a city page. Everyone else uses one «کشور من» form. That keeps the strategy's rule of no empty country pages.</span></li>
-    <li><b>25%: the bars appear</b><span>Below that, «از نخستین‌ها باشید» with no number.</span></li>
-    <li><b>50%: halfway</b><span>An email and a Telegram post. Pioneers start preparing opening-day listings, and businesses are invited to verify.</span></li>
-    <li><b>75% and the capacity check green: you announce the date</b><span>With «اعلام تاریخ» in the admin. The date is 3–8 weeks later, on a cultural day when one is near.</span></li>
-    <li><b>Seven days before: the check</b><span>If all three goals are at 85% or more, the date holds. If not, it moves once, by up to 4 weeks, and we say so openly. It never moves a second time.</span></li>
-    <li><b>The last 14 days: review</b><span>Every prepared listing is checked, and each pioneer confirms theirs 72 hours before.</span></li>
-    <li><b>Pioneers 48 hours early, then everyone</b><span>Pioneers get a badge with the opening year, opening-day listings with free bumps, and more bumps for inviting friends.</span></li>
-    <li><b>After opening: healthy?</b><span>The strategy's gate: 100 or more live listings in housing, services and jobs, half of new listings getting a chat within 7 days, and 30 or more people posting each week, held for 4 weeks. A country needs this in one city before it opens its next one.</span></li>
+    <li><b>همه می‌توانند بپیوندند</b><span>فقط کشورهای داخل برنامه صفحهٔ شهر دارند. بقیه یک فرم «کشور من» دارند، تا هیچ صفحهٔ کشور خالی نماند.</span></li>
+    <li><b>۲۵٪: نوارها ظاهر می‌شوند</b><span>پیش از آن فقط «از نخستین‌ها باشید»، بدون عدد.</span></li>
+    <li><b>۵۰٪: نیمهٔ راه</b><span>یک ایمیل و یک پست تلگرام. پیشگام‌ها آگهی روز افتتاح را آماده می‌کنند و کسب‌وکارها برای تأیید دعوت می‌شوند.</span></li>
+    <li><b>۷۵٪ و بررسی ظرفیت سبز: شما تاریخ را اعلام می‌کنید</b><span>با دکمهٔ «اعلام تاریخ» در پنل مدیریت. تاریخ ۳ تا ۸ هفته بعد است، اگر روز فرهنگی نزدیک باشد همان روز.</span></li>
+    <li><b>هفت روز پیش از افتتاح: بررسی</b><span>اگر هر سه هدف ۸۵٪ یا بیشتر باشند، تاریخ می‌ماند. اگر نه، یک بار تا ۴ هفته عقب می‌رود و صادقانه اعلام می‌کنیم. هرگز بار دوم عقب نمی‌رود.</span></li>
+    <li><b>۱۴ روز آخر: بازبینی</b><span>همهٔ آگهی‌های آماده بررسی می‌شوند و هر پیشگام ۷۲ ساعت پیش از افتتاح آگهی‌اش را تأیید می‌کند.</span></li>
+    <li><b>پیشگام‌ها ۴۸ ساعت زودتر، بعد همه</b><span>نشان پیشگام با سال افتتاح، آگهی روز افتتاح با نردبان رایگان، و نردبان بیشتر برای دعوت دوستان.</span></li>
+    <li><b>بعد از افتتاح: سالم است؟</b><span>۱۰۰ آگهی زنده یا بیشتر در خانه، خدمات و کار؛ نیمی از آگهی‌های تازه در ۷ روز گفت‌وگو بگیرند؛ ۳۰ نفر یا بیشتر هر هفته آگهی بگذارند؛ ۴ هفته پشت سر هم. کشور پیش از شهر بعدی‌اش این را در یک شهر لازم دارد.</span></li>
   </ol>
-  <p class="col">Waitlist data: unconfirmed sign-ups are deleted after 30 days. Lists for countries with no plan are deleted after 12 months, with a notice first.</p>
+  <p class="col small">داده‌های فهرست انتظار: ثبت‌نام‌های تأییدنشده بعد از ۳۰ روز پاک می‌شوند. فهرست کشورهایی که برنامه ندارند بعد از ۱۲ ماه، با اطلاع قبلی، پاک می‌شود.</p>
+</section>
+
+<section aria-labelledby="phone">
+  <h2 id="phone">تأیید شماره: پیامک چقدر خرج دارد و راه ارزان‌تر چیست</h2>
+  <p class="col">امروز فقط ربات تلگرام کار می‌کند. پیامک در کد هست، ولی هنوز به هیچ سرویس واقعی وصل نیست. پیشنهاد: یک پلکان، از رایگان به پولی. هر کاربر اولین راهی را که برایش کار کند انتخاب می‌کند.</p>
+  <ol class="steps col">
+    <li><b>ربات تلگرام (رایگان، ساخته شده)</b><span>کاربر در ربات دکمهٔ «فرستادن شماره» را می‌زند. فقط باید یک قفل اضافه شود (پایین را ببینید): شمارهٔ ایران، شمارهٔ ناشناس ‎+888 و شمارهٔ کشورهای خارج از فهرست پذیرفته نشوند.</span></li>
+    <li><b>واتس‌اپ، کاربر پیام را شروع می‌کند (رایگان)</b><span>کاربر روی پیوند <bdi class="ltr">wa.me</bdi> با یک کد یکتا می‌زند و پیام آماده را می‌فرستد. پیام دریافتی برای ما رایگان است و جواب‌ها تا ۱٬۰۰۰ در ماه رایگان‌اند. برای کاربرانی که در واتس‌اپ «نام کاربری» دارند، ربات یک دکمهٔ «اشتراک شماره» نشان می‌دهد و فقط شماره‌ای که از همین دکمه بیاید پذیرفته می‌شود، مثل قاعدهٔ تلگرام. لازم: حساب تجاری متا، یک شمارهٔ جدا (۵ تا ۱۰ € در ماه) و یک آدرس عمومی امضاشده روی سایت.</span></li>
+    <li><b>پیامک به سیم‌کارت محلی (پولی)</b><span>اروپا با <bdi>GatewayAPI</bdi>: ارزان‌تر از <bdi>seven.io</bdi> در همهٔ کشورها. آمریکا و کانادا با یک سرویس تأیید (<bdi>Prelude</bdi> حدود ۰٫۰۳۶ € یا <bdi>Twilio Verify</bdi> حدود ۰٫۰۵۸ $)، چون این سرویس‌ها ثبت پیچیدهٔ فرستنده در آمریکا (<bdi>10DLC</bdi>) را لازم نمی‌کنند. ترکیه برای پیامک بسته می‌ماند.</span></li>
+    <li><b>اختیاری، اگر لازم شد</b><span><bdi>Telegram Gateway</bdi> (۰٫۰۱ $ برای هر کد): همان چیزی را ثابت می‌کند که ربات رایگان ثابت می‌کند، فقط راحت‌تر است؛ خریدش با رمزارز از <bdi>Fragment</bdi> است و برای حسابداری شما دردسر دارد. یا کد واتس‌اپ که ما می‌فرستیم، برای آمریکا، کانادا، استرالیا و ترکیه که خیلی ارزان است.</span></li>
+  </ol>
+  <div class="note col"><b>چرا پیامک هنوز لازم است:</b> خیلی از ایرانیان خارج از کشور تلگرام و واتس‌اپشان روی شمارهٔ ‎+98 قدیمی است. برای آن‌ها هر دو راه رایگان رد می‌شود و پیامک به سیم‌کارت محلی تنها راه است. پیام ربات: «شمارهٔ تلگرام شما ایرانی است؛ با پیامک به شمارهٔ محلی‌تان تأیید کنید.»</div>
+
+  <h3>قیمت هر پیام (فهرست قیمت ۲۵ اکتبر ۲۰۲۶، بدون مالیات)</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>کشور</th><th class="num">پیامک <bdi>GatewayAPI</bdi> (€)</th><th class="num">کد واتس‌اپ از طرف ما ($)</th><th class="num">پیامک <bdi>Firebase</bdi> ($)</th><th>نکته</th></tr></thead>
+    <tbody>
+      <tr><td>آلمان</td><td class="num">۰٫۰۷۲</td><td class="num">۰٫۰۵۵</td><td class="num">۰٫۱۰</td><td>بدون ثبت فرستنده</td></tr>
+      <tr><td>هلند</td><td class="num">۰٫۰۶۷</td><td class="num">۰٫۰۵۰</td><td class="num">۰٫۱۰</td><td></td></tr>
+      <tr><td>اتریش</td><td class="num">۰٫۰۴۲</td><td class="num">۰٫۰۱۷</td><td class="num">۰٫۰۳</td><td></td></tr>
+      <tr><td>سوئد</td><td class="num">۰٫۰۴۲</td><td class="num">۰٫۰۱۷</td><td class="num">۰٫۰۵</td><td></td></tr>
+      <tr><td>فرانسه</td><td class="num">۰٫۰۴۳</td><td class="num">۰٫۰۳۰</td><td class="num">۰٫۰۷</td><td>نام فرستنده فقط با حروف لاتین</td></tr>
+      <tr><td>ایتالیا</td><td class="num">۰٫۰۴۰</td><td class="num">۰٫۰۳۰</td><td class="num">۰٫۰۵</td><td>موج کلاهبرداری پیامکی در اوت ۲۰۲۶: سقف روزانه</td></tr>
+      <tr><td>بریتانیا</td><td class="num">۰٫۰۳۸</td><td class="num">۰٫۰۲۲</td><td class="num">۰٫۰۴</td><td>ثبت رایگان فرستنده</td></tr>
+      <tr><td>استرالیا</td><td class="num">۰٫۰۲۴</td><td class="num">۰٫۰۱۱</td><td class="num">۰٫۰۲</td><td>ثبت فرستنده از ژوئیهٔ ۲۰۲۶ اجباری؛ از طریق سرویس‌دهنده</td></tr>
+      <tr><td>کانادا</td><td class="num">۰٫۰۲۰</td><td class="num">۰٫۰۰۳</td><td class="num">۰٫۰۱</td><td>نام فرستنده ممکن نیست</td></tr>
+      <tr><td>آمریکا</td><td class="num">۰٫۰۲۰ + شمارهٔ اجاره‌ای</td><td class="num">۰٫۰۰۳</td><td class="num">۰٫۰۱</td><td>ثبت <bdi>10DLC</bdi> یا سرویس تأیید</td></tr>
+      <tr><td>ترکیه</td><td class="num">بسته</td><td class="num">۰٫۰۰۱</td><td class="num">۰٫۰۱</td><td>اگر لازم شد، با واتس‌اپ</td></tr>
+    </tbody>
+  </table></div>
+  <p class="col small"><bdi>seven.io</bdi> برای همهٔ این کشورها یک قیمت دارد: ۰٫۰۷۵ € برای هر پیامک. پس جز آلمان، همه‌جا گران‌ترین است. <bdi>Firebase</bdi> در آمریکای شمالی ارزان‌ترین است، ولی روند تأییدش مال گوگل است، نه مال ما. متن فارسی در پیامک هر ۷۰ حرف یک پیام حساب می‌شود؛ پیامک کد کوتاه یا لاتین می‌ماند.</p>
+
+  <h3>خرج ماهانه (برآورد)</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>تأیید در ماه</th><th class="num">همه با پیامک <bdi>seven.io</bdi></th><th class="num">همه با پیامک <bdi>GatewayAPI</bdi></th><th class="num">پلکان (۷۰٪ تلگرام، ۱۵٪ واتس‌اپ، ۱۵٪ پیامک)</th></tr></thead>
+    <tbody>
+      <tr><td>۱٬۰۰۰</td><td class="num">۹۴ €</td><td class="num">۵۸ €</td><td class="num"><b>حدود ۹ €</b></td></tr>
+      <tr><td>۵٬۰۰۰</td><td class="num">۴۶۹ €</td><td class="num">۲۹۱ €</td><td class="num"><b>حدود ۴۴ €</b></td></tr>
+      <tr><td>۲۰٬۰۰۰</td><td class="num">۱٬۸۷۵ €</td><td class="num">۱٬۱۶۳ €</td><td class="num"><b>حدود ۱۷۵ €</b></td></tr>
+    </tbody>
+  </table></div>
+  <p class="col small">به‌اضافهٔ شمارهٔ واتس‌اپ (۵ تا ۱۰ € در ماه). اگر فقط نیمی از کاربران با تلگرام یا واتس‌اپ تأیید کنند، پلکان حدود ۳ برابر می‌شود (حدود ۲۹ / ۱۴۵ / ۵۸۰ €). فرض‌ها: ترکیب کشورها با آلمان ۳۵٪، و هر تأیید پیامکی به‌طور میانگین ۱٫۲۵ پیامک.</p>
+
+  <h3>راه‌های دیگر که ارزشش را ندارند</h3>
+  <ul class="col">
+    <li><b>تماس بی‌پاسخ (فلش‌کال):</b> قیمت عمومی ندارد، اپراتورها جلویش را می‌گیرند و مرورگر نمی‌تواند تماس را بخواند.</li>
+    <li><b>تأیید بی‌صدا از طریق اپراتور:</b> فقط روی اینترنت موبایل و با بعضی اپراتورها؛ برای اندازهٔ ما زیادی است.</li>
+    <li><b>کد صوتی:</b> هم‌قیمت یا گران‌تر از پیامک.</li>
+    <li><b>کلید عبور (پس‌کی):</b> برای ورود است و شماره را ثابت نمی‌کند.</li>
+    <li><b>دیگران:</b> <bdi>Kleinanzeigen</bdi> فقط پیامک به شماره‌های اروپا؛ <bdi>Vinted</bdi> ایمیل و پیامک برای فعالیت مشکوک؛ دیوار پیامک به شمارهٔ ایران.</li>
+  </ul>
+
+  <h3>جلوی کلاهبرداری پیامکی</h3>
+  <p class="col">ربات‌ها برای شماره‌های گران کد درخواست می‌کنند و اپراتور سهم می‌گیرد. محافظ‌ها: <bdi>Turnstile</bdi> پیش از هر پیامک؛ فقط شمارهٔ موبایل از کشورهای فهرست؛ ۳ پیامک در روز برای هر شماره (هست)؛ سقف روزانه برای هر کشور و برای کل، با هشدار به شما وقتی دو برابر عادی شود؛ موجودی پیش‌پرداخت کم نزد سرویس پیامک؛ یک شماره و یک حساب پیام‌رسان برای هر کاربر.</p>
+</section>
+
+<section aria-labelledby="telegram">
+  <h2 id="telegram">ربات تلگرام چند پیام هم‌زمان می‌تواند بفرستد</h2>
+  <p class="col">حدس شما درست بود: محدودیت دارد. ولی برای تأیید شماره مشکلی نیست. مشکل فقط وقتی پیش می‌آید که بخواهیم به همه پیام بدهیم.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>محدودیت</th><th>مقدار</th><th>برای پیدو یعنی</th></tr></thead>
+    <tbody>
+      <tr><td>به یک نفر</td><td>حدود ۱ پیام در ثانیه</td><td>بی‌اهمیت؛ تأیید هر نفر ۲ تا ۳ پیام است</td></tr>
+      <tr><td>به یک گروه</td><td>۲۰ پیام در دقیقه</td><td>برای پست کانال‌ها و گروه‌ها کافی است</td></tr>
+      <tr><td>کل ربات</td><td>حدود ۳۰ پیام در ثانیه</td><td>حدود ۵۰۰ تأیید در دقیقه، یعنی حدود ۳۰٬۰۰۰ در ساعت؛ خیلی بیشتر از نیاز ما</td></tr>
+      <tr><td>بیش از حد</td><td>خطای ۴۲۹ با زمان انتظار</td><td>باید صبر کرد؛ تکرار، مسدودی طولانی‌تر می‌آورد</td></tr>
+      <tr><td>پخش پولی (تا ۱٬۰۰۰ در ثانیه)</td><td>۱۰۰٬۰۰۰ ستاره در حساب ربات و ۱۰۰٬۰۰۰ کاربر فعال ماهانه</td><td>فعلاً در دسترس ما نیست</td></tr>
+      <tr><td>دریافت پیام‌ها</td><td>تا ۱۰۰ در هر درخواست؛ فقط یک پردازش هم‌زمان</td><td>همان روش فعلی؛ گلوگاه نیست</td></tr>
+    </tbody>
+  </table></div>
+  <p class="col"><b>قاعده برای خبرنامهٔ هفتگی:</b> در صف، با حداکثر ۲۵ پیام در ثانیه. برای ۱۰٬۰۰۰ نفر حدود ۷ دقیقه، برای ۱۰۰٬۰۰۰ نفر حدود ۷۰ دقیقه. صف با اولویت پایین، تا جواب تأیید شماره همیشه اول برود. کسی که ربات را بسته، از خبرنامه خارج می‌شود.</p>
+</section>
+
+<section aria-labelledby="iran">
+  <h2 id="iran">ایران: فقط خواندنی، به‌اضافهٔ پیام با ایمیل</h2>
+  <p class="col">مدل شما: کاربران داخل ایران آگهی‌ها را می‌بینند، با ایمیل ثبت‌نام می‌کنند و به آگهی‌دهنده‌ها پیام می‌دهند. آگهی نمی‌گذارند، پول نمی‌دهند، و شمارهٔ ‎+98 همچنان پذیرفته نمی‌شود. تحقیق می‌گوید این مدل روی کاغذ قابل دفاع است. در قانون اروپا پیام بین آدم‌ها محدود نیست؛ خطر در پول، افراد تحریم‌شده و کالاست. در آمریکا، قاعدهٔ <bdi class="ltr">31 CFR 560.540</bdi> (جانشین مجوز <bdi>GL D-2</bdi> از مه ۲۰۲۴) پیام فوری، گفت‌وگو و ایمیل را صریحاً پوشش می‌دهد. این برای سرویس‌دهنده‌های آمریکایی ما (<bdi>AWS</bdi>، <bdi>Cloudflare</bdi>) مهم است. وکیل تحریم باید تأیید کند.</p>
+  <div class="risk col"><b>نقطهٔ خطر پول است، نه گفت‌وگو.</b> یک قاعدهٔ کلیدی: در هر گفت‌وگویی که یک طرفش حساب ایران است، شمارهٔ کارت، شبا (IBAN)، درخواست پول و پیوند در هر دو جهت مسدود می‌شود. همین یک قاعده جلوی کلاهبرداری بیعانهٔ خانه را می‌گیرد و نمی‌گذارد کسی روی پیدو پرداخت از ایران را هماهنگ کند. امروز این‌ها فقط برای حساب‌های زیر ۷ روز مسدودند.</div>
+
+  <div class="two">
+    <div><h3>حساب ایران می‌تواند</h3><ul><li>آگهی ببیند، جستجو کند، نشان کند، گزارش بدهد</li><li>در دسته‌های خانه، کار، خدمات، کلاس، رویداد و کسب‌وکار پیام بدهد</li><li>به پیام‌ها جواب بدهد</li></ul></div>
+    <div><h3>حساب ایران نمی‌تواند</h3><ul><li>آگهی، رویداد یا صفحهٔ کسب‌وکار بگذارد</li><li>پرو، نردبان یا هیچ پرداختی بخرد</li><li>شمارهٔ تلفن آگهی‌دهنده را ببیند</li><li>در دستهٔ کالا پیام بدهد (کالا یعنی ارسال به ایران یا کلاهبرداری «پیک من می‌آید»)</li><li>فایل یا عکس در گفت‌وگو بفرستد</li></ul></div>
+  </div>
+
+  <h3>چه کسی حساب ایران می‌گیرد</h3>
+  <p class="col">با اعلام خود کاربر. اگر آی‌پی ایران یا منطقهٔ زمانی تهران دیده شود، اول این سؤال می‌آید: «کجا زندگی می‌کنید؟» جواب «ایران» یعنی حساب ایران. جواب «خارج» یعنی حساب عادی، ولی تأیید شماره تا وقتی آی‌پی ایران است رد می‌شود. بررسی آی‌پی به‌تنهایی قفل محکمی نیست: وی‌پی‌ان با آی‌پی ایران برای بانکداری ایرانی آشکارا به ایرانیان خارج فروخته می‌شود. اما حساب ایران محدودتر از حساب عادی است و برای کلاهبردار خارج از کشور هیچ فایده‌ای ندارد، پس اعلام خود کاربر کافی است. خروج از حساب ایران (مهاجرت): اعلام اقامت جدید، آی‌پی غیرایرانی، تأیید شماره از یکی از ۳۶ کشور، و دست‌کم ۱۴ روز از ساخت حساب.</p>
+
+  <h3>محدودیت‌ها</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>چه</th><th>حساب ایران</th></tr></thead>
+    <tbody>
+      <tr><td>گفت‌وگوی تازه</td><td>هفتهٔ اول ۳ در روز، بعد ۱۰ در روز، حداکثر ۳۰ در هفته</td></tr>
+      <tr><td>پیام پیش از جواب طرف مقابل</td><td>۲ پیام در هر گفت‌وگو (مثل «درخواست پیام»)</td></tr>
+      <tr><td>پیام در روز</td><td>۶۰</td></tr>
+      <tr><td>کارت، شبا، درخواست پول، پیوند</td><td>همیشه مسدود، در هر دو جهت</td></tr>
+      <tr><td>شمارهٔ تلفن و راه تماس بیرونی</td><td>فقط بعد از جواب طرف مقابل، با هشدار</td></tr>
+      <tr><td>متن یکسان به ۳ نفر یا بیشتر در ۲۴ ساعت</td><td>نگه‌داشته برای بررسی</td></tr>
+      <tr><td>توقف خودکار</td><td>۲ گزارش از دو نفر یا ۳ مسدودی در ۷ روز: ارسال متوقف، با توضیح دلیل و حق اعتراض</td></tr>
+      <tr><td>ایمیل</td><td>یک حساب برای هر صندوق؛ ایمیل یک‌بارمصرف و <bdi class="ltr">.ir</bdi> پذیرفته نمی‌شود</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>طرف مقابل چه می‌بیند</h3>
+  <ul class="col">
+    <li>برچسب «از ایران» کنار نام: «این حساب از ایران ساخته شده و فقط می‌تواند پیام بفرستد. شمارهٔ تلفنش تأیید نشده است.» کاربر ایران هنگام ثبت‌نام می‌داند این برچسب نشان داده می‌شود.</li>
+    <li>یک یادآوری در آغاز هر گفت‌وگو، برای هر دو طرف: «پیش از دیدن خانه یا اتاق و امضای قرارداد هیچ پولی نفرستید و نخواهید. در این گفت‌وگو شمارهٔ کارت، شبا و لینک فرستاده نمی‌شود. حواله، صرافی و کارت‌به‌کارت در پیدو مجاز نیست.»</li>
+    <li>یک تنظیم تازه: «پیام از حساب‌های ایران را نپذیر». پیش‌فرض: می‌پذیرد. ایرانیان خارج دلیل واقعی برای خواستنش دارند.</li>
+  </ul>
+
+  <h3>امنیت کاربران داخل ایران</h3>
+  <ul class="col">
+    <li>متن گفت‌وگو ۹۰ روز بعد از آخرین پیام پاک می‌شود (مگر گزارش شده باشد). «پاک کردن پیام‌هایم» هر وقت بخواهند.</li>
+    <li>نام واقعی لازم نیست، عکس پروفایل ندارد. ایمیل اعلان بدون متن پیام: «پیام تازه دارید».</li>
+    <li>نشست ۱۴ روزه، «خروج از همهٔ دستگاه‌ها»، بدون اعلان مرورگر. آی‌پی کامل فقط ۷ روز.</li>
+    <li>به درخواست نهادهای ایرانی پاسخ نمی‌دهیم. داده در اروپاست.</li>
+    <li>قانون جاسوسی مهر ۱۴۰۴ فرستادن اطلاعات «خلاف امنیت ملی» به رسانه‌ها و صفحه‌های خارجی را مجازات می‌کند؛ گزارشی از مجازات صرفِ استفاده از سایت خارجی نیست. پرسیدن سؤال از صاحبخانه یا مترجم با آن فاصلهٔ زیادی دارد. خطر با طرف سیاسی، فرستادن عکس و مدرک، و گوشی بازرسی‌شده بالا می‌رود.</li>
+    <li>در هیچ متن و هیچ جواب پشتیبانی از وی‌پی‌ان یا شمارهٔ مجازی نام نمی‌بریم.</li>
+  </ul>
+  <p class="col"><b>ایمیل <bdi class="ltr">.ir</bdi> همچنان پذیرفته نمی‌شود،</b> ولی دلیلش عوض شده: کد ورود کلید حساب است و سرورهای ایمیل <bdi class="ltr">chmail.ir</bdi> روی شبکهٔ دروازهٔ دولتی تهران‌اند. جیمیل راه عملی است. از شهریور ۲۰۲۶ ساخت جیمیل تازه با شمارهٔ ‎+98 ظاهراً سخت شده (فقط یک منبع)، ولی بیشتر مردم از قبل جیمیل دارند.</p>
+  <p class="col"><b>قاعدهٔ سفر:</b> کاربر تأییدشده‌ای که به ایران سفر می‌کند، از «فقط خواندنی» به «فقط پیام» می‌رود: می‌تواند در گفت‌وگوهایش جواب بدهد. آگهی، پرداخت و دیدن شماره خاموش می‌ماند.</p>
+  <div class="note col"><b>پیش از ساخت:</b> وکیل تحریم باید چند چیز را تأیید کند: حساب رایگانِ بدون غربالگری برای ساکنان ایران، پوشش <bdi class="ltr">560.540</bdi> برای ایمیل و <bdi>Turnstile</bdi>، وظیفهٔ ما وقتی گفت‌وگو به پرداختی بیرون از پیدو می‌رسد، برچسب «از ایران» در قانون حریم خصوصی، و اینکه به <bdi>Stripe</bdi> چه بگوییم. به همین خاطر این بخش در موج ۳ ساخته می‌شود، نه در موج ۰.</div>
+</section>
+
+<section aria-labelledby="legal">
+  <h2 id="legal">قوانین کشورها: نرم، ولی داخل منطقهٔ امن</h2>
+  <p class="col">نسخهٔ قبل برای هر کشور پیش از شروع یک وکیل می‌خواست. تحقیق تازه نشان می‌دهد بیشترِ آنچه قانون می‌خواهد برای آلمان ساخته شده (اطلاعات قانونی سایت یا <bdi>Impressum</bdi>، گزارش و حذف محتوا، توضیح دلیل، نقطهٔ تماس، شرایط و حریم خصوصی، دکمهٔ گزارش و اعتراض). کشورهای دیگر بیشتر چند بند در همان متن‌ها می‌خواهند، نه سیستم تازه.</p>
+  <ul class="col">
+    <li><b>شرکت کوچک‌مقیاس در اروپا معاف است.</b> با کمتر از ۱۰ نفر و گردش زیر ۲ میلیون یورو، بیشترِ قانون خدمات دیجیتال (<bdi>DSA</bdi>) اعمال نمی‌شود: گزارش شفافیت، سیستم داخلی شکایت، نهاد حل اختلاف و «گزارشگر معتمد» لازم نیست. دکمهٔ اعتراض را نگه می‌داریم، چون هزینه‌ای ندارد.</li>
+    <li><b>ثبت در آلمان برای همهٔ اروپا کافی است.</b> اتریش، هلند و سوئد چیز اضافه‌ای نمی‌خواهند. ایتالیا و فرانسه فقط اگر به مصرف‌کننده چیزی بفروشیم متن ایتالیایی یا فرانسوی می‌خواهند. فروش پولی فقط به کسب‌وکارها هر دو را حذف می‌کند.</li>
+    <li><b>بیرون از اروپا، هر چیز پولی فقط برای کسب‌وکارها.</b> این از مالیات بریتانیا از اولین پوند، مالیات ترکیه از اولین لیر و قوانین فرانسوی کبک جلوگیری می‌کند.</li>
+    <li><b>وظیفهٔ تازه:</b> از ۱۹ ژوئن ۲۰۲۶ هر قرارداد آنلاین با مصرف‌کننده «دکمهٔ انصراف» می‌خواهد (<bdi class="ltr">§ 356a BGB</bdi>). اگر نردبان به کاربران عادی فروخته شود، باید بررسی شود.</li>
+  </ul>
+
+  <div class="scroll"><table>
+    <thead><tr><th>کشور</th><th>از روز اول (هزینه)</th><th>بعداً</th><th>لازم نیست</th></tr></thead>
+    <tbody>
+      <tr><td><b>آلمان و اتحادیهٔ اروپا</b></td><td>همان‌چه ساخته شده؛ یک بار بازبینی وکیل آلمانی برای شرایط و حریم خصوصی (۱ تا ۲٫۵ هزار €)؛ بررسی دکمهٔ انصراف</td><td>—</td><td>گزارش شفافیت، شکایت داخلی، مسئول حفاظت داده (زیر ۲۰ نفر)، قانون دسترس‌پذیری اروپا (معاف)، وکیل جدا برای هر کشور</td></tr>
+      <tr><td><b>بریتانیا</b> (شروع فوریه)</td><td>ارزیابی کتبی خطر محتوای غیرقانونی و دسترسی کودکان (۱ تا ۲ روز وقت شما، ۰ £)؛ شما به‌عنوان مسئول؛ یک بند در شرایط؛ نمایندهٔ حفاظت دادهٔ بریتانیا (۱۰۰ تا ۶۰۰ £ در سال)؛ پرو فقط برای کسب‌وکارها</td><td>وکیل بریتانیا فقط وقتی اتاق در لندن باز می‌شود یا اگر <bdi>Ofcom</bdi> نامه بدهد</td><td>هزینهٔ <bdi>Ofcom</bdi>، ثبت مالیات بریتانیا</td></tr>
+      <tr><td><b>آمریکا</b></td><td>نمایندهٔ <bdi>DMCA</bdi> (۶ $)؛ چند بند در شرایط و حریم خصوصی (قاعدهٔ کالای ایرانی، کالیفرنیا)؛ پرو فقط برای کسب‌وکارها؛ بیانیهٔ دسترس‌پذیری</td><td>یک ساعت مشاورهٔ تحریم پیش از فروش پرو در آمریکا (۳۰۰ تا ۶۰۰ $)؛ بازبینی کامل دسترس‌پذیری وقتی بیش از ۵۰ پرو در آمریکا داریم</td><td>قوانین حریم خصوصی ایالتی، مالیات فروش، قانون <bdi>INFORM</bdi></td></tr>
+      <tr><td><b>کانادا</b></td><td>ایمیل با تأیید دوباره (هست)؛ یک بند حریم خصوصی؛ ثبت هر نشت داده؛ <b>کبک را هدف نمی‌گیریم</b></td><td>وکیل فقط وقتی تورنتو باز می‌شود (اختیاری)</td><td>لایحهٔ آسیب‌های آنلاین (آگهی را مستثنا می‌کند)، مالیات زیر ۳۰ هزار دلار کانادا</td></tr>
+      <tr><td><b>استرالیا</b></td><td>جواب به دستور حذف <bdi>eSafety</bdi> در ۲۴ ساعت (با هشدار)؛ یک خودارزیابی کتبی (۲ تا ۳ ساعت)</td><td>—</td><td>قانون حریم خصوصی (شرکت کوچک احتمالاً معاف)، مالیات زیر ۷۵ هزار دلار استرالیا</td></tr>
+      <tr><td><b>ترکیه</b></td><td>راهنما: اطلاعات قانونی سایت و دکمهٔ «پنهان در ترکیه» برای دستورهای ۴ ساعته. کسب‌وکار رایگان: متن حریم خصوصی ترکی و دادهٔ حداقلی</td><td><b>پیش از اولین پرداخت ترکیه:</b> ثبت <bdi>VERBIS</bdi> و نمایندهٔ ترک (۱ تا ۳ هزار € در سال)، مشاور ترک (۳۰۰ تا ۸۰۰ €)</td><td>هرگز فروش به مصرف‌کننده</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>خط قرمزها: این‌ها نرم نمی‌شوند</h3>
+  <ol class="col">
+    <li><b>تحریم:</b> هیچ پولی به ایران یا از ایران؛ نه حواله، نه صرافی، نه ارسال بار به ایران؛ نه کالا یا خدمات ایرانی در آگهی‌های آمریکا؛ غربالگری پیش از هر پرداخت؛ سؤال کتبی از <bdi>Stripe</bdi> پیش از پولی شدن پروی بنیان‌گذار.</li>
+    <li><b>دستورهای رسمی همیشه جواب می‌گیرند:</b> گزارش‌های <bdi>DSA</bdi>، <bdi>eSafety</bdi> در ۲۴ ساعت، دستورهای ترکیه در ۴ ساعت (با پنهان کردن در ترکیه)، پلیس و دادگاه بی‌درنگ، و گزارش خطر جانی به پلیس.</li>
+    <li><b>اطلاعات قانونی سایت و راه تماس</b> همیشه در دو ضربه پیدا شود.</li>
+    <li><b>اصول حریم خصوصی:</b> متن حریم خصوصی، فهرست پردازش‌ها، قرارداد با سرویس‌دهنده‌ها، روال ۷۲ ساعتهٔ نشت داده، بدون کوکی غیرضروری بی‌اجازه، هرگز فروش داده. هوش مصنوعی هرگز خودش کسی را مسدود نمی‌کند.</li>
+    <li><b>کلاهبرداری:</b> بیعانهٔ خانه، کار جعلی و دلال ویزا و اقامت پیش از انتشار نگه داشته می‌شوند، نه بعد.</li>
+    <li><b>بیرون از اروپا، چیز پولی فقط برای کسب‌وکارها.</b></li>
+    <li><b>بدون دستهٔ بزرگسالان، قمار، سلاح، مواد یا رمزارز.</b> همین قوانین کودکان را در بریتانیا، استرالیا و کانادا کوچک نگه می‌دارد.</li>
+    <li><b>کبک و امارات را هدف نمی‌گیریم.</b> ترکیه فقط در حالت‌های همین برنامه.</li>
+    <li><b>سندهای کتبی پیش از باز شدن هر کشور:</b> ارزیابی‌های بریتانیا، خودارزیابی استرالیا، و ثبت ترکیه پیش از پول ترکیه. ارزان‌ترین محافظ همین سندهاست.</li>
+  </ol>
+</section>
+
+<section aria-labelledby="moderation">
+  <h2 id="moderation">نظارت توسط خود شما</h2>
+  <p class="col">هیچ قانونی ناظر ۲۴ ساعته نمی‌خواهد. قانون اروپا و بریتانیا فقط «بی‌درنگ» می‌گویند، بدون ساعت مشخص. ساعت ثابت فقط برای دستورهای رسمی است (استرالیا ۲۴ ساعت، ترکیه ۴ ساعت) و این را یک هشدار حل می‌کند، نه برنامهٔ شیفت.</p>
+  <ol class="steps col">
+    <li><b>غربالگری خودکار برای هر آگهی</b><span>اول قواعد (حواله، صرافی، ارسال به ایران، شبا، رمزارز، شماره در متن، پیوند، قیمت غیرعادی، عکس تکراری؛ ساخته شده). بعد ابزار رایگان <bdi>OpenAI</bdi> برای محتوای جنسی، خشونت و نفرت (کیفیتش در فارسی هنوز تأیید نشده). بعد یک بررسی فارسی کلاهبرداری با <bdi>Claude Haiku</bdi>، حدود ۳ تا ۴ دلار در ماه برای ۵۰۰ آگهی در روز. عکس‌ها با ابزار رایگان <bdi>Cloudflare</bdi> برای محتوای سوءاستفاده از کودکان.</span></li>
+    <li><b>سطح اعتماد تعیین می‌کند چه چیزی فوری منتشر شود</b><span>فوری: کسب‌وکار و برگزارکنندهٔ تأییدشده بعد از ۳ آگهی سالم، آگهی «دنبال…»، کالا از حساب‌های بالای ۳۰ روز بدون اخطار. نگه‌داشته برای شما: اولین آگهی هر حساب تازه، خانه و اتاق با بیعانه، آگهی استخدام، خودرو، آگهی برون‌مرزی، هر چیزی که هوش مصنوعی علامت زده، هر چیزی با پیوند یا کلمهٔ پرداخت.</span></li>
+    <li><b>حالت شب</b><span>وقتی آنلاین نیستید (مثلاً ۲۳ تا ۷:۳۰ برلین)، دسته‌های پرخطر نگه داشته می‌شوند و بقیه منتشر می‌شوند. پیام به کاربر: «در حال بررسی، معمولاً کمتر از ۱۲ ساعت».</span></li>
+    <li><b>چهار نوبت بررسی در روز</b><span>۷:۳۰، ۱۳، ۱۸ و ۲۳ به وقت برلین. طولانی‌ترین انتظار حدود ۸٫۵ ساعت، داخل وعدهٔ ۱۲ ساعت. لس‌آنجلس و تورنتو هم با همین چهار نوبت پوشش داده می‌شوند؛ آگهی خانه یا خودرو در بعدازظهر لس‌آنجلس تا صبح برلین صبر می‌کند و این را به آگهی‌دهنده می‌گوییم.</span></li>
+    <li><b>گزارش کاربران</b><span>آگهی شخصی بعد از ۳ گزارش از سه حساب تأییدشده خودکار پنهان می‌شود، با توضیح دلیل (با علامت «خودکار») و حق اعتراض. گزارش‌های کسانی که سابقهٔ خوب دارند بالاتر می‌آیند.</span></li>
+    <li><b>قاعدهٔ اضطراری</b><span>تهدید جانی، امنیت کودک، افشای اطلاعات شخصی و هر دستور رسمی: ربات تلگرام حتی در حالت «مزاحم نشوید» زنگ می‌زند. بیدار: در یک ساعت؛ خواب: اول صبح. دکمه‌های یک‌ضربه‌ای: «توقف آگهی در این دسته و شهر» و «پنهان در این کشور».</span></li>
+    <li><b>وقتی نیستید (بیماری، سفر)</b><span>حالت امن: همهٔ آگهی‌های شخصی نگه داشته می‌شوند و فقط کسب‌وکارها و برگزارکننده‌های تأییدشده منتشر می‌کنند. یک جانشین فقط حالت امن و توقف را روشن و خاموش می‌کند و دربارهٔ محتوا تصمیم نمی‌گیرد.</span></li>
+    <li><b>قاعدهٔ هوش مصنوعی</b><span>هوش مصنوعی فقط نگه می‌دارد، پنهان می‌کند یا علامت می‌زند. حذف دائمی، محدود کردن و مسدود کردن فقط با شما. هر هفته ۲۰ تصمیم هوش مصنوعی را نمونه بگیرید.</span></li>
+  </ol>
+  <h3>چند ساعت در هفته (برآورد)</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>آگهی تازه در روز</th><th class="num">ساعت در هفته</th><th class="num">در روز</th><th>نتیجه</th></tr></thead>
+    <tbody>
+      <tr><td>۵۰</td><td class="num">حدود ۴ تا ۶</td><td class="num">۴۰ تا ۵۰ دقیقه</td><td>راحت</td></tr>
+      <tr><td>۲۰۰</td><td class="num">حدود ۱۱ تا ۱۶</td><td class="num">حدود ۲ ساعت</td><td>هنوز به‌تنهایی شدنی</td></tr>
+      <tr><td>۵۰۰</td><td class="num">حدود ۲۲ تا ۳۲</td><td class="num">۳٫۵ تا ۴٫۵ ساعت</td><td>جای جذب آگهی و فروش را می‌گیرد</td></tr>
+    </tbody>
+  </table></div>
+  <p class="col small">پشتیبانی ایمیلی، جذب آگهی و فروش در این عددها نیست. بدون غربالگری هوش مصنوعی، فقط خواندن ۵۰ آگهی در روز حدود ۶ ساعت در هفته است؛ همین لایه است که نظارت تک‌نفره را ممکن می‌کند.</p>
+  <div class="note col"><b>قاعدهٔ کمک، به‌جای استخدام از حالا:</b> اگر نظارت ۴ هفته پشت سر هم بیش از ۱۵ ساعت در هفته شد، یا ۲ هفته انتظار آگهی‌های نگه‌داشته بیش از ۱۲ ساعت شد، تصمیم می‌گیرید: قواعد سخت‌تر یا کمک پولی. این جای شرط «ساعت ناظر پوشش داده شده» را در بررسی ظرفیت می‌گیرد.</div>
 </section>
 
 <section aria-labelledby="resilience">
-  <h2 id="resilience">No single point of failure</h2>
-  <p class="col">Round 6 had one shared brake: if Berlin was slow, nothing else would start. You were right that this is a weak point. It is replaced by three rules:</p>
+  <h2 id="resilience">بدون نقطهٔ شکست واحد</h2>
+  <p class="col">نسخهٔ دور ۶ یک ترمز مشترک داشت: اگر برلین کند بود، هیچ جای دیگری شروع نمی‌شد. سه قاعده جایش را گرفته:</p>
   <div class="two">
-    <div><h3>Each country on its own</h3><p>Each country has its own health check. A country that misses stays in a quiet Starter: still live, never closed, with less promotion and an honest message. If Berlin is slow, only Germany's next cities wait.</p></div>
-    <div><h3>A capacity check for new openings</h3><p>Before anything new opens, all of these must be green:</p><ul><li>listings reviewed within 12 hours in every region for 4 weeks;</li><li>moderator hours covered;</li><li>server memory under 70% at peak;</li><li>a restore tested in the last 90 days;</li><li>your own week under its cap.</li></ul><p>If one is red, only new openings wait. Countries already live carry on.</p></div>
-    <div><h3>A fallback for everything</h3><p>Each single point has a fallback (table below).</p></div>
+    <div><h3>هر کشور روی پای خودش</h3><p>هر کشور سلامت خودش را دارد. کشوری که به هدف نرسد در حالت شروع آرام می‌ماند: زنده، هرگز بسته، با تبلیغ کمتر و پیام صادقانه. اگر برلین کند باشد، فقط شهرهای بعدی آلمان صبر می‌کنند.</p></div>
+    <div><h3>بررسی ظرفیت برای باز کردن چیز تازه</h3><p>پیش از باز شدن هر چیز تازه، همهٔ این‌ها سبز باشند:</p><ul><li>بررسی آگهی‌ها زیر ۱۲ ساعت در همهٔ مناطق، ۴ هفته؛</li><li>نظارت شما زیر ۱۵ ساعت در هفته؛</li><li>حافظهٔ سرور در اوج زیر ۷۰٪؛</li><li>بازیابی پشتیبان در ۹۰ روز گذشته آزموده شده؛</li><li>هفتهٔ خودتان زیر سقفش.</li></ul><p>اگر یکی قرمز باشد، فقط باز کردن چیز تازه صبر می‌کند. کشورهای زنده ادامه می‌دهند.</p></div>
+    <div><h3>جایگزین برای همه‌چیز</h3><p>هر نقطهٔ تکی یک جایگزین دارد (جدول پایین).</p></div>
   </div>
   <div class="scroll"><table>
-    <thead><tr><th>Single point</th><th>Fallback</th><th class="num">Cost</th></tr></thead>
+    <thead><tr><th>نقطهٔ تکی</th><th>جایگزین</th><th class="num">هزینه</th></tr></thead>
     <tbody>
-      <tr><td>One server</td><td>Point-in-time database recovery; a warm standby server; cached pages served read-only during an outage; a restore drill every 90 days</td><td class="num">≈ €7–12 / month</td></tr>
-      <tr><td>One moderator (you)</td><td>A German Minijob for Europe's evenings; a Toronto contractor for the Americas from January; a Vancouver contractor when LA opens; AI pre-screening; trusted flaggers</td><td class="num">≈ €1.5–1.7k / month</td></tr>
-      <tr><td>One payment account</td><td>Stripe, plus Mollie as a second provider (check its Iran terms too), plus bank-transfer invoices for yearly business plans</td><td class="num">fees only</td></tr>
-      <tr><td>The Telegram bot</td><td>A live SMS provider (seven.io), needed anyway for the +98 rule</td><td class="num">≈ €10–50 / month</td></tr>
-      <tr><td>Your own time</td><td>A fixed weekly routine, volunteer city ambassadors («سفیر»), and a deputy with emergency admin access</td><td class="num">—</td></tr>
+      <tr><td>یک سرور</td><td>بازیابی پایگاه داده به هر لحظه؛ سرور آمادهٔ جایگزین؛ صفحه‌های ذخیره‌شده در زمان قطعی؛ آزمون بازیابی هر ۹۰ روز</td><td class="num">حدود ۷ تا ۱۲ € در ماه</td></tr>
+      <tr><td>یک ناظر (شما)</td><td>غربالگری هوش مصنوعی، حالت شب، پنهان شدن خودکار با گزارش، حالت امن هنگام غیبت، جانشین فقط برای توقف؛ قاعدهٔ کمک در ۱۵ ساعت</td><td class="num">حدود ۳ تا ۴ $ در ماه</td></tr>
+      <tr><td>یک حساب پرداخت</td><td><bdi>Stripe</bdi>، به‌اضافهٔ <bdi>Mollie</bdi> (شرایط ایرانش هم بررسی شود)، به‌اضافهٔ فاکتور انتقال بانکی برای طرح‌های سالانهٔ کسب‌وکار</td><td class="num">فقط کارمزد</td></tr>
+      <tr><td>ربات تلگرام</td><td>واتس‌اپ (رایگان) و پیامک (<bdi>GatewayAPI</bdi>، و برای آمریکا و کانادا یک سرویس تأیید)</td><td class="num">حدود ۱۵ تا ۱۸۵ € در ماه</td></tr>
+      <tr><td>وقت شما</td><td>برنامهٔ ثابت هفتگی، سفیرهای داوطلب شهر، و جانشینی با دسترسی اضطراری</td><td class="num">—</td></tr>
     </tbody>
   </table></div>
-  <p class="col" style="font-size:14.5px;color:var(--muted)">No contractor in Los Angeles: California's AB5 law treats such workers as employees. Moderators outside the EU access EU users' data, so the US and Australia need standard contractual clauses; Canada and the UK have adequacy decisions. Even as a Kleinunternehmer, you owe German VAT on foreign contractors' fees (§ 13b). All of this is for the lawyer and the tax advisor.</p>
+  <p class="col small">بدون پیمانکار خارجی، سؤال‌های قانون <bdi>AB5</bdi> کالیفرنیا، مالیات آلمان بر دستمزد پیمانکار خارجی (<bdi class="ltr">§ 13b</bdi>) و انتقال داده به ناظر خارج از اروپا هم حذف می‌شوند.</p>
 </section>
 
 <section aria-labelledby="copycats">
-  <h2 id="copycats">Against copycats: claim now</h2>
+  <h2 id="copycats">در برابر کپی‌کارها: همین حالا ثبت کنید</h2>
   <div class="scroll"><table>
-    <thead><tr><th>What</th><th>When</th><th class="num">Cost</th></tr></thead>
+    <thead><tr><th>چه</th><th>کی</th><th class="num">هزینه</th></tr></thead>
     <tbody>
-      <tr><td>EU trademark «پیدو» / Peydoo, 2 classes</td><td>by 30 Nov 2026</td><td class="num">≈ €900</td></tr>
-      <tr><td>Madrid filing for the US, Canada, Australia and the UK, within the 6-month priority window</td><td>Jan 2027</td><td class="num">≈ CHF 2,690</td></tr>
-      <tr><td>Instagram, Telegram, X, TikTok handles</td><td>this week</td><td class="num">€0</td></tr>
-      <tr><td>Domains (.ca needs a registered Canadian mark; .com.au becomes possible once the Australian mark is pending)</td><td>now and later</td><td class="num">≈ €100–300</td></tr>
-      <tr><td>Partner Telegram channels, "first and preferred" terms</td><td>before each Starter</td><td class="num">€0</td></tr>
-      <tr><td>Founding businesses with badges, reviews and history; Persian pages for each city and category</td><td>from the start</td><td class="num">your time</td></tr>
+      <tr><td>علامت تجاری اروپا «پیدو» / <bdi>Peydoo</bdi>، دو طبقه</td><td>تا ۳۰ نوامبر ۲۰۲۶</td><td class="num">حدود ۹۰۰ €</td></tr>
+      <tr><td>ثبت مادرید برای آمریکا، کانادا، استرالیا و بریتانیا، در مهلت ۶ ماههٔ حق تقدم</td><td>ژانویهٔ ۲۰۲۷</td><td class="num">حدود ۲٬۶۹۰ فرانک سوئیس</td></tr>
+      <tr><td>نام کاربری در اینستاگرام، تلگرام، ایکس، تیک‌تاک</td><td>همین هفته</td><td class="num">۰ €</td></tr>
+      <tr><td>دامنه‌ها (<bdi class="ltr">.ca</bdi> علامت ثبت‌شدهٔ کانادا می‌خواهد؛ <bdi class="ltr">.com.au</bdi> وقتی علامت استرالیا در جریان باشد)</td><td>حالا و بعداً</td><td class="num">حدود ۱۰۰ تا ۳۰۰ €</td></tr>
+      <tr><td>کانال‌های تلگرامی شریک، با شرط «اول و ترجیحی»</td><td>پیش از هر شروع</td><td class="num">۰ €</td></tr>
+      <tr><td>کسب‌وکارهای بنیان‌گذار با نشان، نظر و سابقه؛ صفحه‌های فارسی برای هر شهر و دسته</td><td>از اول</td><td class="num">وقت شما</td></tr>
     </tbody>
-    <tfoot><tr><td><b>Total</b></td><td></td><td class="num"><b>≈ €4.2–4.5k</b></td></tr></tfoot>
+    <tfoot><tr><td><b>جمع</b></td><td></td><td class="num"><b>حدود ۴٫۲ تا ۴٫۵ هزار €</b></td></tr></tfoot>
   </table></div>
 </section>
 
 <section aria-labelledby="turkey">
-  <h2 id="turkey">Turkey makes money</h2>
-  <p class="col">Screening isn't what costs money. The EU, OFAC and UN sanctions lists are free (the UK's OFSI list closed in January 2026). A daily check of new list entries against our few hundred names costs nothing to run and takes 2–4 days to build. A paid check at sign-up costs about €0.40 per business. The real costs are your 20–40 minutes per business, the Turkish data-protection representative and the legal opinions. The fees are set to cover them.</p>
+  <h2 id="turkey">ترکیه پول درمی‌آورد</h2>
+  <p class="col">غربالگری خرجی ندارد. فهرست‌های تحریم اروپا، <bdi>OFAC</bdi> و سازمان ملل رایگان‌اند (فهرست <bdi>OFSI</bdi> بریتانیا ژانویهٔ ۲۰۲۶ بسته شد). مقایسهٔ روزانهٔ ورودی‌های تازه با چند صد نام ما هزینه‌ای ندارد و ساختش ۲ تا ۴ روز است. بررسی پولی هنگام ثبت‌نام حدود ۰٫۴۰ € برای هر کسب‌وکار است. هزینهٔ واقعی ۲۰ تا ۴۰ دقیقه وقت شما برای هر کسب‌وکار، نمایندهٔ ترک و نظر حقوقی است. قیمت‌ها این‌ها را پوشش می‌دهند.</p>
   <div class="scroll"><table>
-    <thead><tr><th>Product (businesses only, in euros, yearly)</th><th class="num">Price</th><th class="num">Founding (first 20)</th></tr></thead>
+    <thead><tr><th>محصول (فقط کسب‌وکارها، یورو، سالانه)</th><th class="num">قیمت</th><th class="num">بنیان‌گذار (۲۰ اول)</th></tr></thead>
     <tbody>
-      <tr><td>Verification and listing (sanctions check, papers, video call, badge)</td><td class="num">€49 / year</td><td class="num">€29</td></tr>
-      <tr><td>Pro Turkey (verification included)</td><td class="num">€190 / year</td><td class="num">€95</td></tr>
-      <tr><td>Featured event</td><td class="num">€9.99</td><td class="num">—</td></tr>
-      <tr><td>Nowruz or Yalda sponsor</td><td class="num">€150–300</td><td class="num">—</td></tr>
+      <tr><td>تأیید و فهرست (بررسی تحریم، مدارک، تماس تصویری، نشان)</td><td class="num">۴۹ € در سال</td><td class="num">۲۹ €</td></tr>
+      <tr><td>پروی ترکیه (با تأیید)</td><td class="num">۱۹۰ € در سال</td><td class="num">۹۵ €</td></tr>
+      <tr><td>رویداد ویژه</td><td class="num">۹٫۹۹ €</td><td class="num">—</td></tr>
+      <tr><td>حامی نوروز یا یلدا</td><td class="num">۱۵۰ تا ۳۰۰ €</td><td class="num">—</td></tr>
     </tbody>
   </table></div>
   <ul class="col">
-    <li><b>Who can pay:</b> only companies with a tax number (VKN) and a MERSİS number. Selling to businesses avoids registering for Turkish VAT, because the buyer self-assesses it (sorumlu sıfatıyla). Sole traders are listed, but pay by bank transfer until Stripe answers. Associations, lawyers and clinics get free, neutral listings, because Turkish rules restrict their advertising.</li>
-    <li><b>Order:</b> free application, then the sanctions check <i>before</i> any money, then payment, then manual verification, then a daily re-check. A yearly re-verification is paid by the renewal. Money from a listed person can't be refunded: it has to be frozen and reported to the Bundesbank.</li>
-    <li><b>Tax:</b> the Turkish payer withholds 15% (Decision 476), so plan on receiving 85%. Business sales to Turkey aren't taxable in Germany, so they probably don't count toward the §19 limits (for the tax advisor).</li>
-    <li><b>Payment:</b> Stripe only after it confirms in writing (next section). Otherwise yearly invoices paid by bank transfer in euros. Paddle forbids advertising services. iyzico and PayTR need a Turkish company.</li>
-    <li><b>Year 1, Istanbul</b> (my estimate, about 50 businesses at most because of your time): about €1.8k, €4.0k or €7.4k gross (low, middle, high). That covers screening, card fees and the representative (€1–3k a year), but not the one-off legal opinions (€2–6k). Break-even is realistic in year 2. Turkey's real value in year 1 is being there first.</li>
-    <li><b>Start:</b> Istanbul in June 2027, paid from day one, after four preconditions:<ol><li>the sanctions lawyer;</li><li>Stripe's written answer;</li><li>the tax and Turkish advisors;</li><li>VERBIS registration and the data-protection representative.</li></ol></li>
+    <li><b>چه کسی می‌تواند بپردازد:</b> فقط شرکت‌هایی با شمارهٔ مالیاتی (<bdi>VKN</bdi>) و شمارهٔ <bdi>MERSİS</bdi>. فروش به شرکت یعنی ثبت در مالیات بر ارزش افزودهٔ ترکیه لازم نیست، چون خریدار خودش آن را حساب می‌کند. کسب‌وکارهای تک‌نفره فهرست می‌شوند ولی تا جواب <bdi>Stripe</bdi> با انتقال بانکی می‌پردازند. انجمن‌ها، وکیل‌ها و کلینیک‌ها فهرست رایگان و خنثی می‌گیرند، چون قانون ترکیه تبلیغشان را محدود می‌کند.</li>
+    <li><b>ترتیب:</b> درخواست رایگان، بعد بررسی تحریم <b>پیش از</b> هر پولی، بعد پرداخت، بعد تأیید دستی، بعد بررسی دوبارهٔ روزانه. پول کسی که در فهرست تحریم است برگشت داده نمی‌شود: باید مسدود و به <bdi>Bundesbank</bdi> گزارش شود.</li>
+    <li><b>مالیات:</b> پرداخت‌کنندهٔ ترک ۱۵٪ کسر می‌کند (تصمیم ۴۷۶)، پس روی ۸۵٪ حساب کنید.</li>
+    <li><b>پرداخت:</b> <bdi>Stripe</bdi> فقط بعد از تأیید کتبی. وگرنه فاکتور سالانه با انتقال بانکی به یورو. <bdi>Paddle</bdi> خدمات تبلیغاتی را ممنوع کرده؛ <bdi>iyzico</bdi> و <bdi>PayTR</bdi> شرکت ترک می‌خواهند.</li>
+    <li><b>تأیید شماره در ترکیه:</b> پیامک بسته می‌ماند؛ کد واتس‌اپ آنجا فقط ۰٫۰۰۰۹ $ است.</li>
+    <li><b>سال اول استانبول</b> (برآورد من، حداکثر حدود ۵۰ کسب‌وکار به خاطر وقت شما): حدود ۱٫۸ / ۴٫۰ / ۷٫۴ هزار € ناخالص (کم، متوسط، زیاد). نمایندهٔ ترک (۱ تا ۳ هزار € در سال) سهم واقعی از این درآمد است و جزو تصمیم «برویم یا نه» حساب می‌شود. سربه‌سر شدن در سال دوم واقع‌بینانه است؛ ارزش اصلی سال اول، اول بودن است.</li>
+    <li><b>شروع:</b> استانبول در ژوئن ۲۰۲۷، از روز اول پولی، بعد از چهار پیش‌شرط: <ol><li>وکیل تحریم؛</li><li>جواب کتبی <bdi>Stripe</bdi>؛</li><li>مشاور مالیاتی و مشاور ترک؛</li><li>ثبت <bdi>VERBIS</bdi> و نمایندهٔ حفاظت داده.</li></ol></li>
   </ul>
 </section>
 
 <section aria-labelledby="money">
-  <h2 id="money">The biggest risk: Stripe's "citizen of Iran" clause</h2>
-  <div class="risk col"><b>This concerns all of Peydoo, not just Turkey.</b> Stripe's restricted list (checked 22 Sep 2026) bans dealings with persons "located in, resident in, or a citizen of" Iran. Many Iranians in Germany and elsewhere hold only an Iranian passport, and many of the businesses that would buy Pro are owned by Iranian citizens. Read literally, the clause covers part of our core market. Founding Pro is free for 6 months, so the first payments come around May 2027. Before then:<ul><li>send Stripe a written question (I'll draft it): may an EU business sell advertising to Iranian citizens living in the EU, Canada and so on, and to companies they own?</li><li>set up Mollie as a second provider and check its terms;</li><li>have the sanctions lawyer check the setup.</li></ul></div>
+  <h2 id="money">بزرگ‌ترین خطر: بند «شهروند ایران» در Stripe</h2>
+  <div class="risk col"><b>این به کل پیدو مربوط است، نه فقط ترکیه.</b> فهرست ممنوعهٔ <bdi>Stripe</bdi> (بررسی ۲۲ سپتامبر ۲۰۲۶) معامله با کسی را که «در ایران است، ساکن ایران است، یا شهروند ایران است» ممنوع می‌کند. بسیاری از ایرانیان آلمان و جاهای دیگر فقط گذرنامهٔ ایرانی دارند و بسیاری از کسب‌وکارهایی که پرو می‌خرند مال شهروندان ایران‌اند. اگر به‌طور تحت‌اللفظی خوانده شود، بخشی از بازار اصلی ما را می‌گیرد. پروی بنیان‌گذار ۶ ماه رایگان است، پس اولین پرداخت‌ها حدود مه ۲۰۲۷ است. پیش از آن:<ul><li>یک سؤال کتبی به <bdi>Stripe</bdi> (من پیش‌نویسش را می‌نویسم): آیا یک کسب‌وکار اروپایی می‌تواند به شهروندان ایرانیِ ساکن اروپا، کانادا و… و شرکت‌هایشان تبلیغ بفروشد؟ و اینکه حساب‌های ایران هرگز پرداخت نمی‌کنند؛</li><li><bdi>Mollie</bdi> به‌عنوان سرویس دوم، با بررسی شرایطش؛</li><li>بررسی وکیل تحریم.</li></ul></div>
 </section>
 
 <section aria-labelledby="build">
-  <h2 id="build">What gets built, in waves</h2>
-  <p class="col">No build estimate had been made since round 3. These are rough working days; the detailed build plan comes after your decisions.</p>
+  <h2 id="build">چه چیزی ساخته می‌شود، در چند موج</h2>
+  <p class="col">روزهای کاری تقریبی. برنامهٔ دقیق ساخت بعد از تصمیم‌های شما می‌آید.</p>
   <div class="scroll"><table>
-    <thead><tr><th>Wave</th><th>Contents</th><th class="num">Days (estimate)</th><th>Needed by</th></tr></thead>
+    <thead><tr><th>موج</th><th>محتوا</th><th class="num">روز (برآورد)</th><th>تا کی</th></tr></thead>
     <tbody>
-      <tr><td>0. Before Berlin goes live</td><td>Close Austria (both servers); founding Pro that doesn't charge automatically after 6 months; live SMS and the zone rules (+98 refused); Iran read-only (separate cache, firewall rule, wording)</td><td class="num">6–9</td><td>launch</td></tr>
-      <tr><td>1. The redesign</td><td>First page and country chooser, city pages, listing page, 4-step posting, my listings, chat, account, Pro and business pages, events with filters, saves and follows, footer, admin shortcuts, Gregorian dates, dark mode</td><td class="num">15–18</td><td>Dec–Jan</td></tr>
-      <tr><td>2. Many countries</td><td>Country × city × category switches; modes; city waitlists with double opt-in and counts; opening-day listings; admin «کشورها و شهرها» with «اعلام تاریخ»; the online layer; event time zones; cross-border zones; CAD/USD/AUD/GBP prices</td><td class="num">8–12</td><td>12 Jan</td></tr>
-      <tr><td>3. Safety at scale</td><td>AI pre-screening; review queues per region; warm standby; accessibility pass (WCAG 2.2 AA); US and UK terms</td><td class="num">6–9</td><td>Feb–Mar</td></tr>
-      <tr><td>4. Turkey, paid</td><td>Business verification flow; automatic sanctions checks; invoices by bank transfer; Turkey's categories</td><td class="num">5–7</td><td>June</td></tr>
+      <tr><td>۰. پیش از باز شدن برلین</td><td>بستن اتریش (هر دو سرور)؛ پروی بنیان‌گذار که بعد از ۶ ماه خودکار پول نمی‌گیرد؛ <b>قفل ‎+98 و ‎+888 و کشورهای خارج از فهرست در ربات تلگرام</b>؛ پیامک زنده با <bdi>GatewayAPI</bdi> برای اروپا، با سقف روزانه و <bdi>Turnstile</bdi>؛ قواعد مناطق؛ ایران فقط خواندنی (حافظهٔ جدا، قاعدهٔ فایروال، متن)؛ بررسی دکمهٔ انصراف</td><td class="num">۷ تا ۱۰</td><td>افتتاح</td></tr>
+      <tr><td>۱. طراحی تازه</td><td>صفحهٔ اول و انتخاب کشور، صفحهٔ شهر، صفحهٔ آگهی، ثبت آگهی ۴ مرحله‌ای، آگهی‌های من، گفت‌وگو، حساب، صفحه‌های پرو و کسب‌وکار، رویدادها با فیلتر، ذخیره و دنبال کردن، پانویس، میان‌برهای مدیریت، تاریخ میلادی، حالت تاریک</td><td class="num">۱۵ تا ۱۸</td><td>دسامبر تا ژانویه</td></tr>
+      <tr><td>۲. کشورهای زیاد</td><td>کلیدهای کشور × شهر × دسته؛ حالت‌ها؛ فهرست انتظار شهرها با تأیید دوباره و شمارش؛ آگهی روز افتتاح؛ «کشورها و شهرها» با «اعلام تاریخ»؛ لایهٔ آنلاین؛ منطقهٔ زمانی رویدادها؛ مناطق برون‌مرزی؛ قیمت به دلار کانادا، دلار آمریکا، دلار استرالیا و پوند؛ <b>واتس‌اپ (کاربر شروع می‌کند)</b>؛ <b>سرویس تأیید برای آمریکا و کانادا</b>؛ صف خبرنامهٔ تلگرام</td><td class="num">۱۰ تا ۱۴</td><td>۱۲ ژانویه</td></tr>
+      <tr><td>۳. ایمنی در مقیاس</td><td>غربالگری هوش مصنوعی؛ سطح اعتماد، حالت شب، حالت امن، پنهان شدن با ۳ گزارش، هشدار اضطراری؛ سرور جایگزین؛ دسترس‌پذیری پایه و بیانیه؛ بندهای بریتانیا و آمریکا؛ <b>حساب پیام ایران</b> (بعد از تأیید وکیل)</td><td class="num">۹ تا ۱۳</td><td>فوریه تا مارس</td></tr>
+      <tr><td>۴. ترکیهٔ پولی</td><td>روند تأیید کسب‌وکار؛ بررسی خودکار تحریم؛ فاکتور انتقال بانکی؛ دسته‌های ترکیه؛ دکمهٔ «پنهان در ترکیه»</td><td class="num">۵ تا ۷</td><td>ژوئن</td></tr>
     </tbody>
-    <tfoot><tr><td><b>Total</b></td><td></td><td class="num"><b>40–55</b></td><td></td></tr></tfoot>
+    <tfoot><tr><td><b>جمع</b></td><td></td><td class="num"><b>۴۶ تا ۶۲</b></td><td></td></tr></tfoot>
   </table></div>
-  <div class="note col"><b>Wave 0 and wave 1 together don't fit in 4 weeks.</b> My recommendation: Berlin goes live with wave 0 and today's look in late November or early December. The redesign follows in parts before the first Starter countries on 12 January. The alternative is to launch with the redesign in mid-January, which means missing Yalda in Berlin.</div>
+  <div class="note col"><b>موج ۰ و ۱ با هم در ۴ هفته جا نمی‌شوند.</b> پیشنهاد من: برلین با موج ۰ و ظاهر امروز، اواخر نوامبر یا اوایل دسامبر باز شود. طراحی تازه بخش‌بخش پیش از اولین کشورهای «شروع» در ۱۲ ژانویه می‌آید. راه دیگر: افتتاح با طراحی تازه در اواسط ژانویه، یعنی از دست دادن یلدا در برلین.</div>
 </section>
 
 <section aria-labelledby="costs">
-  <h2 id="costs">Costs and people in year one</h2>
+  <h2 id="costs">هزینه‌های سال اول</h2>
   <div class="scroll"><table>
-    <thead><tr><th>Item</th><th class="num">One-time</th><th class="num">Monthly by month 12</th></tr></thead>
+    <thead><tr><th>مورد</th><th class="num">یک‌باره</th><th class="num">ماهانه تا ماه ۱۲</th></tr></thead>
     <tbody>
-      <tr><td>Trademarks, handles, domains</td><td class="num">€4.2–4.5k</td><td class="num">—</td></tr>
-      <tr><td>Lawyer and tax advisor (Germany, sanctions, UK, US, Turkey)</td><td class="num">€5–14k</td><td class="num">—</td></tr>
-      <tr><td>Moderators (Germany Minijob, Toronto, Vancouver later)</td><td class="num">—</td><td class="num">€1.5–2.6k</td></tr>
-      <tr><td>Server standby, SMS, AI screening, OpenSanctions</td><td class="num">≈ €0.5k</td><td class="num">€0.1–0.4k</td></tr>
-      <tr><td>Representatives (Turkey data protection; UK data protection)</td><td class="num">—</td><td class="num">€0.2–0.5k</td></tr>
-      <tr><td>Turkey one-off legal opinions</td><td class="num">€2–6k</td><td class="num">—</td></tr>
+      <tr><td>علامت تجاری، نام‌های کاربری، دامنه‌ها</td><td class="num">۴٫۲ تا ۴٫۵ هزار €</td><td class="num">—</td></tr>
+      <tr><td>حداقل حقوقی (بازبینی آلمان، <bdi>DMCA</bdi>، مشاورهٔ تحریم آمریکا، مشاور ترک)</td><td class="num">۱٫۵ تا ۴ هزار €</td><td class="num">—</td></tr>
+      <tr><td>وکیل تحریم اروپا (حساب‌های ایران، ترکیه، <bdi>Stripe</bdi>) و مشاور مالیاتی (برآورد من)</td><td class="num">۲ تا ۵ هزار €</td><td class="num">—</td></tr>
+      <tr><td>نماینده‌ها (حفاظت دادهٔ بریتانیا؛ ترکیه وقتی پولی شد)</td><td class="num">—</td><td class="num">۱۰ تا ۳۰۰ €</td></tr>
+      <tr><td>تأیید شماره (پلکان) و شمارهٔ واتس‌اپ</td><td class="num">—</td><td class="num">۱۵ تا ۱۸۵ €</td></tr>
+      <tr><td>سرور جایگزین، غربالگری هوش مصنوعی، <bdi>OpenSanctions</bdi></td><td class="num">حدود ۰٫۵ هزار €</td><td class="num">۱۵ تا ۴۰ €</td></tr>
+      <tr><td>ناظرها</td><td class="num">—</td><td class="num"><b>۰ €</b> (وقت شما)</td></tr>
     </tbody>
-    <tfoot><tr><td><b>Total (my estimate)</b></td><td class="num"><b>≈ €12–25k</b></td><td class="num"><b>≈ €1.8–4.3k</b></td></tr></tfoot>
+    <tfoot><tr><td><b>جمع (برآورد من)</b></td><td class="num"><b>حدود ۸ تا ۱۴ هزار €</b></td><td class="num"><b>حدود ۵۰ تا ۵۰۰ €</b></td></tr></tfoot>
   </table></div>
-  <p class="col">To cover the monthly cost: about 90–210 Pro accounts at €24, after Stripe fees and the free founding months.</p>
+  <p class="col">نسخهٔ قبل: حدود ۱۲ تا ۲۵ هزار € یک‌باره و ۱٫۸ تا ۴٫۳ هزار € در ماه. برای پوشش هزینهٔ ماهانهٔ تازه حدود ۳ تا ۲۵ حساب پرو با ۲۴ € کافی است. هزینهٔ اصلی حالا وقت شماست: تا ۲۰۰ آگهی در روز، حدود ۲ ساعت در روز برای نظارت.</p>
 </section>
 
 <section aria-labelledby="fixes">
-  <h2 id="fixes">Corrections: what earlier rounds got wrong</h2>
-  <p class="col">An independent review checked every round against the code, the live staging site and the sources. These are the corrections; the plan above already includes them.</p>
+  <h2 id="fixes">اصلاحات: آنچه پیش‌تر اشتباه گفته شد</h2>
+  <p class="col">اصلاحات دور ۷ (بند «شهروند ایران» در <bdi>Stripe</bdi>، پروی بنیان‌گذار با کوپن ۶ ماهه، هامبورگ، تاریخ ویزای آمریکا و بقیه) در برنامهٔ بالا هست و در مستندات مخزن ثبت شده. این‌ها اصلاحات این دور است:</p>
   <div class="scroll"><table>
-    <thead><tr><th></th><th>What was said</th><th>What is true</th></tr></thead>
+    <thead><tr><th></th><th>آنچه گفته شد</th><th>آنچه درست است</th></tr></thead>
     <tbody>
-      <tr><td><span class="tag h">high</span></td><td>Stripe bars people "located in" Iran</td><td>It bars anyone located in, resident in, <b>or a citizen of</b> Iran. See the payments section.</td></tr>
-      <tr><td><span class="tag h">high</span></td><td>No build estimate since round 3</td><td>Now added: 40–55 days in waves</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>SMS works in 36 countries, including Turkey</td><td>37 countries are seeded; SMS covers 36 because Turkey is excluded, and it isn't live anywhere yet. Telegram is the only working phone check today.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Founding Pro: no card, no automatic renewal</td><td>Today it is a Stripe subscription with a 6-month coupon, so Stripe would charge €24 afterwards. It needs new code (wave 0).</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Gregorian dates, French texts for Paris, "for every country"</td><td>These break CLAUDE.md ("Jalali dates only", "Persian only", "for Iranians in Europe"). If you approve, CLAUDE.md and the first page's «ساکن اروپا» get updated.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Pro prices in dollars on the US page</td><td>Pro exists only in euros. Other currencies are now in wave 2.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Hamburg open in February; Vienna's date 7 weeks and 2 days out</td><td>They broke the gate rules. Hamburg is now a target (April); the window is 3–8 weeks.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>No rule for a city below its goals on the announced date; "Berlin's first gate" undefined</td><td>Now defined: 85% seven days before, one move only; health = the strategy's gate</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Vienna gate 300 or 250; LA 50 places against "15–20 elsewhere"</td><td>One table now: big, medium and small cities, with places 50 / 30 / 20</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Round 4's "normally €24"</td><td>Replaced by "Pro costs €24 a month" (round 5). Round 4 is marked as superseded.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>UAE: closed (2028), hidden (Q4 2027), "guide-lite"</td><td>One position: hidden, review in October 2027, events only if ever. UAE numbers are not accepted.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Austria and empty country pages</td><td>Both are changes to the strategy, now called out: Austria closes now and starts as Starter at Yalda; only planned countries get pages.</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>US visas suspended "since Jan 2026"</td><td>Since 9 June 2025, tightened on 1 January 2026</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Iran pages: "EU sanctions law requires this"</td><td>There is no general EU ban on reading. The wording is now "because of sanctions law and our providers' terms".</td></tr>
-      <tr><td><span class="tag m">med</span></td><td>Footer, chooser and Austria pages with round 5's countries</td><td>Updated to the plan above</td></tr>
-      <tr><td><span class="tag ok">low</span></td><td>«دوشنبه، ۱ دسامبر ۲۰۲۶»</td><td>A Tuesday: «سه‌شنبه». Fixed.</td></tr>
-      <tr><td><span class="tag ok">low</span></td><td>Vienna +31% since 2022; the badge «پیشگام وین، ۲۰۲۶»</td><td>Vienna +29% (Austria +31%); the badge now uses the opening year</td></tr>
-      <tr><td><span class="tag ok">low</span></td><td>"Staging has no footer"</td><td>It has one, with Impressum, terms and privacy; the privacy page already lists the cookies</td></tr>
-      <tr><td><span class="tag ok">low</span></td><td>Australia's visitor visa ban</td><td>A 6-month ban from 26 March 2026, which has probably ended</td></tr>
-      <tr><td><span class="tag ok">low</span></td><td>"Today any number can post anything"</td><td>Business-only rules already exist (job offers, at most 2 service offers for private people)</td></tr>
+      <tr><td><span class="tag h">مهم</span></td><td>«شمارهٔ ‎+98 پذیرفته نمی‌شود، حتی با وی‌پی‌ان»</td><td>فقط پیامک ‎+98 را رد می‌کند. ربات تلگرام امروز هر شماره‌ای را می‌پذیرد، از جمله ‎+98 و شماره‌های ناشناس ‎+888. قفل در موج ۰ اضافه می‌شود. (در کد بررسی شد.)</td></tr>
+      <tr><td><span class="tag m">متوسط</span></td><td><bdi>seven.io</bdi> سرویس پیامک ارزان</td><td>با ۰٫۰۷۵ € ثابت، جز آلمان همه‌جا گران‌ترین است. <bdi>GatewayAPI</bdi> و برای آمریکا و کانادا یک سرویس تأیید.</td></tr>
+      <tr><td><span class="tag m">متوسط</span></td><td>برای هر منطقهٔ زمانی یک ناظر لازم است</td><td>هیچ قانونی ناظر ۲۴ ساعته نمی‌خواهد؛ فقط دستورهای رسمی ساعت دارند (استرالیا ۲۴، ترکیه ۴).</td></tr>
+      <tr><td><span class="tag m">متوسط</span></td><td>وکیل جدا برای هر کشور (۶ تا ۱۴ هزار €)</td><td>بند در متن‌ها و ارزیابی کتبی؛ حدود ۱٫۵ تا ۴ هزار €.</td></tr>
+      <tr><td><span class="tag m">متوسط</span></td><td>سیستم داخلی شکایت و بقیهٔ <bdi>DSA</bdi> لازم است</td><td>شرکت کوچک‌مقیاس معاف است. دکمهٔ اعتراض را نگه می‌داریم.</td></tr>
+      <tr><td><span class="tag ok">کم</span></td><td>ثبت <bdi>VERBIS</bdi> پیش از صفحهٔ رویدادهای ترکیه</td><td>پیش از اولین پرداخت ترکیه کافی است.</td></tr>
+      <tr><td><span class="tag ok">کم</span></td><td>ایمیل <bdi class="ltr">.ir</bdi> برای شناختن کاربر ایران</td><td>دیگر برای شناختن نیست؛ برای امنیت خود کاربر رد می‌شود.</td></tr>
+      <tr><td><span class="tag new">تازه</span></td><td>—</td><td>دکمهٔ انصراف برای قرارداد آنلاین با مصرف‌کننده از ۱۹ ژوئن ۲۰۲۶.</td></tr>
+      <tr><td><span class="tag new">تازه</span></td><td>—</td><td>هیچ‌کدام از کنترل‌های ایرانِ دور ۵ هنوز ساخته نشده؛ فقط تابع خواندن کشور از <bdi>Cloudflare</bdi> هست.</td></tr>
     </tbody>
   </table></div>
-  <p class="col" style="font-size:14.5px;color:var(--muted)">Checked and correct: Germany and Austria are active and Austria has 0 listings on staging; logged-out pages set no cookies; Telegram accepts any number; posting and chat need a verified phone; Pro is €24 and €59; the INSEE, Statistik Austria, BGH, § 19 UStG, UAE trade halt and OFAC cases are right. Staging runs the same code as when it was reviewed.</p>
 </section>
 
 <section aria-labelledby="decide">
-  <h2 id="decide">Your decisions</h2>
+  <h2 id="decide">تصمیم‌های شما</h2>
   <ol class="decide col">
-    <li><b>The calendar and the three resilience rules</b><span>Canada 12 Jan, Australia 19 Jan, US 2 Feb, UK Feb; Open cities only at their gates; health per country; the capacity check; no shared brake.</span></li>
-    <li><b>Launch order</b><span>Berlin live with wave 0 and today's look in late Nov or early Dec, then the redesign in parts (my recommendation). Or launch with the redesign in mid-January.</span></li>
-    <li><b>Spend now</b><span>Claims ≈ €4.5k this month; a Toronto moderator from January and a German Minijob (≈ €1.5–1.7k a month); a standby server.</span></li>
-    <li><b>Turkey's prices</b><span>€49 verification, €190 Pro, founding €29 / €95 for the first 20; businesses only; Istanbul in June after the four preconditions.</span></li>
-    <li><b>The Stripe question</b><span>I draft it, you send it from the Stripe account; Mollie as a second provider.</span></li>
-    <li><b>Founding Pro after 6 months</b><span>It ends unless the business says yes; then €12 a month for a year.</span></li>
-    <li><b>Rules carried over from round 6</b><span>Posting across borders by zone; no political or LGBTQ events on Turkey pages.</span></li>
-    <li><b>The lawyer and the tax advisor</b><span>One combined list of questions: cookies; Iran read-only and its wording; Stripe; Turkey (VERBIS, withholding, sanctions); the UK Online Safety Act and data representative; US terms; the § 19 limits with more countries; contractors abroad.</span></li>
+    <li><b>تقویم و سه قاعدهٔ پایداری (بدون تغییر)</b><span>کانادا ۱۲ ژانویه، استرالیا ۱۹ ژانویه، آمریکا ۲ فوریه، بریتانیا فوریه؛ شهرهای «باز» فقط با دروازه؛ سلامت جدا برای هر کشور؛ بررسی ظرفیت؛ بدون ترمز مشترک.</span></li>
+    <li><b>ترتیب افتتاح</b><span>برلین با موج ۰ و ظاهر امروز در اواخر نوامبر یا اوایل دسامبر، بعد طراحی تازه بخش‌بخش (پیشنهاد من). یا افتتاح با طراحی تازه در اواسط ژانویه.</span></li>
+    <li><b>پلکان تأیید شماره</b><span>تلگرام (با قفل ‎+98 و ‎+888) ← واتس‌اپ که کاربر شروع می‌کند ← پیامک با <bdi>GatewayAPI</bdi> در اروپا و <bdi>Prelude</bdi> یا <bdi>Twilio Verify</bdi> برای آمریکا و کانادا. <bdi>seven.io</bdi> کنار می‌رود. ترکیه بدون پیامک.</span></li>
+    <li><b>حساب پیام ایران</b><span>با ایمیل، برچسب «از ایران»، محدودیت‌های بالا، مسدود شدن کارت و شبا و پیوند در هر دو جهت، بدون دستهٔ کالا، پاک شدن بعد از ۹۰ روز، رد ایمیل <bdi class="ltr">.ir</bdi>. ساخت در موج ۳، بعد از تأیید وکیل تحریم.</span></li>
+    <li><b>قاعدهٔ سفر</b><span>کاربر تأییدشده‌ای که به ایران سفر می‌کند «فقط پیام» می‌شود، نه «فقط خواندنی».</span></li>
+    <li><b>قوانین نرم</b><span>جدول بالا و خط قرمزها. دو چیز ارزان ولی لازم می‌ماند: نمایندهٔ حفاظت دادهٔ بریتانیا از فوریه، و ثبت ترکیه پیش از اولین پرداخت ترکیه.</span></li>
+    <li><b>نظارت توسط شما</b><span>هوش مصنوعی، حالت شب، چهار نوبت بررسی، پنهان شدن با ۳ گزارش، حالت امن. قاعدهٔ کمک: بیش از ۱۵ ساعت در هفته برای ۴ هفته.</span></li>
+    <li><b>خرج همین حالا</b><span>ثبت علامت و نام‌ها حدود ۴٫۵ هزار € در همین ماه؛ سرور جایگزین؛ شمارهٔ واتس‌اپ. بدون ناظر پولی.</span></li>
+    <li><b>قیمت‌های ترکیه (بدون تغییر)</b><span>تأیید ۴۹ €، پرو ۱۹۰ €، بنیان‌گذار ۲۹ / ۹۵ € برای ۲۰ اول؛ فقط شرکت‌ها؛ استانبول در ژوئن بعد از چهار پیش‌شرط.</span></li>
+    <li><b>سؤال از Stripe</b><span>من پیش‌نویس می‌کنم، شما از حساب <bdi>Stripe</bdi> می‌فرستید؛ <bdi>Mollie</bdi> به‌عنوان سرویس دوم.</span></li>
+    <li><b>پروی بنیان‌گذار بعد از ۶ ماه</b><span>تمام می‌شود مگر کسب‌وکار بگوید بله؛ بعد ۱۲ € در ماه برای یک سال.</span></li>
+    <li><b>وکیل و مشاور مالیاتی</b><span>یک فهرست سؤال کوتاه‌تر: حساب‌های ایران و برچسب؛ <bdi>Stripe</bdi>؛ ترکیه (<bdi>VERBIS</bdi>، کسر ۱۵٪، تحریم)؛ دکمهٔ انصراف؛ فرانسه و میانجی؛ کالای ایرانی‌الاصل در آمریکا؛ سقف‌های <bdi class="ltr">§ 19</bdi> با کشورهای بیشتر.</span></li>
   </ol>
-  <p class="col"><b>Already decided by you:</b> close Austria now and follow the gate plan. It is the first item of wave 0, so it ships with the first approved build, not on its own before that.</p>
+  <p class="col"><b>از قبل تصمیم گرفته‌اید:</b> اتریش همین حالا بسته شود و برنامهٔ دروازه دنبال شود؛ ایران فقط خواندنی با پیام از طریق ایمیل؛ بدون مینی‌جاب. بستن اتریش اولین مورد موج ۰ است و با اولین ساخت تأییدشده می‌آید، نه جدا پیش از آن.</p>
 </section>
 
-<footer class="end col">Sources and details: <code>docs/design-options.md</code> and <code>docs/design-options/research/</code> on the <code>design-research</code> branch. The screens are on the design page (version 8). Estimates are marked as estimates. Nothing here is legal or tax advice.</footer>
+<footer class="end col">منابع و جزئیات: <bdi class="ltr">docs/design-options.md</bdi> و <bdi class="ltr">docs/design-options/research/</bdi> در شاخهٔ <bdi class="ltr">main</bdi>. صفحه‌ها در صفحهٔ طراحی (نسخهٔ ۸) هستند. برآوردها برآورد نامیده شده‌اند. هیچ‌چیز اینجا مشاورهٔ حقوقی یا مالیاتی نیست.</footer>
 </main>

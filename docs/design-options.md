@@ -1,8 +1,67 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7, below) supersedes them where they differ. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, and round 8 (below) changes phone verification, Iran, the legal minimum and moderation. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 8 (Oct 25, 2026): phone verification costs, Telegram limits, Iran messaging, soft legal, solo moderation
+
+**Plan page, now in Persian (version 2):** https://claude.ai/artifact/1ZzHVpR7EvAdsPudG6Qbaw (copy: `docs/design-options/launch-plan.html`). Research: `research/round8-phone.md`, `research/round8-soft-legal.md`, `research/round8-iran-messaging.md`. Round 8 changes round 7 only where stated here. The calendar, gates, resilience rules and Turkey prices stay.
+
+The owner said the plan is good and asked about:
+- SMS costs, cheaper options and WhatsApp;
+- the Telegram bot's limits;
+- letting people in Iran sign up with email and send messages;
+- a softer legal approach, "soft but inside a safe zone";
+- no Minijob or contractors: the owner moderates alone.
+
+The owner asked for the final plan in Persian.
+
+- **Phone verification ladder** (cheapest first):
+  1. Telegram bot (free). It needs the +98 / +888 / allowlist refusal.
+  2. WhatsApp started by the user: a wa.me link with a token. Incoming messages are free; replies are free up to 1,000 a month. When a username hides the number, we ask for it with `REQUEST_CONTACT_INFO` and accept only `origin: contact_request`.
+  3. SMS: GatewayAPI in Europe (DE €0.072, UK €0.038, most others about €0.04). For +1 numbers, a verification API (Prelude about €0.036, Twilio Verify about $0.058) instead of 10DLC registration. Turkey stays closed for SMS.
+  4. Optional: Telegram Gateway ($0.01) or WhatsApp codes sent by us (US/CA $0.0034, TR $0.0009).
+
+  seven.io (flat €0.075) is dropped. Estimated monthly cost at 1k / 5k / 20k verifications: about €9 / €44 / €175, against €94 / €469 / €1,875 all by SMS through seven.io.
+- **Code finding:** the bot path (`telegramNumberToE164()` in `src/modules/users/phone-number.ts`) accepts any number, including +98 and +888. Only SMS refuses Iran. The fix is a wave 0 item.
+- **Telegram limits:** about 1 message a second per chat, 20 a minute per group and about 30 a second overall; 429 comes with `retry_after`. Paid broadcast needs 100k Stars and 100k monthly users, so it is out of reach. Verification is fine: about 500 a minute. The digest needs a queue at 25 a second or less: about 7 minutes for 10k people.
+- **Iran:** read-only for listings, plus an email account that can only message (`iran_message_only`). Grounds: EU law doesn't restrict messaging, and US 31 CFR 560.540 names chat and email (for AWS and Cloudflare). The rules:
+  - **Who gets one:** self-declaration, prompted by an IR IP or the Tehran time zone.
+  - **Shown to others:** the label «از ایران», and a setting to refuse messages from Iran accounts.
+  - **What they can do:** message only, not in goods categories. No posting, payment or phone reveal.
+  - **Limits:** 3 new chats a day in the first week, then 10 (30 a week); 2 messages before the other side replies; 60 a day; auto-pause after 2 reports or 3 blocks.
+  - **The key rule:** cards, IBANs, payment requests and links are blocked both ways in Iran chats.
+  - **Data:** chat contents deleted 90 days after the last message; no real name; notifications without message text; the full IP kept 7 days.
+  - **.ir email:** still refused, now for the user's safety.
+  - **Travel:** verified users visiting Iran become message-only.
+  - **Timing:** built in wave 3 after the sanctions lawyer confirms. The Persian copy and the lawyer questions are in the research.
+- **Soft legal:**
+  - **EU:** micro enterprises are exempt from most of the DSA (Art. 15, 20–32). The German establishment covers Austria, the Netherlands and Sweden. Italy and France need nothing if paid offers go to businesses only.
+  - **UK:** self-written risk and children's access assessments, plus the UK GDPR representative.
+  - **US:** DMCA agent ($6) and paragraphs in the terms.
+  - **Canada:** paragraphs, and no Quebec.
+  - **Australia:** eSafety notices within 24 h and a self-assessment.
+  - **Turkey:** VERBIS and a representative before the first Turkish payment, and "hide in Turkey" for 4-hour orders.
+  - **New duty:** the withdrawal button (§ 356a BGB, since 19 Jun 2026) if anything is sold to consumers.
+  - **Cost:** legal one-time spending falls from about €6–14k to about €1.5–4k, plus the sanctions lawyer.
+  - The red lines stay (sanctions, official orders, Impressum, GDPR basics, scams held before publishing).
+- **Solo moderation:**
+  - **Screening:** rules first, then OpenAI moderation, then an LLM scam check (about $3–4 a month).
+  - **Trust tiers:** high-risk posts are held for the owner.
+  - **Night mode** and **four sweeps** (07:30, 13:00, 18:00, 23:00 Berlin): the longest wait is about 8.5 h.
+  - **Reports:** a listing is auto-hidden after 3 reports.
+  - **Emergencies:** a P0 alert, and safe mode while the owner is away.
+  - **AI may hold or hide.** Only the owner bans.
+  - **Owner's time:** about 4–6 h a week at 50 listings a day, 11–16 h at 200.
+  - **When to get help:** moderation over 15 h a week for 4 weeks. This replaces "moderator hours covered" in the capacity check.
+- **Build:** 46–62 days. The new parts:
+  - **Wave 0:** the bot refusal and SMS through GatewayAPI.
+  - **Wave 2:** WhatsApp, a verification API for +1 numbers, and the digest queue.
+  - **Wave 3:** the moderation setup and Iran accounts.
+- **Costs:** about €8–14k one-time and about €50–500 a month by month 12. Round 7 estimated €12–25k and €1.8–4.3k a month, mostly moderators.
+
+The plan page ends with 12 decisions for the owner.
 
 ## Final plan (round 7, Oct 25, 2026): supersedes earlier rounds where they differ
 

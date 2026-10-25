@@ -902,11 +902,11 @@ Round 7 (Oct 25, 2026): the final plan for the owner's decision, https://claude.
 
 The owner decided to close Austria now and follow the gate plan. It is wave 0's first item; no app code has changed yet. Artifact (design page) version 8.
 
-Next: the owner decides the plan page's eight points; then the detailed build plan for wave 0 for approval.
+Round 8 (Oct 25): phone verification costs, Telegram limits, Iran messaging, soft legal and solo moderation; the plan page is now in Persian (version 2). Next: the owner decides the plan page's 12 points; then the detailed build plan for wave 0 for approval.
 
 ### Owner decisions and preferences from the design research (Oct 24–25, 2026)
 
-Collected here so every tool sees them. Details in `docs/design-options.md` ("Final plan (round 7)" first). The two plan pages are private claude.ai artifacts in the VS Code account; the owner can share them, and a copy of the plan is `docs/design-options/launch-plan.html`.
+Collected here so every tool sees them. Details in `docs/design-options.md` (round 8, then "Final plan (round 7)"). The plan page is in Persian since round 8. The two plan pages are private claude.ai artifacts in the VS Code account; the owner can share them, and a copy of the plan is `docs/design-options/launch-plan.html`.
 
 **Decided by the owner:**
 - Design direction B «صیقل‌خورده»: keep today's look (turquoise, saffron, Vazirmatn, rounded cards) and make it easier to use. "This is my style."
@@ -915,20 +915,28 @@ Collected here so every tool sees them. Details in `docs/design-options.md` ("Fi
 - Always include events, Pro and business pages, the footer with Impressum, and the admin panel when designing.
 - Approved: admin keyboard shortcuts, 4 posting steps, «آگهی‌های من» in the bottom bar, event filters, saves and follows, the waitlist count, founding Pro per city, no cookie banner while nothing needs consent.
 - Light and dark mode both; proposal is automatic by default with a choice.
-- Iran: read-only from Iran, no sign-up, +98 numbers refused even with a VPN, no listings from Iran.
+- Iran: read-only for listings. People in Iran may sign up with email and send messages (round 8; no posting, no payments). +98 numbers are refused even with a VPN; no listings from Iran.
+- Legal: "soft but inside a safe zone". Write paragraphs and self-assessments instead of hiring a lawyer per country; the red lines stay (round 8).
+- Moderation: the owner moderates alone with AI pre-screening, holds and user reports. No Minijob, no contractors (round 8).
 - The one-year plan: every country live within a year. Hurry the US, Canada and Australia (largest diasporas, copycat risk). No plan where one country's failure stops the others.
 - Turkey must make money (paid business listings), not cost money.
 - Close Austria for now and follow the country and gate plan (first item of the first build wave; not done yet).
 
-**Open for the owner** (the plan page's decisions):
+**Open for the owner** (the plan page's 12 decisions, round 8):
 1. the calendar and resilience rules;
 2. launch order;
-3. spending now (trademarks, moderators);
-4. Turkey prices;
-5. asking Stripe in writing about its "citizen of Iran" clause;
-6. founding Pro after 6 months;
-7. the cross-border posting rule and the Turkey events policy;
-8. booking the lawyer and the tax advisor.
+3. the phone verification ladder (Telegram, WhatsApp, GatewayAPI SMS, a verification API for +1);
+4. Iran message-only accounts and their rules;
+5. the travel rule (message-only in Iran);
+6. the soft legal minimum;
+7. solo moderation and the 15 h a week trigger;
+8. spending now (trademarks, standby server, WhatsApp number);
+9. Turkey prices;
+10. asking Stripe in writing;
+11. founding Pro after 6 months;
+12. the shorter list for the lawyer and the tax advisor.
+
+**Code gap found in round 8 (not fixed; no app changes yet):** the Telegram bot path (`telegramNumberToE164()` in `src/modules/users/phone-number.ts`) accepts any number, including +98 and anonymous +888 numbers. Only the SMS path refuses Iran. Planned for wave 0.
 
 **Working rules the owner gave for this research:**
 - No app changes until the owner approves.
