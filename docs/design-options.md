@@ -1,8 +1,44 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, round 8 changes phone verification, Iran, the legal minimum and moderation, and round 9 (top) drops SMS, explains the waitlist, adds private vs business rules, brings Turkey forward and re-rates Stripe. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, round 8 changes phone verification, Iran, the legal minimum and moderation, round 9 drops SMS, explains the waitlist, adds private vs business rules, brings Turkey forward and re-rates Stripe, and round 10 (top) proposes a partly active Iran without events in Iran. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 10 (Oct 25, 2026): Iran partly active, and events in Iran
+
+**Plan page version 4 (Persian), section "ایران".** Research: `research/round10-iran-partial.md`. The owner asked what can be switched on for Iran, and whether events in Iran are a good idea.
+
+- **What changed since round 8:**
+  - **War:** the US and Israel have been at war with Iran since 28 Feb 2026.
+  - **US:** on 24 Aug 2026 OFAC stayed 560.544, 560.550 and 560.554, and GLs F and G (Federal Register 2026-17426, checked). 31 CFR 560.540 is unchanged since May 2024 (checked on Cornell LII). Its exclusion is web hosting for "commercial *entities* located in Iran"; round 8 said "endeavours".
+  - **EU:** listed the IRGC as a terrorist organisation (Feb 2026).
+  - **Iran:** a whitelist internet; more than 6,000 arrests; a "hostile" list of 44 outlets, 61 people and 310 pages (Jul 2026).
+  - **Germany:** the Auswärtiges Amt asks Germans to leave Iran.
+- **Events in Iran: no, in any form** (Iranian organisers or diaspora organisers, free or ticketed).
+  - **US providers:** the benefit is received in Iran, which is outside 560.540.
+  - **Stripe:** bars services "originating from" Iran, directly or indirectly.
+  - **Iranian law:** events need an Ershad permit, and companies may not advertise on foreign platforms.
+  - **Safety:** event pages identify organisers and venues, and an Iran section raises the risk of the hostile list.
+  - **Practical:** Evand, Tiwall and others already serve this. No demand evidence was found.
+  - **Instead:** free online events run from abroad.
+- **Ranked options:**
+  - **Yes, now:**
+    - Peydoo-written guides («کارهای ایران از خارج», newcomer city guides);
+    - a "relocation / visa sponsorship" job filter.
+  - **Later, after the lawyer:**
+    - wanted posts by people about to emigrate (one each, pre-moderated, verified viewers only, 30 days, payment block);
+    - a «از ایران هم رایگان قابل شرکت» badge on free online events from abroad;
+    - email alerts for the destination city.
+  - **No:**
+    - a Nowruz visit guide (only a safety box);
+    - remote work done from Iran;
+    - free listings inside Iran;
+    - teachers or freelancers in Iran selling to the diaspora.
+- **Proposed mode:** an admin switch `iran_mode = read_only | message_only | partial`.
+  - **Principles:** nothing located in Iran, nothing sold from Iran, no money, everything points abroad.
+  - **New content rule for everyone:** no events in Iran, no services carried out inside Iran, no jobs aimed at people in Iran.
+  - **Kill switch:** step the mode down if 560.540 changes, if Peydoo is listed as hostile, if Stripe or Cloudflare ask, or if scam reports rise.
+  - **Lawyer:** nine new questions are in the research.
 
 ## Round 9 (Oct 25, 2026): no SMS, Telegram bots, the waitlist explained, private vs business, Turkey earlier, Stripe
 

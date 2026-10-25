@@ -904,7 +904,7 @@ The owner decided to close Austria now and follow the gate plan. It is wave 0's 
 
 Round 8 (Oct 25): phone verification costs, Telegram limits, Iran messaging, soft legal and solo moderation; the plan page is now in Persian (version 2).
 
-Round 9 (Oct 25): phone verification without SMS (users send a code to our WhatsApp), Telegram limits per bot, the waitlist explained simply, private vs business rules, Turkey earlier with private listings in safe categories, sanctions checks, Stripe re-rated medium-low (plan page version 3). Next: the owner decides the plan page's 13 points; then the detailed build plan for wave 0 for approval.
+Round 9 (Oct 25): phone verification without SMS (users send a code to our WhatsApp), Telegram limits per bot, the waitlist explained simply, private vs business rules, Turkey earlier with private listings in safe categories, sanctions checks, Stripe re-rated medium-low (plan page version 3). Round 10 (Oct 25): Iran partly active (guides, relocation-jobs filter; later wanted posts and free online events), no events in Iran; the US stayed five Iran general licences on 24 Aug 2026 (plan page version 4). Next: the owner decides the plan page's 13 points; then the detailed build plan for wave 0 for approval.
 
 ### Owner decisions and preferences from the design research (Oct 24–25, 2026)
 
@@ -934,7 +934,7 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 5. Turkey earlier (businesses 1 Feb, Nowruz, private listings in May, KVKK in January);
 6. Turkey prices;
 7. the Turkey sanctions process;
-8. Iran message-only accounts and the travel rule;
+8. Iran partly active (no events in Iran; guides and relocation jobs now; wanted posts and online events after the lawyer) and the travel rule;
 9. soft legal and solo moderation;
 10. Stripe (no nationality questions, Radar rules, Mollie before May 2027);
 11. spending now;
