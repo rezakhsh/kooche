@@ -27,3 +27,7 @@ Added to `final/`: `home` (first visit from an open country), `home-waitlist` (f
 ## Round 5 (Oct 25, 2026)
 
 Added to `final/`: `appearance` (settings: automatic, light, dark), `iran` (a visit from Iran, read-only), `iran-phone` (a +98 number refused at the phone check), `turkey` (the Turkey guide), `business-dashboard` (founding Pro progress). Changed: `home` (a line about founding Pro), `home-waitlist` (now Austria, with Vienna's gate, pioneer rewards and opening-day listings), `countries` (Germany open; Austria, the Netherlands, Canada, Italy coming; the Turkey guide), `pro` (honest wording and places left), the footer in `ui.js`, and `sun` / `moon` in `icons.js`.
+
+## Round 6 (Oct 25, 2026)
+
+Added to `final/`: `waitlist-announced` (Vienna after its date is announced), `admin-countries` (countries and cities: modes, gates, «اعلام تاریخ», the Berlin brake, category switches), `us-starter` (Los Angeles in starter mode), `turkey-starter` (Istanbul: events and verified businesses), `post-crossborder` (posting in Germany with a Turkish number), `listing-crossborder` (a Vienna rental posted with a German number; it loads `listing.js` and swaps the place names). `adminShell()` in `ui.js` has the new «کشورها و شهرها» item.

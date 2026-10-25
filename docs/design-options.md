@@ -1,8 +1,84 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 (below) revised the country order, Austria, Turkey, the UAE and Iran. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 (below) puts every country live within a year in tiered modes. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 6 (Oct 25, 2026): the country gate, every country within a year, posting across borders
+
+The owner asked how the country gate works and when a country is announced, whether every country has a waitlist, said events and businesses would suit Turkey and the UAE, said the US in year 3 is too late ("open all countries in one year"), and asked whether someone with a German number can post in Austria, or with a Turkish number in the EU. Research with sources: `docs/design-options/research/round6-expansion.md` and `round6-turkey-uae.md`. Not legal or tax advice.
+
+**Two switches.** A *country* starts in Starter mode on a planned date (events, verified businesses, jobs and services; no gate). A *city's* gate opens the person-to-person categories (rooms and flats, items, cars).
+
+**The city gate:**
+- Three goals: confirmed people (double opt-in, counted once), verified businesses, and reviewed opening-day listings. Progress is the lowest of the three.
+- Our conditions: listings reviewed within 12 hours in the city's own time zone for 4 weeks, and the country's legal checklist done.
+- Stages:
+  1. anyone can join, no number shown;
+  2. 25%: the bars appear;
+  3. 50%: email and Telegram, pioneers prepare listings, businesses invited to verify;
+  4. 75%: the owner presses «اعلام تاریخ» in the admin; the date is 3–7 weeks later, on a cultural moment when one is near, and holds;
+  5. the last 14 days: prepared listings reviewed, pioneers re-confirm 72 hours before;
+  6. pioneers enter 48 hours early;
+  7. opening day.
+- Never a date below 75%. Under 50% for 6 months: tell the list honestly.
+- Sizes: small 250–300 / 12–15 / 60 (Vienna 300 / 15 / 60), medium 500 / 20 / 100, big 1,000 / 30 / 150.
+- Mockups: `final/waitlist-announced` (Vienna after the date) and `final/admin-countries` (modes, the three bars, «اعلام تاریخ», the Berlin brake, category switches per country).
+
+**Waitlists:** every listed country has one automatically, and anyone from anywhere can join any city. Countries in the plan show goals; the rest just collect sign-ups by city (a demand signal). Exceptions: Iran (read-only) and the UAE (hidden).
+
+**Every country within a year** (replaces round 5's order; departs from `docs/strategy.md` "deep, not wide": the UK, the US and Turkey move into year one, and the "next country" gate becomes a "next Open city" gate):
+- Modes:
+  - **online layer** everywhere from Yalda (online services, online events, remote jobs);
+  - **Starter** per country;
+  - **Open** per city at its gate;
+  - **Guide** (Turkey now).
+- Calendar:
+
+| When | What |
+| --- | --- |
+| Nov 2026 | Berlin Open |
+| Dec (Yalda) | Online layer everywhere; Austria and the Netherlands Starter; Turkey guide |
+| Jan–Mar 2027 | Vienna Open (example: date 20 Mar, announced 28 Jan) |
+| Feb | Hamburg Open; UK (London) and Canada (Toronto, Vancouver; not Quebec) Starter |
+| Mar (Chaharshanbe Suri, Nowruz) | US (LA, Bay Area, DC, NY) and Australia (Sydney, Melbourne) Starter |
+| Apr (Sizdah Bedar) | Italy and Sweden Starter |
+| May | Paris Starter (French texts for paid offers first); Cologne–Bonn–Düsseldorf Open |
+| Jun | Randstad and Toronto Open; Istanbul events and businesses if the lawyer agrees |
+| Jul–Sep | Frankfurt, Munich Open; rooms in Milan and London; LA rentals and cars in September, only with a moderator in the Americas |
+| Oct 2027 (Mehregan) | Review; Sydney, Stockholm, Paris Open in year 2 unless their gates are met sooner; UAE review |
+
+- Preconditions:
+  - Dec–Jan: availability switches (country × city × category), per-city waitlists with pre-listings, AI pre-screening.
+  - Feb–Mar: UK Online Safety Act assessments and a UK GDPR representative; a WCAG 2.2 AA pass (US accessibility lawsuits, about 5,000 in 2025); a US DMCA agent; a tested restore.
+  - Mar–Apr: a part-time Persian moderator in the Americas (5–10 h a week).
+  - Later: volunteer city ambassadors; an Asia-Pacific moderator before Sydney opens.
+- Outside the EU, Pro is sold to businesses only at first.
+- Cost (estimate): €9–21k one-time and €1.8–4.3k a month by month 12.
+- **Brake:** if Berlin misses its first gate by the end of February 2027, no new Starter countries after March and no Open cities outside Germany and Austria.
+- **US:** Starter at Nowruz 2027 (≈750k Iranian Americans, 12,656 students, the best Pro market). Risks: accessibility suits, and US rules on Iranian-origin goods (a goods rule in the US terms, lawyer). Sober Nowruz copy (UCLA's 2026 festival was cancelled). Mockup `final/us-starter`.
+
+**Turkey: events and verified businesses** (go, with conditions):
+- Outside e-Devlet's EİDS, which covers property and car ads only.
+- Free, with no payments. Chat only with businesses and organisers. Ticket links only to known ticket sites.
+- Verification: vergi levhası, MERSİS and partners; sanctions screening of every business and partner (OpenSanctions API, about €0.10 a check).
+- Forbidden: exchange and havaleh, trade or freight to Iran, oil, electronics and dual-use, gold, crypto, visa and residence fixers, university agents, recruitment and company formation. Estate agents and car dealers come later, case by case.
+- Needs VERBIS and a Turkish representative, plus the lawyer.
+- Proposal: no political or LGBTQ events on Turkey pages (safety), which is the owner's call.
+- Timing: a Nowruz 2027 events page as a test, then Istanbul in June 2027. Mockup `final/turkey-starter`.
+- Most Iranian-linked companies in Turkey (7,300–12,000) are traders, logistics firms and money changers. The consumer-facing part is a few hundred in Istanbul (estimate).
+
+**UAE:** hidden. Since 18 Aug 2026 all trade and financial dealings with Iran are halted, Persian concerts are cancelled, a media licence is needed even for free advertising platforms, and there is a record of abductions. Review in Q4 2027; if ever, events only with DET permit numbers.
+
+**Posting across borders.** Today any verified number can post anything in any open country; the listing's country comes from the posting page and a postcode there; Telegram accepts any number, SMS the 36 seeded countries (+90 included). Proposal: the listing's country is where the thing is, and the phone's zone decides what may be posted there. Zones: Europe (EU, EEA, CH, UK), North America, Australia, Turkey, UAE.
+- Same zone (a German number in Austria): everything; the listing shows «شمارهٔ آلمان», and the rental safety note starts with it. Kleinanzeigen reportedly accepts any EU number ([PCWelt](https://www.pcwelt.de/?p=1198601), [Mimikama](https://www.mimikama.org/?p=246359)).
+- Another zone (a Turkish number in Germany): wanted posts, events, verified businesses and online services; renting out, selling and job offers only after verifying a number from the zone. "Landlord abroad" is the classic deposit scam ([EVZ](https://www.evz.de/en/shopping-internet/internet-fraud/rental-fraud.html), [Stuttgart](https://www.studierendenwerk-stuttgart.de/fileadmin/Mediendatenbank_Studierendenwerk/02_Wohnen_WOW/026_PDF/2015_Stadt_Stgt_Flyer_Whgbetrug_ENG.pdf)).
+- First week: one listing outside the number's country. Cross-zone posts go to the new-listings review. IP only a soft signal.
+- Mockups: `final/post-crossborder` and `final/listing-crossborder`.
+
+**Open for the owner:** the one-year plan and the brake; the cross-border rule; no political or LGBTQ events on Turkey pages; budget for a moderator in the Americas; and from round 5, closing Austria on staging, the €12 founding price, the lawyer and the tax advisor (now including the UK, the US and Turkey).
+
+Artifact version 7.
 
 ## Round 5 (Oct 25, 2026): countries again, Austria, Turkey, Iran read-only, light or dark
 

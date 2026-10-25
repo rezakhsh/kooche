@@ -885,4 +885,12 @@ Round 5 (Oct 25, 2026): the owner asked about light or dark, France, Turkey, the
 
 New mockups: `appearance`, `iran`, `iran-phone`, `turkey`, `business-dashboard`; updated: `home`, `home-waitlist` (Austria), `countries`, `pro`, footer. Research in `docs/design-options/research/`. Artifact version 6. Details in `docs/design-options.md`, "Round 5".
 
-Next: the owner approves the country order, Austria's waitlist and the founding price, and books the lawyer and tax advisor; then a build plan for approval. No code changed.
+Round 6 (Oct 25, 2026): the owner wants every country open within one year, events and businesses for Turkey and the UAE, and asked how the gate works and about posting across borders.
+- **Two switches:** a country starts in Starter mode (events, verified businesses, jobs, services) on a planned date; a city's gate (people, businesses, prepared listings; date announced at 75%) opens rooms, items and cars.
+- **Calendar:** Berlin Nov 2026; Vienna and the Netherlands Starter at Yalda; UK and Canada Feb; US and Australia at Nowruz; Italy and Sweden Apr; Paris May; Istanbul events and businesses Jun (lawyer first); Open cities through the year. Brake if Berlin misses its gate by end of Feb.
+- **Turkey:** events and verified businesses, free, with sanctions screening. **UAE:** hidden until a Q4 2027 review.
+- **Cross-border posting:** same zone, everything; another zone, wanted posts, events, businesses and online services only.
+
+New mockups: `waitlist-announced`, `admin-countries`, `us-starter`, `turkey-starter`, `post-crossborder`, `listing-crossborder`. Research in `docs/design-options/research/round6-*.md`. Artifact version 7. Details in `docs/design-options.md`, "Round 6".
+
+Next: the owner decides the one-year plan, the cross-border rule, Turkey's event policy and the Americas moderator budget (plus round 5's open points); then a build plan for approval. No code changed.

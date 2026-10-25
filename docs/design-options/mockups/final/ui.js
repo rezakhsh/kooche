@@ -110,7 +110,7 @@ function stepBar(next, back = 'قبلی') {
 
 /** Admin chrome: its own dark bar (so staff always know they are in admin), the environment, the menu */
 function adminShell(active, body, { counts = {} } = {}) {
-  const nav = [['overview', 'نمای کلی', 'chart'], ['queue', 'صف بررسی', 'flag'], ['fresh', 'آگهی‌های تازه', 'sparkle'], ['listings', 'آگهی‌ها و رویدادها', 'doc'], ['users', 'کاربران', 'people'], ['businesses', 'کسب‌وکارها', 'store'], ['payments', 'پرداخت‌ها', 'card'], ['audit', 'گزارش کارها', 'list'], ['system', 'وضعیت سیستم', 'gear'], ['staff', 'همکاران', 'shield']];
+  const nav = [['overview', 'نمای کلی', 'chart'], ['queue', 'صف بررسی', 'flag'], ['fresh', 'آگهی‌های تازه', 'sparkle'], ['listings', 'آگهی‌ها و رویدادها', 'doc'], ['users', 'کاربران', 'people'], ['businesses', 'کسب‌وکارها', 'store'], ['countries', 'کشورها و شهرها', 'globe'], ['payments', 'پرداخت‌ها', 'card'], ['audit', 'گزارش کارها', 'list'], ['system', 'وضعیت سیستم', 'gear'], ['staff', 'همکاران', 'shield']];
   return `<div class="min-h-screen bg-neutral-50">
   <header class="sticky top-0 z-30 bg-brand-950 text-white"><div class="flex items-center gap-3 px-4 py-2.5 lg:px-6">
     ${LOGO('size-8')}<b class="text-base">پیدو</b><span class="rounded-md bg-white/15 px-2 text-xs font-bold leading-6">پنل مدیریت</span><span class="rounded-md bg-saffron-500 px-2 text-xs font-bold leading-6 text-neutral-900">staging</span>
