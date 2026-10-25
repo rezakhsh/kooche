@@ -18,11 +18,16 @@ mount(`${header({ place: 'کانادا', search: 'جستجو در پیدو…' }
       <div class="flex flex-wrap gap-2">${cities.map((c, i) => `<span class="flex h-10 items-center rounded-full border px-4 text-sm ${i === 0 ? 'border-2 border-brand-600 bg-brand-50 font-bold text-brand-800' : 'border-neutral-300'}">${c}</span>`).join('')}</div>
       <p class="mt-4 mb-1.5 text-sm font-bold">ایمیل</p>
       <span class="flex h-12 items-center rounded-xl border border-neutral-300 px-4 text-base text-neutral-500" dir="ltr">you@example.com</span>
-      <label class="mt-3 flex items-start gap-2 text-sm leading-6"><span class="mt-1 flex size-5 shrink-0 items-center justify-center rounded bg-brand-700 text-white">${I('check', 'size-3.5', 3)}</span>می‌خواهم از نخستین آگهی‌دهنده‌ها باشم (کسب‌وکار یا شخص)</label>
+      <p class="mt-4 mb-1.5 text-sm font-bold">شما</p>
+      <div class="grid grid-cols-3 gap-1 rounded-xl bg-neutral-100 p-1 text-center text-sm">${['دنبال چیزی هستم', 'آگهی شخصی می‌دهم', 'کسب‌وکار دارم'].map((t, i) => `<span class="flex min-h-11 items-center justify-center rounded-lg px-1 leading-5 ${i === 2 ? 'bg-white font-bold shadow-sm' : 'text-neutral-700'}">${t}</span>`).join('')}</div>
+      <p class="mt-1 text-xs text-neutral-600">کسب‌وکارها پیش از باز شدن دعوت می‌شوند تا از روز اول آگهی باشد.</p>
       <a class="mt-4 flex h-12 items-center justify-center rounded-xl bg-brand-700 font-bold text-white">خبرم کن</a>
       <p class="mt-2 text-xs leading-6 text-neutral-600">اول یک ایمیل تأیید می‌فرستیم. فقط برای همین خبر؛ هر وقت بخواهید با یک کلیک لغو می‌شود. <a class="underline">حریم خصوصی</a></p>
     </div>
-    <div class="mt-4 rounded-2xl bg-saffron-50 p-4"><p class="text-sm font-bold text-saffron-800">در تورنتو ${fa(312)} نفر منتظرند. با ${fa(500)} نفر باز می‌کنیم.</p><span class="mt-2 block h-2 overflow-hidden rounded-full bg-white"><i class="block h-full w-[62%] rounded-full bg-saffron-500"></i></span>
+    <div class="mt-4 rounded-2xl bg-saffron-50 p-4"><p class="text-sm font-bold text-saffron-800">تورنتو با ${fa(500)} نفر و ${fa(25)} کسب‌وکار باز می‌شود</p>
+      <p class="mt-2 flex justify-between text-xs text-saffron-800"><span>${fa(312)} نفر</span><span>${fa(62)}٪</span></p><span class="mt-1 block h-2 overflow-hidden rounded-full bg-white"><i class="block h-full w-[62%] rounded-full bg-saffron-500"></i></span>
+      <p class="mt-2 flex justify-between text-xs text-saffron-800"><span>${fa(9)} کسب‌وکار</span><span>${fa(36)}٪</span></p><span class="mt-1 block h-2 overflow-hidden rounded-full bg-white"><i class="block h-full w-[36%] rounded-full bg-brand-600"></i></span>
+      <p class="mt-2 text-xs text-saffron-800">فقط ثبت‌نام‌های تأییدشده شمرده می‌شوند. هر دوستی که با پیوند شما بپیوندد، شما را زودتر دعوت می‌کند.</p>
       <a class="mt-3 flex h-11 items-center justify-center gap-2 rounded-xl border border-saffron-300 bg-white text-sm font-bold text-neutral-900">${I('send', 'size-4 text-brand-700')}دعوت دوستان در تلگرام</a></div>
     <h2 class="mt-7 text-lg font-extrabold">تا آن موقع</h2>
     <ul class="mt-3 grid gap-2">${[['calendar', 'رویدادهای آنلاین', 'کلاس‌ها، شب‌های شعر و کارگاه‌هایی که از همه‌جا می‌شود رفت'], ['globe', 'پیدو در آلمان و اتریش', 'اگر برای کار یا مهاجرت به آنجا می‌روید']].map(([ic, t, s]) => `<li class="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3.5"><span class="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">${I(ic, 'size-5')}</span><span class="flex-1"><b class="block text-sm">${t}</b><span class="text-xs text-neutral-600">${s}</span></span>${I('chevronEnd', 'size-4 text-neutral-400')}</li>`).join('')}</ul>

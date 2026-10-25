@@ -4,6 +4,99 @@ Oct 24–25, 2026 · research only, no app changes. The owner chose direction B 
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
 
+## Round 4 (Oct 25, 2026): the owner's questions answered
+
+**Decided by the owner:** waitlist count shown, founding Pro per city, event saves with reminders and organiser follows built with the redesign.
+
+**Event filters:** yes. The one-tap chips and the 14-day strip stay. «فیلترها» opens a sheet with:
+- where: only the city, up to 100 km, or all of the country (concerts draw people from other cities)
+- days, type, price, language
+- suits: family, 18+, step-free
+- in person or online
+- a count on the button
+
+Mockup: `final/events-filters.html`.
+
+**Cookie banner in Germany: not needed on current facts.** I measured staging logged out in headless Chromium:
+- **Cookies:** only `country` and `view`, both 1 year, both the visitor's own choice.
+- **Browser storage:** nothing in local storage, session storage or IndexedDB.
+- **Outside hosts:** only `challenges.cloudflare.com` (Turnstile on login), which set no cookies.
+- **Signed in:** adds the session and login-step cookies, and `pending_favorite` (30 min). All are strictly necessary (§ 25 (2) Nr. 2 TDDDG).
+
+The privacy policy must list each of them. Anything added later (analytics, Meta pixel, YouTube embeds, Sentry Replay) needs a check first. Add this point to the lawyer's pre-launch review.
+
+**Waitlist** (research: Nextdoor threshold, Groupon tipping point, goal-gradient studies, Robinhood and Monzo queues):
+- people sign up when the count is honest and moving
+- count only confirmed (double opt-in) sign-ups; BGH I ZR 164/09 requires stored proof of consent
+- show the number from about 25% of the goal; before that, «از نخستین‌ها باشید»
+- make the goal two-sided («۵۰۰ نفر و ۲۵ کسب‌وکار») so a city never opens empty
+- reward invites with an earlier invitation, Telegram first
+- ask one question: looking, selling privately, business
+- a list goes cold after about 3 months, so open in waves, businesses 1–2 weeks first
+
+Mockup updated: `final/home-waitlist.js`.
+
+**Founding Pro:** a good idea with guardrails. Businesses are the hard side (Chen; Airbnb photography; Thumbtack; Etsy). Groupon is the warning: 27% of businesses lost money.
+- Places: 50 in Berlin and Hamburg; 30 in Frankfurt, Munich and Cologne; 15–20 elsewhere.
+- A sign-up deadline, then 6 months free counted from approval, so end dates are spread.
+- Verified first: phone, registration or Impressum, a real address.
+- At least 3 active listings within 30 days, or the place goes to the next business.
+- The «بنیان‌گذار» badge forever, and a founding price afterwards.
+- Always worded "Pro, normally €24, free for founding businesses". No automatic charge without a yes; listings stay live after the free period.
+- Measure: verified and active at day 30, leads per business, paid at month 6–7.
+
+Mockup updated: `final/pro.js`.
+
+**Next countries (research report, official census APIs where possible):**
+
+| # | Country (first city) | Iranians | Why |
+| --- | --- | --- | --- |
+| 1 | Canada (Toronto, then Vancouver) | ≈281k by ethnic origin (2021); Toronto ≈89–125k | Newcomers about 10k/yr; @toronto_iranians has 14,760 members; thin Persian competition (Canadajoo); GST above C$30k; costs: −6 h, CASL |
+| 2 | Netherlands (Amsterdam/Randstad) | ≈66k of Iranian origin, +26% since 2022 | 31% arrived within 5 years; housing crisis; same EU setup (DSA, GDPR, OSS, euro, iDEAL, CET) |
+| 3 | Sweden (Stockholm, Gothenburg) | ≈87k born in Iran | Dense in Stockholm county (33k); same EU setup; but settled and older, and Blocket is strong |
+| 4 | UK (north-west London), year 2 | ≈110k born in Iran; London 44k | Many newcomers (8k asylum claims in 2024); but VAT from the first £, Online Safety Act duties, and IraniLink as a competitor |
+| 5 | US (Los Angeles) | ≈750k Iranian Americans; LA ≈230k | Largest and richest, but visas frozen since 2025, an older community, −9 h, more US sanctions exposure |
+| 6 | Australia (Sydney) | ≈86k born in Iran | Growing; GST above A$75k; +9 h |
+
+- **Avoid:** Turkey (no Stripe, transit population, sanctions-trade listings, site blocking under Law 5651), the UAE (VAT from the first dirham with a tax agent, no safe harbour, an airport ban on Iranians), Armenia and Georgia (small, no Stripe).
+- **Already open:** Vienna (18.5k born in Iran) is a real fourth city.
+- **Watch:** EU asylum data monthly, because the 2026 war can shift flows.
+- **Changes to the strategy:** add the Netherlands and Sweden as low-cost EU additions; move the UK ahead of the US.
+
+**Iran (research report):**
+- The earlier warning was half right.
+  - EU sanctions (reimposed 27–30 Sep 2025, Regs. 2025/1975, 1980, 1982) are by list and by sector. Reading a German site from Iran is probably not prohibited (a lawyer must confirm).
+  - The real risks: listed persons; payments (notification or authorisation above €10k); listings that help export restricted goods (§ 18 AWG, prison).
+  - US providers' terms: Stripe prohibits anyone located in Iran and indirect dealings; AWS, Cloudflare and Sentry put compliance on us. OFAC GL D-2 covers communications, not commerce.
+  - User safety: the October 2025 espionage law; the internet cut off for about 70% of 2026; phones checked at the border (Auswärtiges Amt, 23 Oct 2026).
+  - Abuse: deposit scams, fake jobs, sourcing of banned goods, money mules.
+- **Decision:**
+  - Keep the block, the +98 refusal and the havaleh, parcel and export bans at launch.
+  - Later, maybe a separate static guide site for people preparing to move: no accounts, forms, chat, payments or tracking, and no event photos. Only with a lawyer's sign-off and a check with Cloudflare.
+  - Then maybe a read-only main site.
+  - Never accounts, contact with sellers, or payments from Iran.
+- **Questions for a sanctions lawyer:**
+  1. Is a free read-only Persian site reachable from Iran prohibited under 267/2012, 359/2011 or the AWV?
+  2. Is a free account "economic resources" for a listed person, and which screening is adequate?
+  3. Are we liable for users' listings of restricted goods bound for Iran, and what moderation counts as due diligence?
+  4. Do GL D-2 and § 560.210(c) cover Cloudflare, SES and Sentry serving readers in Iran?
+  5. Would an Iran-facing static site risk the Stripe account?
+  6. § 19 AWG fines, and the EU sanctions-crime directive 2024/1226.
+  7. How to answer requests from Iranian authorities (Art. 48 GDPR), and which logs to keep.
+  8. Does geoblock plus terms plus screening count as reasonable steps despite VPNs?
+
+**Dark mode:** ten screens rendered, shown in their own section on the page. Still open: with the redesign or after launch.
+
+**Still open for the owner:**
+1. Dark mode now or after launch.
+2. The country order (Canada → Netherlands and Sweden → UK → US → Australia).
+3. A lawyer's pre-launch review covering cookies and Iran too.
+
+**Sources** (full lists on the page):
+- **Countries:** StatCan 98-10-0356, ONS Nomis TS012, SCB, CBS 85458NED, Pew 2026, ABS 2021, wien.gv.at, EUAA, Federal Register 2026-17426.
+- **Iran:** Mayer Brown on the EU snapback, OFAC GL D-2, 31 CFR 560.204, Stripe restricted businesses, AWS customer agreement, § 18 AWG, Auswärtiges Amt.
+- **Waitlist and founding:** Hu & Winer 2017, Kivetz et al. 2006, Chen (The Cold Start Problem), BGH I ZR 164/09.
+
 ## Round 3 (Oct 25, 2026): events, Pro, business, countries, legal, dates, dark mode
 
 **Asked by the owner after round 2:**

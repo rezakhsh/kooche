@@ -865,3 +865,15 @@ Round 3 (Oct 25, 2026), asked by the owner: events in depth, `/pro` and `/busine
 Details in `docs/design-options.md`.
 
 Next: the owner answers four decisions (founding Pro terms, showing the waitlist count, event saves and follows now or later, dark mode now or later); then a build plan for approval. No code changed.
+
+Round 4 (Oct 25, 2026): the owner approved the waitlist count, founding Pro and event saves and follows, and asked about event filters, cookies in Germany, which countries next, and Iran.
+- **Event filters:** an events filter sheet was added.
+- **Cookies:** checked on staging. Logged out, only `country` and `view`; no browser storage; only Turnstile outside. So no banner.
+- **Waitlist and founding Pro:** both got guardrails from research.
+- **Country order:** Canada → Netherlands and Sweden → UK → US → Australia; avoid Turkey, the UAE, Armenia and Georgia.
+- **Iran:** blocked at launch; maybe a static guide site later, with a lawyer's sign-off; never accounts, chat or payments from Iran.
+- **Dark mode:** a gallery of 10 screens.
+
+Artifact version 5. Details in `docs/design-options.md`, "Round 4".
+
+Next: the owner decides dark mode timing and the country order, and books a lawyer's pre-launch review; then a build plan for approval. No code changed.
