@@ -9,4 +9,6 @@ Object.assign(window.ICONS, {
   ruler: '<path d="M3 17 17 3l4 4L7 21Z M7 13l2 2M10 10l2 2M13 7l2 2" />',
   door: '<path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M15 12v.01" />',
   stamp: '<path d="M5 21h14M6 17h12v-3a2 2 0 0 0-2-2h-2V9a2 2 0 1 0-4 0v3H8a2 2 0 0 0-2 2Z" />',
+  sun: '<circle cx="12" cy="12" r="4" /> <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />',
 });

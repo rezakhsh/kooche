@@ -1,8 +1,60 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Waiting for four decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 (below) revised the country order, Austria, Turkey, the UAE and Iran. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 5 (Oct 25, 2026): countries again, Austria, Turkey, Iran read-only, light or dark
+
+The owner asked: which of light and dark is friendlier; France, Turkey ("find a solution") and the UAE; Germany first with Austria on a waitlist; pioneer rewards and how many listings open a country; Iran read-only with no sign-up and +98 blocked even with a VPN; telling businesses about free founding Pro on the site; the country order again. Full research with sources, in `docs/design-options/research/`: `round5-countries.md`, `round5-iran.md`, `round5-dark-waitlist-pro.md`. None of it is legal or tax advice.
+
+**Light or dark:** light reads better for most people (Piepenbrock et al. 2013, 2014; the gap grows with smaller text); about 22% of Chrome traffic asks for dark; NN/g: offer dark, don't make it the default. So «خودکار» (follow the device, light if no setting) is the default; «حساب من» → «تنظیمات» → «ظاهر» and the footer offer automatic, light and dark. Dark: off-white on dark grey, body at least 16px regular, photos never dimmed. It ships with the redesign if every screen passes the contrast check, otherwise within 60 days. Mockup `final/appearance`.
+
+**Country order** (replaces round 4's):
+
+| When | Country (first city) | Notes |
+| --- | --- | --- |
+| Now | Germany (Berlin) | 256k born in Iran; 18,718 first permits to Iranians in 2025 |
+| Months 2–4 | Austria (Vienna), waitlist on a short timer | Vienna 19,957 born in Iran (+31% since 2022); almost no extra cost. Opens when Berlin passes its first city gate, or Vienna reaches 300 confirmed people, 15 verified businesses and 60 prepared listings. Austria is open on staging today (`seed/countries.ts`), so closing it is a build item |
+| Months 6–9 | Netherlands (Amsterdam) | 48k born in Iran, 66k with Iranian background; 3,156 permits a year |
+| Months 9–12 | Canada (Toronto) | ≈281k; Iranian permanent residents up about 32% in 2026 (one source) |
+| Year 2 | Italy (Milan, Turin, Rome), then Sweden | Italy 30.5k (+53% since 2022, mostly students); Sweden 87k but arrivals halved, Blocket strong |
+| Late year 2 | UK (London) | 7,400 asylum claims in 2025; VAT from the first £; Online Safety Act |
+| Year 2–3 | France (Paris), waitlist first | 26k born in Iran (INSEE 2023), older; French terms and offers, consumer mediator, ranking text, VAT |
+| Year 3 | US (LA), then Australia (Sydney) | US visas for Iranians suspended since Jan 2026; Australia suspended Iranians' visitor visas in Mar 2026 |
+| Guide only | Turkey | No marketplace (below) |
+| Closed | UAE | No waitlist; review in 2028 at the earliest |
+
+EU VAT: the €10,000 limit for B2C sales to other EU countries is one shared allowance; above it OSS or the EU small-business scheme (§19a UStG). Pro to EU businesses is reverse charge. For the tax advisor before a second EU country sells Pro.
+
+**Turkey:** 134k born in Iran (2025, falling), 31.5k students, many in transit. Blockers: since 2025 every rental, sale and car ad in Turkey must be verified through e-Devlet (EİDS), and only owners, relatives or licensed agents may post (fines from about TRY 100k); the main scams target exactly these needs (ikamet fixers, visa appointments, university places, smugglers); Turkish VAT from the first lira; a KVKK representative; frequent blocking. Solution: now an account-free Persian guide page (official links, named scams, online events and online services from the open countries) plus a waitlist with no date (mockup `final/turkey`); maybe in year 2 a pilot with only events and verified businesses through a vetted local partner; never P2P housing, cars, jobs or permit services there.
+
+**UAE:** closed. In 2026 residence permits were cancelled and Iranian schools closed, entry restricted; one source reports all trade with Iran halted in August; VAT from the first dirham, a media licence, broker permits for property ads.
+
+**Austria on the waitlist:** agreed, with the short timer above. Opening-day listings and the gate are shown in `final/home-waitlist` (now Austria).
+
+**Pioneer rewards and the opening gate:**
+- People: a dated «پیشگام وین، ۲۰۲۶» badge (never like «تأییدشده»), entry 48 hours before the public opening, up to 3 opening-day listings with 3 free bumps, 3 more bumps for 3 friends. No cash, no prize draws.
+- Invitations only through a personal link the user shares; Peydoo never emails friends (BGH I ZR 208/12). Promotion terms on one page (§ 6 DDG).
+- Businesses: founding Pro.
+- Opening-day listings are drafts reviewed in the 14 days before opening, re-confirmed by their owner 72 hours before.
+- Gate: all goals met and held for 7 days, then 14 days' notice; the date is announced at 75%; below 50% after 6 months, tell the list. Vienna 300 people / 15 businesses / 60 listings; Netherlands 500 / 20 / 100; Toronto 1,000 / 30 / 150 (proposals, not benchmarks), plus the strategy's next-country gates.
+- Growing fast: Telegram partner channels, invite rewards, 5 businesses a week by hand, events as the weekly engine, Persian city and category pages. Moderation time is the brake.
+
+**Founding Pro on the site:** in context first: the business panel as progress (`final/business-dashboard`), the Pro page, one quiet line on the first page («۳۱ جا مانده»), the waitlist, the footer, Telegram, a notice after the 2nd and 3rd listing, email only with a separate opt-in. The places-left count comes from the database, places and deadline are fixed in advance, no countdowns (UWG Annex No. 7). Wording: "Pro costs €24 a month", not "normally €24" (never sold at that price); free means no card and no automatic renewal. Proposal: afterwards €12 a month for a year, only with a yes.
+
+**Iran: read-only, no sign-up, +98 refused** (owner's decision; replaces round 4's full block):
+- Iranian IP (`CF-IPCountry = IR`): read-only site with one notice (`final/iran`); sign-in, phone verification, posting, chat, phone reveal, favorites, saved searches, waitlist, business invites and checkout off; `/report` open (DSA Art. 16). Logged-out pages are cached at the edge, so the notice must not leak to other visitors: take IR out of the cache rule or render it client-side. A free Cloudflare WAF rule blocks POST from IR except `/report` and the Sentry tunnel.
+- Phone: +98 refused in the Telegram bot and SMS (`final/iran-phone`); only numbers from the 36 seeded countries (this also refuses +888). SMS already refuses Iran. Must ship together with a live SMS provider, because many diaspora users still have Telegram on a +98 number.
+- At sign-in: browser time zone `Asia/Tehran`, `.ir` email addresses and Tor are refused. VPN checks (proxycheck.io or IPinfo) only combined with another Iran signal.
+- Later: IR on 7 of 30 days → admin review; 21 of 30 days or a stated Iran residence → restriction decided by a person, with a DSA Art. 17 statement and appeal. A signed-in user seen in Iran gets a read-only "travelling" notice; listings stay up.
+- Limits, stated honestly: a VPN plus a foreign number can't be stopped; an email account can still be made with a VPN but can't post or chat. Regulators expect the signals to be used across the account's life (OFAC: Kraken 2022, Poloniex 2023, Interactive Brokers 2025). No wording or support answer may mention VPNs (Exodus 2025).
+- Safety applies to everyone, not just Iranian IPs: a "sensitive event" option (address, organiser and photos of people only for verified members), consent for faces, nicknames, photo metadata stripped, no tracking. Drop Iranian browser error events before Sentry.
+- Eight questions for the sanctions lawyer: `round5-iran.md`, last section. The strategy's "geoblock Iran" line changes once the owner confirms.
+
+**Open for the owner:** the country order; closing Austria on staging and opening its waitlist; the €12 founding price after the free period; booking the lawyer (cookies, Iran read-only, Turkey guide) and the tax advisor (EU VAT).
+
+Artifact version 6.
 
 ## Round 4 (Oct 25, 2026): the owner's questions answered
 

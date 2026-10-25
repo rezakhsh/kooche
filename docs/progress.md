@@ -876,4 +876,13 @@ Round 4 (Oct 25, 2026): the owner approved the waitlist count, founding Pro and 
 
 Artifact version 5. Details in `docs/design-options.md`, "Round 4".
 
-Next: the owner decides dark mode timing and the country order, and books a lawyer's pre-launch review; then a build plan for approval. No code changed.
+Round 5 (Oct 25, 2026): the owner asked about light or dark, France, Turkey, the UAE, Austria on a waitlist, pioneer rewards, Iran read-only with +98 blocked, and where to show founding Pro.
+- **Light or dark:** automatic by default (follow the device, light otherwise), with a choice in settings and the footer.
+- **Country order:** Germany now → Austria on a short-timer waitlist (Vienna gate 300 / 15 / 60) → Netherlands → Canada → Italy, Sweden → UK → France (waitlist first) → US, Australia. Turkey gets a guide page and no marketplace (e-Devlet ad verification, scams, VAT). The UAE stays closed.
+- **Pioneers:** dated badge, 48 h early entry, opening-day listings with free bumps, invite bumps; an opening gate per country.
+- **Founding Pro:** shown in context (business panel progress, Pro page, one home line), with honest scarcity and "Pro costs €24 a month".
+- **Iran:** read-only from Iranian IPs, +98 and non-seeded numbers refused, extra sign-in signals, honest limits, lawyer questions.
+
+New mockups: `appearance`, `iran`, `iran-phone`, `turkey`, `business-dashboard`; updated: `home`, `home-waitlist` (Austria), `countries`, `pro`, footer. Research in `docs/design-options/research/`. Artifact version 6. Details in `docs/design-options.md`, "Round 5".
+
+Next: the owner approves the country order, Austria's waitlist and the founding price, and books the lawyer and tax advisor; then a build plan for approval. No code changed.

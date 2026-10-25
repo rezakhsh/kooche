@@ -23,3 +23,7 @@ Signed-in screenshots of staging: `shoot-signed-in.mjs <email> <code> <outdir>` 
 ## Round 3 (Oct 25, 2026)
 
 Added to `final/`: `home` (first visit from an open country), `home-waitlist` (from a country not open yet), `countries` (the chooser sheet), `events`, `event`, `post-event1`, `post-event2` (examples in `events-data.js`; posters are drawn as typographic 4:5 posters; dates come from `Intl` with `fa-IR-u-ca-gregory`), `pro`, `business-new`, `business-legal`, `business-page`, `cookie` (only if a banner is ever needed), and the dark previews `*-dark.html` (the same pages with `dark.css`). `footer()` and `flag()` are in `final/ui.js`.
+
+## Round 5 (Oct 25, 2026)
+
+Added to `final/`: `appearance` (settings: automatic, light, dark), `iran` (a visit from Iran, read-only), `iran-phone` (a +98 number refused at the phone check), `turkey` (the Turkey guide), `business-dashboard` (founding Pro progress). Changed: `home` (a line about founding Pro), `home-waitlist` (now Austria, with Vienna's gate, pioneer rewards and opening-day listings), `countries` (Germany open; Austria, the Netherlands, Canada, Italy coming; the Turkey guide), `pro` (honest wording and places left), the footer in `ui.js`, and `sun` / `moon` in `icons.js`.
