@@ -1,8 +1,62 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 (below) puts every country live within a year in tiered modes. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7, below) supersedes them where they differ. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Final plan (round 7, Oct 25, 2026): supersedes earlier rounds where they differ
+
+**Plan page:** https://claude.ai/artifact/1ZzHVpR7EvAdsPudG6Qbaw (a copy is in `docs/design-options/launch-plan.html`). Research: `research/round7-fast-resilient.md`, `research/round7-turkey-money.md`; the independent review of rounds 1–6: `research/round7-review.md`.
+
+The owner approved the one-year plan, asked to hurry Canada, Australia and the US (copycats), wanted no single point where every country fails, wanted Turkey to make money, decided to close Austria for now and follow the gate plan, and asked for a review of everything said so far.
+
+- **Calendar:**
+  - Berlin Open (go-live date still the owner's, before Yalda).
+  - Yalda: online layer everywhere, Austria and Netherlands Starter, pre-Starter in CA, US and AU (waitlists, business and organiser sign-ups, Nowruz event drafts).
+  - Starter: Canada 12 Jan, Australia 19 Jan, US 2 Feb, UK Feb, Italy and Sweden Apr, Paris May.
+  - Open cities only at their gates: targets Vienna Mar, Hamburg Apr, Toronto May, LA Jun (cars Sep), Sydney Jul, Melbourne, Vancouver, Randstad, Milan and London rooms Aug, Cologne Jun, Frankfurt and Munich Sep.
+  - Fallbacks: Toronto Aug, LA Sep, Sydney Feb 2028.
+  - Turkey: guide; a Nowruz events page; Istanbul paid B2B in June after four preconditions.
+  - UAE: hidden, review Oct 2027. Iran: read-only.
+- **Resilience (replaces the Berlin brake):**
+  - Each country has its own health check; one that misses stays in a quiet Starter and is never closed.
+  - A capacity check pauses only new openings: review under 12 h in every region for 4 weeks, moderator hours covered, server under 70% at peak, a restore drill within 90 days, and the owner's weekly cap.
+  - Fallbacks: point-in-time recovery and a warm standby; Mollie and bank-transfer invoices next to Stripe; live SMS next to Telegram; a deputy; moderators (German Minijob, Toronto contractor from January, Vancouver when LA opens; none in LA because of AB5).
+- **Gate:**
+  - One table: big 1,000 / 30 / 150, medium 500 / 20 / 100, small 300 / 15 / 60 (people, businesses, prepared listings); founding places 50 / 30 / 20.
+  - The date is announced at 75% with the capacity check green, 3–8 weeks ahead. Seven days before, all three must be at 85% or more, or the date moves once, by up to 4 weeks.
+  - After opening, the strategy's health gate (≥100 live listings, ≥50% with a chat in 7 days, ≥30 weekly posters, 4 weeks) must hold before the same country's next city.
+  - Pages only for planned countries plus one «کشور من» form. Unconfirmed sign-ups are deleted after 30 days; lists for countries with no plan after 12 months.
+- **Copycats:**
+  - Irania (app since Aug 2026, says 57 cities in 26 countries) and IraniLink (UK and Turkey); both figures are self-reported.
+  - Claim now: EU trademark ≈€900 by 30 Nov, Madrid for US, CA, AU and UK ≈CHF 2,690, handles, domains; ≈€4.2–4.5k in total.
+- **Turkey makes money:**
+  - Prices: verification €49 a year, Pro Turkey €190 a year, featured event €9.99, Nowruz or Yalda sponsor €150–300; founding first 20 at €29 / €95.
+  - Companies with VKN and MERSİS only; reverse-charge VAT; plan on 85% after the 15% withholding.
+  - Free official sanctions lists with a daily local diff, plus a paid check at sign-up (≈€0.40), always before any money.
+  - Year 1 Istanbul ≈€1.8–7.4k gross (estimate); break-even in year 2.
+- **Stripe risk (high):** Stripe bars persons "located in, resident in, or a citizen of" Iran. Ask Stripe in writing before founding Pro turns paid (around May 2027), add Mollie, and have the lawyer check.
+- **Build:** about 40–55 working days in five waves:
+  0. before go-live: close Austria, founding Pro without automatic charge, live SMS and zones, Iran read-only;
+  1. the redesign;
+  2. many countries;
+  3. safety at scale;
+  4. paid Turkey.
+
+  Recommendation: Berlin live with wave 0 and today's look in late Nov or early Dec, the redesign in parts before 12 Jan.
+- **Costs (estimate):** ≈€12–25k one-time, ≈€1.8–4.3k a month by month 12.
+- **Corrections from the review:** in the plan page's "Corrections" table. Fixed in this file: Vienna +29%, US visa dates, SMS countries, cross-border "today", and "normally €24" marked superseded. Fixed in mockups: weekday in `post3`, Iran wording, badge year, footer and chooser countries, US cities, the Turkey event, and the admin countries example.
+- **CLAUDE.md conflicts to resolve on approval:** Gregorian dates (CLAUDE.md says Jalali), French texts for paid offers in France ("Persian only"), "for Iranians in Europe" (also the first page's «ساکن اروپا»).
+- **Decided by the owner:** close Austria now and follow the gate plan; it is the first item of wave 0, built with the first approved build.
+- **Open for the owner:**
+  1. calendar and resilience rules;
+  2. launch order;
+  3. spending now;
+  4. Turkey prices;
+  5. the Stripe question;
+  6. founding Pro after 6 months (ends unless yes, then €12 a month for a year);
+  7. the cross-border rule and the Turkey events policy;
+  8. one combined list for the lawyer and the tax advisor.
 
 ## Round 6 (Oct 25, 2026): the country gate, every country within a year, posting across borders
 
@@ -70,7 +124,7 @@ The owner asked how the country gate works and when a country is announced, whet
 
 **UAE:** hidden. Since 18 Aug 2026 all trade and financial dealings with Iran are halted, Persian concerts are cancelled, a media licence is needed even for free advertising platforms, and there is a record of abductions. Review in Q4 2027; if ever, events only with DET permit numbers.
 
-**Posting across borders.** Today any verified number can post anything in any open country; the listing's country comes from the posting page and a postcode there; Telegram accepts any number, SMS the 36 seeded countries (+90 included). Proposal: the listing's country is where the thing is, and the phone's zone decides what may be posted there. Zones: Europe (EU, EEA, CH, UK), North America, Australia, Turkey, UAE.
+**Posting across borders.** Today any verified number can post in any open country (within the existing business-only rules for job offers and private service offers); the listing's country comes from the posting page and a postcode there; Telegram accepts any number, SMS the 36 seeded countries other than Turkey (+90 is refused; SMS is not live yet). Proposal: the listing's country is where the thing is, and the phone's zone decides what may be posted there. Zones: Europe (EU, EEA, CH, UK), North America, Australia, Turkey, UAE.
 - Same zone (a German number in Austria): everything; the listing shows «شمارهٔ آلمان», and the rental safety note starts with it. Kleinanzeigen reportedly accepts any EU number ([PCWelt](https://www.pcwelt.de/?p=1198601), [Mimikama](https://www.mimikama.org/?p=246359)).
 - Another zone (a Turkish number in Germany): wanted posts, events, verified businesses and online services; renting out, selling and job offers only after verifying a number from the zone. "Landlord abroad" is the classic deposit scam ([EVZ](https://www.evz.de/en/shopping-internet/internet-fraud/rental-fraud.html), [Stuttgart](https://www.studierendenwerk-stuttgart.de/fileadmin/Mediendatenbank_Studierendenwerk/02_Wohnen_WOW/026_PDF/2015_Stadt_Stgt_Flyer_Whgbetrug_ENG.pdf)).
 - First week: one listing outside the number's country. Cross-zone posts go to the new-listings review. IP only a soft signal.
@@ -91,13 +145,13 @@ The owner asked: which of light and dark is friendlier; France, Turkey ("find a 
 | When | Country (first city) | Notes |
 | --- | --- | --- |
 | Now | Germany (Berlin) | 256k born in Iran; 18,718 first permits to Iranians in 2025 |
-| Months 2–4 | Austria (Vienna), waitlist on a short timer | Vienna 19,957 born in Iran (+31% since 2022); almost no extra cost. Opens when Berlin passes its first city gate, or Vienna reaches 300 confirmed people, 15 verified businesses and 60 prepared listings. Austria is open on staging today (`seed/countries.ts`), so closing it is a build item |
+| Months 2–4 | Austria (Vienna), waitlist on a short timer | Vienna 19,957 born in Iran (+29% since 2022; Austria +31%); almost no extra cost. Opens when Berlin passes its first city gate, or Vienna reaches 300 confirmed people, 15 verified businesses and 60 prepared listings. Austria is open on staging today (`seed/countries.ts`), so closing it is a build item |
 | Months 6–9 | Netherlands (Amsterdam) | 48k born in Iran, 66k with Iranian background; 3,156 permits a year |
 | Months 9–12 | Canada (Toronto) | ≈281k; Iranian permanent residents up about 32% in 2026 (one source) |
 | Year 2 | Italy (Milan, Turin, Rome), then Sweden | Italy 30.5k (+53% since 2022, mostly students); Sweden 87k but arrivals halved, Blocket strong |
 | Late year 2 | UK (London) | 7,400 asylum claims in 2025; VAT from the first £; Online Safety Act |
 | Year 2–3 | France (Paris), waitlist first | 26k born in Iran (INSEE 2023), older; French terms and offers, consumer mediator, ranking text, VAT |
-| Year 3 | US (LA), then Australia (Sydney) | US visas for Iranians suspended since Jan 2026; Australia suspended Iranians' visitor visas in Mar 2026 |
+| Year 3 | US (LA), then Australia (Sydney) | US visas for Iranians suspended since 9 Jun 2025, tightened 1 Jan 2026; Australia suspended Iranians' visitor visas for 6 months from 26 Mar 2026 |
 | Guide only | Turkey | No marketplace (below) |
 | Closed | UAE | No waitlist; review in 2028 at the earliest |
 
@@ -121,7 +175,7 @@ EU VAT: the €10,000 limit for B2C sales to other EU countries is one shared al
 
 **Iran: read-only, no sign-up, +98 refused** (owner's decision; replaces round 4's full block):
 - Iranian IP (`CF-IPCountry = IR`): read-only site with one notice (`final/iran`); sign-in, phone verification, posting, chat, phone reveal, favorites, saved searches, waitlist, business invites and checkout off; `/report` open (DSA Art. 16). Logged-out pages are cached at the edge, so the notice must not leak to other visitors: take IR out of the cache rule or render it client-side. A free Cloudflare WAF rule blocks POST from IR except `/report` and the Sentry tunnel.
-- Phone: +98 refused in the Telegram bot and SMS (`final/iran-phone`); only numbers from the 36 seeded countries (this also refuses +888). SMS already refuses Iran. Must ship together with a live SMS provider, because many diaspora users still have Telegram on a +98 number.
+- Phone: +98 refused in the Telegram bot and SMS (`final/iran-phone`); only numbers from the seeded countries (37 seeded; SMS covers 36, Turkey excluded, and isn't live yet; this also refuses +888). Must ship together with a live SMS provider, because many diaspora users still have Telegram on a +98 number.
 - At sign-in: browser time zone `Asia/Tehran`, `.ir` email addresses and Tor are refused. VPN checks (proxycheck.io or IPinfo) only combined with another Iran signal.
 - Later: IR on 7 of 30 days → admin review; 21 of 30 days or a stated Iran residence → restriction decided by a person, with a DSA Art. 17 statement and appeal. A signed-in user seen in Iran gets a read-only "travelling" notice; listings stay up.
 - Limits, stated honestly: a VPN plus a foreign number can't be stopped; an email account can still be made with a VPN but can't post or chat. Regulators expect the signals to be used across the account's life (OFAC: Kraken 2022, Poloniex 2023, Interactive Brokers 2025). No wording or support answer may mention VPNs (Exodus 2025).
@@ -170,7 +224,7 @@ Mockup updated: `final/home-waitlist.js`.
 - Verified first: phone, registration or Impressum, a real address.
 - At least 3 active listings within 30 days, or the place goes to the next business.
 - The «بنیان‌گذار» badge forever, and a founding price afterwards.
-- Always worded "Pro, normally €24, free for founding businesses". No automatic charge without a yes; listings stay live after the free period.
+- ~~Always worded "Pro, normally €24, free for founding businesses".~~ Superseded in round 5: "Pro costs €24 a month". No automatic charge without a yes; listings stay live after the free period.
 - Measure: verified and active at day 30, leads per business, paid at month 6–7.
 
 Mockup updated: `final/pro.js`.

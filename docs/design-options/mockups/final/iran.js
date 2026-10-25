@@ -15,7 +15,7 @@ mount(`<header class="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 
   <section class="mx-4 mt-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 lg:mx-0 lg:flex lg:items-start lg:gap-4">
     <span class="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700 lg:flex">${I('globe', 'size-6')}</span>
     <div class="flex-1"><h1 class="text-base font-extrabold text-brand-900 lg:text-lg">از ایران، پیدو فقط برای دیدن است</h1>
-      <p class="mt-1 text-sm leading-7 text-neutral-800">آگهی‌ها و رویدادهای ایرانیان خارج از کشور را ببینید و جستجو کنید. ثبت‌نام، گذاشتن آگهی و پیام دادن از داخل ایران ممکن نیست؛ قوانین تحریم اروپا این را از ما می‌خواهد و تصمیمی دربارهٔ شما نیست.</p>
+      <p class="mt-1 text-sm leading-7 text-neutral-800">آگهی‌ها و رویدادهای ایرانیان خارج از کشور را ببینید و جستجو کنید. ثبت‌نام، گذاشتن آگهی و پیام دادن از داخل ایران ممکن نیست؛ به خاطر قوانین تحریم و شرایط شرکت‌هایی که پیدو با آن‌ها کار می‌کند. این تصمیم دربارهٔ شما نیست.</p>
       <p class="mt-2 text-sm leading-7 text-neutral-800">اگر مهاجرت می‌کنید: وقتی در کشور تازه ساکن شدید، با ایمیل و شمارهٔ موبایل همان کشور ثبت‌نام کنید.</p>
       <div class="mt-3 flex flex-wrap gap-2"><a class="flex h-10 items-center gap-1.5 rounded-xl bg-white px-3 text-sm font-bold text-brand-800">${I('book', 'size-4')}راهنمای تازه‌واردها</a><a class="flex h-10 items-center rounded-xl px-3 text-sm font-bold text-brand-800 underline">چرا؟</a><a class="flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-neutral-700">${I('flag', 'size-4')}گزارش محتوای غیرقانونی</a></div></div>
   </section>

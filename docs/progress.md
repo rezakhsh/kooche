@@ -893,4 +893,13 @@ Round 6 (Oct 25, 2026): the owner wants every country open within one year, even
 
 New mockups: `waitlist-announced`, `admin-countries`, `us-starter`, `turkey-starter`, `post-crossborder`, `listing-crossborder`. Research in `docs/design-options/research/round6-*.md`. Artifact version 7. Details in `docs/design-options.md`, "Round 6".
 
-Next: the owner decides the one-year plan, the cross-border rule, Turkey's event policy and the Americas moderator budget (plus round 5's open points); then a build plan for approval. No code changed.
+Round 7 (Oct 25, 2026): the final plan for the owner's decision, https://claude.ai/artifact/1ZzHVpR7EvAdsPudG6Qbaw (copy in `docs/design-options/launch-plan.html`).
+- **Calendar:** Canada, Australia and the US start in Jan–Feb (Starter); Open cities at their gates; no shared Berlin brake, but health per country and a capacity check for new openings; fallbacks for the server, payments, SMS and moderators.
+- **Turkey:** paid business-to-business (verification €49, Pro €190 a year), with sanctions checks before any money.
+- **Stripe:** its "citizen of Iran" clause is the biggest open risk.
+- **Review:** an independent review of rounds 1–6 found errors; they are fixed in the doc and mockups and listed in the plan's "Corrections".
+- **Build:** estimated at 40–55 days in five waves.
+
+The owner decided to close Austria now and follow the gate plan. It is wave 0's first item; no app code has changed yet. Artifact (design page) version 8.
+
+Next: the owner decides the plan page's eight points; then the detailed build plan for wave 0 for approval.

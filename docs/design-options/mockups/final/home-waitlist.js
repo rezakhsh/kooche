@@ -4,7 +4,7 @@
 const cities = ['وین', 'گراتس', 'لینتس', 'زالتسبورگ', 'اینسبروک', 'شهر دیگر'];
 const bar = (label, n, goal, tone) => `<p class="mt-3 flex justify-between text-xs text-saffron-800"><span>${label}: <b>${fa(n)}</b> از ${fa(goal)}</span><span>${fa(Math.round((n / goal) * 100))}٪</span></p><span class="mt-1 block h-2 overflow-hidden rounded-full bg-white"><i class="block h-full rounded-full ${tone}" style="width:${(n / goal) * 100}%"></i></span>`;
 const perks = [
-  ['star', 'نشان «پیشگام وین، ۲۰۲۶»', 'روی صفحهٔ شما، با تاریخ؛ جدا از نشان «تأییدشده»'],
+  ['star', 'نشان «پیشگام وین»', 'روی صفحهٔ شما، با سال افتتاح؛ جدا از نشان «تأییدشده»'],
   ['clock', '۴۸ ساعت زودتر از همه', 'پیش از باز شدن عمومی وارد می‌شوید'],
   ['doc', 'تا ۳ آگهی روز افتتاح', 'از حالا آماده کنید؛ روز اول با ۳ نردبان رایگان منتشر می‌شوند'],
   ['people', 'با ۳ دوست، ۳ نردبان دیگر', 'با پیوند خودتان در تلگرام یا واتس‌اپ دعوت کنید'],
@@ -34,7 +34,7 @@ mount(`${header({ place: 'اتریش', search: 'جستجو در پیدو…' })}
     <div>
       <div class="mt-4 rounded-2xl bg-saffron-50 p-4 lg:mt-0"><p class="text-sm font-bold text-saffron-800">وین وقتی باز می‌شود که این سه پر شود</p>
         ${bar('نفر', 168, 300, 'bg-saffron-500')}${bar('کسب‌وکار تأییدشده', 5, 15, 'bg-brand-600')}${bar('آگهی آماده برای روز اول', 21, 60, 'bg-brand-600')}
-        <p class="mt-3 text-xs leading-6 text-saffron-800">فقط ثبت‌نام‌های تأییدشده شمرده می‌شوند. وقتی هر سه به ۷۵٪ برسد، تاریخ افتتاح را اعلام می‌کنیم؛ یا زودتر، اگر برلین آماده شود.</p>
+        <p class="mt-3 text-xs leading-6 text-saffron-800">فقط ثبت‌نام‌های تأییدشده شمرده می‌شوند. وقتی هر سه به ۷۵٪ برسد، تاریخ افتتاح را اعلام می‌کنیم.</p>
         <a class="mt-3 flex h-11 items-center justify-center gap-2 rounded-xl border border-saffron-300 bg-white text-sm font-bold text-neutral-900">${I('send', 'size-4 text-brand-700')}دعوت دوستان در تلگرام</a></div>
       <h2 class="mt-6 text-lg font-extrabold">پیشگام‌ها چه می‌گیرند</h2>
       <ul class="mt-3 space-y-2">${perks.map(([ic, t, s]) => `<li class="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">${I(ic, 'size-5')}</span><span><b class="block text-sm">${t}</b><span class="text-xs leading-6 text-neutral-600">${s}</span></span></li>`).join('')}</ul>

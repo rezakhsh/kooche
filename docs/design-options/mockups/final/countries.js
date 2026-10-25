@@ -1,8 +1,8 @@
 // The country chooser (the header's place chip or "کشور دیگر"): open countries with counts, then
-// the ones coming soon with a waitlist link (Austria with its progress), then the Turkey guide.
+// the ones coming soon with their start dates and a waitlist link, then the Turkey guide.
 // Iran is not listed: from Iran the site is read-only.
 const open = [['de', 'آلمان', 'Deutschland', 1205]];
-const soon = [['at', 'اتریش', 'وین: ۱۶۸ از ۳۰۰ نفر'], ['nl', 'هلند'], ['ca', 'کانادا'], ['it', 'ایتالیا']];
+const soon = [['ca', 'کانادا', 'رویدادها و کسب‌وکارها از ۱۲ ژانویه'], ['au', 'استرالیا', 'از ۱۹ ژانویه'], ['us', 'آمریکا', 'از ۲ فوریه'], ['gb', 'بریتانیا', 'از فوریه'], ['at', 'اتریش', 'از شب یلدا'], ['nl', 'هلند', 'از شب یلدا']];
 document.write('<script src="home.js"><\/script>');
 setTimeout(() => document.getElementById('app').insertAdjacentHTML('beforeend', sheet('کشورتان را انتخاب کنید', `
   <ul class="divide-y divide-neutral-100">${open.map(([f, fa1, local, n], i) => `<li class="flex min-h-16 items-center gap-3 ${i === 0 ? 'font-bold' : ''}">${flag(f, 'h-5 w-8')}<span class="flex-1"><span class="block text-base">${fa1}</span><span class="text-xs font-normal text-neutral-600" dir="ltr">${local}</span></span><span class="text-sm text-neutral-600">${fa(n)} آگهی</span>${i === 0 ? I('check', 'size-5 text-brand-700') : ''}</li>`).join('')}</ul>

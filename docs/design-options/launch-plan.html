@@ -1,0 +1,331 @@
+<title>Peydoo Launch Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&family=Vazirmatn:wght@400;700;900&display=swap">
+<style>
+/* Layout: one reading column (46rem) for the argument; the calendar and tables break out to the
+   full width in their own scroll boxes. Peydoo's turquoise and saffron carry meaning: turquoise =
+   open or starting, saffron = waiting or needs a decision. */
+:root {
+  --bg: #f5f8f7; --surface: #ffffff; --ink: #16211f; --muted: #55625f; --line: #dce4e2;
+  --brand: #0b6e77; --brand-ink: #095a62; --brand-soft: #e3f0ef; --brand-mid: #a6d3d2;
+  --saffron: #e9a21a; --saffron-soft: #fcf1da; --saffron-ink: #6e4800;
+  --open: #0b6e77; --open-ink: #ffffff; --starter: #a6d3d2; --starter-ink: #06373b;
+  --wait: #ebf0ef; --wait-ink: #44524f; --guide: #fbe6b8; --guide-ink: #6e4800; --off: #f4f7f6; --off-ink: #8a9996;
+  --risk: #a23b2a; --risk-soft: #fbe9e5;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fa: "Vazirmatn", "IBM Plex Sans", Tahoma, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1716; --surface: #16211f; --ink: #e8efed; --muted: #a3b3af; --line: #2c3836;
+  --brand: #5cc0c7; --brand-ink: #7fd0d6; --brand-soft: #123234; --brand-mid: #1f5559;
+  --saffron: #f0b53f; --saffron-soft: #2e2512; --saffron-ink: #f5c862;
+  --open: #5cc0c7; --open-ink: #06373b; --starter: #1f5559; --starter-ink: #d9f1f2;
+  --wait: #223230; --wait-ink: #bccac7; --guide: #4a3a17; --guide-ink: #f5c862; --off: #1b2826; --off-ink: #7d8f8b;
+  --risk: #f08b78; --risk-soft: #3a1d18; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1716; --surface: #16211f; --ink: #e8efed; --muted: #a3b3af; --line: #2c3836;
+  --brand: #5cc0c7; --brand-ink: #7fd0d6; --brand-soft: #123234; --brand-mid: #1f5559;
+  --saffron: #f0b53f; --saffron-soft: #2e2512; --saffron-ink: #f5c862;
+  --open: #5cc0c7; --open-ink: #06373b; --starter: #1f5559; --starter-ink: #d9f1f2;
+  --wait: #223230; --wait-ink: #bccac7; --guide: #4a3a17; --guide-ink: #f5c862; --off: #1b2826; --off-ink: #7d8f8b;
+  --risk: #f08b78; --risk-soft: #3a1d18; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.65 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
+.fa { font-family: var(--fa); }
+main { max-width: 60rem; margin: 0 auto; }
+.col { max-width: 46rem; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.25; margin: 0; }
+h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: clamp(21px, 3.2vw, 26px); font-weight: 700; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
+h3 { font-size: 17px; font-weight: 700; margin-top: 22px; }
+p { margin: 10px 0 0; }
+ul, ol { margin: 10px 0 0; padding-inline-start: 22px; }
+li + li { margin-top: 4px; }
+a { color: var(--brand-ink); }
+b, strong { font-weight: 600; }
+.eyebrow { font: 500 12.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 18px; color: var(--muted); margin-top: 12px; }
+header.top { padding-top: 36px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.brand svg { width: 34px; height: 34px; flex: none; }
+.brand .fa { font-weight: 900; font-size: 22px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 18px; font-size: 14px; }
+nav.toc a { text-decoration: none; border-bottom: 1px solid var(--brand-mid); }
+.summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin-top: 22px; }
+.summary div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.summary b { display: block; font-size: 15px; }
+.summary span { color: var(--muted); font-size: 14.5px; }
+.note { background: var(--saffron-soft); color: var(--ink); border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
+.note b { color: var(--saffron-ink); }
+.risk { background: var(--risk-soft); border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
+.risk b { color: var(--risk); }
+.scroll { overflow-x: auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: start; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; font-size: 13px; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: end; white-space: nowrap; }
+/* Calendar grid */
+table.cal { min-width: 980px; font-size: 13px; }
+table.cal th, table.cal td { padding: 6px 5px; text-align: center; border-inline-start: 1px solid var(--line); }
+table.cal th:first-child, table.cal td:first-child { text-align: start; border-inline-start: 0; white-space: nowrap; padding-inline-start: 12px; font-weight: 600; font-size: 13.5px; position: sticky; inset-inline-start: 0; background: var(--surface); z-index: 1; }
+table.cal th small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.c { display: block; border-radius: 6px; padding: 5px 3px; line-height: 1.25; font-weight: 500; min-height: 30px; }
+.c.o { background: var(--open); color: var(--open-ink); }
+.c.s { background: var(--starter); color: var(--starter-ink); }
+.c.p { background: var(--wait); color: var(--wait-ink); outline: 1.5px dashed var(--brand-mid); outline-offset: -2px; }
+.c.w { background: var(--wait); color: var(--wait-ink); }
+.c.g { background: var(--guide); color: var(--guide-ink); }
+.c.x { background: var(--off); color: var(--off-ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
+/* Steps (a real sequence) */
+ol.steps { list-style: none; padding: 0; counter-reset: s; display: grid; gap: 10px; margin-top: 14px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; margin: 0; }
+ol.steps li::before { content: counter(s); grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: var(--bg); font: 600 13px/28px var(--mono); text-align: center; }
+ol.steps b { font-size: 15.5px; }
+ol.steps span { color: var(--muted); font-size: 15px; }
+.two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); margin-top: 14px; }
+.two > div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.two h3 { margin-top: 0; }
+.decide { list-style: none; padding: 0; display: grid; gap: 10px; margin-top: 16px; counter-reset: d; }
+.decide li { counter-increment: d; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 14px 52px; position: relative; margin: 0; }
+[dir="rtl"] .decide li { padding: 14px 52px 14px 16px; }
+.decide li::before { content: counter(d); position: absolute; inset-inline-start: 14px; top: 14px; width: 26px; height: 26px; border-radius: 8px; background: var(--saffron-soft); color: var(--saffron-ink); font: 600 13px/26px var(--mono); text-align: center; }
+.decide b { display: block; }
+.decide span { color: var(--muted); font-size: 15px; }
+.tag { display: inline-block; font: 500 11.5px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 6px; border-radius: 5px; vertical-align: 2px; }
+.tag.h { background: var(--risk-soft); color: var(--risk); }
+.tag.m { background: var(--saffron-soft); color: var(--saffron-ink); }
+.tag.ok { background: var(--brand-soft); color: var(--brand-ink); }
+footer.end { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+a:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 3px; }
+</style>
+
+<main>
+<header class="top">
+  <div class="brand"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#0b6e77"/><circle cx="45" cy="44" r="21" fill="none" stroke="#fff" stroke-width="10"/><path d="M60 59 75 74" stroke="#fff" stroke-width="11" stroke-linecap="round"/><circle cx="45" cy="44" r="7.5" fill="#e9a21a"/></svg><span class="fa">پیدو</span><span class="eyebrow">Launch plan · Oct 25, 2026 · for the final decision</span></div>
+  <h1 class="col">Every country within a year, with no single point of failure</h1>
+  <p class="lede col">Canada, Australia and the US start in January and February instead of March. Each country stands on its own numbers, so one weak city can't stop the rest. Turkey pays for itself through business fees. Below that: what we got wrong in earlier rounds, and the decisions left for you.</p>
+  <nav class="toc" aria-label="Sections"><a href="#strategy">Strategy</a><a href="#calendar">Calendar</a><a href="#gate">How a city opens</a><a href="#resilience">No single point of failure</a><a href="#copycats">Copycats</a><a href="#turkey">Turkey makes money</a><a href="#money">Payments risk</a><a href="#build">What gets built</a><a href="#costs">Costs and people</a><a href="#fixes">Corrections</a><a href="#decide">Your decisions</a></nav>
+  <div class="summary">
+    <div><b>Starter in 9 countries by May 2027</b><span>Events, verified businesses, jobs and services. Canada 12 Jan, Australia 19 Jan, US 2 Feb, UK Feb, Austria and the Netherlands at Yalda.</span></div>
+    <div><b>Open cities only at their gate</b><span>Rooms, items and cars open per city when people, businesses and ready listings reach the goal. Targets: Toronto May, LA June, Sydney July.</span></div>
+    <div><b>No shared brake</b><span>Each country has its own health check. A weak country stays in Starter; it doesn't stop the others. A capacity check pauses only <i>new</i> openings.</span></div>
+    <div><b>Turkey: paid, business-to-business</b><span>Verification €49 a year, Pro €190 a year. Sanctions checks run on free official lists; the fee covers the rest.</span></div>
+  </div>
+</header>
+
+<section aria-labelledby="strategy">
+  <h2 id="strategy">The strategy in five lines</h2>
+  <ol class="col">
+    <li><b>Claim everywhere now, fill city by city.</b> Spreading wide works for events and business directories (Eventbrite, Yelp). It fails for trade between private people: Craigslist is barely used in Germany, Kijiji failed in France, and Homejoy opened 30 cities in 6 months and shut down. So every country gets events, businesses, jobs and services early, and rooms, items and cars open per city.</li>
+    <li><b>Race for the big diasporas first.</b> Canada (≈281k), the US (≈750k) and Australia (≈96k) start before Nowruz. Nowruz events are promoted 1–3 months ahead, so starting in March would miss them.</li>
+    <li><b>Density beats features.</b> Features are easy to copy. Density in a city, founding businesses with their history and reviews, partner Telegram channels and an early lead in search results are hard to copy.</li>
+    <li><b>Every country stands alone.</b> Separate health checks, a moderator for each time zone, and a fallback for the server, payments and phone checks.</li>
+    <li><b>Money from businesses, never from risk.</b> Pro and verification are sold only to businesses outside the EU. Turkey is paid business-to-business only. Nothing touches Iran.</li>
+  </ol>
+  <div class="risk col"><b>Competitors already exist.</b> <b>Irania</b> (Trex Innovations, app version 1.0 on 25 Aug 2026) says it covers 57 cities in 26 countries, including Toronto, Vancouver, LA, Sydney and Melbourne. It sells business sponsorships at $19.99–99.99 and matches people who carry parcels to Iran, which Peydoo bans. <b>IraniLink</b> (Manchester) says it serves the UK and Turkey, with 689 businesses and 209 classifieds. Both figures come from their own pages. Neither has density yet, and that is the window.</div>
+</section>
+
+<section aria-labelledby="calendar">
+  <h2 id="calendar">The calendar, November 2026 to October 2027</h2>
+  <p class="col">The dates for Starter are firm, as long as each country's legal checklist is done. Open dates are targets: a city opens only at its gate (next section). If it misses, it stays in Starter and the date moves. Fallbacks: Toronto August, LA September, Sydney February 2028.</p>
+  <div class="scroll" role="region" aria-label="Launch calendar" tabindex="0">
+  <table class="cal">
+    <thead><tr><th>Country</th><th>Nov</th><th>Dec<small>Yalda 21</small></th><th>Jan</th><th>Feb</th><th>Mar<small>Nowruz 21</small></th><th>Apr<small>Sizdah 2</small></th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct<small>Mehregan</small></th></tr></thead>
+    <tbody>
+      <tr><td>Germany</td><td><span class="c o">Berlin open</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Hamburg*</span></td><td><span class="c o"></span></td><td><span class="c o">Cologne*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Frankfurt, Munich*</span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Canada</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c s">Starter 12 Jan</span></td><td><span class="c s"></span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c o">Toronto*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">Vancouver*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Australia</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c s">Starter 19 Jan</span></td><td><span class="c s"></span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Sydney*</span></td><td><span class="c o">Melbourne*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>US</td><td><span class="c w">waitlist</span></td><td><span class="c p">pre-start</span></td><td><span class="c p"></span></td><td><span class="c s">Starter 2 Feb</span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">LA* (no cars yet)</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">LA cars</span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>UK</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s">Nowruz</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">London rooms*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Austria</td><td><span class="c x">closed</span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Vienna*</span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Netherlands</td><td><span class="c w">waitlist</span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Randstad*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Italy</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c o">Milan rooms*</span></td><td><span class="c o"></span></td><td><span class="c o">review</span></td></tr>
+      <tr><td>Sweden</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
+      <tr><td>France</td><td><span class="c w">waitlist</span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c w"></span></td><td><span class="c s">Paris Starter</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
+      <tr><td>Turkey</td><td><span class="c w">waitlist</span></td><td><span class="c g">guide</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c g">Nowruz page</span></td><td><span class="c g"></span></td><td><span class="c g"></span></td><td><span class="c s">Istanbul, paid B2B†</span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s"></span></td><td><span class="c s">review</span></td></tr>
+      <tr><td>UAE</td><td><span class="c x">hidden</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x">review</span></td></tr>
+      <tr><td>Iran</td><td><span class="c x">read-only</span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td><td><span class="c x"></span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="legend"><span><i style="background:var(--open)"></i>Open: everything</span><span><i style="background:var(--starter)"></i>Starter: events, businesses, jobs, services</span><span><i style="background:var(--wait);outline:1.5px dashed var(--brand-mid);outline-offset:-2px"></i>Pre-start: waitlists, business and organiser sign-ups, Nowruz event drafts</span><span><i style="background:var(--wait)"></i>Waitlist</span><span><i style="background:var(--guide)"></i>Guide</span><span><i style="background:var(--off)"></i>Closed, hidden or read-only</span></div>
+  <p class="col" style="font-size:14.5px;color:var(--muted)">* Only at that city's gate, and only when the capacity check is green. † Only after the four Turkey preconditions (below). From Yalda, online services, online events and remote jobs show in every country, so no page is empty. Berlin's go-live date is still yours to set (before Yalda). The calendar assumes November.</p>
+</section>
+
+<section aria-labelledby="gate">
+  <h2 id="gate">How a city opens</h2>
+  <p class="col">A country starts in Starter on its date, with no gate. The gate is for a <i>city</i>, and it opens the categories that need people in one place: rooms and flats, items, cars. Each city has three goals; its progress is the lowest of the three.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>City size</th><th class="num">Confirmed people</th><th class="num">Verified businesses</th><th class="num">Listings ready for day one</th><th class="num">Founding Pro places</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td>Big</td><td class="num">1,000</td><td class="num">30</td><td class="num">150</td><td class="num">50</td><td>Berlin, Toronto, LA, London, Sydney</td></tr>
+      <tr><td>Medium</td><td class="num">500</td><td class="num">20</td><td class="num">100</td><td class="num">30</td><td>Hamburg, Randstad, Vancouver, Melbourne, Milan</td></tr>
+      <tr><td>Small</td><td class="num">300</td><td class="num">15</td><td class="num">60</td><td class="num">20</td><td>Vienna, Cologne, Frankfurt, Munich</td></tr>
+    </tbody>
+  </table></div>
+  <ol class="steps col">
+    <li><b>Anyone can join</b><span>Only countries in the plan get a city page. Everyone else uses one «کشور من» form. That keeps the strategy's rule of no empty country pages.</span></li>
+    <li><b>25%: the bars appear</b><span>Below that, «از نخستین‌ها باشید» with no number.</span></li>
+    <li><b>50%: halfway</b><span>An email and a Telegram post. Pioneers start preparing opening-day listings, and businesses are invited to verify.</span></li>
+    <li><b>75% and the capacity check green: you announce the date</b><span>With «اعلام تاریخ» in the admin. The date is 3–8 weeks later, on a cultural day when one is near.</span></li>
+    <li><b>Seven days before: the check</b><span>If all three goals are at 85% or more, the date holds. If not, it moves once, by up to 4 weeks, and we say so openly. It never moves a second time.</span></li>
+    <li><b>The last 14 days: review</b><span>Every prepared listing is checked, and each pioneer confirms theirs 72 hours before.</span></li>
+    <li><b>Pioneers 48 hours early, then everyone</b><span>Pioneers get a badge with the opening year, opening-day listings with free bumps, and more bumps for inviting friends.</span></li>
+    <li><b>After opening: healthy?</b><span>The strategy's gate: 100 or more live listings in housing, services and jobs, half of new listings getting a chat within 7 days, and 30 or more people posting each week, held for 4 weeks. A country needs this in one city before it opens its next one.</span></li>
+  </ol>
+  <p class="col">Waitlist data: unconfirmed sign-ups are deleted after 30 days. Lists for countries with no plan are deleted after 12 months, with a notice first.</p>
+</section>
+
+<section aria-labelledby="resilience">
+  <h2 id="resilience">No single point of failure</h2>
+  <p class="col">Round 6 had one shared brake: if Berlin was slow, nothing else would start. You were right that this is a weak point. It is replaced by three rules:</p>
+  <div class="two">
+    <div><h3>Each country on its own</h3><p>Each country has its own health check. A country that misses stays in a quiet Starter: still live, never closed, with less promotion and an honest message. If Berlin is slow, only Germany's next cities wait.</p></div>
+    <div><h3>A capacity check for new openings</h3><p>Before anything new opens, all of these must be green:</p><ul><li>listings reviewed within 12 hours in every region for 4 weeks;</li><li>moderator hours covered;</li><li>server memory under 70% at peak;</li><li>a restore tested in the last 90 days;</li><li>your own week under its cap.</li></ul><p>If one is red, only new openings wait. Countries already live carry on.</p></div>
+    <div><h3>A fallback for everything</h3><p>Each single point has a fallback (table below).</p></div>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Single point</th><th>Fallback</th><th class="num">Cost</th></tr></thead>
+    <tbody>
+      <tr><td>One server</td><td>Point-in-time database recovery; a warm standby server; cached pages served read-only during an outage; a restore drill every 90 days</td><td class="num">≈ €7–12 / month</td></tr>
+      <tr><td>One moderator (you)</td><td>A German Minijob for Europe's evenings; a Toronto contractor for the Americas from January; a Vancouver contractor when LA opens; AI pre-screening; trusted flaggers</td><td class="num">≈ €1.5–1.7k / month</td></tr>
+      <tr><td>One payment account</td><td>Stripe, plus Mollie as a second provider (check its Iran terms too), plus bank-transfer invoices for yearly business plans</td><td class="num">fees only</td></tr>
+      <tr><td>The Telegram bot</td><td>A live SMS provider (seven.io), needed anyway for the +98 rule</td><td class="num">≈ €10–50 / month</td></tr>
+      <tr><td>Your own time</td><td>A fixed weekly routine, volunteer city ambassadors («سفیر»), and a deputy with emergency admin access</td><td class="num">—</td></tr>
+    </tbody>
+  </table></div>
+  <p class="col" style="font-size:14.5px;color:var(--muted)">No contractor in Los Angeles: California's AB5 law treats such workers as employees. Moderators outside the EU access EU users' data, so the US and Australia need standard contractual clauses; Canada and the UK have adequacy decisions. Even as a Kleinunternehmer, you owe German VAT on foreign contractors' fees (§ 13b). All of this is for the lawyer and the tax advisor.</p>
+</section>
+
+<section aria-labelledby="copycats">
+  <h2 id="copycats">Against copycats: claim now</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>What</th><th>When</th><th class="num">Cost</th></tr></thead>
+    <tbody>
+      <tr><td>EU trademark «پیدو» / Peydoo, 2 classes</td><td>by 30 Nov 2026</td><td class="num">≈ €900</td></tr>
+      <tr><td>Madrid filing for the US, Canada, Australia and the UK, within the 6-month priority window</td><td>Jan 2027</td><td class="num">≈ CHF 2,690</td></tr>
+      <tr><td>Instagram, Telegram, X, TikTok handles</td><td>this week</td><td class="num">€0</td></tr>
+      <tr><td>Domains (.ca needs a registered Canadian mark; .com.au becomes possible once the Australian mark is pending)</td><td>now and later</td><td class="num">≈ €100–300</td></tr>
+      <tr><td>Partner Telegram channels, "first and preferred" terms</td><td>before each Starter</td><td class="num">€0</td></tr>
+      <tr><td>Founding businesses with badges, reviews and history; Persian pages for each city and category</td><td>from the start</td><td class="num">your time</td></tr>
+    </tbody>
+    <tfoot><tr><td><b>Total</b></td><td></td><td class="num"><b>≈ €4.2–4.5k</b></td></tr></tfoot>
+  </table></div>
+</section>
+
+<section aria-labelledby="turkey">
+  <h2 id="turkey">Turkey makes money</h2>
+  <p class="col">Screening isn't what costs money. The EU, OFAC and UN sanctions lists are free (the UK's OFSI list closed in January 2026). A daily check of new list entries against our few hundred names costs nothing to run and takes 2–4 days to build. A paid check at sign-up costs about €0.40 per business. The real costs are your 20–40 minutes per business, the Turkish data-protection representative and the legal opinions. The fees are set to cover them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Product (businesses only, in euros, yearly)</th><th class="num">Price</th><th class="num">Founding (first 20)</th></tr></thead>
+    <tbody>
+      <tr><td>Verification and listing (sanctions check, papers, video call, badge)</td><td class="num">€49 / year</td><td class="num">€29</td></tr>
+      <tr><td>Pro Turkey (verification included)</td><td class="num">€190 / year</td><td class="num">€95</td></tr>
+      <tr><td>Featured event</td><td class="num">€9.99</td><td class="num">—</td></tr>
+      <tr><td>Nowruz or Yalda sponsor</td><td class="num">€150–300</td><td class="num">—</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="col">
+    <li><b>Who can pay:</b> only companies with a tax number (VKN) and a MERSİS number. Selling to businesses avoids registering for Turkish VAT, because the buyer self-assesses it (sorumlu sıfatıyla). Sole traders are listed, but pay by bank transfer until Stripe answers. Associations, lawyers and clinics get free, neutral listings, because Turkish rules restrict their advertising.</li>
+    <li><b>Order:</b> free application, then the sanctions check <i>before</i> any money, then payment, then manual verification, then a daily re-check. A yearly re-verification is paid by the renewal. Money from a listed person can't be refunded: it has to be frozen and reported to the Bundesbank.</li>
+    <li><b>Tax:</b> the Turkish payer withholds 15% (Decision 476), so plan on receiving 85%. Business sales to Turkey aren't taxable in Germany, so they probably don't count toward the §19 limits (for the tax advisor).</li>
+    <li><b>Payment:</b> Stripe only after it confirms in writing (next section). Otherwise yearly invoices paid by bank transfer in euros. Paddle forbids advertising services. iyzico and PayTR need a Turkish company.</li>
+    <li><b>Year 1, Istanbul</b> (my estimate, about 50 businesses at most because of your time): about €1.8k, €4.0k or €7.4k gross (low, middle, high). That covers screening, card fees and the representative (€1–3k a year), but not the one-off legal opinions (€2–6k). Break-even is realistic in year 2. Turkey's real value in year 1 is being there first.</li>
+    <li><b>Start:</b> Istanbul in June 2027, paid from day one, after four preconditions:<ol><li>the sanctions lawyer;</li><li>Stripe's written answer;</li><li>the tax and Turkish advisors;</li><li>VERBIS registration and the data-protection representative.</li></ol></li>
+  </ul>
+</section>
+
+<section aria-labelledby="money">
+  <h2 id="money">The biggest risk: Stripe's "citizen of Iran" clause</h2>
+  <div class="risk col"><b>This concerns all of Peydoo, not just Turkey.</b> Stripe's restricted list (checked 22 Sep 2026) bans dealings with persons "located in, resident in, or a citizen of" Iran. Many Iranians in Germany and elsewhere hold only an Iranian passport, and many of the businesses that would buy Pro are owned by Iranian citizens. Read literally, the clause covers part of our core market. Founding Pro is free for 6 months, so the first payments come around May 2027. Before then:<ul><li>send Stripe a written question (I'll draft it): may an EU business sell advertising to Iranian citizens living in the EU, Canada and so on, and to companies they own?</li><li>set up Mollie as a second provider and check its terms;</li><li>have the sanctions lawyer check the setup.</li></ul></div>
+</section>
+
+<section aria-labelledby="build">
+  <h2 id="build">What gets built, in waves</h2>
+  <p class="col">No build estimate had been made since round 3. These are rough working days; the detailed build plan comes after your decisions.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Wave</th><th>Contents</th><th class="num">Days (estimate)</th><th>Needed by</th></tr></thead>
+    <tbody>
+      <tr><td>0. Before Berlin goes live</td><td>Close Austria (both servers); founding Pro that doesn't charge automatically after 6 months; live SMS and the zone rules (+98 refused); Iran read-only (separate cache, firewall rule, wording)</td><td class="num">6–9</td><td>launch</td></tr>
+      <tr><td>1. The redesign</td><td>First page and country chooser, city pages, listing page, 4-step posting, my listings, chat, account, Pro and business pages, events with filters, saves and follows, footer, admin shortcuts, Gregorian dates, dark mode</td><td class="num">15–18</td><td>Dec–Jan</td></tr>
+      <tr><td>2. Many countries</td><td>Country × city × category switches; modes; city waitlists with double opt-in and counts; opening-day listings; admin «کشورها و شهرها» with «اعلام تاریخ»; the online layer; event time zones; cross-border zones; CAD/USD/AUD/GBP prices</td><td class="num">8–12</td><td>12 Jan</td></tr>
+      <tr><td>3. Safety at scale</td><td>AI pre-screening; review queues per region; warm standby; accessibility pass (WCAG 2.2 AA); US and UK terms</td><td class="num">6–9</td><td>Feb–Mar</td></tr>
+      <tr><td>4. Turkey, paid</td><td>Business verification flow; automatic sanctions checks; invoices by bank transfer; Turkey's categories</td><td class="num">5–7</td><td>June</td></tr>
+    </tbody>
+    <tfoot><tr><td><b>Total</b></td><td></td><td class="num"><b>40–55</b></td><td></td></tr></tfoot>
+  </table></div>
+  <div class="note col"><b>Wave 0 and wave 1 together don't fit in 4 weeks.</b> My recommendation: Berlin goes live with wave 0 and today's look in late November or early December. The redesign follows in parts before the first Starter countries on 12 January. The alternative is to launch with the redesign in mid-January, which means missing Yalda in Berlin.</div>
+</section>
+
+<section aria-labelledby="costs">
+  <h2 id="costs">Costs and people in year one</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Item</th><th class="num">One-time</th><th class="num">Monthly by month 12</th></tr></thead>
+    <tbody>
+      <tr><td>Trademarks, handles, domains</td><td class="num">€4.2–4.5k</td><td class="num">—</td></tr>
+      <tr><td>Lawyer and tax advisor (Germany, sanctions, UK, US, Turkey)</td><td class="num">€5–14k</td><td class="num">—</td></tr>
+      <tr><td>Moderators (Germany Minijob, Toronto, Vancouver later)</td><td class="num">—</td><td class="num">€1.5–2.6k</td></tr>
+      <tr><td>Server standby, SMS, AI screening, OpenSanctions</td><td class="num">≈ €0.5k</td><td class="num">€0.1–0.4k</td></tr>
+      <tr><td>Representatives (Turkey data protection; UK data protection)</td><td class="num">—</td><td class="num">€0.2–0.5k</td></tr>
+      <tr><td>Turkey one-off legal opinions</td><td class="num">€2–6k</td><td class="num">—</td></tr>
+    </tbody>
+    <tfoot><tr><td><b>Total (my estimate)</b></td><td class="num"><b>≈ €12–25k</b></td><td class="num"><b>≈ €1.8–4.3k</b></td></tr></tfoot>
+  </table></div>
+  <p class="col">To cover the monthly cost: about 90–210 Pro accounts at €24, after Stripe fees and the free founding months.</p>
+</section>
+
+<section aria-labelledby="fixes">
+  <h2 id="fixes">Corrections: what earlier rounds got wrong</h2>
+  <p class="col">An independent review checked every round against the code, the live staging site and the sources. These are the corrections; the plan above already includes them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th>What was said</th><th>What is true</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag h">high</span></td><td>Stripe bars people "located in" Iran</td><td>It bars anyone located in, resident in, <b>or a citizen of</b> Iran. See the payments section.</td></tr>
+      <tr><td><span class="tag h">high</span></td><td>No build estimate since round 3</td><td>Now added: 40–55 days in waves</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>SMS works in 36 countries, including Turkey</td><td>37 countries are seeded; SMS covers 36 because Turkey is excluded, and it isn't live anywhere yet. Telegram is the only working phone check today.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Founding Pro: no card, no automatic renewal</td><td>Today it is a Stripe subscription with a 6-month coupon, so Stripe would charge €24 afterwards. It needs new code (wave 0).</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Gregorian dates, French texts for Paris, "for every country"</td><td>These break CLAUDE.md ("Jalali dates only", "Persian only", "for Iranians in Europe"). If you approve, CLAUDE.md and the first page's «ساکن اروپا» get updated.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Pro prices in dollars on the US page</td><td>Pro exists only in euros. Other currencies are now in wave 2.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Hamburg open in February; Vienna's date 7 weeks and 2 days out</td><td>They broke the gate rules. Hamburg is now a target (April); the window is 3–8 weeks.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>No rule for a city below its goals on the announced date; "Berlin's first gate" undefined</td><td>Now defined: 85% seven days before, one move only; health = the strategy's gate</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Vienna gate 300 or 250; LA 50 places against "15–20 elsewhere"</td><td>One table now: big, medium and small cities, with places 50 / 30 / 20</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Round 4's "normally €24"</td><td>Replaced by "Pro costs €24 a month" (round 5). Round 4 is marked as superseded.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>UAE: closed (2028), hidden (Q4 2027), "guide-lite"</td><td>One position: hidden, review in October 2027, events only if ever. UAE numbers are not accepted.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Austria and empty country pages</td><td>Both are changes to the strategy, now called out: Austria closes now and starts as Starter at Yalda; only planned countries get pages.</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>US visas suspended "since Jan 2026"</td><td>Since 9 June 2025, tightened on 1 January 2026</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Iran pages: "EU sanctions law requires this"</td><td>There is no general EU ban on reading. The wording is now "because of sanctions law and our providers' terms".</td></tr>
+      <tr><td><span class="tag m">med</span></td><td>Footer, chooser and Austria pages with round 5's countries</td><td>Updated to the plan above</td></tr>
+      <tr><td><span class="tag ok">low</span></td><td>«دوشنبه، ۱ دسامبر ۲۰۲۶»</td><td>A Tuesday: «سه‌شنبه». Fixed.</td></tr>
+      <tr><td><span class="tag ok">low</span></td><td>Vienna +31% since 2022; the badge «پیشگام وین، ۲۰۲۶»</td><td>Vienna +29% (Austria +31%); the badge now uses the opening year</td></tr>
+      <tr><td><span class="tag ok">low</span></td><td>"Staging has no footer"</td><td>It has one, with Impressum, terms and privacy; the privacy page already lists the cookies</td></tr>
+      <tr><td><span class="tag ok">low</span></td><td>Australia's visitor visa ban</td><td>A 6-month ban from 26 March 2026, which has probably ended</td></tr>
+      <tr><td><span class="tag ok">low</span></td><td>"Today any number can post anything"</td><td>Business-only rules already exist (job offers, at most 2 service offers for private people)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="col" style="font-size:14.5px;color:var(--muted)">Checked and correct: Germany and Austria are active and Austria has 0 listings on staging; logged-out pages set no cookies; Telegram accepts any number; posting and chat need a verified phone; Pro is €24 and €59; the INSEE, Statistik Austria, BGH, § 19 UStG, UAE trade halt and OFAC cases are right. Staging runs the same code as when it was reviewed.</p>
+</section>
+
+<section aria-labelledby="decide">
+  <h2 id="decide">Your decisions</h2>
+  <ol class="decide col">
+    <li><b>The calendar and the three resilience rules</b><span>Canada 12 Jan, Australia 19 Jan, US 2 Feb, UK Feb; Open cities only at their gates; health per country; the capacity check; no shared brake.</span></li>
+    <li><b>Launch order</b><span>Berlin live with wave 0 and today's look in late Nov or early Dec, then the redesign in parts (my recommendation). Or launch with the redesign in mid-January.</span></li>
+    <li><b>Spend now</b><span>Claims ≈ €4.5k this month; a Toronto moderator from January and a German Minijob (≈ €1.5–1.7k a month); a standby server.</span></li>
+    <li><b>Turkey's prices</b><span>€49 verification, €190 Pro, founding €29 / €95 for the first 20; businesses only; Istanbul in June after the four preconditions.</span></li>
+    <li><b>The Stripe question</b><span>I draft it, you send it from the Stripe account; Mollie as a second provider.</span></li>
+    <li><b>Founding Pro after 6 months</b><span>It ends unless the business says yes; then €12 a month for a year.</span></li>
+    <li><b>Rules carried over from round 6</b><span>Posting across borders by zone; no political or LGBTQ events on Turkey pages.</span></li>
+    <li><b>The lawyer and the tax advisor</b><span>One combined list of questions: cookies; Iran read-only and its wording; Stripe; Turkey (VERBIS, withholding, sanctions); the UK Online Safety Act and data representative; US terms; the § 19 limits with more countries; contractors abroad.</span></li>
+  </ol>
+  <p class="col"><b>Already decided by you:</b> close Austria now and follow the gate plan. It is the first item of wave 0, so it ships with the first approved build, not on its own before that.</p>
+</section>
+
+<footer class="end col">Sources and details: <code>docs/design-options.md</code> and <code>docs/design-options/research/</code> on the <code>design-research</code> branch. The screens are on the design page (version 8). Estimates are marked as estimates. Nothing here is legal or tax advice.</footer>
+</main>

@@ -1,7 +1,7 @@
 // The US in starter mode (from Chaharshanbe Suri, March 2027): events, verified businesses, jobs
 // and online services from day one; rentals, items and cars open per city at its gate (LA needs a
 // moderator in the Americas first). Prices in dollars, dates in the venue's time zone.
-const cities = ['لس‌آنجلس', 'سن‌فرانسیسکو', 'واشنگتن', 'نیویورک', 'هیوستون'];
+const cities = ['لس‌آنجلس', 'سن‌فرانسیسکو', 'واشنگتن', 'نیویورک'];
 const events = [['سه‌شنبه', '۱۶ مارس', 'چهارشنبه‌سوری کنار ساحل', 'Santa Monica، رایگان'], ['شنبه', '۲۰ مارس', 'سفرهٔ هفت‌سین و شب شعر خانوادگی', 'Westwood، از ۲۰ $'], ['یکشنبه', '۲۸ مارس', 'کنسرت موسیقی سنتی', 'Irvine، از ۴۵ $']];
 const biz = [['دندان', 'دندانپزشکی، Westwood', 'فارسی‌زبان، بیمهٔ Delta'], ['املاک', 'مشاور املاک', 'خرید و اجاره، Los Angeles'], ['وکیل', 'وکیل مهاجرت', 'فارسی‌زبان، مشاورهٔ آنلاین']];
 const jobs = [['فروشنده در فروشگاه فرش', 'Beverly Hills، تمام‌وقت'], ['منشی مطب، فارسی و انگلیسی', 'Encino، پاره‌وقت']];
@@ -11,7 +11,7 @@ mount(`${header({ place: 'لس‌آنجلس', search: 'جستجو در لس‌آ
   <section class="pt-6 lg:pt-10">
     <p class="flex items-center gap-2 text-sm font-bold text-brand-800">${flag('us', 'h-4 w-6')}آمریکا</p>
     <h1 class="mt-2 text-[26px] font-black leading-[1.5] lg:text-4xl">پیدو در لس‌آنجلس</h1>
-    <p class="mt-1 text-[15px] leading-8 text-neutral-700">رویدادها، کسب‌وکارهای فارسی‌زبان، کار و خدمات. اجاره و خرید و فروش هم به‌زودی.</p>
+    <p class="mt-1 text-[15px] leading-8 text-neutral-700">رویدادها، کسب‌وکارهای فارسی‌زبان، کار و خدمات. اجاره و خرید و فروش وقتی شهر آماده شود.</p>
     <div class="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">${cities.map((c, i) => chip(c, { on: i === 0 })).join('')}</div>
   </section>
   <div class="lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8">

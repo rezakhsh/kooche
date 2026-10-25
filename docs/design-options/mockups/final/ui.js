@@ -139,7 +139,7 @@ function footer() {
         ${col('حقوقی', ['<span><bdi>Impressum</bdi> (اطلاعات ناشر)</span>', '<span>شرایط استفاده <bdi>(AGB)</bdi></span>', '<span>حریم خصوصی و کوکی‌ها <bdi>(Datenschutz)</bdi></span>', '<span>تماس طبق <bdi>DSA</bdi> و قوانین محتوا</span>'])}
         ${col('پیدو', ['دربارهٔ پیدو', 'پیدو برای کسب‌وکارها (پرو)', 'پرو رایگان برای کسب‌وکارهای بنیان‌گذار', 'رویدادها', 'کانال تلگرام'])}
         <div><h2 class="mb-2 text-sm font-extrabold text-neutral-900">کشورها</h2><ul class="space-y-1">${[['آلمان', 'de']].map(([c, f]) => `<li><a class="flex min-h-9 items-center gap-2 text-sm text-neutral-700">${flag(f)}${c}</a></li>`).join('')}</ul>
-          <p class="mt-2 text-xs leading-6 text-neutral-600">به‌زودی: اتریش، هلند، کانادا، ایتالیا. <a class="font-bold text-brand-800">خبرم کن</a><br><a class="font-bold text-brand-800">راهنمای ایرانیان در ترکیه</a></p></div>
+          <p class="mt-2 text-xs leading-6 text-neutral-600">به‌زودی: کانادا، آمریکا، استرالیا، بریتانیا، هلند، اتریش و بیشتر. <a class="font-bold text-brand-800">خبرم کن</a><br><a class="font-bold text-brand-800">راهنمای ایرانیان در ترکیه</a></p></div>
       </div>
       <p class="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-600">© ۲۰۲۶ پیدو، برلین. آگهی برای اشخاص رایگان است.</p>
     </div></footer>`;
@@ -153,6 +153,9 @@ function flag(code, cls = 'h-4 w-6') {
     ca: '<rect width="30" height="20" fill="#fff"/><rect width="7.5" height="20" fill="#d52b1e"/><rect x="22.5" width="7.5" height="20" fill="#d52b1e"/><path d="M15 4l1.6 3.4 2.4-.8-1 3.6 2-.4-3.5 3.4.4 2.3-1.9-.6-1.9.6.4-2.3-3.5-3.4 2 .4-1-3.6 2.4.8z" fill="#d52b1e"/>',
     us: '<rect width="30" height="20" fill="#fff"/>' + [0, 2, 4, 6, 8, 10, 12].map((i) => `<rect y="${(i * 20) / 13}" width="30" height="${20 / 13}" fill="#b22234"/>`).join('') + '<rect width="13" height="10.8" fill="#3c3b6e"/>',
     au: '<rect width="30" height="20" fill="#012169"/><path d="M0 0l15 10M15 0L0 10" stroke="#fff" stroke-width="2"/><path d="M7.5 0v10M0 5h15" stroke="#fff" stroke-width="3"/><path d="M7.5 0v10M0 5h15" stroke="#c8102e" stroke-width="1.6"/><circle cx="7.5" cy="15" r="1.6" fill="#fff"/><circle cx="23" cy="5" r="1" fill="#fff"/><circle cx="20" cy="10" r="1" fill="#fff"/><circle cx="25.5" cy="9" r="1" fill="#fff"/><circle cx="23" cy="16" r="1" fill="#fff"/>',
+    gb: '<rect width="30" height="20" fill="#012169"/><path d="M0 0l30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0l30 20M30 0L0 20" stroke="#c8102e" stroke-width="1.6"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="6"/><path d="M15 0v20M0 10h30" stroke="#c8102e" stroke-width="3.6"/>',
+    se: '<rect width="30" height="20" fill="#006aa7"/><path d="M11 0v20M0 10h30" stroke="#fecc00" stroke-width="4"/>',
+    fr: '<rect width="10" height="20" fill="#002395"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ed2939"/>',
     it: '<rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/>',
     tr: '<rect width="30" height="20" fill="#e30a17"/><circle cx="11" cy="10" r="5" fill="#fff"/><circle cx="12.3" cy="10" r="4" fill="#e30a17"/><path d="M17 10l3.6-1.2-2.2 3 0-3.6 2.2 3z" fill="#fff"/>',
   }[code];
