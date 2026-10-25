@@ -1,0 +1,33 @@
+/* Dark mode preview: the same tokens redefined for a dark background (in the app this would be
+   the neutral-*, brand-* and saffron-* tokens in globals.css under prefers-color-scheme: dark).
+   Turquoise gets lighter (#5cc0c7) so it stays readable; buttons in turquoise take dark text. */
+html.dark, html.dark body { background: #0f1716; color: #e8efed; }
+html.dark .bg-white, html.dark .bg-white\/95, html.dark .bg-white\/90 { background-color: #16211f; }
+html.dark .bg-neutral-50, html.dark .bg-neutral-50\/95 { background-color: #1b2826; }
+html.dark .bg-neutral-100 { background-color: #223230; }
+html.dark .bg-page { background-color: #0f1716; }
+html.dark .bg-neutral-900 { background-color: #e8efed; color: #0f1716; }
+html.dark .text-neutral-900 { color: #e8efed; }
+html.dark .text-neutral-800 { color: #d5dfdc; }
+html.dark .text-neutral-700 { color: #bccac7; }
+html.dark .text-neutral-600, html.dark .text-neutral-500 { color: #9fb0ac; }
+html.dark .text-neutral-400 { color: #7d8f8b; }
+html.dark .border-neutral-200, html.dark .divide-neutral-200 > * + *, html.dark .divide-neutral-100 > * + * { border-color: #2c3836; }
+html.dark .border-neutral-300, html.dark .border-neutral-400 { border-color: #3a4946; }
+html.dark .bg-brand-50, html.dark .bg-brand-50\/60, html.dark .bg-brand-50\/50 { background-color: #123234; }
+html.dark .border-brand-200, html.dark .border-brand-100, html.dark .border-brand-300 { border-color: #1f5559; }
+html.dark .text-brand-700, html.dark .text-brand-800 { color: #5cc0c7; }
+html.dark .bg-brand-700 { background-color: #5cc0c7; color: #06373b; }
+html.dark .bg-brand-700.text-white, html.dark .bg-brand-700 .text-white { color: #06373b; }
+html.dark .border-brand-600 { border-color: #5cc0c7; }
+html.dark .bg-saffron-50 { background-color: #2e2512; }
+html.dark .border-saffron-100, html.dark .border-saffron-300 { border-color: #4a3a17; }
+html.dark .text-saffron-700, html.dark .text-saffron-800 { color: #f5c862; }
+html.dark .bg-saffron-100 { background-color: #4a3a17; }
+html.dark .text-green-800 { color: #7fd69b; }
+html.dark .bg-green-50 { background-color: #12301d; }
+html.dark .ring-neutral-200, html.dark .ring-neutral-300 { --tw-ring-color: #2c3836; }
+html.dark .from-brand-50 { --tw-gradient-from: #123234 var(--tw-gradient-from-position); --tw-gradient-to: rgb(18 50 52 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.dark .to-white { --tw-gradient-to: #0f1716 var(--tw-gradient-to-position); }
+html.dark img { filter: brightness(0.92); }
+html.dark .shadow-sm, html.dark .shadow, html.dark .shadow-lg { --tw-shadow-color: rgb(0 0 0 / 0.5); }

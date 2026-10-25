@@ -844,3 +844,24 @@ Round 2 (same day): the owner chose B «صیقل‌خورده» (today's look, "
 - **Final proposal** on the same artifact: 34 screens, phone and computer, before/after. Details, sizes (about 8–10 days in five parts, no schema change) and five open decisions are in `docs/design-options.md`. Sources in `docs/design-options/mockups/final/`.
 
 Next: the owner answers the five decisions on the page; then a build plan for approval. No code changed.
+
+Round 3 (Oct 25, 2026), asked by the owner: events in depth, `/pro` and `/business/new`, a first page for many countries (US, Canada, Australia, Turkey later), the footer and Impressum, a cookie banner if needed, Gregorian dates instead of Jalali, a look at dark mode; admin shortcuts approved.
+- **Done:**
+  - 51 screens on the same artifact.
+  - Events: list, event page, 2 posting steps.
+  - First visit for an open country, a waitlist for a country not open yet, a country chooser.
+  - Pro, a 3-step business setup, a business page.
+  - The footer with the German legal names; a cookie banner only for the future.
+  - Dark previews of four screens.
+  - All dates in the mockups are Gregorian.
+- **Decided, to be confirmed:**
+  - No cookie banner on current facts (§ 25 TDDDG).
+  - `/` suggests the country and city from Cloudflare and never redirects; unopened countries stay 404 behind a waitlist card.
+  - Impressum within two taps from every screen.
+  - Dates via `fa-u-ca-gregory` (mostly `src/lib/format.ts`).
+  - Dark mode follows the phone, with a setting.
+- **Size:** round 3 adds about 8–10 days, so 15–18 in all.
+
+Details in `docs/design-options.md`.
+
+Next: the owner answers four decisions (founding Pro terms, showing the waitlist count, event saves and follows now or later, dark mode now or later); then a build plan for approval. No code changed.

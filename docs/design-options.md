@@ -1,8 +1,138 @@
 # Design options
 
-Oct 24, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look) and asked for a second, usability-focused round; the final proposal below waits for five decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Waiting for four decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 3 (Oct 25, 2026): events, Pro, business, countries, legal, dates, dark mode
+
+**Asked by the owner after round 2:**
+- Events need real attention.
+- Also cover `/business/new` and `/pro`.
+- Peydoo will open more countries (the US, Canada, Australia, Turkey…), so the first page must work for many countries.
+- Show the footer and the Impressum, and design a cookie banner if one is needed.
+- Dates always Gregorian; Jalali only where it is clever.
+- Show what dark mode means.
+- Admin shortcuts: yes.
+- The rest of round 2 is good.
+
+**How round 3 was done:**
+- **Production** (`peydoo.com`) is behind Cloudflare Access, so staging was used. It runs the same code.
+- **Staging screenshots:** events (empty: no events on staging), Pro, `/canada` (404) and the signed-in event form from round 2.
+- **Business pages:** `/business/new` was judged from the code, since the session was already signed out. It is one long form with German legal fields (Gewerbeamt, Handelsregister, USt-IdNr).
+- **Research:** two agents. Sources are on the page and summarised below.
+
+**Decisions taken (mine, to be confirmed by the owner):**
+- **Dates.**
+  - Always Gregorian with Persian month names and Persian digits: «۸ نوامبر ۲۰۲۶», `fa-u-ca-gregory`, standalone month names.
+  - Relative dates («۲ ساعت پیش») for the first 7 days.
+  - Jalali only as a second label on cultural dates (Nowruz, Yalda, Chaharshanbe Suri), e.g. «شب یلدا: دوشنبه ۲۱ دسامبر (۳۰ آذر)».
+  - "Member since", listing, chat and admin dates switch to Gregorian. Today all non-event dates go through `src/lib/format.ts` with `fa-IR-u-ca-persian`, so that file is the main change, plus the chat day dividers and the admin charts.
+  - Checked with ICU: 30 Azar 1405 is Monday 21 December 2026, and 1 Farvardin 1406 is 21 March 2027.
+- **First page for many countries.**
+  - `/` never redirects (Google advises against redirects by IP). It suggests the country from `CF-IPCountry` (all plans), and the city from the "Add visitor location headers" managed transform (very likely on Free; turn it on to check).
+  - Copy: «به نظر می‌رسد در آلمان هستید» with that country's cities and counts, and «کشور دیگر».
+  - A country that isn't open gets a waitlist card instead of a page: city plus email, double opt-in (Canada's CASL needs a consent record), the city's count against the opening gate, Telegram invite, and links to online events and the open countries. `/canada` stays 404 until it opens.
+  - The header's place chip opens a chooser: open countries with counts, then «به‌زودی» with «خبرم کن».
+  - Iran gets a short static page (451), knowing most Iranian users have VPNs.
+  - Per-country currency, postcode and address order, phone formats; miles and square feet in the US; a currency policy for Turkey before opening.
+  - Paths on one domain as today (`/germany/berlin`).
+- **Footer and Impressum.**
+  - A footer on every browsing page, flat on phones and never folded away (NN/g).
+  - Groups:
+    - **Help:** guide, safe trading, report, contact.
+    - **Legal:** «Impressum (اطلاعات ناشر)», «شرایط استفاده (AGB)», «حریم خصوصی و کوکی‌ها (Datenschutz)», the DSA contact point.
+    - **Peydoo:** about, Pro, events, Telegram.
+    - **Countries:** open and coming.
+  - The Impressum stays reachable within two taps from task pages (chat, posting) through «حساب من» → «Impressum، شرایط و حریم خصوصی» (BGH I ZR 228/03; OLG Hamm says an unlabelled mobile icon is not enough).
+  - Possibly add a § 25 MedienG disclosure line for Austria.
+- **Cookie banner: none on current facts.** Session, login steps, `country`, `view`, `pending_favorite` and Turnstile are all strictly necessary or requested by the user (§ 25 (2) Nr. 2 TDDDG); GitHub dropped its banner the same way.
+  - The privacy policy lists every cookie and storage key; Sentry Replay stays off.
+  - Analytics, if ever: storage-free first.
+  - If a banner is ever needed, it is designed (`final/cookie.js`): «فقط ضروری» and «قبول همه» with the same weight on the first screen, details one tap away, nothing pre-ticked, no wall (EDPB taskforce 2023).
+- **Dark mode.**
+  - It follows `prefers-color-scheme`, with «روشن / تیره / خودکار» in settings, stored like `view`.
+  - The tokens are redefined for dark:
+    - surfaces: #0f1716 / #16211f;
+    - turquoise text and buttons lighter: #5cc0c7 with dark text on buttons;
+    - saffron: #f5c862.
+  - Photos are left alone. #0B6E77 on dark is only 3.1:1.
+  - Preview in `final/dark.css`.
+
+**Events (the "weekly traffic engine" in `docs/strategy.md`):**
+- **List** (`final/events.js`):
+  - a season strip when there is one (Yalda, with the date in both calendars);
+  - 14 days with dots where something happens;
+  - type chips that apply at once: concert, party, literary and cultural, meetup, workshop, **memorial and solidarity** (Nowruz 2026 was quiet because of the war), children;
+  - free and online;
+  - a «ویژه» paid slot, labelled;
+  - events grouped by week with a 4:5 poster, day and time, place, price, tour badge and "interested" count;
+  - «خبرم کن» weekly by Telegram or email.
+- **Event page** (`final/event.js`):
+  - the poster whole on a blurred copy;
+  - date, place and tickets as three rows with their actions: calendar, route, tickets. The date row also gets a relative label («۱۴ روز دیگر»);
+  - the tour's other cities, performers, then details (language, age, seating, access, refund, door sales);
+  - a verified organiser with «دنبال کردن» and their number of events;
+  - a ticket-scam warning naming PayPal «دوستان و خانواده» and bank transfers;
+  - similar events;
+  - «خرید بلیت» fixed at the bottom on phones, under the poster on computers.
+- **Posting** (`final/post-event1.js`, `post-event2.js`):
+  - The poster first (the Instagram 4:5 one).
+  - «متن پست اینستاگرام یا تلگرام را بچسبانید» fills title, date, city, venue and price for checking. This can come with the AI-posting step.
+  - Type as chips; the date with Persian month names; time as hours; repeats as chips.
+  - The venue with suggestions from earlier events.
+  - «افزودن شهر و تاریخ دیگر» for tours: one page per city, linked. Today a series is the same place with more dates.
+  - Step 3 is tickets and publishing.
+- **Research:**
+  - No Persian diaspora event calendar was found: events live on Instagram, Telegram, artists' sites and Eventbrite tags.
+  - Eventbrite: saves with reminders, and organiser followers notified with a cap of 2 a day.
+  - Bandsintown: tours by city. RA: lineup and a venue list. Luma: clone instead of complex series.
+  - Google Event markup: one URL per date, and no rich results for online-only events.
+  - German consumer advice on ticket scams.
+
+**Pro and businesses:**
+- **Pro** (`final/pro.js`):
+  - The founding offer first, dated, with the code field on it.
+  - A monthly / yearly switch: «۲ ماه رایگان», €48 or €118 less.
+  - Three plans with «پیشنهاد ما» on Pro, prices final under §19 UStG, and a short FAQ.
+- **New business in 3 steps** (`final/business-new.js`, `business-legal.js`):
+  1. Name, category, city and logo; the page address comes from the name.
+  2. Contact and hours.
+  3. The legal details for that country: Impressum fields in Germany, others elsewhere. They can wait until the "verified" badge or the first payment.
+  
+  Etsy and Shopify also ask legal and tax details last. Divar's business panel has manager and staff roles.
+- **Business page** (`final/business-page.js`):
+  - cover, logo, verified, one line, languages, «الان باز است»;
+  - message, call and route;
+  - listings, events and about tabs;
+  - follow;
+  - the Impressum folded at the bottom.
+
+**Size added by round 3:**
+
+| Part | Days |
+| --- | --- |
+| Events | 3–4 |
+| First visit, footer and dates | 2 (plus a small waitlist table) |
+| Pro and business | 2 |
+| Dark mode, optional | 1–2 |
+
+With round 2's parts, about 15–18 working days. Optional extras: event saves and organiser follows (two small tables and a notification job), "where did you sell it?" (one column).
+
+**Four decisions for the owner:**
+1. **Founding Pro:** "free until 31 Dec 2027 for the first 50 businesses per city" (the mockup), or 12 months as in the strategy?
+2. **Waitlist count:** show «۳۱۲ نفر منتظرند؛ با ۵۰۰ نفر باز می‌کنیم», or collect without showing a number?
+3. **Event saves with reminders and organiser follows:** now (recommended) or after launch?
+4. **Dark mode:** with the redesign, or after launch?
+
+Round 2's "the rest is good" is taken as yes to the 4 posting steps, keeping «آگهی‌های من» in the bottom bar, and admin shortcuts.
+
+**Round 3 sources** (full list on the page):
+- **Events:** [Eventbrite followers](https://www.eventbrite.com/help/en-us/articles/783059/), [Eventbrite postponed/cancelled](https://www.eventbrite.com/help/en-us/articles/895183/), [Bandsintown](https://artists.bandsintown.com/support/blog/youve-heard-of-follow-like-and-share-now), [RA submitting events](https://support.ra.co/article/12-submitting-events), [Luma recurring](https://help.luma.com/p/multi-session-recurring-events), [Google Event markup](https://developers.google.com/search/docs/appearance/structured-data/event), [Mimikama ticket scams](https://www.mimikama.org/?p=351737), [The Local: Nowruz 2026](https://www.thelocal.de/20260320/nowruz-how-iranian-new-year-is-celebrated-in-germany)
+- **Pro and businesses:** [Smashing: pricing pages](https://smashingmagazine.com/2022/07/designing-better-pricing-page), [Kleinanzeigen PRO packages](https://onlinemarktplatz.de/267016/kleinanzeigen-pro-neue-pakete/), [Zoomit: Divar for businesses](https://www.zoomit.ir/tech-iran/428232-divar-new-options-for-businesses)
+- **Countries:** [Google multi-regional](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites), [Cloudflare location headers](https://developers.cloudflare.com/rules/transform/managed-transforms/reference/), [Craigslist sites](https://www.craigslist.org/about/sites), [Kodoom](https://www.kodoom.com/), [CASL consent records](https://www.torys.com/insights/publications/2016/07/crtc-releases-guidelines-on-casl-consent-records)
+- **Legal and cookies:** [§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html), [two clicks](https://www.e-recht24.de/impressum/4911-impressum-2-klicks.html), [OLG Hamm mobile](https://www.ra-plutte.de/olg-hamm-pflichtangaben-im-mobile-commerce/amp/), [NN/g footers](https://www.nngroup.com/articles/footers/), [§ 25 TDDDG](https://www.gesetze-im-internet.de/ttdsg/__25.html), [EDPB cookie banners](https://www.edpb.europa.eu/system/files/2023-01/edpb_20230118_report_cookie_banner_taskforce_en.pdf), [GitHub: no cookie banner](https://github.blog/2020-12-17-no-cookie-for-you)
+- **Dates and dark mode:** [CLDR fa Gregorian](https://cdn.jsdelivr.net/npm/cldr-dates-full@46.0.0/main/fa/ca-gregorian.json), [web.dev dark mode](https://web.dev/case-studies/terra-dark-mode), [Kleinanzeigen dark mode](https://www.netzwelt.de/anleitung/229011-kleinanzeigen-dark-mode-aktivierenso-gehts.html)
 
 ## Final design: «صیقل‌خورده», made easier to use (round 2)
 

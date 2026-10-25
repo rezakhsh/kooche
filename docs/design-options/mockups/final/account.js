@@ -6,11 +6,11 @@ const tiles = [['doc', 'آگهی‌های من', '۲ فعال، ۱ پیش‌نو
 mount(`${header()}
 <main class="mx-auto w-full max-w-2xl px-4 pt-5 pb-24">
   <section class="flex items-center gap-4 rounded-2xl bg-brand-50 p-4"><span class="flex size-16 items-center justify-center rounded-full bg-white text-2xl font-black text-brand-800">آ</span>
-    <div class="min-w-0 flex-1"><h1 class="text-xl font-extrabold">کاربر نمونه</h1><p class="text-sm text-neutral-700">عضو از مهر ۱۴۰۵، ودینگ، برلین</p><p class="mt-1 flex items-center gap-1 text-xs font-bold text-brand-800">${I('shield', 'size-3.5')}شماره تأیید شده</p></div>
+    <div class="min-w-0 flex-1"><h1 class="text-xl font-extrabold">کاربر نمونه</h1><p class="text-sm text-neutral-700">عضو از اکتبر ۲۰۲۶، ودینگ، برلین</p><p class="mt-1 flex items-center gap-1 text-xs font-bold text-brand-800">${I('shield', 'size-3.5')}شماره تأیید شده</p></div>
     <a class="flex h-10 items-center rounded-lg bg-white px-3 text-sm font-bold text-brand-800">صفحهٔ من</a></section>
   <h2 class="mt-6 mb-2 px-1 text-sm font-bold text-neutral-600">فعالیت من</h2>
   <div class="grid grid-cols-2 gap-2">${tiles.map(([ic, t, v]) => `<a class="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3.5"><span class="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">${I(ic, 'size-5')}</span><b class="text-[15px]">${t}</b><span class="text-xs text-neutral-600">${v}</span></a>`).join('')}</div>
   ${group('کسب‌وکار من', [['store', 'پنل کسب‌وکار', 'بدون اشتراک']])}
-  ${group('', [['gear', 'تنظیمات', 'حساب، اعلان‌ها، امنیت، حریم خصوصی'], ['shield', 'راهنما و معاملهٔ امن'], ['chat', 'تماس با پشتیبانی']])}
+  ${group('', [['gear', 'تنظیمات', 'حساب، اعلان‌ها، ظاهر (روشن، تیره، خودکار)'], ['shield', 'راهنما و معاملهٔ امن'], ['chat', 'تماس با پشتیبانی'], ['doc', 'Impressum، شرایط و حریم خصوصی']])}
   <a class="mt-6 flex h-12 items-center justify-center gap-2 rounded-xl border border-neutral-300 font-bold text-neutral-800">${I('logout', 'size-5')}خروج</a>
 </main>${bottomNav(4)}`);

@@ -26,4 +26,4 @@ mount(`${header()}
     <a class="mx-4 mt-2 flex items-center gap-3 rounded-2xl bg-saffron-50 p-3 lg:mx-0"><img src="${EVENT.img}" class="size-12 rounded-xl object-cover" alt=""><span class="min-w-0 flex-1"><span class="block text-xs font-bold text-saffron-800">این هفته در برلین</span><b class="block truncate text-sm">${EVENT.title}</b></span><span class="text-sm font-bold text-saffron-800">${fa(3)} رویداد</span></a>
     <div class="grid grid-cols-2 gap-3 px-4 pt-3 lg:grid-cols-3 lg:gap-4 lg:px-0">${feed.map(gridCard).join('')}</div>
   </div>
-</main>${bottomNav(0)}`);
+</main>${footer()}${bottomNav(0)}`);

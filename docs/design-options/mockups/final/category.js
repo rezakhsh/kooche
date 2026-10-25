@@ -27,7 +27,7 @@ mount(`${header({ search: 'جستجو در اتاق و WG برلین…' })}
     <p class="mx-4 mt-1 flex gap-2 rounded-xl bg-saffron-50 p-2.5 text-xs leading-6 text-saffron-800 lg:mx-0">${I('alert', 'size-4 mt-1')}<span>پیش از دیدن اتاق، ودیعه یا اجاره واریز نکنید. <b>نکات اجارهٔ امن</b></span></p>
     <div class="px-4 lg:px-0">${rows.map(listCard).join('')}</div>
   </div>
-</main>${bottomNav(0)}`);
+</main>${footer()}${bottomNav(0)}`);
 function filterFields() {
   const seg = (opts, on) => `<div class="flex gap-1 rounded-xl bg-neutral-100 p-1">${opts.map((o, i) => `<span class="flex h-10 flex-1 items-center justify-center rounded-lg text-sm ${i === on ? 'bg-white font-bold shadow-sm' : 'text-neutral-700'}">${o}</span>`).join('')}</div>`;
   return `<p class="mb-1.5 font-bold text-neutral-800">اجارهٔ ماهانه</p>

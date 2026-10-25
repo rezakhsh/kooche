@@ -26,7 +26,7 @@ const REAL_ESTATE_SUBS = [
 
 const IMG = (n) => `../img/${n}`;
 const LISTINGS = [
-  { id: 'room', title: 'اجاره خانه در ودینگ', price: 870, unit: 'اجاره سرد ماهانه', warm: 1020, cat: 'اجاره آپارتمان', root: 'املاک', place: 'ودینگ', facts: ['۶۵ متر', '۲ اتاق', 'Anmeldung ممکن'], ago: 'هفتهٔ گذشته', img: IMG('room1.webp'), photos: 9, anmeldung: true, seller: 'آرش ک.', since: 'مهر ۱۴۰۵' },
+  { id: 'room', title: 'اجاره خانه در ودینگ', price: 870, unit: 'اجاره سرد ماهانه', warm: 1020, cat: 'اجاره آپارتمان', root: 'املاک', place: 'ودینگ', facts: ['۶۵ متر', '۲ اتاق', 'Anmeldung ممکن'], ago: 'هفتهٔ گذشته', img: IMG('room1.webp'), photos: 9, anmeldung: true, seller: 'آرش ک.', since: 'اکتبر ۲۰۲۶' },
   { id: 'wg', title: 'اتاق مبله در WG، نزدیک Hermannplatz', price: 590, unit: 'گرم، ماهانه', cat: 'اتاق و خانه اشتراکی (WG)', root: 'املاک', place: 'نویکلن', facts: ['۱۴ متر', 'از ۱ دسامبر', 'Anmeldung ممکن'], ago: '۲ ساعت پیش', img: IMG('room5.webp'), photos: 6, anmeldung: true, seller: 'مهسا ر.' },
   { id: 'rug', title: 'فرش نو ابریشمی ایرانی قم ۱۵۵×۲۵۵', price: 160, cat: 'فرش، گلیم و تابلوفرش', root: 'خانه و آشپزخانه', place: 'موابیت', facts: ['نو', 'ماشینی', 'ابریشم'], ago: 'پریروز', img: IMG('rug1.webp'), photos: 3, seller: 'نیلوفر ا.' },
   { id: 'car', title: 'پژو ۲۰۸ GT-Line، مدل ۲۰۲۱', price: 16900, cat: 'خودرو', root: 'وسایل نقلیه', place: 'اشپانداو', facts: ['۲۰۲۱', '۴۸٬۰۰۰ کیلومتر', 'اتوماتیک'], ago: 'دیروز', img: IMG('car.jpg'), photos: 12, seller: 'رضا م.', verified: true },

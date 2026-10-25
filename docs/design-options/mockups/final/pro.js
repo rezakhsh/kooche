@@ -1,0 +1,19 @@
+// Pro: the founding offer first (dated, with its code field), a monthly / yearly switch with the
+// saving in euros, three plans with the middle one recommended, a short comparison, honest FAQ.
+const plans = [['کسب‌وکار', 'رایگان', '', ['۳ آگهی فعال', 'صفحهٔ کسب‌وکار', 'نردبان جداگانه'], 'ساخت حساب کسب‌وکار', false],
+  ['پرو', '۲۴ €', 'در ماه', ['۲۵ آگهی فعال', '۳ نردبان در ماه', '۱ همکار', 'نشان «تأییدشده» پس از بررسی', 'آمار بازدید'], 'شروع پرو', true],
+  ['پرو پلاس', '۵۹ €', 'در ماه', ['۱۰۰ آگهی فعال', '۱۵ نردبان در ماه', '۲ آگهی ویژه هم‌زمان', '۵ همکار', 'همهٔ امکانات پرو'], 'شروع پرو پلاس', false]];
+mount(`${header()}
+<main class="mx-auto w-full max-w-5xl px-4 pt-6 pb-10">
+  <h1 class="text-2xl font-extrabold lg:text-4xl">پیدو برای کسب‌وکارها</h1>
+  <p class="mt-2 max-w-2xl text-base leading-8 text-neutral-700">آگهی برای اشخاص همیشه رایگان است. کسب‌وکارها با ۳ آگهی رایگان شروع می‌کنند و برای بیشتر، پرو را انتخاب می‌کنند.</p>
+  <div class="mt-5 flex flex-wrap items-center gap-3 rounded-2xl bg-saffron-50 p-4"><span class="flex size-10 items-center justify-center rounded-xl bg-saffron-500 text-neutral-900">${I('star', 'size-5')}</span><div class="min-w-0 flex-1"><b class="block">کسب‌وکارهای بنیان‌گذار: پرو رایگان تا ۳۱ دسامبر ۲۰۲۷</b><span class="text-sm text-saffron-800">برای ۵۰ کسب‌وکار اول هر شهر، با کد دعوت</span></div><span class="flex h-11 items-center gap-2 rounded-xl border border-saffron-300 bg-white px-3 text-sm"><span class="text-neutral-500">کد دعوت</span><b class="text-brand-800">ثبت</b></span></div>
+  <div class="mt-6 flex justify-center"><div class="flex gap-1 rounded-full bg-neutral-100 p-1 text-sm"><span class="rounded-full bg-white px-5 font-bold leading-10 shadow-sm">ماهانه</span><span class="px-5 leading-10 text-neutral-700">سالانه <b class="text-green-800">۲ ماه رایگان</b></span></div></div>
+  <div class="mt-5 grid gap-4 lg:grid-cols-3">${plans.map(([n, p, per, feats, cta, rec]) => `<section class="relative flex flex-col rounded-3xl border ${rec ? 'border-2 border-brand-600 shadow-lg' : 'border-neutral-200'} p-5">${rec ? '<span class="absolute -top-3 start-5 rounded-full bg-brand-700 px-3 text-xs font-bold leading-6 text-white">پیشنهاد ما</span>' : ''}
+    <h2 class="text-lg font-extrabold">${n}</h2><p class="mt-1"><b class="text-3xl font-black">${p}</b> <span class="text-sm text-neutral-600">${per}</span></p>${per ? `<p class="text-xs text-neutral-600">یا سالانه ${n === 'پرو' ? '۲۴۰ € (۴۸ € کمتر)' : '۵۹۰ € (۱۱۸ € کمتر)'}</p>` : '<p class="text-xs text-neutral-600">برای همیشه</p>'}
+    <ul class="mt-4 flex-1 space-y-2">${feats.map((f) => `<li class="flex items-start gap-2 text-sm">${I('check', 'size-4 mt-1 text-brand-700', 2.5)}${f}</li>`).join('')}</ul>
+    <a class="mt-5 flex h-12 items-center justify-center rounded-xl font-bold ${rec ? 'bg-brand-700 text-white' : 'border border-neutral-300'}">${cta}</a></section>`).join('')}</div>
+  <p class="mt-4 text-center text-sm text-neutral-600">قیمت‌ها نهایی‌اند (بدون مالیات بر ارزش افزوده، §۱۹ UStG). هر وقت بخواهید لغو کنید؛ فاکتور هر پرداخت به ایمیل‌تان می‌آید.</p>
+  <h2 class="mt-10 text-xl font-extrabold">پرسش‌های رایج</h2>
+  <div class="mt-3 divide-y divide-neutral-200 rounded-2xl border border-neutral-200">${['آیا آگهی شخصی پولی است؟', 'اگر پرو را لغو کنم آگهی‌هایم چه می‌شود؟', 'نشان «تأییدشده» یعنی چه؟', 'با چه روش‌هایی می‌توانم پرداخت کنم؟'].map((q) => `<p class="flex min-h-14 items-center justify-between px-4 text-[15px] font-bold">${q}${I('chevronDown', 'size-4 text-neutral-500')}</p>`).join('')}</div>
+</main>${footer()}${bottomNav(0)}`);
