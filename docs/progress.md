@@ -903,3 +903,37 @@ Round 7 (Oct 25, 2026): the final plan for the owner's decision, https://claude.
 The owner decided to close Austria now and follow the gate plan. It is wave 0's first item; no app code has changed yet. Artifact (design page) version 8.
 
 Next: the owner decides the plan page's eight points; then the detailed build plan for wave 0 for approval.
+
+### Owner decisions and preferences from the design research (Oct 24–25, 2026)
+
+Collected here so every tool sees them. Details in `docs/design-options.md` ("Final plan (round 7)" first). The two plan pages are private claude.ai artifacts in the VS Code account; the owner can share them, and a copy of the plan is `docs/design-options/launch-plan.html`.
+
+**Decided by the owner:**
+- Design direction B «صیقل‌خورده»: keep today's look (turquoise, saffron, Vazirmatn, rounded cards) and make it easier to use. "This is my style."
+- Dates in Gregorian (Persian month names and digits); Jalali only as a second label for cultural dates. Iranians abroad can't convert Jalali easily. (CLAUDE.md still says Jalali; update it when the build starts.)
+- Peydoo is for Iranians in many countries, not only Germany or Europe. Never design for Berlin only.
+- Always include events, Pro and business pages, the footer with Impressum, and the admin panel when designing.
+- Approved: admin keyboard shortcuts, 4 posting steps, «آگهی‌های من» in the bottom bar, event filters, saves and follows, the waitlist count, founding Pro per city, no cookie banner while nothing needs consent.
+- Light and dark mode both; proposal is automatic by default with a choice.
+- Iran: read-only from Iran, no sign-up, +98 numbers refused even with a VPN, no listings from Iran.
+- The one-year plan: every country live within a year. Hurry the US, Canada and Australia (largest diasporas, copycat risk). No plan where one country's failure stops the others.
+- Turkey must make money (paid business listings), not cost money.
+- Close Austria for now and follow the country and gate plan (first item of the first build wave; not done yet).
+
+**Open for the owner** (the plan page's decisions):
+1. the calendar and resilience rules;
+2. launch order;
+3. spending now (trademarks, moderators);
+4. Turkey prices;
+5. asking Stripe in writing about its "citizen of Iran" clause;
+6. founding Pro after 6 months;
+7. the cross-border posting rule and the Turkey events policy;
+8. booking the lawyer and the tax advisor.
+
+**Working rules the owner gave for this research:**
+- No app changes until the owner approves.
+- Run `free -m` before any browser, build or deploy, and use one browser at a time.
+- Never touch the Claude desktop app's processes.
+- A push to main deploys staging only; production only with `peydoo-promote`, and only when asked.
+- No real users' names, phone numbers or emails in screenshots or mockups.
+

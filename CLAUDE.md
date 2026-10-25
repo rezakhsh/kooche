@@ -2,7 +2,7 @@
 
 Persian-language classifieds marketplace for Iranians in Europe. Modular monolith: one TypeScript codebase, Next.js app + background worker, PostgreSQL as the single source of truth.
 
-Read first: `docs/setup.md` (current infrastructure and decisions, wins over everything else), `docs/architecture.md` (product and architecture plan), `docs/progress.md` (where work stands).
+Read first: `docs/setup.md` (current infrastructure and decisions, wins over everything else), `docs/architecture.md` (product and architecture plan), `docs/progress.md` (where work stands), `docs/design-options.md` (the design and launch plan and the owner's decisions on it, newest round first).
 
 ## Rules
 
