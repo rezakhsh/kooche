@@ -1,8 +1,40 @@
 # Design options
 
-Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, round 8 changes phone verification, Iran, the legal minimum and moderation, round 9 drops SMS, explains the waitlist, adds private vs business rules, brings Turkey forward and re-rates Stripe, and round 10 (top) proposes a partly active Iran without events in Iran. Waiting for the owner's decisions, then a build plan for approval.
+Oct 24–25, 2026 · research only, no app changes. The owner chose direction B «صیقل‌خورده» (today's look); round 2 made it easier to use, round 3 added events, Pro and business, the multi-country first page, footer and legal, Gregorian dates and dark mode. Round 4 answered questions on events, cookies, the waitlist, founding Pro, countries and Iran; round 5 revised the country order, Austria, Turkey, the UAE and Iran; round 6 puts every country live within a year in tiered modes; the final plan (round 7) supersedes them where they differ, round 8 changes phone verification, Iran, the legal minimum and moderation, round 9 drops SMS, explains the waitlist, adds private vs business rules, brings Turkey forward and re-rates Stripe, round 10 proposes a partly active Iran without events in Iran, and round 11 (top) lets everyone post from a country's start (the gate becomes the city launch) and records the Telegram login test. Waiting for the owner's decisions, then a build plan for approval.
 
 **Page with mockups and staging screenshots:** https://claude.ai/artifact/HqNDhAzv3SHSbbVCDmsQkQ (private until the owner shares it). The final proposal is on top; round 1 (three directions) is folded below it. The Oct 17 brand plan (https://claude.ai/artifact/TgjPF24NJujB7bQAYnz3AK) could not be opened from this session's account ("not found"); its decisions were taken from `docs/setup.md`, "Brand and design".
+
+## Round 11 (Oct 25, 2026): nobody waits for a city, Telegram login tested, private vs business made simple
+
+**Plan page version 5 (Persian).** Research: `research/round11-business-verify.md`. The test script is `research/telegram-login-test/server.mjs`.
+
+- **City rule changed (the owner's point: a seller won't wait for a city to open):**
+  - From a country's start date everyone can post everything: items, rooms, cars, services, jobs, events.
+  - While a city is small, its page also shows the whole country ("3 in Toronto, 40 across Canada"), with city and distance filters.
+  - **The city gate no longer opens posting.** It sets the city's "launch" (جشن شهر): its own default page, local promotion, the pioneer badge for everyone active before the launch, and founding Pro places.
+  - The gate counts **live** listings, not drafts. Drafts remain only for the known pre-start weeks before a country's fixed date.
+  - Rooms and cars from new accounts keep the night hold, and the category × city pause stays as an emergency switch.
+  - This replaces round 6/7 "Open per city" as a permission. It is simpler to build.
+- **Telegram OIDC login tested on 25 Oct 2026, and it works:**
+  - **Setup:** the staging bot was switched to OpenID Connect in BotFather. BotFather refuses `localhost` and `http`, so the redirect was the 404 path `https://staging.peydoo.com/tg-oidc-test` and the owner pasted the URL back.
+  - **What came back:** scope `openid phone` returned `phone_number` (digits, no "+") with `phone_number_verified: true`. The RS256 id_token checked out against the JWKS, and the nonce matched.
+  - **Also returned unasked:** `name`, `given_name`, `family_name`, `picture` and `preferred_username` (discard them).
+  - **Code lifetime:** codes expire within a couple of minutes (one `invalid_grant` after a slow paste).
+  - **Consent screen:** it says the site wants your number. The owner worries people refuse. Put one sentence before it ("once, against scams, never shown").
+  - **Recommendation:** OIDC becomes the main Telegram path (it can also be the sign-in), with the bot `request_contact` as a fallback. The same +98 / +888 / allowlist refusal applies to both.
+  - **Cleanup:** the test server and the credentials file were deleted. The owner should remove the test redirect and regenerate the staging client secret, which was pasted in chat.
+- **Private vs business, simpler:**
+  - **How it works:** the seller chooses and ticks a box; private accounts have small limits; suspicious accounts go to a queue.
+  - **Services in three groups:**
+    - licensed, business only with a licence check: tax, legal, immigration, health, estate agents, sworn translators, driving schools, finance;
+    - business by default, with 2 active / 4 new a month for private people;
+    - open to everyone: tutoring, babysitting, household help, pet sitting, a hand with moving.
+  - **What a business page offers:** directory and SEO page, social and messenger buttons, a menu or price list, opening hours, events and jobs, an Impressum block, 5 free listings once verified, reviews and statistics.
+  - **Kleinanzeigen:** its sign-up text calls service offers commercial, but about 159k private service ads are live. Since 1 Sep 2026 businesses get 1 free service ad a month; PRO costs from €39 net (research 9's €15 was wrong). willhaben requires business for all services. Marktplaats keeps tutoring and babysitting free.
+- **Business verification by country:**
+  - **Free official sources:** ABN Lookup (AU), Companies House + HMRC VAT (UK), VIES (EU), recherche-entreprises (FR), KVK search (NL), GISA (AT), Skatteverket (SE), Handelsregister (DE, manual), GST/HST registry (CA), state registers (US), TTSG (TR).
+  - **Levels:** 0 is self-declared; 1 is «تأییدشده» (a document plus a register check, 2–10 minutes); 2 adds sanctions checks for Turkey and risky categories (15–20 minutes).
+  - Paid KYB services aren't worth it at this size. Keep no ID copies, and delete uploaded documents 7 days after the decision.
 
 ## Round 10 (Oct 25, 2026): Iran partly active, and events in Iran
 

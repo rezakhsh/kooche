@@ -904,7 +904,7 @@ The owner decided to close Austria now and follow the gate plan. It is wave 0's 
 
 Round 8 (Oct 25): phone verification costs, Telegram limits, Iran messaging, soft legal and solo moderation; the plan page is now in Persian (version 2).
 
-Round 9 (Oct 25): phone verification without SMS (users send a code to our WhatsApp), Telegram limits per bot, the waitlist explained simply, private vs business rules, Turkey earlier with private listings in safe categories, sanctions checks, Stripe re-rated medium-low (plan page version 3). Round 10 (Oct 25): Iran partly active (guides, relocation-jobs filter; later wanted posts and free online events), no events in Iran; the US stayed five Iran general licences on 24 Aug 2026 (plan page version 4). Next: the owner decides the plan page's 13 points; then the detailed build plan for wave 0 for approval.
+Round 9 (Oct 25): phone verification without SMS (users send a code to our WhatsApp), Telegram limits per bot, the waitlist explained simply, private vs business rules, Turkey earlier with private listings in safe categories, sanctions checks, Stripe re-rated medium-low (plan page version 3). Round 10 (Oct 25): Iran partly active (guides, relocation-jobs filter; later wanted posts and free online events), no events in Iran; the US stayed five Iran general licences on 24 Aug 2026 (plan page version 4). Round 11 (Oct 25): everyone posts from a country's start date and the city gate becomes the city launch; Telegram OIDC login with the phone scope tested successfully on the staging bot; private vs business simplified with three service groups; business verification by country (plan page version 5). Next: the owner decides the plan page's 13 points; then the detailed build plan for wave 0 for approval.
 
 ### Owner decisions and preferences from the design research (Oct 24–25, 2026)
 
@@ -927,9 +927,9 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 - Close Austria for now and follow the country and gate plan (first item of the first build wave; not done yet).
 
 **Open for the owner** (the plan page's 13 decisions, round 9):
-1. the calendar and resilience rules (new: merge a city that stays below 50% for 6 months into a region);
+1. the calendar and the new city rule (everyone posts from a country's start; the gate only sets the city launch; merge a city below 50% for 6 months into a region);
 2. launch order;
-3. phone verification without SMS and the trigger for switching SMS on;
+3. phone verification without SMS (Telegram login as the main path, tested; the bot as fallback; WhatsApp; SMS off with a trigger);
 4. private vs business (declaration, limits, review queue, free basic business profile, the always-business list);
 5. Turkey earlier (businesses 1 Feb, Nowruz, private listings in May, KVKK in January);
 6. Turkey prices;
@@ -940,6 +940,8 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 11. spending now;
 12. founding Pro after 6 months;
 13. the shorter list for the lawyer and the tax advisor.
+
+**Owner to do after the Telegram login test (Oct 25):** remove the test redirect `https://staging.peydoo.com/tg-oidc-test` from the staging bot in BotFather and regenerate its OIDC client secret (it was pasted in chat).
 
 **Code gap found in round 8 (not fixed; no app changes yet):** the Telegram bot path (`telegramNumberToE164()` in `src/modules/users/phone-number.ts`) accepts any number, including +98 and anonymous +888 numbers. Only the SMS path refuses Iran. Planned for wave 0.
 
