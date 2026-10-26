@@ -970,3 +970,13 @@ Done (branch `wave0`, `/root/classifieds-wave0`): `docs/wave0-plan.md`. It cover
 Found while reading: round 12 has no section in `docs/design-options.md` (it is in this file and the plan page v6); the founding-business mockup says €24 after 6 months while the plan page says €12; the `iran` mockup shows email sign-up and messaging, which the plan builds only in wave 4 after the lawyer.
 
 Owner's answers (same day): Hamburg 20; Berlin area including Potsdam (built as Berlin + Potsdam within 40 km); €24 a month after founding Pro, only on yes; 30 founding places in Berlin; everyone verifies a phone to post (no email-only account); +90 on the allowlist; no cuts. Founding badge in wave 0, one year from the day the business creates its page. Plan page (Persian, for reading): https://claude.ai/artifact/BckX9nUbr8L53bfEaPZfd1 (copy `docs/wave0-plan.html`). Next: the owner says go; then the build starts in the order in `docs/wave0-plan.md`.
+
+## Oct 26, 2026: wave 0, step 1: the phone country rule (Telegram bot)
+
+The owner approved the wave 0 plan ("start as you planned"). Step 1 of `docs/wave0-plan.md`:
+- **One rule for every phone channel:** `checkVerifiedNumber()` in `src/modules/users/phone-number.ts` accepts only the 37 countries in `seed/countries.ts` (`PHONE_COUNTRIES`, Turkey included). +98 fails with `country_not_allowed`, Telegram's anonymous +888 numbers with `no_country`. The bot path uses it now; Telegram login and WhatsApp will use it.
+- **Bot replies** in Persian with the round 12 wording (no "sanctions"; a separate text for +98, other countries and +888).
+- **Migration 0016:** `phone_verifications.number_country`. Verified and refused attempts keep the number's country; a refused number itself is never stored. SMS attempts record it too.
+- **`scripts/phone-country-check.ts`:** counts verified numbers the rule would refuse. Staging: 2 verified numbers, 1 of them +98 (left on its account; the owner decides).
+- **CLAUDE.md:** "Iranians in many countries", Gregorian dates in the interface, and the phone-number rule (approved with the plan).
+- **Tests:** 679 passing (6 new), typecheck and `check:rtl` clean, run in a Node container against throwaway PostgreSQL, Valkey and Meilisearch. `tests/search.test.ts` › "each filter type returns exactly the matching listings" failed once in a full run without Meilisearch and passed alone and in the next full run: probably order-dependent, unrelated to this change.

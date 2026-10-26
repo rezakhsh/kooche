@@ -10,7 +10,8 @@ import {
   startSmsVerification,
   startTelegramVerification,
 } from '../src/modules/users/phone';
-import { parseSmsNumber, telegramNumberToE164 } from '../src/modules/users/phone-number';
+import { checkVerifiedNumber, parseSmsNumber, telegramNumberToE164 } from '../src/modules/users/phone-number';
+import { messages } from '../src/messages/fa';
 import {
   type BotApi,
   type ReplyMarkup,
@@ -87,7 +88,7 @@ describe('Telegram verification', () => {
     expect(user.telegramUserId).toBe(tgId);
 
     const attempt = await attemptRow(verificationId);
-    expect(attempt).toMatchObject({ status: 'verified', phoneE164: phone, telegramUserId: tgId });
+    expect(attempt).toMatchObject({ status: 'verified', phoneE164: phone, telegramUserId: tgId, numberCountry: 'DE' });
     expect(await attemptStatus(appDb, userId, verificationId)).toEqual({
       status: 'verified',
       failureReason: null,
@@ -202,6 +203,69 @@ describe('Telegram verification', () => {
     expect((await userRow(first.userId)).phoneE164).toBe(newPhone);
   });
 
+  it('refuses an Iranian number, keeping only its country', async () => {
+    const { userId, tgId, verificationId } = await boundAttempt();
+    const result = await acceptTelegramContact(workerDb, {
+      fromId: tgId,
+      contactUserId: tgId,
+      phoneE164: '+989121234567',
+    });
+    expect(result).toEqual({ ok: false, reason: 'country_not_allowed', country: 'IR' });
+    expect(await attemptRow(verificationId)).toMatchObject({
+      status: 'failed',
+      failureReason: 'country_not_allowed',
+      numberCountry: 'IR',
+      phoneE164: null,
+    });
+    expect(await userRow(userId)).toMatchObject({ phoneE164: null, telegramUserId: null });
+    expect(await attemptStatus(appDb, userId, verificationId)).toEqual({
+      status: 'failed',
+      failureReason: 'country_not_allowed',
+    });
+  });
+
+  it('refuses an anonymous +888 number', async () => {
+    const { userId, tgId, verificationId } = await boundAttempt();
+    const result = await acceptTelegramContact(workerDb, {
+      fromId: tgId,
+      contactUserId: tgId,
+      phoneE164: '+88804123456',
+    });
+    expect(result).toEqual({ ok: false, reason: 'no_country', country: null });
+    expect(await attemptRow(verificationId)).toMatchObject({
+      status: 'failed',
+      failureReason: 'no_country',
+      numberCountry: null,
+      phoneE164: null,
+    });
+    expect((await userRow(userId)).phoneE164).toBeNull();
+  });
+
+  it('refuses a country outside the list and accepts Turkey', async () => {
+    const china = await boundAttempt();
+    expect(
+      await acceptTelegramContact(workerDb, { fromId: china.tgId, contactUserId: china.tgId, phoneE164: '+8613812345678' }),
+    ).toEqual({ ok: false, reason: 'country_not_allowed', country: 'CN' });
+
+    const turkey = await boundAttempt();
+    const phone = `+90532${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    expect(
+      await acceptTelegramContact(workerDb, { fromId: turkey.tgId, contactUserId: turkey.tgId, phoneE164: phone }),
+    ).toEqual({ ok: true, phoneE164: phone });
+    expect(await attemptRow(turkey.verificationId)).toMatchObject({ status: 'verified', numberCountry: 'TR' });
+  });
+
+  it('checks messenger-verified numbers against the country list', () => {
+    expect(checkVerifiedNumber('+491701234567')).toEqual({ ok: true, e164: '+491701234567', country: 'DE' });
+    // A landline is fine: the messenger verified it
+    expect(checkVerifiedNumber('+49301234567')).toMatchObject({ ok: true, country: 'DE' });
+    expect(checkVerifiedNumber('+14165550123')).toMatchObject({ ok: true, country: 'CA' });
+    expect(checkVerifiedNumber('+989121234567')).toEqual({ ok: false, reason: 'country_not_allowed', country: 'IR' });
+    expect(checkVerifiedNumber('+88804123456')).toEqual({ ok: false, reason: 'no_country', country: null });
+    expect(checkVerifiedNumber('+8613812345678')).toEqual({ ok: false, reason: 'country_not_allowed', country: 'CN' });
+    expect(checkVerifiedNumber('12345')).toEqual({ ok: false, reason: 'invalid', country: null });
+  });
+
   it('turns Telegram’s number format into E.164', () => {
     expect(telegramNumberToE164('491701234567')).toBe('+491701234567');
     expect(telegramNumberToE164('+989121234567')).toBe('+989121234567');
@@ -258,6 +322,32 @@ describe('Telegram bot', () => {
     expect((await userRow(user.id)).phoneE164).toBeNull();
   });
 
+  it('answers an Iranian number with the Iran text, never "sanctions"', async () => {
+    const user = await newUser();
+    const { token } = await startTelegramVerification(appDb, { userId: user.id, ip: null });
+    const tgId = ++telegramIds;
+    const api = new FakeApi();
+    await handleUpdate(workerDb, redis, api, message(tgId, { text: `/start ${token}` }));
+    await handleUpdate(workerDb, redis, api, message(tgId, { contact: { phone_number: '989121234567', user_id: tgId } }));
+    expect(api.sent[1]!.text).toBe(messages.bot.iranNumber);
+    expect(api.sent[1]!.text).not.toContain('تحریم');
+    expect(api.sent[1]!.markup).toEqual({ remove_keyboard: true });
+    expect((await userRow(user.id)).phoneE164).toBeNull();
+  });
+
+  it('answers +888 and other countries with their own texts', async () => {
+    const api = new FakeApi();
+    for (const phone of ['88804123456', '8613812345678']) {
+      const user = await newUser();
+      const { token } = await startTelegramVerification(appDb, { userId: user.id, ip: null });
+      const tgId = ++telegramIds;
+      await handleUpdate(workerDb, redis, api, message(tgId, { text: `/start ${token}` }));
+      await handleUpdate(workerDb, redis, api, message(tgId, { contact: { phone_number: phone, user_id: tgId } }));
+    }
+    expect(api.sent[1]!.text).toBe(messages.bot.noCountry);
+    expect(api.sent[3]!.text).toBe(messages.bot.countryNotAllowed);
+  });
+
   it('ignores groups and bots', async () => {
     const api = new FakeApi();
     await handleUpdate(workerDb, redis, api, {
@@ -279,6 +369,7 @@ describe('SMS verification', () => {
     const result = await startSmsVerification(appDb, sms, {
       userId: user.id,
       phoneE164: phone,
+      numberCountry: 'DE',
       ip: '203.0.113.9',
       secret: SECRET,
     });
@@ -300,6 +391,7 @@ describe('SMS verification', () => {
     expect(row.phoneE164).toBe(phone);
     expect(row.phoneVerificationMethod).toBe('sms');
     expect(row.telegramUserId).toBeNull();
+    expect((await attemptRow(verificationId)).numberCountry).toBe('DE');
   });
 
   it("refuses a code that was already used", async () => {
@@ -361,7 +453,7 @@ describe('SMS verification', () => {
     const user = await newUser();
     const sms = new MemorySms();
     expect(
-      await startSmsVerification(appDb, sms, { userId: user.id, phoneE164: first.phone, ip: null, secret: SECRET }),
+      await startSmsVerification(appDb, sms, { userId: user.id, phoneE164: first.phone, numberCountry: 'DE', ip: null, secret: SECRET }),
     ).toEqual({ ok: false, reason: 'phone_in_use' });
     expect(sms.sent).toHaveLength(0);
   });
@@ -372,6 +464,7 @@ describe('SMS verification', () => {
     const result = await startSmsVerification(appDb, broken, {
       userId: user.id,
       phoneE164: mobile(),
+      numberCountry: 'DE',
       ip: null,
       secret: SECRET,
     });

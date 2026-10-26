@@ -195,8 +195,17 @@ export const phoneVerifications = pgTable(
     attempts: smallint('attempts').notNull().default(0),
     smsProvider: text('sms_provider'),
     providerMessageId: text('provider_message_id'),
-    /** foreign_contact, phone_in_use, too_many_attempts, undeliverable */
+    /**
+     * foreign_contact, phone_in_use, telegram_in_use, too_many_attempts, undeliverable,
+     * country_not_allowed (a country outside seed/countries.ts, e.g. +98), no_country (+888)
+     */
     failureReason: text('failure_reason'),
+    /**
+     * The country of the number, for verified and refused attempts (migration 0016). A refused
+     * number itself is never stored, only its country: the per-country refusal counts for the
+     * SMS switch-on rule (docs/wave0-plan.md).
+     */
+    numberCountry: text('number_country'),
     ipAddress: inet('ip_address'),
     expiresAt: tstz('expires_at').notNull(),
     verifiedAt: tstz('verified_at'),
@@ -205,6 +214,7 @@ export const phoneVerifications = pgTable(
     check('phone_verifications_method_check', isIn(t.method, PHONE_VERIFICATION_METHODS)),
     check('phone_verifications_status_check', isIn(t.status, PHONE_VERIFICATION_STATUSES)),
     check('phone_verifications_phone_e164_check', matches(t.phoneE164, PATTERNS.phone)),
+    check('phone_verifications_number_country_check', matches(t.numberCountry, '^[A-Z]{2}$')),
     check('phone_verifications_attempts_check', sql`${t.attempts} BETWEEN 0 AND 10`),
     check(
       'phone_verifications_sms_check',

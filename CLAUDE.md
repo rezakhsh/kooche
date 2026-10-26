@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Persian-language classifieds marketplace for Iranians in Europe. Modular monolith: one TypeScript codebase, Next.js app + background worker, PostgreSQL as the single source of truth.
+Persian-language classifieds marketplace for Iranians in many countries (Europe, North America, Australia; Turkey later). Modular monolith: one TypeScript codebase, Next.js app + background worker, PostgreSQL as the single source of truth.
 
 Read first: `docs/setup.md` (current infrastructure and decisions, wins over everything else), `docs/architecture.md` (product and architecture plan), `docs/progress.md` (where work stands), `docs/design-options.md` (the design and launch plan and the owner's decisions on it, newest round first).
 
@@ -12,12 +12,13 @@ Read first: `docs/setup.md` (current infrastructure and decisions, wins over eve
 - **Every schema change through a Drizzle migration.** Never edit the database by hand.
 - **IDs:** UUIDv7 primary keys (`uuidv7()`, PostgreSQL 18). Public URLs use short random tokens, never internal IDs.
 - **Money:** integers in minor units plus a `currency` column. Never floats or decimals.
-- **Time:** `timestamptz` in UTC. Jalali dates only in the interface.
+- **Time:** `timestamptz` in UTC. Dates in the interface are Gregorian with Persian month names and digits (`fa-u-ca-gregory`); Jalali only as a second label for cultural dates (Nowruz, Yalda). Iranians abroad can't convert Jalali easily (owner, Oct 2026).
 - **Persian text:** store original plus normalized text (ي→ی, ك→ک, digits→Latin, diacritics removed, ZWNJ consistent). Normalize with the shared function, never ad hoc.
 - **Money and entitlements** change only through payment-provider webhooks. Listings never store "is_featured"; compute it from entitlements.
 - **Side effects through the outbox.** Search sync, notifications and n8n webhooks are written as `outbox_events` in the same transaction and processed by the worker.
 - **n8n is for non-critical automation only** (channel posting, alerts, digests). Never auth, payments, moderation or database access. Webhooks to n8n are HMAC-signed.
 - **Configuration from `.env` only.** No hostnames, bucket names or secrets in code. The database stores storage keys, never full URLs. Commit `.env.example`, never `.env`.
+- **Phone numbers** from every channel (Telegram, Telegram login, WhatsApp, SMS) pass `checkVerifiedNumber()` or `parseSmsNumber()` (`src/modules/users/phone-number.ts`): countries in `seed/countries.ts` only, never +98 or +888. A refusal keeps the number's country, never the number.
 - **Tests required** for permissions, payments and moderation.
 
 ## Layout

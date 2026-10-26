@@ -83,6 +83,7 @@ async function sendSms(form: FormData): Promise<SmsState> {
   const result = await startSmsVerification(appDb(), sms(), {
     userId: user.id,
     phoneE164: parsed.e164,
+    numberCountry: parsed.country,
     ip: clientIp(await headers()),
     secret: webEnv().PHONE_CODE_SECRET,
   });

@@ -1,0 +1,2 @@
+ALTER TABLE "phone_verifications" ADD COLUMN "number_country" text;--> statement-breakpoint
+ALTER TABLE "phone_verifications" ADD CONSTRAINT "phone_verifications_number_country_check" CHECK ("phone_verifications"."number_country" ~ '^[A-Z]{2}$');

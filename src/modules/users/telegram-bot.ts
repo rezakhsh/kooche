@@ -79,6 +79,8 @@ export async function handleUpdate(
       return;
     }
     const text = {
+      country_not_allowed: result.country === 'IR' ? t.iranNumber : t.countryNotAllowed,
+      no_country: t.noCountry,
       no_pending: t.noPending,
       foreign_contact: t.foreignContact,
       invalid_number: t.invalidNumber,

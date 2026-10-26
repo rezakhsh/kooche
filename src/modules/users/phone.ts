@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import { auditLog, phoneVerifications, users } from '../../db/schema';
 import { hmacSha256, linkToken, numericCode, sameBytes, sha256 } from '../../lib/tokens';
 import { messages } from '../../messages/fa';
+import { checkVerifiedNumber } from './phone-number';
 import type { SmsProvider } from './sms';
 
 // Phone verification (docs/schema.md, section 6; docs/setup.md, decision 5): Telegram first, SMS
@@ -17,6 +18,8 @@ export const SMS_CODE_LENGTH = 6;
 export const SMS_MAX_ATTEMPTS = 5;
 
 export type FailureReason =
+  | 'country_not_allowed'
+  | 'no_country'
   | 'foreign_contact'
   | 'phone_in_use'
   | 'telegram_in_use'
@@ -36,7 +39,7 @@ async function fail(
   db: Queryable,
   verificationId: string,
   reason: FailureReason,
-  values: { phoneE164?: string; telegramUserId?: number } = {},
+  values: { phoneE164?: string; telegramUserId?: number; numberCountry?: string | null } = {},
 ): Promise<void> {
   await db
     .update(phoneVerifications)
@@ -55,6 +58,8 @@ export async function completeVerification(
     verificationId: string;
     userId: string;
     phoneE164: string;
+    /** The number's country (checkVerifiedNumber or parseSmsNumber), kept on the attempt */
+    numberCountry: string | null;
     method: 'telegram' | 'sms';
     telegramUserId?: number;
   },
@@ -87,6 +92,7 @@ export async function completeVerification(
         .set({
           status: 'verified',
           phoneE164: v.phoneE164,
+          numberCountry: v.numberCountry,
           verifiedAt: now,
           ...(v.telegramUserId !== undefined ? { telegramUserId: v.telegramUserId } : {}),
         })
@@ -129,6 +135,7 @@ export async function completeVerification(
   if (refused) {
     await fail(db, v.verificationId, refused, {
       phoneE164: v.phoneE164,
+      numberCountry: v.numberCountry,
       ...(v.telegramUserId !== undefined ? { telegramUserId: v.telegramUserId } : {}),
     });
     return { ok: false, reason: refused };
@@ -189,11 +196,13 @@ export async function bindTelegramLink(
 
 export type ContactResult =
   | { ok: true; phoneE164: string }
-  | { ok: false; reason: 'no_pending' | 'invalid_number' | FailureReason };
+  /** `country`: the refused number's country, for the bot's reply (IR gets its own text) */
+  | { ok: false; reason: 'no_pending' | 'invalid_number' | FailureReason; country?: string | null };
 
 /**
  * A contact shared in the bot. Accepted only when the contact is the sender's own
- * (contact.user_id === from.id): anyone can share someone else's contact card.
+ * (contact.user_id === from.id): anyone can share someone else's contact card. The number must
+ * pass checkVerifiedNumber(): a refused one fails the attempt and only its country is kept.
  */
 export async function acceptTelegramContact(
   db: Queryable,
@@ -219,15 +228,22 @@ export async function acceptTelegramContact(
     return { ok: false, reason: 'foreign_contact' };
   }
   if (!c.phoneE164) return { ok: false, reason: 'invalid_number' };
+  const number = checkVerifiedNumber(c.phoneE164);
+  if (!number.ok) {
+    if (number.reason === 'invalid') return { ok: false, reason: 'invalid_number' };
+    await fail(db, row.id, number.reason, { telegramUserId: c.fromId, numberCountry: number.country });
+    return { ok: false, reason: number.reason, country: number.country };
+  }
 
   const result = await completeVerification(db, {
     verificationId: row.id,
     userId: row.userId,
-    phoneE164: c.phoneE164,
+    phoneE164: number.e164,
+    numberCountry: number.country,
     method: 'telegram',
     telegramUserId: c.fromId,
   });
-  return result.ok ? { ok: true, phoneE164: c.phoneE164 } : result;
+  return result.ok ? { ok: true, phoneE164: number.e164 } : result;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -246,7 +262,7 @@ export type StartSmsResult =
 export async function startSmsVerification(
   db: Queryable,
   sms: SmsProvider,
-  v: { userId: string; phoneE164: string; ip: string | null; secret: string },
+  v: { userId: string; phoneE164: string; numberCountry: string; ip: string | null; secret: string },
 ): Promise<StartSmsResult> {
   // Don't pay for an SMS to a number that would be refused anyway
   const [owner] = await db
@@ -265,6 +281,7 @@ export async function startSmsVerification(
     userId: v.userId,
     method: 'sms',
     phoneE164: v.phoneE164,
+    numberCountry: v.numberCountry,
     codeHash: smsCodeHash(v.secret, verificationId, code),
     smsProvider: sms.name,
     ipAddress: v.ip,
@@ -342,13 +359,15 @@ export async function checkSmsCode(
   if (outcome !== 'correct') return outcome;
 
   const [row] = await db
-    .select({ phoneE164: phoneVerifications.phoneE164 })
+    .select({ phoneE164: phoneVerifications.phoneE164, numberCountry: phoneVerifications.numberCountry })
     .from(phoneVerifications)
     .where(eq(phoneVerifications.id, v.verificationId));
   const result = await completeVerification(db, {
     verificationId: v.verificationId,
     userId: v.userId,
     phoneE164: row!.phoneE164!,
+    // Attempts started before migration 0016 have no country stored
+    numberCountry: row!.numberCountry ?? checkVerifiedNumber(row!.phoneE164!).country,
     method: 'sms',
   });
   return result.ok ? result : { ok: false, reason: 'phone_in_use' };
