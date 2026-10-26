@@ -62,6 +62,13 @@ export const organizations = pgTable(
       .default('unverified'),
     verifiedAt: tstz('verified_at'),
     verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
+    /**
+     * Founding business (round 12, migration 0020): the owner's offer in admin. It allows one
+     * 6-month Pro trial without a card (src/modules/payments/founding.ts) and shows the
+     * «بنیان‌گذار» badge until a year after the business page was created.
+     */
+    foundingOfferedAt: tstz('founding_offered_at'),
+    foundingOfferedByUserId: uuid('founding_offered_by_user_id').references(() => users.id),
     status: text('status', { enum: ORGANIZATION_STATUSES }).notNull().default('active'),
     createdByUserId: uuid('created_by_user_id')
       .notNull()

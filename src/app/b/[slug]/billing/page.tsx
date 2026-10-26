@@ -7,7 +7,8 @@ import { formatPrice } from '../../../../modules/listings/price';
 import { activePrice } from '../../../../modules/payments/checkout';
 import { activeSubscription, businessPlan, latestSubscription } from '../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../modules/payments/server';
-import { portalAction, subscribeAction } from '../../../business/actions';
+import { foundingAction, portalAction, subscribeAction } from '../../../business/actions';
+import { foundingState } from '../../../../modules/payments/founding';
 import { memberOf } from '../member';
 
 // The business's plan (owner only): subscribe through Stripe Checkout, or manage the running
@@ -23,7 +24,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   const db = appDb();
   const t = messages.business.billing;
   const zone = webEnv().APP_TIME_ZONE;
-  const [plan, running, latest] = await Promise.all([businessPlan(db, org.id), activeSubscription(db, org.id), latestSubscription(db, org.id)]);
+  const [plan, running, latest, founding] = await Promise.all([businessPlan(db, org.id), activeSubscription(db, org.id), latestSubscription(db, org.id), foundingState(db, org.id)]);
   const offers = await Promise.all(
     (['pro', 'pro-plus'] as const).map(async (code) => ({ code, month: await activePrice(db, code, 'EUR', 'month'), year: await activePrice(db, code, 'EUR', 'year') })),
   );
@@ -44,6 +45,23 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {query.done && <Alert tone="success">{t.done}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {!payments && <Alert tone="info">{t.off}</Alert>}
+
+        {founding === 'offered' && !running && payments && (
+          <form action={foundingAction} className="space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
+            {hidden}
+            <h2 className="text-lg font-extrabold">{t.founding.title}</h2>
+            <p className="text-sm leading-7 text-neutral-700">{t.founding.body}</p>
+            <Button type="submit" className="w-full sm:w-auto">
+              {t.founding.start}
+            </Button>
+          </form>
+        )}
+        {running?.status === 'trialing' && running.trialEndsAt && (
+          <div className="space-y-1 rounded-2xl bg-brand-50 p-4 text-sm leading-7">
+            <p className="font-bold text-brand-900">{t.founding.trialing(formatDate(running.trialEndsAt, zone))}</p>
+            <p className="text-neutral-700">{t.founding.continue}</p>
+          </div>
+        )}
 
         <Card className="space-y-2">
           <h2 className="font-extrabold">{t.current}</h2>
@@ -100,7 +118,6 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                 </form>
               ))}
             </div>
-            <p className="text-xs text-neutral-500">{t.code}</p>
             <p className="text-xs text-neutral-500">{t.methods}</p>
             <p className="text-xs text-neutral-500">{messages.pro.noVat}</p>
           </section>

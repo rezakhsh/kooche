@@ -12,6 +12,7 @@ import { emailHtml, escapeHtml, notificationMailer } from '../../modules/notific
 import { acceptInvitation, changeMember, invite, revokeInvitation } from '../../modules/organizations/members';
 import { createBusiness, updateBusiness, type BusinessInput } from '../../modules/organizations/organizations';
 import { openBillingPortal, startPlanCheckout, type PlanCode } from '../../modules/payments/checkout';
+import { startFoundingCheckout } from '../../modules/payments/founding';
 import { PAYMENT_LIMITS } from '../../modules/payments/features';
 import { paymentGateway } from '../../modules/payments/server';
 import { requireSession } from '../../modules/users/server';
@@ -145,6 +146,22 @@ export async function subscribeAction(form: FormData): Promise<void> {
   }).catch((e: unknown) => {
     console.error('payments: plan checkout failed:', e instanceof Error ? e.message : e);
     reportError(e, { tags: { action: 'payments.plan_checkout' } });
+    return { ok: false, reason: 'failed' } as const;
+  });
+  if (!r.ok) redirect(`${back}?error=${r.reason}`);
+  redirect(r.url);
+}
+
+/** Founding Pro: the business owner starts the 6 free months (a trial without a card) */
+export async function foundingAction(form: FormData): Promise<void> {
+  const parsed = z.object({ organizationId: z.uuid(), slug: z.string().max(40) }).safeParse({ organizationId: form.get('organizationId'), slug: form.get('slug') });
+  if (!parsed.success) redirect('/pro');
+  const back = `/b/${parsed.data.slug}/billing`;
+  const { user } = await requireSession(back);
+  if (!(await hit(valkey(), [[PAYMENT_LIMITS.checkoutsPerUserHour, user.id]])).ok) redirect(`${back}?error=rate_limited`);
+  const r = await startFoundingCheckout(appDb(), paymentGateway(), { userId: user.id, organizationId: parsed.data.organizationId, appUrl: webEnv().APP_URL }).catch((e: unknown) => {
+    console.error('payments: founding checkout failed:', e instanceof Error ? e.message : e);
+    reportError(e, { tags: { action: 'payments.founding_checkout' } });
     return { ok: false, reason: 'failed' } as const;
   });
   if (!r.ok) redirect(`${back}?error=${r.reason}`);

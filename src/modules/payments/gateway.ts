@@ -36,6 +36,11 @@ export type CheckoutInput = {
    * Oct 22, 2026).
    */
   promotionCodes?: boolean;
+  /**
+   * Founding Pro (src/modules/payments/founding.ts): a free trial until this moment, no card asked,
+   * and the subscription is cancelled at the end unless the business has added a payment method.
+   */
+  trialEnd?: Date;
 };
 
 export type CustomerInput = { email: string; name: string; metadata: Record<string, string> };
@@ -91,7 +96,14 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
     // method until it ends
     allow_promotion_codes: !!input.promotionCodes,
     payment_method_collection: 'if_required',
-    subscription_data: { metadata: input.metadata },
+    subscription_data: input.trialEnd
+      ? {
+          metadata: input.metadata,
+          trial_end: Math.floor(input.trialEnd.getTime() / 1000),
+          // Never an automatic charge: without a payment method the subscription simply ends
+          trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+        }
+      : { metadata: input.metadata },
   };
 }
 

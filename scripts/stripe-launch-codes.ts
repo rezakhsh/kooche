@@ -3,11 +3,20 @@
 // arrives through the webhook like everyone else's (docs/schema.md, section 16.2). Prints the codes.
 //
 //   STRIPE_SECRET_KEY=… npx tsx scripts/stripe-launch-codes.ts --count 10 [--expires-days 90]
+//
+// RETIRED in wave 0 (Oct 26, 2026): a 100% coupon on a normal subscription charges €24 by itself
+// after 6 months. Founding businesses now get a trial without a card that simply ends
+// (src/modules/payments/founding.ts, admin › businesses). Checkout no longer shows a code field.
+// The script refuses unless --i-know-it-charges is given.
 
 import { randomInt } from 'node:crypto';
 import Stripe from 'stripe';
 import { STRIPE_API_VERSION } from '../src/modules/payments/gateway';
 import { launchCoupon } from '../seed/products';
+
+if (!process.argv.includes('--i-know-it-charges')) {
+  throw new Error('retired: use founding Pro (admin › businesses) instead; see the comment at the top');
+}
 
 const key = process.env.STRIPE_SECRET_KEY;
 if (!key) throw new Error('STRIPE_SECRET_KEY is required');

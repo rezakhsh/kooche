@@ -8,6 +8,7 @@ import { setStaffRole } from '../../modules/admin/staff';
 import { adminHref, requireStaffAction } from '../../modules/admin/server';
 import { releasePhone, signOutEverywhere } from '../../modules/admin/users';
 import { setVerification } from '../../modules/organizations/organizations';
+import { offerFounding } from '../../modules/payments/founding';
 
 // Admin-only changes outside moderation decisions: sessions, phone numbers, business verification
 // and staff roles. Each checks its permission first and writes audit_log with the change.
@@ -42,6 +43,16 @@ export async function verificationAction(form: FormData): Promise<void> {
     if (o) await setVerification(tx, { slug: o.slug, status, byUserId: staff.ctx.userId, staff: staff.ctx, note: note(form.get('note')) });
   });
   redirect(adminHref(`/businesses?done=1${form.get('tab') === 'all' ? '&tab=all' : ''}`));
+}
+
+/** Founding Pro: marks a verified business as founding (src/modules/payments/founding.ts) */
+export async function foundingOfferAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('organization.verify');
+  const id = uuid(form.get('organizationId'));
+  if (!id) redirect(adminHref('/businesses'));
+  const r = await appDb().transaction((tx) => offerFounding(tx, staff.ctx, id));
+  const tab = form.get('tab') === 'all' ? '&tab=all' : '';
+  redirect(adminHref(`/businesses?${r.ok ? 'done=1' : `founding=${r.reason}`}${tab}`));
 }
 
 export async function staffRoleAction(form: FormData): Promise<void> {

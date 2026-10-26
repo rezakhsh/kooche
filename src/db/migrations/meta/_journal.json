@@ -141,6 +141,13 @@
       "when": 1793019029963,
       "tag": "0019_city_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793021783887,
+      "tag": "0020_founding_pro",
+      "breakpoints": true
     }
   ]
 }

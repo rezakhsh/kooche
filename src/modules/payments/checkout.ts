@@ -46,7 +46,7 @@ export async function activePrice(db: Queryable, code: string, currency: string,
 }
 
 /** The provider's customer for a user or a business, created on first purchase */
-async function customerFor(
+export async function customerFor(
   db: Db,
   gateway: PaymentGateway,
   payer: { userId: string } | { organizationId: string },
@@ -182,7 +182,9 @@ export async function startPlanCheckout(
     metadata: { organization_id: org.id, plan: opts.plan },
     successUrl: `${opts.appUrl}/b/${org.slug}/billing?done=1`,
     cancelUrl: `${opts.appUrl}/b/${org.slug}/billing`,
-    promotionCodes: opts.interval === 'month',
+    // The 6-month launch code is retired: founding businesses get a trial without a card instead
+    // (./founding.ts), which never charges by itself
+    promotionCodes: false,
   });
   return { ok: true, url: session.url };
 }

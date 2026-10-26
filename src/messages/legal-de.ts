@@ -356,7 +356,7 @@ const terms: LegalDoc = {
       heading: '14.5 Abonnements für Geschäftskonten',
       body: [
         'Abonnements richten sich an Unternehmer. Sie laufen monatlich oder jährlich und verlängern sich jeweils um die gewählte Laufzeit, wenn sie nicht vorher gekündigt werden. Sie können jederzeit zum Ende der laufenden Laufzeit kündigen, Tarif und Zahlungsweise wechseln und Rechnungen abrufen, im Kundenportal von Stripe, das unter „Abonnement und Rechnungen“ erreichbar ist.',
-        'Bei kostenlosen Startzeiträumen (Gutscheincode) endet das Abonnement nach deren Ablauf, wenn keine Zahlungsart hinterlegt ist; sonst läuft es zum regulären Preis weiter. Im Abonnement enthaltene Hochschiebungen und Hervorhebungen verfallen, wenn sie nicht genutzt werden.',
+        'Bei kostenlosen Startzeiträumen (Angebot für Gründungsunternehmen) endet das Abonnement nach deren Ablauf, wenn keine Zahlungsart hinterlegt ist; sonst läuft es zum regulären Preis weiter. Im Abonnement enthaltene Hochschiebungen und Hervorhebungen verfallen, wenn sie nicht genutzt werden.',
       ],
     },
     {

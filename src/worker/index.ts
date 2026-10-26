@@ -101,7 +101,11 @@ async function main(): Promise<void> {
   const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN });
   const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });
   // Applies payment webhooks; reads subscriptions and invoices back from Stripe
-  const paymentJobs = await startPaymentJobs(db, connection, { gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null });
+  const paymentJobs = await startPaymentJobs(db, connection, {
+    gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null,
+    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
+    appUrl: env.APP_URL,
+  });
   // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
   const seoQueue = new Queue('seo', { connection });
   const moderationJobs = await startModerationJobs(db, connection, {

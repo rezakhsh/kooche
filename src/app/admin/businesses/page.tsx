@@ -4,7 +4,9 @@ import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff, staffCan } from '../../../modules/admin/server';
 import { businessesAdmin } from '../../../modules/admin/users';
-import { verificationAction } from '../admin-actions';
+import { foundingOfferAction, verificationAction } from '../admin-actions';
+import { formatDate } from '../../../lib/format';
+import { webEnv } from '../../../lib/env';
 import { AdminTitle, Ago, Chips, Facts, SearchForm, StatusPill } from '../ui';
 
 // Businesses and the verification queue (replaces scripts/verify-business.ts, which stays as a
@@ -24,6 +26,7 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
         <Chips items={(['waiting', 'all'] as const).map((k) => ({ href: adminHref(`/businesses${k === 'all' ? '?tab=all' : ''}`), label: t.tabs[k]!, active: tab === k }))} />
       </AdminTitle>
       {sp.done && <div className="mb-4"><Alert tone="success">{t.done}</Alert></div>}
+      {sp.founding && t.foundingErrors[sp.founding] && <div className="mb-4"><Alert tone="error">{t.foundingErrors[sp.founding]}</Alert></div>}
       {tab === 'all' && <SearchForm label={admin.common.search} value={q}><input type="hidden" name="tab" value="all" /></SearchForm>}
       {rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-neutral-300 p-8 text-center text-neutral-600">{tab === 'waiting' ? t.empty : admin.common.noResults}</p>
@@ -60,6 +63,21 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
                 )}
                 <Link href={adminHref(`/items/business/${b.id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">{t.moderation}</Link>
               </div>
+              {b.verification === 'verified' && (
+                <div className="mt-3 border-t border-neutral-100 pt-3">
+                  {b.foundingOfferedAt ? (
+                    <span className="inline-flex rounded-full bg-saffron-50 px-2.5 py-0.5 text-xs font-bold text-saffron-800">{t.founded(formatDate(b.foundingOfferedAt, webEnv().APP_TIME_ZONE))}</span>
+                  ) : (
+                    mayVerify && (
+                      <form action={foundingOfferAction}>
+                        <input type="hidden" name="organizationId" value={b.id} />
+                        <input type="hidden" name="tab" value={tab} />
+                        <Button type="submit" variant="secondary">{t.founding}</Button>
+                      </form>
+                    )
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>

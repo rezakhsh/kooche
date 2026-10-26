@@ -17,6 +17,7 @@ import { cachedCatalog } from '../../../modules/listings/catalog';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { businessBySlug, roleIn } from '../../../modules/organizations/organizations';
 import { businessListingCards } from '../../../modules/organizations/queries';
+import { foundingBadge } from '../../../modules/payments/founding';
 import { featuredListingIds } from '../../../modules/payments/plans';
 import { currentSession } from '../../../modules/users/server';
 
@@ -84,6 +85,12 @@ export default async function BusinessPage({ params }: { params: Promise<Params>
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-bold text-brand-700" title={t.verifiedHint}>
                 <Icon name="verified" className="size-4" />
                 {t.verified}
+              </span>
+            )}
+            {foundingBadge(org) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-saffron-50 px-2.5 py-0.5 text-xs font-bold text-saffron-800" title={messages.business.foundingBadgeTitle}>
+                <Icon name="star" className="size-4" />
+                {messages.business.foundingBadge}
               </span>
             )}
           </h1>

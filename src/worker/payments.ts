@@ -6,6 +6,8 @@ import { applyWebhookEvent, NotReady } from '../modules/payments/apply';
 import { applyDueBumps } from '../modules/payments/bumps';
 import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
+import { sendFoundingReminders } from '../modules/payments/founding';
+import type { Mailer } from '../modules/notifications/mailer';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
@@ -22,13 +24,15 @@ const SCHEDULED = { removeOnComplete: 20, removeOnFail: 100 };
 export async function startPaymentJobs(
   db: Db,
   connection: Redis,
-  opts: { gateway: PaymentGateway | null; prefix?: string; schedule?: boolean },
+  opts: { gateway: PaymentGateway | null; prefix?: string; schedule?: boolean; mailer?: Mailer; appUrl?: string },
 ) {
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('payments', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
   if (opts.schedule !== false) {
     await queue.upsertJobScheduler('bumps', { pattern: '* * * * *', tz: 'UTC' }, { name: 'bumps', opts: SCHEDULED });
     await queue.upsertJobScheduler('stale-orders', { pattern: '17 * * * *', tz: 'UTC' }, { name: 'stale-orders', opts: SCHEDULED });
+    // Founding Pro reminders, 14 and 3 days before the free months end (08:05 UTC)
+    await queue.upsertJobScheduler('founding-reminders', { pattern: '5 8 * * *', tz: 'UTC' }, { name: 'founding-reminders', opts: SCHEDULED });
   }
   const own = connection.duplicate();
   const worker = new Worker<OutboxJobData>(
@@ -57,6 +61,12 @@ export async function startPaymentJobs(
         case 'stale-orders': {
           const n = await expireStaleOrders(db);
           if (n) console.log(`payments: ${n} unfinished checkouts expired`);
+          return n;
+        }
+        case 'founding-reminders': {
+          if (!opts.mailer || !opts.appUrl) return 0;
+          const n = await sendFoundingReminders(db, connection, opts.mailer, { appUrl: opts.appUrl });
+          if (n) console.log(`payments: ${n} founding Pro reminders sent`);
           return n;
         }
         default:

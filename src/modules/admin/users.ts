@@ -142,6 +142,7 @@ export function businessesAdmin(db: Queryable, opts: { waiting: boolean; q: stri
       website: organizations.website,
       createdAt: organizations.createdAt,
       updatedAt: organizations.updatedAt,
+      foundingOfferedAt: organizations.foundingOfferedAt,
     })
     .from(organizations)
     .where(

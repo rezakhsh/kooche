@@ -1014,3 +1014,13 @@ The owner asked for the visible waitlist before WhatsApp (they are setting up Me
 - **Helpers on staging:** `/usr/local/bin/peydoo-secret` and `/usr/local/bin/coolify-api`, copied from production.
 
 **Where wave 0 stands (for the next session):** steps 1–4 and 8 done on staging (Telegram login built but switched off by the owner). Left: step 5 WhatsApp (owner is setting up Meta; the plan's 9 steps), step 6 founding Pro (Stripe trial without card, €24 after 6 months only on yes, 30 places in Berlin, badge one year from the business page's creation), step 7 the withdrawal button, then docs and a phone-size browser check of all pages. Done: the WAF rule `iran_read_only` now also allows `/waitlist/leave`. Also to do: ask the owner before setting the live bot's profile. Tests run in a Node container against throwaway PostgreSQL (port 55432), Valkey (56379) and Meilisearch (57700): containers `wave0-test-pg`, `wave0-test-valkey`, `wave0-test-meili`; remove them when wave 0 is done.
+
+## Oct 26, 2026: wave 0, step 6: founding Pro that never charges by itself
+
+- **Built** (`docs/setup.md`, "Payments and Pro", "Founding Pro"): admin › businesses «پیشنهاد بنیان‌گذار» (verified, with a city, within the city's places: its goal, Berlin 30); the owner's «شروع ۶ ماه پروی رایگان» on the billing page (Stripe trial, no card, cancelled at the end without a payment method; €24 a month only if they add one); reminders 14 and 3 days before; the «بنیان‌گذار» badge on the business page for a year from the page's creation. Migration 0020.
+- **Retired:** the 100% launch coupon and `scripts/stripe-launch-codes.ts` (it charged €24 after 6 months); Checkout no longer shows a code field. Pro FAQ and terms (fa, de) say "founding businesses" instead of "gift code".
+- **Bug found by the tests and fixed:** the reminder query passed a Date to the database driver (the daily job would have crashed).
+- **Tests:** 728 passing (9 new in `tests/founding.test.ts`).
+- **Not yet:** the badge on listing cards (with the redesign); a Stripe test-clock run in the sandbox (planned with the browser check at the end of wave 0).
+
+**Where wave 0 stands:** steps 1–4, 6 and 8 done on staging. Left: step 7 the withdrawal button; step 5 WhatsApp (owner setting up Meta); final docs and phone-size browser check; the live bot's profile waits for the owner's OK. The owner wants the «صیقل‌خورده» redesign (wave 1) right after wave 0, not in December.
