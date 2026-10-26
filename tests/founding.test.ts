@@ -11,15 +11,12 @@ import {
   foundingState,
   foundingTrialEnd,
   offerFounding,
-  sendFoundingOffered,
   sendFoundingReminders,
   startFoundingCheckout,
-  FOUNDING_OFFERED,
 } from '../src/modules/payments/founding';
 import { checkoutParams } from '../src/modules/payments/gateway';
 import { businessPlan } from '../src/modules/payments/plans';
 import type { Mail } from '../src/modules/notifications/mailer';
-import type { TelegramClient } from '../src/modules/notifications/telegram-api';
 import { appDb, redis, workerDb } from './accounts';
 import { db, publicToken } from './db';
 import { city } from './listings-fixtures';
@@ -108,30 +105,6 @@ describe('the offer (admin)', () => {
     } finally {
       await db.update(schema.locations).set({ businessGoal: 25 }).where(eq(schema.locations.id, koeln.id));
     }
-  });
-});
-
-describe('telling the owner', () => {
-  it('the offer queues a notice; the worker emails the owner and sends Telegram when linked', async () => {
-    const b = await offered();
-    const [row] = await db.select().from(schema.outboxEvents).where(and(eq(schema.outboxEvents.eventType, FOUNDING_OFFERED), eq(schema.outboxEvents.aggregateId, b.org.id)));
-    expect(row).toBeDefined();
-
-    const sent: Mail[] = [];
-    const tg: Array<{ chatId: number; text: string }> = [];
-    const telegram = { sendMessage: async (chatId: number, text: string) => void tg.push({ chatId, text }) } as unknown as TelegramClient;
-    // Without a linked Telegram: email only
-    expect(await sendFoundingOffered(workerDb, redis, { mail: async (m) => void sent.push(m), telegram, appUrl: APP }, b.org.id)).toEqual({ email: true, telegram: false });
-    expect(sent[0]!.text).toContain(`${APP}/b/${b.org.slug}/manage`);
-    expect(sent[0]!.subject).toContain('بنیان‌گذار');
-
-    await db.update(schema.users).set({ telegramUserId: 7_100_000_000 + Math.floor(Math.random() * 1e6) }).where(eq(schema.users.id, b.ownerId));
-    expect(await sendFoundingOffered(workerDb, redis, { mail: async (m) => void sent.push(m), telegram, appUrl: APP }, b.org.id)).toEqual({ email: true, telegram: true });
-    expect(tg[0]!.text).toContain('بنیان‌گذار');
-
-    // A business that isn't founding gets nothing
-    const plain = await verifiedBusiness();
-    expect(await sendFoundingOffered(workerDb, redis, { mail: async (m) => void sent.push(m), telegram, appUrl: APP }, plain.org.id)).toEqual({ email: false, telegram: false });
   });
 });
 

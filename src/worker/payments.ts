@@ -6,7 +6,8 @@ import { applyWebhookEvent, NotReady } from '../modules/payments/apply';
 import { applyDueBumps } from '../modules/payments/bumps';
 import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
-import { FOUNDING_OFFERED, sendFoundingOffered, sendFoundingReminders } from '../modules/payments/founding';
+import { sendFoundingReminders } from '../modules/payments/founding';
+import { BUSINESS_NOTICE, noticeKind, sendBusinessNotice } from '../modules/organizations/notices';
 import type { TelegramClient } from '../modules/notifications/telegram-api';
 import type { Mailer } from '../modules/notifications/mailer';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
@@ -64,10 +65,12 @@ export async function startPaymentJobs(
           if (n) console.log(`payments: ${n} unfinished checkouts expired`);
           return n;
         }
-        case 'founding-offered': {
-          if (!opts.mailer || !opts.appUrl) return 'no mailer';
-          const sent = await sendFoundingOffered(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId);
-          console.log(`payments: founding offer ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
+        case 'business-notice': {
+          // Verified, badge removed, rejected, founding (src/modules/organizations/notices.ts)
+          const kind = noticeKind(job.data.payload);
+          if (!kind || !opts.mailer || !opts.appUrl) return 'skipped';
+          const sent = await sendBusinessNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId, kind);
+          console.log(`payments: business notice ${kind} ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
         }
         case 'founding-reminders': {
@@ -91,7 +94,7 @@ export async function startPaymentJobs(
   const handlers: OutboxHandlers = {
     [WEBHOOK_RECEIVED]: [{ name: 'apply', queue }],
     [ALLOWANCE_REQUESTED]: [{ name: 'allowance', queue }],
-    [FOUNDING_OFFERED]: [{ name: 'founding-offered', queue }],
+    [BUSINESS_NOTICE]: [{ name: 'business-notice', queue }],
   };
   return {
     handlers,

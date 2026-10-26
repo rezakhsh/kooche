@@ -8,6 +8,7 @@ import { RESERVED_SLUGS } from '../../db/seed-checks';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { placeByValue, resolvePlace } from '../listings/places';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
+import { queueBusinessNotice } from './notices';
 
 // Businesses (docs/schema.md, section 7; roadmap step 6). A business has a public page /b/{slug}
 // with the legal details German law asks of traders (§5 DDG), its members with roles, and a plan
@@ -244,5 +245,7 @@ export async function setVerification(db: Queryable, opts: { slug: string; statu
   // From the admin page with the session and IP; from the script as the owner
   if (opts.staff) await staffAudit(db, opts.staff, 'organization.verification', { type: 'organization', id: org.id }, { status: opts.status, ...(opts.note ? { note: opts.note } : {}) });
   else await db.insert(auditLog).values({ actorType: 'staff', actorUserId: opts.byUserId, action: 'organization.verification', targetType: 'organization', targetId: org.id, data: { status: opts.status } });
+  // The owner is always told, both ways (./notices.ts)
+  await queueBusinessNotice(db, org.id, opts.status);
   return org.id;
 }
