@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
+import { IranBanner } from '../components/iran';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { webEnv } from '../lib/env';
 import { MONITORING_META } from '../lib/monitoring/browser';
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <head>{monitoring && <meta name={MONITORING_META} content={JSON.stringify(monitoring)} />}</head>
       <body className="flex min-h-dvh flex-col bg-white font-sans text-neutral-900 antialiased">
         <SiteHeader />
+        <IranBanner />
         <div className="flex-1">{children}</div>
         <SiteFooter />
         <FormValidation />

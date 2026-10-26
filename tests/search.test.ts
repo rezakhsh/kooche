@@ -216,7 +216,9 @@ describe('browse query', () => {
       await setRole(tx, 'classifieds_app');
 
       const inCity = (over: Partial<SearchFilters>) => all(tx, base({ categoryIds: [cars.id], locationId: rostock.id, ...over }));
-      const set = async (over: Partial<SearchFilters>) => new Set(await inCity(over));
+      // Only this test's own listings: other files commit cars in Rostock too, in any order
+      const mine = new Set([a, b, c, d, paused, austrian, event].map((l) => l.id));
+      const set = async (over: Partial<SearchFilters>) => new Set((await inCity(over)).filter((id) => mine.has(id)));
 
       expect(await set({})).toEqual(new Set([a.id, b.id, c.id, d.id]));
       expect(await set({ attributes: [{ key: 'brand', type: 'select', values: ['bmw'] }] })).toEqual(new Set([a.id, c.id]));

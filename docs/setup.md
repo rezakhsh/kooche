@@ -503,6 +503,18 @@ Built Oct 24, 2026 (plan approved by the owner the same day). On staging since O
 
 Production still to do: its own `/root/.secrets/sentry.env` (the same DSN), `SENTRY_ENVIRONMENT=production`, both added to `peydoo-set-env`, then a release through `peydoo-promote`. Its alerts reach the same Telegram, marked «production».
 
+## Iran read-only
+
+Built Oct 26, 2026 (wave 0, `docs/wave0-plan.md`, item 5; owner's wording rule: never "sanctions", never VPNs or virtual numbers). A request from Iran is Cloudflare's `CF-IPCountry: IR`, trusted only when the request came through Cloudflare (`isIranRequest()` in `src/lib/region.ts`, on top of `visitorCountry()`).
+
+- **Reading works; writing doesn't**, except what protects the person: `/report` (DSA Art. 16), `/account` (sign out), `/account/devices`, `/account/delete`, `/account/data/export`, `/account/notifications`, `/alerts/off…`, plus `/api/monitoring` and the Stripe and WhatsApp webhooks. Everything else that isn't GET, HEAD or OPTIONS is refused: no sign-in or new account, no phone check, posting, events, businesses, chat, favorites, phone reveal or payments. A signed-in person travelling in Iran is read-only for those requests; their listings stay live.
+- **Three layers:**
+  1. `src/proxy.ts` answers a refused write with a Persian 403 page (`iranRefusal()`), before anything else runs.
+  2. The **Cloudflare WAF** custom rule `iran_read_only` (phase `http_request_firewall_custom`, ruleset `2a68445d9f514cbcb424f88663e7dedd`, action Block, the whole `peydoo.com` zone, created Oct 26, 2026 with `CLOUDFLARE_API_TOKEN`). Its expression is `iranWafExpression()`, printed from the code (`npx tsx -e "import { iranWafExpression } from './src/lib/region'; console.log(iranWafExpression())"`); `tests/iran.test.ts` checks the two lists agree. Change both together. On the Free plan the block page is Cloudflare's own; the app's notices come first.
+  3. **Pages:** a banner under the header on every page for Iran (`src/components/iran.tsx`, texts in `messages.iran`), and a notice instead of the form on sign-in, posting, events, business, phone and new-chat pages. The banner's «چرا؟» opens `/help#iran`.
+- **Cache:** pages for Iran are `private, no-store` (proxy), and the Cache Rule skips Iranian visitors (`ip.src.country ne "IR"`), so the banner never reaches anyone else and Iranian visitors never get a copy without it.
+- **Not built (wave 4, after the sanctions lawyer):** email accounts that may only message from Iran (round 8), Radar rules. Refusals are counted by Cloudflare's security events, not by the app.
+
 ## Countries, places and the map
 
 Decided by the owner on Oct 17, 2026, after comparing hosted geocoders (Geoapify, MapTiler, Stadia), self-hosted address search (Photon, Nominatim: several GB of data and 1–2 GB of memory, too heavy for this server) and our own map tiles (PMTiles: 2.6 GB for Germany and Austria, 11 GB for Europe, on R2):
@@ -632,7 +644,10 @@ and not http.cookie contains "better-auth.session_token"
 and not http.cookie contains "view="
 and not http.request.uri.query contains "_rsc"
 and not any(lower(http.request.headers.names[*])[*] eq "rsc")
+and ip.src.country ne "IR"
 ```
+
+(The host condition has been `http.host in {"staging.peydoo.com" "peydoo.com"}` since Oct 24, 2026; `ip.src.country ne "IR"` was added Oct 26, 2026 for Iran read-only, see "Iran read-only".)
 
 Action: eligible for cache, edge TTL "use the Cache-Control header if present, bypass if not" (`bypass_by_default`), browser TTL from the origin. So the origin decides what is shared: only responses marked `public` are kept, and Next.js's `private, no-store` on every other page keeps them out. The cookie conditions matter for lookups: without them a signed-in visitor would be served the logged-out copy. The cookie match is a substring (`matches` is a Business feature), so `view=` also skips the cache for any other cookie ending in `view`; that only costs a cache hit. React Server Components requests are left out by the rule, not by the proxy: Next.js 16 removes the `RSC` header and the `_rsc` parameter before the proxy runs, and Cloudflare ignores `Vary`. Without that, one request with `RSC: 1` would store Next.js's 307 to `?_rsc` under the page's address for every visitor. Verified Oct 19, 2026 on `/austria`: logged out MISS, then HIT; after 60 s EXPIRED, then HIT again; with either session cookie or `view=list` DYNAMIC (`private, no-store`); `country=germany` HIT; `RSC: 1` and `?_rsc=` DYNAMIC, and a plain request right after the `RSC: 1` one was still the 200 page; POST DYNAMIC; a postal code BYPASS; `/`, `/login` BYPASS. A cached copy carries the CSP header and the HTML from the same render, so the nonce in both always matches.
 

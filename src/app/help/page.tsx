@@ -13,7 +13,7 @@ export default function HelpPage() {
     <PageShell title={t.title} wide>
       <p className="leading-7 text-neutral-700">{t.intro}</p>
       {t.groups.map((g) => (
-        <section key={g.heading}>
+        <section key={g.heading} id={'id' in g ? g.id : undefined}>
           <h2 className="mt-8 mb-3 text-lg font-extrabold">{g.heading}</h2>
           <div className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
             {g.items.map((item) => (

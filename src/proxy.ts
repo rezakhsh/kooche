@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv, type WebEnv } from './lib/env';
+import { iranBlocksRequest, isIranRequest } from './lib/region';
+import { messages } from './messages/fa';
 import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath } from './modules/admin/gate';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
@@ -87,7 +89,24 @@ export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_UR
   ].join('; ');
 }
 
+/**
+ * The page a write from Iran gets (src/lib/region.ts). Plain HTML: it can also answer a server
+ * action. The pages already show the notice before anyone fills in a form, so this is rare.
+ */
+export function iranRefusal(): NextResponse {
+  const t = messages.iran.refused;
+  const body = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title}</title></head><body style="font-family:Tahoma,sans-serif;max-width:36rem;margin:3rem auto;padding:0 1rem;line-height:2"><h1 style="font-size:1.3rem">${t.title}</h1><p>${t.body}</p><p><a href="/">${t.back}</a></p></body></html>`;
+  return new NextResponse(body, {
+    status: 403,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
+  });
+}
+
 export function proxy(request: NextRequest) {
+  // Iran is read-only (src/lib/region.ts): a write is refused before anything else runs
+  const fromIran = isIranRequest(request.headers);
+  if (fromIran && iranBlocksRequest(request.nextUrl.pathname, request.method)) return iranRefusal();
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const env = webEnv();
   const csp = contentSecurityPolicy(nonce, env, process.env.NODE_ENV === 'development');
@@ -124,7 +143,10 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  const cacheControl = browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
+  // A page for Iran carries the Iran banner: never kept by Cloudflare for anyone else
+  const cacheControl = fromIran
+    ? 'private, no-store'
+    : browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
   return response;
 }
