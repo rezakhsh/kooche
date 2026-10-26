@@ -1,16 +1,17 @@
 // Round 12, the owner's strategy: Berlin is open; every other big city has a waitlist from day one.
-// The city opens when enough businesses have joined (Hamburg: 20). One clear goal, not three bars.
+// The city opens when enough businesses have joined (Hamburg: 20). Only businesses count; people
+// can sign up without limit and are shown for information only.
 // People get a small reward for joining early; businesses get the founding offer. Until the city
 // opens, its people use Berlin, online services and online events.
 const biz = 12, goal = 20, reward = 100, joined = 38;
-const benefits = [['store', 'صفحهٔ کسب‌وکار، روز اول در صفحهٔ اول هامبورگ'], ['star', 'نشان «کسب‌وکار بنیان‌گذار» برای همیشه'], ['sparkle', '۶ ماه پرو رایگان، بدون کارت بانکی']];
+const benefits = [['store', 'صفحهٔ کسب‌وکار، روز اول در صفحهٔ اول هامبورگ'], ['star', 'نشان «کسب‌وکار بنیان‌گذار» در سال اول'], ['sparkle', '۶ ماه پرو رایگان، بدون کارت بانکی']];
 mount(`${header({ place: 'هامبورگ', search: 'جستجو در پیدو…' })}
 <main class="pb-24">
   <section class="bg-gradient-to-b from-brand-50 to-white px-4 pt-6 pb-4 lg:pt-12">
     <div class="mx-auto max-w-2xl">
       <p class="flex items-center gap-2 text-sm font-bold text-brand-800">${flag('de', 'h-4 w-6')}هامبورگ، آلمان</p>
       <h1 class="mt-2 text-[26px] font-black leading-[1.5] lg:text-4xl">پیدو به‌زودی در هامبورگ</h1>
-      <p class="mt-1 text-base leading-8 text-neutral-700">هامبورگ وقتی باز می‌شود که ${fa(goal)} کسب‌وکار ایرانی بپیوندند؛ تا صفحهٔ شهر از روز اول پر باشد.</p>
+      <p class="mt-1 text-base leading-8 text-neutral-700">هامبورگ وقتی باز می‌شود که ${fa(goal)} کسب‌وکار ایرانی بپیوندند.</p>
       <div class="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
         <p class="flex items-baseline justify-between"><b class="text-lg">${fa(biz)} از ${fa(goal)} کسب‌وکار</b><span class="text-sm text-neutral-600">${fa(goal - biz)} کسب‌وکار دیگر</span></p>
         <span class="mt-2 block h-3 overflow-hidden rounded-full bg-neutral-100"><i class="block h-full rounded-full bg-brand-600" style="width:${(biz / goal) * 100}%"></i></span>

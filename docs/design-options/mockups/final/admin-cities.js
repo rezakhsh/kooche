@@ -1,5 +1,6 @@
 // Round 12, admin › countries and cities with the owner's rule: each waitlist city has one goal
-// (businesses, editable), plus the people waiting and listings prepared; the owner opens a city
+// (businesses, editable); people waiting and listings prepared are shown for information only and
+// never block an opening. The owner opens a city
 // with one click when it's ready. A country opens everywhere when its chosen cities are open.
 // The early-signup reward (one free bump for the first N people per city) is set here too.
 const cities = [
@@ -18,10 +19,10 @@ const row = ([c, st, b, g, ppl, ready]) => `<tr class="border-t border-neutral-2
 mount(adminShell('countries', `
   <div class="flex flex-wrap items-center gap-3"><h1 class="text-xl font-extrabold">کشورها و شهرها</h1>
     <div class="ms-auto flex gap-1 rounded-xl bg-white p-1 ring-1 ring-neutral-200">${['آلمان', 'کانادا', 'آمریکا', 'استرالیا', 'بریتانیا', 'اتریش'].map((c, i) => `<a class="rounded-lg px-3 py-1.5 text-sm ${i === 0 ? 'bg-brand-50 font-bold text-brand-800' : 'text-neutral-600'}">${c}</a>`).join('')}</div></div>
-  <section class="mt-4 rounded-2xl border border-saffron-300 bg-saffron-50 p-4 text-sm"><b class="text-saffron-800">آمادهٔ تصمیم:</b> هامبورگ ${fa(19)} از ${fa(20)} کسب‌وکار دارد (۹۵٪). برای باز کردن، ۲۷ آگهی آماده و ۳۴۸ نفر منتظر خبر می‌شوند. هیچ شهری خودکار باز نمی‌شود.</section>
+  <section class="mt-4 rounded-2xl border border-saffron-300 bg-saffron-50 p-4 text-sm"><b class="text-saffron-800">آمادهٔ تصمیم:</b> هامبورگ ${fa(19)} از ${fa(20)} کسب‌وکار دارد (۹۵٪). فقط تعداد کسب‌وکارها شرط است. با باز کردن، ۲۷ آگهی آماده منتشر می‌شود و خبرش را خودتان با ایمیل برای ۳۴۸ نفر منتظر می‌فرستید. هیچ شهری خودکار باز نمی‌شود.</section>
   <section class="mt-4 overflow-x-auto rounded-2xl border border-neutral-200 bg-white">
     <div class="flex items-center gap-2 p-4">${flag('de', 'h-5 w-7')}<h2 class="font-extrabold">آلمان</h2><span class="text-sm text-neutral-600">${fa(1)} از ${fa(4)} شهر کلیدی باز</span></div>
-    <table class="w-full min-w-[640px] text-sm"><thead class="bg-neutral-50 text-xs text-neutral-600"><tr><th class="p-3 text-start">شهر</th><th class="p-3 text-start">وضعیت</th><th class="p-3 text-start">کسب‌وکار / هدف</th><th class="p-3 text-start">نفر منتظر</th><th class="p-3 text-start">آگهی آماده</th><th class="p-3 text-start"></th></tr></thead><tbody>${cities.map(row).join('')}</tbody></table>
+    <table class="w-full min-w-[640px] text-sm"><thead class="bg-neutral-50 text-xs text-neutral-600"><tr><th class="p-3 text-start">شهر</th><th class="p-3 text-start">وضعیت</th><th class="p-3 text-start">کسب‌وکار / هدف</th><th class="p-3 text-start">نفر منتظر (فقط برای اطلاع)</th><th class="p-3 text-start">آگهی آماده</th><th class="p-3 text-start"></th></tr></thead><tbody>${cities.map(row).join('')}</tbody></table>
   </section>
   <div class="mt-4 grid gap-4 lg:grid-cols-2">
     <section class="rounded-2xl border border-neutral-200 bg-white p-4"><h2 class="font-extrabold">قاعدهٔ باز شدن کل آلمان</h2>

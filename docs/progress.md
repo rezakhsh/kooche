@@ -923,6 +923,11 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 - The one-year plan: every country live within a year. Hurry the US, Canada and Australia (largest diasporas, copycat risk). No plan where one country's failure stops the others.
 - Turkey must make money (paid business listings), not cost money. The owner also wants private listings in Turkey and Turkey earlier (round 9: Istanbul businesses 1 Feb 2027, private listings in safe categories May 2027; housing and cars are never possible there).
 - Avoid SMS: phone verification through Telegram and WhatsApp (the user sends us a code); SMS stays built but off (round 9).
+- Launch strategy (round 12, Oct 26): Berlin open from the start; every other big city has a waitlist whose only opening condition is a number of verified businesses (e.g. Hamburg 20). People can sign up without limit and are shown for information only. When a country's key cities are open, the whole country opens. No city calendar.
+- Founding businesses keep the «بنیان‌گذار» badge for one year, not forever. First 100 sign-ups per city get one free bump.
+- No WhatsApp notifications ever (cost); notifications by Telegram and email only. City openings are announced by the owner by email to everyone, not through notification settings.
+- Iran wording never mentions sanctions: «پیدو در ایران دفتر و نماینده ندارد و نمی‌تواند امنیت معامله و پرداخت را برای شما تضمین کند».
+- Admin wants: view the site as any country, one staff-verified test account per country, and sign in as a user (owner only, logged).
 - People in Iran never verify a phone; email only.
 - Close Austria for now and follow the country and gate plan (first item of the first build wave; not done yet).
 
