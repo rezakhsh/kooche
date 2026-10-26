@@ -105,6 +105,7 @@ async function main(): Promise<void> {
     gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null,
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
     appUrl: env.APP_URL,
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal) : null,
   });
   // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
   const seoQueue = new Queue('seo', { connection });

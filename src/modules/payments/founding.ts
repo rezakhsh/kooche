@@ -1,12 +1,14 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
-import { organizations, subscriptions } from '../../db/schema';
+import { organizations, outboxEvents, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { customerFor, activePrice, isOwner, type CheckoutResult } from './checkout';
 import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
+import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
+import { isUnreachable, type TelegramClient } from '../notifications/telegram-api';
 import type { PaymentGateway } from './gateway';
 import { activeSubscription } from './plans';
 
@@ -20,6 +22,8 @@ import { activeSubscription } from './plans';
 export const FOUNDING_MONTHS = 6;
 /** Founding places per city: its business goal; an open city without one (Berlin) has 30 */
 export const DEFAULT_FOUNDING_PLACES = 30;
+/** Outbox: tell the owner about the offer (email, and Telegram when the bot can reach them) */
+export const FOUNDING_OFFERED = 'organization.founding_offered';
 
 /** Six calendar months from now (UTC) */
 export function foundingTrialEnd(now: Date): Date {
@@ -67,6 +71,7 @@ export async function offerFounding(tx: Queryable, ctx: StaffContext, organizati
   if (!places || places.used >= places.places) return { ok: false, reason: 'full' };
   await tx.update(organizations).set({ foundingOfferedAt: sql`now()`, foundingOfferedByUserId: ctx.userId }).where(eq(organizations.id, organizationId));
   await staffAudit(tx, ctx, 'organization.founding_offered', { type: 'organization', id: organizationId }, { city: places.city, place: places.used + 1, of: places.places });
+  await tx.insert(outboxEvents).values({ eventType: FOUNDING_OFFERED, aggregateType: 'organization', aggregateId: organizationId, payload: {} });
   return { ok: true };
 }
 
@@ -159,4 +164,47 @@ export async function sendFoundingReminders(db: Queryable, redis: Redis, mail: M
     sent++;
   }
   return sent;
+}
+
+/**
+ * Worker (outbox FOUNDING_OFFERED): tells the business owner about the offer by email, and by
+ * Telegram when they have linked the bot and it can reach them. A Telegram failure never stops the
+ * email. Returns what was sent.
+ */
+export async function sendFoundingOffered(
+  db: Queryable,
+  redis: Redis,
+  opts: { mail: Mailer; telegram: TelegramClient | null; appUrl: string },
+  organizationId: string,
+): Promise<{ email: boolean; telegram: boolean }> {
+  const [r] = await db.execute<{ name: string; slug: string; email: string; telegram_user_id: string | number | null; offered: boolean }>(sql`
+    SELECT o.name, o.slug, u.email, u.telegram_user_id, o.founding_offered_at IS NOT NULL AS offered
+    FROM organizations o
+    JOIN organization_members m ON m.organization_id = o.id AND m.role = 'owner'
+    JOIN users u ON u.id = m.user_id AND u.status = 'active'
+    WHERE o.id = ${organizationId} AND o.status = 'active'
+    LIMIT 1`);
+  if (!r?.offered) return { email: false, telegram: false };
+  const t = messages.email.foundingOffered;
+  const link = `${opts.appUrl}/b/${r.slug}/manage`;
+  await opts.mail({
+    to: r.email,
+    subject: t.subject(r.name),
+    text: t.text(r.name, link),
+    html: emailHtml(
+      `<p>${escapeHtml(t.intro(r.name))}</p><p>${escapeHtml(t.body)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
+    ),
+  });
+  let telegram = false;
+  const tg = r.telegram_user_id === null ? null : Number(r.telegram_user_id);
+  if (opts.telegram && tg !== null && !(await isUnreachableMarked(redis, tg))) {
+    try {
+      await opts.telegram.sendMessage(tg, t.telegram(r.name), { inline_keyboard: [[{ text: t.button, url: link }]] });
+      telegram = true;
+    } catch (e) {
+      if (isUnreachable(e)) await markUnreachable(redis, tg);
+      console.error('founding: telegram notice failed:', e instanceof Error ? e.message : e);
+    }
+  }
+  return { email: true, telegram };
 }

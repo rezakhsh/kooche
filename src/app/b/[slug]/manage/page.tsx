@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Icon } from '../../../../components/icons';
-import { Alert, Card, LinkButton, PageShell, Pill } from '../../../../components/ui';
+import { Alert, Button, Card, LinkButton, PageShell, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { messages } from '../../../../messages/fa';
 import { listingPath } from '../../../../modules/listings/slug';
@@ -8,6 +8,10 @@ import { eventPath } from '../../../../modules/events/slug';
 import { businessUsage } from '../../../../modules/organizations/limits';
 import { managedListings } from '../../../../modules/organizations/queries';
 import { memberOf } from '../member';
+import { foundingState } from '../../../../modules/payments/founding';
+import { activeSubscription } from '../../../../modules/payments/plans';
+import { paymentGateway } from '../../../../modules/payments/server';
+import { foundingAction } from '../../../business/actions';
 
 // The business's own view (members only): its plan and usage, its listings with simple stats, and
 // links to the team, billing and the public page. Staff see only the listings they posted.
@@ -22,10 +26,27 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
   const t = messages.business;
   const [usage, rows] = await Promise.all([businessUsage(db, org.id), managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {})]);
   const planName = (usage.plan.code && messages.pro.planNames[usage.plan.code]) || t.manage.free;
+  // A founding business's owner starts the free months right here (src/modules/payments/founding.ts)
+  const founding = role === 'owner' && paymentGateway() && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
 
   return (
     <PageShell title={org.name} wide>
       <div className="space-y-5">
+        {founding && (
+          <form action={foundingAction} className="space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
+            <input type="hidden" name="organizationId" value={org.id} />
+            <input type="hidden" name="slug" value={org.slug} />
+            <p className="flex items-center gap-2 text-xs font-bold text-saffron-800">
+              <Icon name="star" className="size-4" />
+              {t.foundingBadge}
+            </p>
+            <h2 className="text-lg font-extrabold">{t.billing.founding.title}</h2>
+            <p className="text-sm leading-7 text-neutral-700">{t.billing.founding.body}</p>
+            <Button type="submit" className="w-full sm:w-auto">
+              {t.billing.founding.start}
+            </Button>
+          </form>
+        )}
         {query.created && <Alert tone="success">{t.created}</Alert>}
         {query.saved && <Alert tone="success">{t.saved}</Alert>}
         {query.joined && <Alert tone="success">{t.invitation.accepted}</Alert>}

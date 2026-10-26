@@ -6,7 +6,8 @@ import { applyWebhookEvent, NotReady } from '../modules/payments/apply';
 import { applyDueBumps } from '../modules/payments/bumps';
 import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
-import { sendFoundingReminders } from '../modules/payments/founding';
+import { FOUNDING_OFFERED, sendFoundingOffered, sendFoundingReminders } from '../modules/payments/founding';
+import type { TelegramClient } from '../modules/notifications/telegram-api';
 import type { Mailer } from '../modules/notifications/mailer';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
@@ -24,7 +25,7 @@ const SCHEDULED = { removeOnComplete: 20, removeOnFail: 100 };
 export async function startPaymentJobs(
   db: Db,
   connection: Redis,
-  opts: { gateway: PaymentGateway | null; prefix?: string; schedule?: boolean; mailer?: Mailer; appUrl?: string },
+  opts: { gateway: PaymentGateway | null; prefix?: string; schedule?: boolean; mailer?: Mailer; appUrl?: string; telegram?: TelegramClient | null },
 ) {
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('payments', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
@@ -63,6 +64,12 @@ export async function startPaymentJobs(
           if (n) console.log(`payments: ${n} unfinished checkouts expired`);
           return n;
         }
+        case 'founding-offered': {
+          if (!opts.mailer || !opts.appUrl) return 'no mailer';
+          const sent = await sendFoundingOffered(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId);
+          console.log(`payments: founding offer ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
+          return sent;
+        }
         case 'founding-reminders': {
           if (!opts.mailer || !opts.appUrl) return 0;
           const n = await sendFoundingReminders(db, connection, opts.mailer, { appUrl: opts.appUrl });
@@ -84,6 +91,7 @@ export async function startPaymentJobs(
   const handlers: OutboxHandlers = {
     [WEBHOOK_RECEIVED]: [{ name: 'apply', queue }],
     [ALLOWANCE_REQUESTED]: [{ name: 'allowance', queue }],
+    [FOUNDING_OFFERED]: [{ name: 'founding-offered', queue }],
   };
   return {
     handlers,

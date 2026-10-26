@@ -11,7 +11,10 @@ import { isEventListing } from '../../../../../modules/events/queries';
 import { ownListing } from '../../../../../modules/listings/listings';
 import { formatPrice } from '../../../../../modules/listings/price';
 import { listingPath } from '../../../../../modules/listings/slug';
+import { eq } from 'drizzle-orm';
+import { organizations } from '../../../../../db/schema';
 import { allowancesLeft } from '../../../../../modules/payments/allowances';
+import { foundingState } from '../../../../../modules/payments/founding';
 import { activePrice, EVENT_PRODUCTS, LISTING_PRODUCTS } from '../../../../../modules/payments/checkout';
 import { listingPromotions } from '../../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../../modules/payments/server';
@@ -48,6 +51,11 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
   const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
   const chosen = query.product && offers.some((o) => o.product.code === query.product) ? query.product : offers[0]?.product.code;
   const back = isEvent ? `/my/events` : `/my/listings`;
+  // A founding business that hasn't started its free months yet: point to its included bumps
+  const foundingSlug =
+    listing.organizationId && !plan?.plan.subscriptionId && (await foundingState(db, listing.organizationId)) === 'offered'
+      ? (await db.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, listing.organizationId)))[0]?.slug
+      : null;
 
   return (
     <PageShell title={isEvent ? t.titleEvent : t.title} wide>
@@ -94,6 +102,15 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
               )}
             </div>
           </Card>
+        )}
+
+        {foundingSlug && (
+          <div className="rounded-2xl border-2 border-brand-200 bg-brand-50 p-4 text-sm leading-7">
+            <p>{t.foundingHint}</p>
+            <Link href={`/b/${foundingSlug}/manage`} className="font-bold text-brand-800 underline">
+              {messages.business.billing.founding.start}
+            </Link>
+          </div>
         )}
 
         {live && payments && offers.length > 0 && (
