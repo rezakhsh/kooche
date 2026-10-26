@@ -924,7 +924,10 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 - Turkey must make money (paid business listings), not cost money. The owner also wants private listings in Turkey and Turkey earlier (round 9: Istanbul businesses 1 Feb 2027, private listings in safe categories May 2027; housing and cars are never possible there).
 - Avoid SMS: phone verification through Telegram and WhatsApp (the user sends us a code); SMS stays built but off (round 9).
 - Launch strategy (round 12, Oct 26): Berlin open from the start; every other big city has a waitlist whose only opening condition is a number of verified businesses (e.g. Hamburg 20). People can sign up without limit and are shown for information only. When a country's key cities are open, the whole country opens. No city calendar.
-- Founding businesses keep the «بنیان‌گذار» badge for one year, not forever. First 100 sign-ups per city get one free bump.
+- Founding businesses keep the «بنیان‌گذار» badge for one year, not forever.
+- Sign-up reward by city size (Oct 26): one free bump for the first 200 confirmed sign-ups in a big city, 100 in a medium city, 50 in a small one; usable from day 3 to day 60 after the city opens.
+- Businesses and events are live in every planned country from the start (once each country's small legal checklist is done; Turkey after KVKK); listings open city by city by business count.
+- The Randstad (Amsterdam, Rotterdam, The Hague, Utrecht) counts as one "city" with 30 businesses; Sweden and Italy are each one "city" (Sweden 30; Italy 20 proposed, owner to confirm). Proposed targets for the other cities are in `docs/design-options/research/round12-cities.md` and the plan page (version 6); still open: whether Germany opens after 5 metros (about 33%) and whether to lower the targets.
 - No WhatsApp notifications ever (cost); notifications by Telegram and email only. City openings are announced by the owner by email to everyone, not through notification settings.
 - Iran wording never mentions sanctions: «پیدو در ایران دفتر و نماینده ندارد و نمی‌تواند امنیت معامله و پرداخت را برای شما تضمین کند».
 - Admin wants: view the site as any country, one staff-verified test account per country, and sign in as a user (owner only, logged).
