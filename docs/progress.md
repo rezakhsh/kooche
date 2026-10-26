@@ -980,3 +980,10 @@ The owner approved the wave 0 plan ("start as you planned"). Step 1 of `docs/wav
 - **`scripts/phone-country-check.ts`:** counts verified numbers the rule would refuse. Staging: 2 verified numbers, 1 of them +98 (left on its account; the owner decides).
 - **CLAUDE.md:** "Iranians in many countries", Gregorian dates in the interface, and the phone-number rule (approved with the plan).
 - **Tests:** 679 passing (6 new), typecheck and `check:rtl` clean, run in a Node container against throwaway PostgreSQL, Valkey and Meilisearch. `tests/search.test.ts` › "each filter type returns exactly the matching listings" failed once in a full run without Meilisearch and passed alone and in the next full run: probably order-dependent, unrelated to this change.
+
+## Oct 26, 2026: wave 0, step 2: Austria closed, only the Berlin area open
+
+- **Austria closed:** `seed/countries.ts` and migration 0017 (`/austria` answers 404; nobody can post there). Staging had no Austrian listings.
+- **City launch** (migration 0017; `docs/setup.md`, "Countries, places and the map"): `locations` gets `launch_status`, `business_goal`, `launch_radius_km`, `launch_with_id` and `opened_at`. Listings other than events are published only in the Berlin area (Berlin and Potsdam, within 40 km of Berlin's centre); Hamburg 20, Cologne and Bonn 25, Düsseldorf 20, Frankfurt 20 are on the waitlist; everything else opens with the country. Drafts can be saved anywhere. Events everywhere in Germany. The seed sets these only for new cities, so the owner's later changes stay.
+- **Tests:** 688 passing (new `tests/city-launch.test.ts`, 8 tests; a seed test that the owner's launch state survives a re-seed). Tests about places, search and events open everything for their own run (`openEverywhereForTests()` in `tests/listings-fixtures.ts`) and restore the state afterwards.
+- **Not changed, for the lawyer's list:** the terms (§ 1, Persian) still say Peydoo is for Iranians in Germany and Austria.

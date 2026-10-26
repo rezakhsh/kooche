@@ -120,6 +120,13 @@
       "when": 1793015176180,
       "tag": "0016_phone_number_country",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793015787744,
+      "tag": "0017_city_launch",
+      "breakpoints": true
     }
   ]
 }

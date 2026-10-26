@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { projectOnOutline } from '../src/components/outline-map';
 import * as schema from '../src/db/schema';
 import { foldLatin } from '../src/lib/fold-latin';
@@ -20,7 +20,7 @@ import { browseListings } from '../src/modules/search/browse';
 import { parseSmsNumber } from '../src/modules/users/phone-number';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
-import { categoryBySlug, city, listing, user } from './listings-fixtures';
+import { categoryBySlug, city, listing, user, openEverywhereForTests } from './listings-fixtures';
 import { createDraft } from '../src/modules/listings/listings';
 
 // Where a listing is (decided Oct 17, 2026): a country, then a postal code or town from our own
@@ -68,6 +68,16 @@ const mustPlace = (p: Place | string | null): Place => {
   if (!p || typeof p === 'string') throw new Error(`expected a place, got ${p}`);
   return p;
 };
+
+
+// Since wave 0 only the Berlin area is open and Austria is closed; this file is about other rules
+let closeAgain: () => Promise<void>;
+beforeAll(async () => {
+  closeAgain = await openEverywhereForTests();
+});
+afterAll(async () => {
+  await closeAgain();
+});
 
 describe('countries and seeded places', () => {
   it('Germany and Austria are open with their slugs; Turkey is listed but closed, with the lira', async () => {

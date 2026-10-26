@@ -26,7 +26,14 @@ export type RegionSeed = {
   timezone: string;
 };
 
-export type CitySeed = RegionSeed & { region: string };
+export type CitySeed = RegionSeed & {
+  region: string;
+  /**
+   * The city's first launch values (round 12), applied only when the seed creates the city: after
+   * that, launch is the owner's state in admin. Without it the city is `later`.
+   */
+  launch?: { status: 'open' | 'waitlist'; goal?: number; radiusKm?: number; with?: string };
+};
 
 export type LocationsSeed = { countryCode: string; regions: RegionSeed[]; cities: CitySeed[] };
 

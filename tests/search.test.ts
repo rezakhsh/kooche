@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../src/db/schema';
 import type { Point } from '../src/db/types';
 import { distanceMeters, snapToGrid } from '../src/lib/geo';
@@ -18,6 +18,7 @@ import {
 import { resolveFilters } from '../src/modules/search/index';
 import { createNearToken, NEAR_TOKEN_TTL_MS, readNearToken } from '../src/modules/search/near';
 import { category, db, location, makeListing, makeUser, rollback, setRole, type Tx } from './db';
+import { openEverywhereForTests } from './listings-fixtures';
 
 // Browse filters, the browse query, keyset paging and "near me" (approved Oct 18, 2026).
 
@@ -30,6 +31,16 @@ const ctxFor = (slug: string | null, minorUnit = 2): FilterContext =>
   filterContext(catalog, slug ? catalog.bySlug.get(slug)! : null, minorUnit);
 
 const parse = (raw: RawParams, slug: string | null = 'cars') => parseBrowseParams(raw, ctxFor(slug));
+
+
+// Since wave 0 only the Berlin area is open and Austria is closed; this file is about other rules
+let closeAgain: () => Promise<void>;
+beforeAll(async () => {
+  closeAgain = await openEverywhereForTests();
+});
+afterAll(async () => {
+  await closeAgain();
+});
 
 describe('filters from the definitions', () => {
   it('reads the canonical address and writes it back unchanged', () => {

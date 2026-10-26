@@ -109,9 +109,9 @@ describe('seeded data', () => {
     expect(leaves!.n).toBe(127);
   });
 
-  it('opens Germany and Austria, with their regions and every city under one of them', async () => {
+  it('opens Germany (Austria closed since wave 0), with its regions and every city under one of them', async () => {
     const active = await db.select().from(countries).where(eq(countries.isActive, true)).orderBy(countries.sortOrder);
-    expect(active.map((c) => c.code)).toEqual(['DE', 'AT']);
+    expect(active.map((c) => c.code)).toEqual(['DE']);
     const [regions] = await db
       .select({ n: count() })
       .from(locations)
@@ -138,5 +138,18 @@ describe('seeded data', () => {
     const summary = await runSeed(process.env.TEST_DATABASE_URL!);
     expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25, cities: 81, postalPlaces: 15_050 + 18_998 });
     expect(await db.execute(counts)).toEqual(before);
+  });
+
+  it('leaves the owner’s city launch alone when loaded again', async () => {
+    const hamburg = and(eq(locations.kind, 'city'), eq(locations.slug, 'hamburg'));
+    const [before] = await db.select().from(locations).where(hamburg);
+    await db.update(locations).set({ launchStatus: 'open', businessGoal: 12 }).where(hamburg);
+    try {
+      await runSeed(process.env.TEST_DATABASE_URL!);
+      const [after] = await db.select().from(locations).where(hamburg);
+      expect(after).toMatchObject({ launchStatus: 'open', businessGoal: 12 });
+    } finally {
+      await db.update(locations).set({ launchStatus: before!.launchStatus, businessGoal: before!.businessGoal }).where(hamburg);
+    }
   });
 });

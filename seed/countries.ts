@@ -1,14 +1,15 @@
 import type { CountrySeed } from './types';
 
 // EU, EEA, Switzerland and the UK, plus Turkey, the US, Canada, Australia and Malaysia.
-// Germany and Austria are open for listings (Oct 17, 2026); Turkey is listed but closed until
-// it opens. Opening another country: the checklist in docs/setup.md, "Countries".
-// sortOrder: Germany, then Austria; the rest are sorted by Persian name in the app
+// Germany is open for listings, city by city (locations.launch_status; only the Berlin area at
+// first). Austria was open from Oct 17, 2026 and is closed again since wave 0 (owner, round 7).
+// Turkey is listed but closed. Opening another country: the checklist in docs/setup.md,
+// "Countries". sortOrder: Germany, then Austria; the rest are sorted by Persian name in the app
 // (Intl.Collator('fa')).
 // slug: the country's web address (/germany). Never a two-letter code: those clash with our own
 // routes (/my is Malaysia).
 
-const ACTIVE = new Set(['DE', 'AT']);
+const ACTIVE = new Set(['DE']);
 const SORT: Record<string, number> = { DE: 0, AT: 1 };
 
 const c = (

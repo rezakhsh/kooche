@@ -62,3 +62,25 @@ export async function outbox(aggregateId: string) {
     .orderBy(schema.outboxEvents.id);
   return rows.map((r) => r.eventType);
 }
+
+/**
+ * Every city open with no radius, and Austria open, for tests about places, search and events
+ * rather than the launch rules (since wave 0 only the Berlin area is open and Austria is closed;
+ * tests/city-launch.test.ts tests those). Call in beforeAll; the returned function puts back the
+ * exact earlier state (afterAll).
+ */
+export async function openEverywhereForTests(): Promise<() => Promise<void>> {
+  const cities = await db
+    .select({ id: schema.locations.id, launchStatus: schema.locations.launchStatus, launchRadiusKm: schema.locations.launchRadiusKm })
+    .from(schema.locations)
+    .where(eq(schema.locations.kind, 'city'));
+  const [austria] = await db.select({ isActive: schema.countries.isActive }).from(schema.countries).where(eq(schema.countries.code, 'AT'));
+  await db.update(schema.countries).set({ isActive: true }).where(eq(schema.countries.code, 'AT'));
+  await db.update(schema.locations).set({ launchStatus: 'open', launchRadiusKm: null }).where(eq(schema.locations.kind, 'city'));
+  return async () => {
+    await db.update(schema.countries).set({ isActive: austria!.isActive }).where(eq(schema.countries.code, 'AT'));
+    for (const c of cities) {
+      await db.update(schema.locations).set({ launchStatus: c.launchStatus, launchRadiusKm: c.launchRadiusKm }).where(eq(schema.locations.id, c.id));
+    }
+  };
+}

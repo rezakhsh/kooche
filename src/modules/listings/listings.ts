@@ -13,6 +13,7 @@ import { roleIn } from '../organizations/organizations';
 import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
+import { listingArea } from '../launch/cities';
 import { cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
@@ -101,6 +102,9 @@ export type FieldError =
   | 'before_start'
   | 'too_many_dates'
   | 'short_link'
+  /** City launch (src/modules/launch/cities.ts): only events are published outside open cities */
+  | 'city_not_open'
+  | 'outside_area'
   /** A listing's country never changes once it has one (decided Oct 17, 2026) */
   | 'locked'
   /** A display name with the brand, staff or support in it (src/modules/users/profile.ts) */
@@ -246,6 +250,13 @@ async function prepare(
     }
     point = snapped ?? place.center;
     locationPrecision = snapped ? 'area' : place.kind === 'postal' ? 'postal_code' : 'city';
+  }
+
+  // City launch (round 12): outside the open cities only events are published; a draft may wait
+  // there for its city to open (src/modules/launch/cities.ts)
+  if (publish && locationId && point && !isEventCategory(catalog, category.id)) {
+    const area = await listingArea(tx, locationId, point);
+    if (area !== 'open') errors.place = area;
   }
 
   // Price: the allowed types depend on the category; fixed and negotiable need an amount. The

@@ -125,6 +125,8 @@ async function seedLocations(tx: Tx, country: LocationsSeed) {
     seededIds.push(row!.id);
   }
 
+  const cityIds = new Map<string, string>();
+  const createdWith: Array<{ id: string; with: string }> = [];
   for (const c of country.cities) {
     const parentId = regionIds.get(c.region);
     if (!parentId) throw new Error(`City ${c.slug}: unknown region ${c.region}`);
@@ -134,6 +136,15 @@ async function seedLocations(tx: Tx, country: LocationsSeed) {
       parentId,
       slug: c.slug,
       ...columns(c),
+      // The first launch values only: afterwards launch is the owner's (admin), so `set` leaves it
+      ...(c.launch
+        ? {
+            launchStatus: c.launch.status,
+            businessGoal: c.launch.goal ?? null,
+            launchRadiusKm: c.launch.radiusKm ?? null,
+            openedAt: c.launch.status === 'open' ? new Date() : null,
+          }
+        : {}),
     };
     const [row] = await tx
       .insert(locations)
@@ -143,8 +154,16 @@ async function seedLocations(tx: Tx, country: LocationsSeed) {
         targetWhere: sql`kind = 'city'`,
         set: { ...columns(c), parentId },
       })
-      .returning({ id: locations.id });
+      // xmax = 0: the row was inserted now, not updated
+      .returning({ id: locations.id, created: sql<boolean>`xmax = 0` });
     seededIds.push(row!.id);
+    cityIds.set(c.slug, row!.id);
+    if (row!.created && c.launch?.with) createdWith.push({ id: row!.id, with: c.launch.with });
+  }
+  for (const c of createdWith) {
+    const withId = cityIds.get(c.with);
+    if (!withId) throw new Error(`City launch: unknown city ${c.with} in ${country.countryCode}`);
+    await tx.update(locations).set({ launchWithId: withId }).where(eq(locations.id, c.id));
   }
 
   // Removed from the seed: keep the row (listings may use it), but stop offering it

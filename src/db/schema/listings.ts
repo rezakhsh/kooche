@@ -76,6 +76,14 @@ export const countries = pgTable(
 
 export const LOCATION_KINDS = ['region', 'city'] as const;
 
+/**
+ * A city's launch (round 12, docs/wave0-plan.md): `open` takes listings; `waitlist` is a key city
+ * waiting for its number of verified businesses; `later` opens with the whole country. Events and
+ * business pages are allowed everywhere in an active country. Set by the owner in admin; the seed
+ * only gives a new city its first value.
+ */
+export const LAUNCH_STATUSES = ['open', 'waitlist', 'later'] as const;
+
 export const locations = pgTable(
   'locations',
   {
@@ -94,9 +102,32 @@ export const locations = pgTable(
     population: integer('population'),
     geonamesId: integer('geonames_id').unique('locations_geonames_id_key'),
     isActive: boolean('is_active').notNull().default(true),
+    // City launch (migration 0017). Owner-managed state, never overwritten by the seed.
+    launchStatus: text('launch_status', { enum: LAUNCH_STATUSES }).notNull().default('later'),
+    /** Verified businesses the city needs before the owner opens it (waitlist cities) */
+    businessGoal: smallint('business_goal'),
+    /** An open city takes listings only this close to its centre (Berlin: 40 km, Potsdam included) */
+    launchRadiusKm: smallint('launch_radius_km'),
+    /** Opens and counts together with this city (Potsdam → Berlin, Bonn → Cologne) */
+    launchWithId: uuid('launch_with_id'),
+    openedAt: tstz('opened_at'),
   },
   (t) => [
     check('locations_kind_check', isIn(t.kind, LOCATION_KINDS)),
+    check('locations_launch_status_check', isIn(t.launchStatus, LAUNCH_STATUSES)),
+    check('locations_business_goal_check', sql`${t.businessGoal} BETWEEN 1 AND 1000`),
+    check('locations_launch_radius_km_check', sql`${t.launchRadiusKm} BETWEEN 1 AND 500`),
+    // Only cities launch; a city never launches together with itself
+    check(
+      'locations_launch_city_check',
+      sql`${t.kind} = 'city' OR (${t.launchStatus} = 'later' AND num_nonnulls(${t.businessGoal}, ${t.launchRadiusKm}, ${t.launchWithId}, ${t.openedAt}) = 0)`,
+    ),
+    check('locations_launch_with_check', sql`${t.launchWithId} <> ${t.id}`),
+    foreignKey({
+      name: 'locations_launch_with_fkey',
+      columns: [t.launchWithId, t.countryCode],
+      foreignColumns: [t.id, t.countryCode],
+    }),
     check('locations_slug_check', matches(t.slug, PATTERNS.slug)),
     // Regions are roots, cities always have a region. That the parent is a region is a seed check.
     check('locations_parent_check', sql`(${t.kind} = 'region') = (${t.parentId} IS NULL)`),

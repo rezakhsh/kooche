@@ -5,6 +5,9 @@ import type { LocationsSeed } from '../types';
 // GeoNames (CC BY 4.0, see seed/README.md). Persian names and slugs are written by hand.
 // Slugs use German ASCII spellings (ä→ae, ö→oe, ü→ue, ß→ss). City slugs appear alone in URLs,
 // so they must be unique across all countries.
+// launch (round 12, owner Oct 26, 2026): only the Berlin area is open (Berlin and Potsdam, within
+// 40 km of Berlin's centre); Hamburg 20, Cologne and Bonn 25, Düsseldorf 20 and Frankfurt 20
+// verified businesses; every other city opens with the whole country.
 
 export const germany: LocationsSeed = {
   countryCode: 'DE',
@@ -27,12 +30,12 @@ export const germany: LocationsSeed = {
     { slug: "thueringen", nameFa: "تورینگن", nameLocal: "Thüringen", geonamesId: 2822542, lat: 50.91667, lng: 11.0, population: 2120237, timezone: "Europe/Berlin" },
   ],
   cities: [
-    { slug: "berlin", nameFa: "برلین", nameLocal: "Berlin", geonamesId: 2950159, region: "berlin", lat: 52.52437, lng: 13.41053, population: 3426354, timezone: "Europe/Berlin" },
-    { slug: "hamburg", nameFa: "هامبورگ", nameLocal: "Hamburg", geonamesId: 2911298, region: "hamburg", lat: 53.55073, lng: 9.99302, population: 1973896, timezone: "Europe/Berlin" },
+    { slug: "berlin", nameFa: "برلین", nameLocal: "Berlin", geonamesId: 2950159, region: "berlin", lat: 52.52437, lng: 13.41053, population: 3426354, timezone: "Europe/Berlin", launch: { status: 'open', radiusKm: 40 } },
+    { slug: "hamburg", nameFa: "هامبورگ", nameLocal: "Hamburg", geonamesId: 2911298, region: "hamburg", lat: 53.55073, lng: 9.99302, population: 1973896, timezone: "Europe/Berlin", launch: { status: 'waitlist', goal: 20 } },
     { slug: "muenchen", nameFa: "مونیخ", nameLocal: "München", geonamesId: 2867714, region: "bayern", lat: 48.13743, lng: 11.57549, population: 1505005, timezone: "Europe/Berlin" },
-    { slug: "koeln", nameFa: "کلن", nameLocal: "Köln", geonamesId: 2886242, region: "nordrhein-westfalen", lat: 50.93333, lng: 6.95, population: 1024621, timezone: "Europe/Berlin" },
-    { slug: "frankfurt", nameFa: "فرانکفورت", nameLocal: "Frankfurt am Main", geonamesId: 2925533, region: "hessen", lat: 50.11552, lng: 8.68417, population: 650000, timezone: "Europe/Berlin" },
-    { slug: "duesseldorf", nameFa: "دوسلدورف", nameLocal: "Düsseldorf", geonamesId: 2934246, region: "nordrhein-westfalen", lat: 51.22319, lng: 6.77927, population: 618685, timezone: "Europe/Berlin" },
+    { slug: "koeln", nameFa: "کلن", nameLocal: "Köln", geonamesId: 2886242, region: "nordrhein-westfalen", lat: 50.93333, lng: 6.95, population: 1024621, timezone: "Europe/Berlin", launch: { status: 'waitlist', goal: 25 } },
+    { slug: "frankfurt", nameFa: "فرانکفورت", nameLocal: "Frankfurt am Main", geonamesId: 2925533, region: "hessen", lat: 50.11552, lng: 8.68417, population: 650000, timezone: "Europe/Berlin", launch: { status: 'waitlist', goal: 20 } },
+    { slug: "duesseldorf", nameFa: "دوسلدورف", nameLocal: "Düsseldorf", geonamesId: 2934246, region: "nordrhein-westfalen", lat: 51.22319, lng: 6.77927, population: 618685, timezone: "Europe/Berlin", launch: { status: 'waitlist', goal: 20 } },
     { slug: "stuttgart", nameFa: "اشتوتگارت", nameLocal: "Stuttgart", geonamesId: 2825297, region: "baden-wuerttemberg", lat: 48.78232, lng: 9.17702, population: 612663, timezone: "Europe/Berlin" },
     { slug: "essen", nameFa: "اسن", nameLocal: "Essen", geonamesId: 2928810, region: "nordrhein-westfalen", lat: 51.45657, lng: 7.01228, population: 593085, timezone: "Europe/Berlin" },
     { slug: "dortmund", nameFa: "دورتموند", nameLocal: "Dortmund", geonamesId: 2935517, region: "nordrhein-westfalen", lat: 51.51494, lng: 7.466, population: 588462, timezone: "Europe/Berlin" },
@@ -45,7 +48,7 @@ export const germany: LocationsSeed = {
     { slug: "bochum", nameFa: "بوخوم", nameLocal: "Bochum", geonamesId: 2947416, region: "nordrhein-westfalen", lat: 51.48165, lng: 7.21648, population: 385729, timezone: "Europe/Berlin" },
     { slug: "wuppertal", nameFa: "ووپرتال", nameLocal: "Wuppertal", geonamesId: 2805753, region: "nordrhein-westfalen", lat: 51.25627, lng: 7.14816, population: 360797, timezone: "Europe/Berlin" },
     { slug: "bielefeld", nameFa: "بیله‌فلد", nameLocal: "Bielefeld", geonamesId: 2949186, region: "nordrhein-westfalen", lat: 52.03333, lng: 8.53333, population: 331906, timezone: "Europe/Berlin" },
-    { slug: "bonn", nameFa: "بن", nameLocal: "Bonn", geonamesId: 2946447, region: "nordrhein-westfalen", lat: 50.73438, lng: 7.09549, population: 330579, timezone: "Europe/Berlin" },
+    { slug: "bonn", nameFa: "بن", nameLocal: "Bonn", geonamesId: 2946447, region: "nordrhein-westfalen", lat: 50.73438, lng: 7.09549, population: 330579, timezone: "Europe/Berlin", launch: { status: 'waitlist', with: 'koeln' } },
     { slug: "muenster", nameFa: "مونستر", nameLocal: "Münster", geonamesId: 2867543, region: "nordrhein-westfalen", lat: 51.96236, lng: 7.62571, population: 308258, timezone: "Europe/Berlin" },
     { slug: "mannheim", nameFa: "مانهایم", nameLocal: "Mannheim", geonamesId: 2873891, region: "baden-wuerttemberg", lat: 49.4891, lng: 8.46694, population: 307960, timezone: "Europe/Berlin" },
     { slug: "augsburg", nameFa: "آگسبورگ", nameLocal: "Augsburg", geonamesId: 2954172, region: "bayern", lat: 48.37154, lng: 10.89851, population: 301105, timezone: "Europe/Berlin" },
@@ -68,7 +71,7 @@ export const germany: LocationsSeed = {
     { slug: "hagen", nameFa: "هاگن", nameLocal: "Hagen", geonamesId: 2912621, region: "nordrhein-westfalen", lat: 51.36081, lng: 7.47168, population: 198972, timezone: "Europe/Berlin" },
     { slug: "rostock", nameFa: "روستوک", nameLocal: "Rostock", geonamesId: 2844588, region: "mecklenburg-vorpommern", lat: 54.0887, lng: 12.14049, population: 198293, timezone: "Europe/Berlin" },
     { slug: "kassel", nameFa: "کاسل", nameLocal: "Kassel", geonamesId: 2892518, region: "hessen", lat: 51.31667, lng: 9.5, population: 197230, timezone: "Europe/Berlin" },
-    { slug: "potsdam", nameFa: "پوتسدام", nameLocal: "Potsdam", geonamesId: 2852458, region: "brandenburg", lat: 52.39886, lng: 13.06566, population: 184754, timezone: "Europe/Berlin" },
+    { slug: "potsdam", nameFa: "پوتسدام", nameLocal: "Potsdam", geonamesId: 2852458, region: "brandenburg", lat: 52.39886, lng: 13.06566, population: 184754, timezone: "Europe/Berlin", launch: { status: 'open', with: 'berlin' } },
     { slug: "saarbruecken", nameFa: "زاربروکن", nameLocal: "Saarbrücken", geonamesId: 2842647, region: "saarland", lat: 49.23262, lng: 7.00982, population: 182971, timezone: "Europe/Berlin" },
     { slug: "hamm", nameFa: "هام", nameLocal: "Hamm", geonamesId: 2911240, region: "nordrhein-westfalen", lat: 51.68033, lng: 7.82089, population: 178967, timezone: "Europe/Berlin" },
     { slug: "muelheim-ruhr", nameFa: "مولهایم", nameLocal: "Mülheim an der Ruhr", geonamesId: 2867838, region: "nordrhein-westfalen", lat: 51.43218, lng: 6.87967, population: 173050, timezone: "Europe/Berlin" },

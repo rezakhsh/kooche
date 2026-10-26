@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cachedCatalog } from '../src/modules/listings/catalog';
 import { createDraft, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { postingCountry } from '../src/modules/listings/posting-country';
 import { browseListings, categoryCounts } from '../src/modules/search/browse';
 import { appDb } from './accounts';
-import { categoryBySlug, listing, user } from './listings-fixtures';
+import { categoryBySlug, listing, user, openEverywhereForTests } from './listings-fixtures';
 
 // The country is fixed when posting (decided Oct 17, 2026): the posting form shows it as text,
 // the save action decides it on the server, and saveListing() refuses any other country for a
@@ -28,6 +28,16 @@ async function draft(userId: string, slug = 'bicycles') {
   if (!r.ok) throw new Error(r.reason);
   return r.listingId;
 }
+
+
+// Since wave 0 only the Berlin area is open and Austria is closed; this file is about other rules
+let closeAgain: () => Promise<void>;
+beforeAll(async () => {
+  closeAgain = await openEverywhereForTests();
+});
+afterAll(async () => {
+  await closeAgain();
+});
 
 describe('which country a listing is posted in', () => {
   const open = ['DE', 'AT'];

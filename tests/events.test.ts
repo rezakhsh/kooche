@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { writeWeeklyDigests } from '../src/modules/events/digest';
 import { cancelEvent, copyEvent, createEventDraft, saveEvent, EVENTS_PER_DAY, NEW_ACCOUNT_EVENTS_PER_DAY } from '../src/modules/events/events';
@@ -22,7 +22,7 @@ import { sendExpiryReminders } from '../src/modules/notifications/expiry-reminde
 import type { Mail } from '../src/modules/notifications/mailer';
 import { appDb, redis, workerDb } from './accounts';
 import { db, expectError, INSUFFICIENT_PRIVILEGE, rollback, setRole } from './db';
-import { categoryBySlug, city, events, listing, outbox, user } from './listings-fixtures';
+import { categoryBySlug, city, events, listing, outbox, user, openEverywhereForTests } from './listings-fixtures';
 
 // The events section (decided Oct 18, 2026): an event is a listing in the events section with its
 // details and dates. Run as classifieds_app (posting) and classifieds_worker (expiry, checks,
@@ -84,6 +84,16 @@ async function details(listingId: string) {
   const [d] = await db.select().from(schema.eventDetails).where(eq(schema.eventDetails.listingId, listingId));
   return d!;
 }
+
+
+// Since wave 0 only the Berlin area is open and Austria is closed; this file is about other rules
+let closeAgain: () => Promise<void>;
+beforeAll(async () => {
+  closeAgain = await openEverywhereForTests();
+});
+afterAll(async () => {
+  await closeAgain();
+});
 
 describe('who may post events', () => {
   it('only a verified user, like listings', async () => {
