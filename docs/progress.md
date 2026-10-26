@@ -960,3 +960,13 @@ Collected here so every tool sees them. Details in `docs/design-options.md` (rou
 - A push to main deploys staging only; production only with `peydoo-promote`, and only when asked.
 - No real users' names, phone numbers or emails in screenshots or mockups.
 
+
+## Oct 26, 2026: wave 0 build plan (waiting for approval, no app changes)
+
+Asked by the owner: a detailed build plan for wave 0 only (what must be live before Berlin opens), then wait for approval.
+
+Done (branch `wave0`, `/root/classifieds-wave0`): `docs/wave0-plan.md`. It covers only Berlin open (Austria closed, other German cities on a business-count waitlist), the Telegram +98 / +888 / allowlist refusal and Telegram login (OIDC, phone scope) as the main check, WhatsApp where the user sends the code (SMS built but off), founding Pro as a Stripe trial without a card that ends by itself, Iran read-only with the round 12 wording, and the § 356a BGB withdrawal button (checked: missing; terms say "by email"). For each: files, migrations 0016–0019, tests, risks, days, and what the owner does by hand in BotFather, Meta and Stripe. Estimate 16–18 working days.
+
+Found while reading: round 12 has no section in `docs/design-options.md` (it is in this file and the plan page v6); the founding-business mockup says €24 after 6 months while the plan page says €12; the `iran` mockup shows email sign-up and messaging, which the plan builds only in wave 4 after the lawyer.
+
+Next: the owner answers the plan's eight decisions and approves; then the build starts in the order given there.
