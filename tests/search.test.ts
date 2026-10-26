@@ -234,7 +234,12 @@ describe('browse query', () => {
       expect(await set({ price: { min: null, max: 1_000_000 } })).toEqual(new Set([b.id, d.id]));
       expect(await set({ price: { min: 1_000_000, max: null } })).toEqual(new Set([a.id]));
       expect(await set({ shipping: true })).toEqual(new Set([b.id]));
-      expect(await countListings(tx, base({ categoryIds: [cars.id], locationId: rostock.id }))).toBe(4);
+      // Plus whatever live cars other files left in Rostock (they commit theirs)
+      const [others] = await tx.execute<{ n: number }>(sql`
+        SELECT count(*)::int AS n FROM listings l
+        WHERE l.category_id = ${cars.id} AND l.location_id = ${rostock.id} AND l.status = 'active'
+          AND l.user_id <> ${u.id} AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`);
+      expect(await countListings(tx, base({ categoryIds: [cars.id], locationId: rostock.id }))).toBe(4 + others!.n);
       // Never: paused, another country, events
       const everywhere = await all(tx, base({ categoryIds: [cars.id] }));
       expect(everywhere).not.toContain(paused.id);

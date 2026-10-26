@@ -186,7 +186,10 @@ export const phoneVerifications = pgTable(
     method: text('method', { enum: PHONE_VERIFICATION_METHODS }).notNull(),
     status: text('status', { enum: PHONE_VERIFICATION_STATUSES }).notNull().default('pending'),
     phoneE164: text('phone_e164'),
-    /** Telegram: SHA-256 of the random token in the t.me/<bot>?start=<token> link */
+    /**
+     * Telegram: SHA-256 of the random token in the t.me/<bot>?start=<token> link; Telegram login:
+     * SHA-256 of the OpenID Connect `state`
+     */
     linkTokenHash: bytea('link_token_hash').unique('phone_verifications_link_token_hash_key'),
     /** Accepted only when contact.user_id equals the sender's from.id (setup.md, decision 5) */
     telegramUserId: bigint('telegram_user_id', { mode: 'number' }),
@@ -220,9 +223,10 @@ export const phoneVerifications = pgTable(
       'phone_verifications_sms_check',
       sql`${t.method} <> 'sms' OR (${t.phoneE164} IS NOT NULL AND ${t.codeHash} IS NOT NULL)`,
     ),
+    // The bot's t.me link token, or Telegram login's state: only their hashes are stored
     check(
       'phone_verifications_telegram_check',
-      sql`${t.method} <> 'telegram' OR ${t.linkTokenHash} IS NOT NULL`,
+      sql`${t.method} NOT IN ('telegram', 'telegram_oidc') OR ${t.linkTokenHash} IS NOT NULL`,
     ),
     check(
       'phone_verifications_verified_check',

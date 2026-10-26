@@ -16,7 +16,9 @@ import {
   startTelegramVerification,
 } from '../../../modules/users/phone';
 import { maskPhone, parseSmsNumber } from '../../../modules/users/phone-number';
-import { requireSession, sms } from '../../../modules/users/server';
+import { requireSession, sms, telegramLogin } from '../../../modules/users/server';
+import { startTelegramLogin } from '../../../modules/users/telegram-oidc';
+import { redirect } from 'next/navigation';
 
 export type TelegramState =
   | { link: string; verificationId: string }
@@ -55,6 +57,17 @@ export async function startTelegram(_: TelegramState): Promise<TelegramState> {
     link: `https://t.me/${webEnv().TELEGRAM_BOT_USERNAME}?start=${token}`,
     verificationId,
   };
+}
+
+/** "Log in with Telegram": an attempt, then off to Telegram (form-action allows oauth.telegram.org) */
+export async function startTelegramLoginAction(_: TelegramState): Promise<TelegramState> {
+  const { user } = await requireSession('/account/phone');
+  const config = telegramLogin();
+  if (!config) return { error: messages.phone.failed.oidc_failed };
+  const limited = await limitStart(user.id);
+  if (limited) return { error: limited };
+  const { url } = await startTelegramLogin(appDb(), { userId: user.id, ip: clientIp(await headers()), config });
+  redirect(url);
 }
 
 /** The SMS form's one action: `intent` is `send` (number step) or `check` (code step). */

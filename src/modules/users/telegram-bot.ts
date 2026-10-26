@@ -87,6 +87,8 @@ export async function handleUpdate(
       phone_in_use: t.phoneInUse,
       telegram_in_use: t.telegramInUse,
       too_many_attempts: t.noPending,
+      declined: t.noPending,
+      oidc_failed: t.noPending,
       undeliverable: t.noPending,
     }[result.reason];
     await api.sendMessage(msg.chat.id, text, REMOVE_KEYBOARD);

@@ -20,6 +20,9 @@ export const SMS_MAX_ATTEMPTS = 5;
 export type FailureReason =
   | 'country_not_allowed'
   | 'no_country'
+  /** Telegram login: the person said no on Telegram's page, or the token didn't check out */
+  | 'declined'
+  | 'oidc_failed'
   | 'foreign_contact'
   | 'phone_in_use'
   | 'telegram_in_use'
@@ -35,7 +38,7 @@ function isUniqueViolation(e: unknown): boolean {
   return (err?.cause?.code ?? err?.code) === UNIQUE_VIOLATION;
 }
 
-async function fail(
+export async function failVerification(
   db: Queryable,
   verificationId: string,
   reason: FailureReason,
@@ -60,7 +63,7 @@ export async function completeVerification(
     phoneE164: string;
     /** The number's country (checkVerifiedNumber or parseSmsNumber), kept on the attempt */
     numberCountry: string | null;
-    method: 'telegram' | 'sms';
+    method: 'telegram' | 'telegram_oidc' | 'sms';
     telegramUserId?: number;
   },
 ): Promise<CompleteResult> {
@@ -133,7 +136,7 @@ export async function completeVerification(
   }
 
   if (refused) {
-    await fail(db, v.verificationId, refused, {
+    await failVerification(db, v.verificationId, refused, {
       phoneE164: v.phoneE164,
       numberCountry: v.numberCountry,
       ...(v.telegramUserId !== undefined ? { telegramUserId: v.telegramUserId } : {}),
@@ -224,14 +227,14 @@ export async function acceptTelegramContact(
   if (!row) return { ok: false, reason: 'no_pending' };
 
   if (c.contactUserId === undefined || c.contactUserId !== c.fromId) {
-    await fail(db, row.id, 'foreign_contact');
+    await failVerification(db, row.id, 'foreign_contact');
     return { ok: false, reason: 'foreign_contact' };
   }
   if (!c.phoneE164) return { ok: false, reason: 'invalid_number' };
   const number = checkVerifiedNumber(c.phoneE164);
   if (!number.ok) {
     if (number.reason === 'invalid') return { ok: false, reason: 'invalid_number' };
-    await fail(db, row.id, number.reason, { telegramUserId: c.fromId, numberCountry: number.country });
+    await failVerification(db, row.id, number.reason, { telegramUserId: c.fromId, numberCountry: number.country });
     return { ok: false, reason: number.reason, country: number.country };
   }
 
@@ -298,7 +301,7 @@ export async function startSmsVerification(
     }
   } catch (e) {
     console.error('sms: send failed:', e instanceof Error ? e.message : e);
-    await fail(db, verificationId, 'undeliverable');
+    await failVerification(db, verificationId, 'undeliverable');
     return { ok: false, reason: 'undeliverable' };
   }
   return { ok: true, verificationId, expiresAt };

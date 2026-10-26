@@ -7,6 +7,7 @@ import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
 import { smtpMailer } from './email';
 import { smsProvider, type SmsProvider } from './sms';
+import { telegramTransport, type OidcConfig, type OidcTransport } from './telegram-oidc';
 
 // The Next.js side of the users module: the Better Auth instance and session helpers for pages and
 // server actions. Server code only.
@@ -28,6 +29,21 @@ export function auth(): Auth {
 
 export function sms(): SmsProvider {
   return (globalForAuth.sms ??= smsProvider(webEnv().SMS_PROVIDER));
+}
+
+/** "Log in with Telegram" settings, or null when TELEGRAM_OIDC_CLIENT_ID isn't set (the bot only) */
+export function telegramLogin(): (OidcConfig & { transport: OidcTransport }) | null {
+  const env = webEnv();
+  if (!env.TELEGRAM_OIDC_CLIENT_ID || !env.TELEGRAM_OIDC_CLIENT_SECRET) return null;
+  const g = globalThis as { telegramTransport?: OidcTransport };
+  g.telegramTransport ??= telegramTransport();
+  return {
+    clientId: env.TELEGRAM_OIDC_CLIENT_ID,
+    clientSecret: env.TELEGRAM_OIDC_CLIENT_SECRET,
+    redirectUri: `${env.APP_URL}/account/phone/telegram/callback`,
+    secret: env.PHONE_CODE_SECRET,
+    transport: g.telegramTransport,
+  };
 }
 
 export type CurrentSession = NonNullable<Awaited<ReturnType<Auth['api']['getSession']>>>;

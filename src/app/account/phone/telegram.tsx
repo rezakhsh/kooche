@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { Alert, Button, LinkButton } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
-import { startTelegram, type TelegramState } from './actions';
+import { startTelegram, startTelegramLoginAction, type TelegramState } from './actions';
 
 const POLL_MS = 3_000;
 
@@ -66,6 +66,21 @@ export function TelegramVerify() {
       <Button type="submit" disabled={pending} className="w-full">
         {failed ? t.retry : t.telegramStart}
       </Button>
+    </form>
+  );
+}
+
+/** "Log in with Telegram": one button; the server action sends the browser to Telegram */
+export function TelegramLogin() {
+  const [state, action, pending] = useActionState<TelegramState>(startTelegramLoginAction, undefined);
+  const t = messages.phone;
+  return (
+    <form action={action} className="space-y-2">
+      {state && 'error' in state && <Alert tone="error">{state.error}</Alert>}
+      <Button type="submit" disabled={pending} className="h-14 w-full text-base">
+        {t.loginButton}
+      </Button>
+      <p className="text-center text-xs text-neutral-600">{t.loginHint}</p>
     </form>
   );
 }

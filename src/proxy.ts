@@ -26,6 +26,8 @@ const NOT_BROWSE = new Set([
  * redirects there; browsers apply form-action to that redirect too.
  */
 const STRIPE_FORM_TARGETS = 'https://checkout.stripe.com https://billing.stripe.com';
+/** "Log in with Telegram": the phone page's form posts to our action, which redirects there */
+const TELEGRAM_LOGIN_TARGET = 'https://oauth.telegram.org';
 /** Cloudflare Turnstile (src/components/turnstile.tsx) */
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
@@ -83,7 +85,7 @@ export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_UR
     `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
-    `form-action 'self' ${STRIPE_FORM_TARGETS}`,
+    `form-action 'self' ${STRIPE_FORM_TARGETS} ${TELEGRAM_LOGIN_TARGET}`,
     "frame-ancestors 'none'",
     ...(dev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');

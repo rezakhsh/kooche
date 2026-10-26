@@ -529,7 +529,7 @@ describe('settings and headers', () => {
 
   it('lets forms go on to Stripe’s Checkout and portal, and nowhere else', () => {
     const csp = contentSecurityPolicy('n', { IMAGE_URL: undefined, S3_ENDPOINT: undefined });
-    expect(csp).toContain("form-action 'self' https://checkout.stripe.com https://billing.stripe.com;");
+    expect(csp).toContain("form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://oauth.telegram.org;");
     expect(csp).not.toContain('js.stripe.com');
   });
 });

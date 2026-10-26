@@ -84,6 +84,10 @@ const webSchema = z.object({
   // The bot's @username without @, for the t.me/<bot>?start=<token> link. The token itself is
   // only in the worker.
   TELEGRAM_BOT_USERNAME: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{3,31}$/),
+  // "Log in with Telegram" (OpenID Connect, phone scope): the bot's client ID and secret from
+  // BotFather (src/modules/users/telegram-oidc.ts). Set together; unset, the bot is the only path.
+  TELEGRAM_OIDC_CLIENT_ID: optional(z.string().regex(/^[0-9A-Za-z_-]{3,64}$/)),
+  TELEGRAM_OIDC_CLIENT_SECRET: optional(z.string().min(16)),
   // HMAC key for SMS codes stored in phone_verifications.code_hash. 32+ random characters.
   PHONE_CODE_SECRET: z.string().min(32),
   // `log` writes SMS codes to the log (development and staging). Real providers come later.
@@ -116,6 +120,10 @@ const webSchema = z.object({
   .refine((e) => !e.STRIPE_SECRET_KEY === !e.STRIPE_WEBHOOK_SECRET, {
     message: 'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together',
     path: ['STRIPE_WEBHOOK_SECRET'],
+  })
+  .refine((e) => !e.TELEGRAM_OIDC_CLIENT_ID === !e.TELEGRAM_OIDC_CLIENT_SECRET, {
+    message: 'TELEGRAM_OIDC_CLIENT_ID and TELEGRAM_OIDC_CLIENT_SECRET are set together',
+    path: ['TELEGRAM_OIDC_CLIENT_SECRET'],
   })
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
