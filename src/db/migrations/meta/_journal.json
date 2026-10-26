@@ -134,6 +134,13 @@
       "when": 1793017504049,
       "tag": "0018_telegram_login",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793019029963,
+      "tag": "0019_city_waitlist",
+      "breakpoints": true
     }
   ]
 }

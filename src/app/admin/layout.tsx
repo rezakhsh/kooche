@@ -16,6 +16,7 @@ const SECTIONS: Array<{ path: string; key: keyof typeof admin.nav; action: Staff
   { path: '/listings', key: 'listings', action: 'listings.view' },
   { path: '/users', key: 'users', action: 'users.view' },
   { path: '/businesses', key: 'businesses', action: 'businesses.view' },
+  { path: '/cities', key: 'cities', action: 'cities.manage' },
   { path: '/payments', key: 'payments', action: 'payments.view' },
   { path: '/audit', key: 'audit', action: 'overview.view' },
   { path: '/system', key: 'system', action: 'system.view' },

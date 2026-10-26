@@ -1010,6 +1010,70 @@ export const messages = {
     savedSearchesRule: 'حداکثر ۱۰ پیام در روز. برای هر جستجو جداگانه می‌توانید فوری، روزانه یا خاموش را انتخاب کنید.',
     manageSearches: 'جستجوهای ذخیره‌شده',
   },
+  // City waitlists (src/modules/launch/waitlist.ts; mockups city-waitlist and founding-business, round 12)
+  launch: {
+    eyebrow: (city: string, country: string) => `${city}، ${country}`,
+    title: (city: string) => `پیدو به‌زودی در ${city}`,
+    goalLine: (city: string, goal: number) => `${city} وقتی باز می‌شود که ${goal.toLocaleString('fa-IR')} کسب‌وکار ایرانی بپیوندند.`,
+    laterLine: (city: string, country: string) => `${city} با باز شدن کل ${country} باز می‌شود، وقتی شهرهای اصلی آن باز شدند.`,
+    progress: (n: number, goal: number) => `${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار`,
+    remaining: (n: number) => `${n.toLocaleString('fa-IR')} کسب‌وکار دیگر`,
+    waiting: (n: number, city: string) => `${n.toLocaleString('fa-IR')} نفر از ${city} منتظرند`,
+    reward: (places: number, city: string) => `${places.toLocaleString('fa-IR')} نفر اول ${city}: یک نردبان رایگان`,
+    rewardLeft: (left: number) =>
+      left > 0
+        ? `${left.toLocaleString('fa-IR')} جا مانده. نردبان از روز سوم تا شصتم بعد از باز شدن شهر روی یکی از آگهی‌هایتان اعمال می‌شود.`
+        : 'جاها پر شده، ولی خبر باز شدن را برایتان می‌فرستیم.',
+    notifyTitle: 'خبرم کن',
+    emailLabel: 'ایمیل',
+    roleLabel: 'شما',
+    roles: { looking: 'دنبال چیزی هستم', private: 'آگهی شخصی می‌دهم', business: 'کسب‌وکار دارم' },
+    submit: 'خبرم کن',
+    privacy: 'یک ایمیل تأیید می‌فرستیم. فقط برای خبر باز شدن همین شهر؛ با یک کلیک لغو می‌شود.',
+    sent: 'ایمیل تأیید را فرستادیم. روی لینک داخل آن بزنید تا در فهرست بمانید. اگر قبلاً تأیید کرده‌اید، در فهرست هستید.',
+    errors: { invalid: 'یک ایمیل درست بنویسید و یکی از گزینه‌ها را انتخاب کنید.', notWaiting: 'این شهر باز است؛ همین حالا می‌توانید آگهی بگذارید.' },
+    business: {
+      eyebrow: 'کسب‌وکار دارید؟',
+      title: (goal: number, city: string) => `از ${goal.toLocaleString('fa-IR')} کسب‌وکار بنیان‌گذار ${city} باشید`,
+      perks: ['صفحهٔ کسب‌وکار، روز اول در صفحهٔ اول شهر', 'نشان «بنیان‌گذار» در سال اول', '۶ ماه پرو رایگان، بدون کارت بانکی و بدون تمدید خودکار'],
+      cta: 'ثبت رایگان کسب‌وکار',
+    },
+    country: {
+      line: (country: string, open: number, all: number) => `${country}: ${open.toLocaleString('fa-IR')} از ${all.toLocaleString('fa-IR')} شهر اصلی باز`,
+      rule: (country: string) => `وقتی شهرهای اصلی باز شوند، کل ${country} با همهٔ شهرها باز می‌شود.`,
+      open: 'باز',
+    },
+    meanwhile: {
+      title: 'تا آن موقع',
+      openCity: (city: string) => `پیدو در ${city}`,
+      openCitySub: 'آگهی‌ها، رویدادها و کسب‌وکارها',
+      events: (city: string) => `رویدادهای ${city}`,
+      eventsSub: 'رویدادها و صفحهٔ کسب‌وکارها از همین حالا همه‌جا آزادند',
+    },
+    confirm: {
+      title: 'تأیید ایمیل',
+      intro: 'برای ماندن در فهرست خبر باز شدن شهر، این دکمه را بزنید.',
+      button: 'تأیید می‌کنم',
+      done: (city: string) => `تأیید شد. وقتی ${city} باز شد، با ایمیل خبرتان می‌کنیم.`,
+      invalid: 'این لینک معتبر نیست یا منقضی شده است. دوباره از صفحهٔ شهر «خبرم کن» را بزنید.',
+      back: (city: string) => `بازگشت به صفحهٔ ${city}`,
+    },
+    leave: {
+      title: 'خروج از فهرست',
+      intro: 'با این دکمه ایمیل شما از فهرست خبر باز شدن شهر پاک می‌شود.',
+      button: 'از فهرست خارج شوم',
+      done: 'ایمیل شما از فهرست پاک شد.',
+      invalid: 'این لینک معتبر نیست یا ایمیل قبلاً پاک شده است.',
+    },
+    email: {
+      subject: (city: string) => `تأیید: خبر باز شدن پیدو در ${city}`,
+      intro: (city: string) => `خواسته‌اید وقتی پیدو در ${city} باز شد، خبرتان کنیم. برای تأیید روی دکمه بزنید:`,
+      button: 'تأیید ایمیل',
+      ignore: 'اگر شما این را نخواسته‌اید، این ایمیل را نادیده بگیرید؛ بدون تأیید، ایمیل شما بعد از ۳۰ روز پاک می‌شود.',
+      text: (city: string, link: string) =>
+        `خواسته‌اید وقتی پیدو در ${city} باز شد، خبرتان کنیم. برای تأیید این لینک را باز کنید:\n${link}\n\nاگر شما این را نخواسته‌اید، این ایمیل را نادیده بگیرید؛ بدون تأیید، ایمیل شما بعد از ۳۰ روز پاک می‌شود.`,
+    },
+  },
   // Iran read-only (src/lib/region.ts, wave 0). Never say "sanctions" and never mention VPNs or
   // virtual numbers (owner, round 12): Peydoo has no office in Iran and can't guarantee safety.
   iran: {
@@ -1047,7 +1111,7 @@ export const messages = {
     botIntro: 'از ربات پیدو در تلگرام استفاده کنید: شماره‌ای را که تلگرام قبلاً تأیید کرده است می‌فرستید. رایگان است.',
     iranTipTitle: 'تلگرام‌تان روی شمارهٔ ایران است؟',
     iranTipBody:
-      'در تلگرام «افزودن حساب» (Add Account) را بزنید و یک حساب دوم با شمارهٔ کشوری بسازید که در آن زندگی می‌کنید. کد را خود تلگرام می‌فرستد. بعد با همان حساب دوباره «تأیید با تلگرام» را بزنید.',
+      'در تلگرام «افزودن حساب» (Add Account) را بزنید و یک حساب دوم با شمارهٔ کشوری بسازید که در آن زندگی می‌کنید. کد را خود تلگرام می‌فرستد. بعد با همان حساب دوباره تأیید را شروع کنید.',
     loginResult: {
       ok: 'شماره شما تأیید شد.',
       iran: `شمارهٔ ایران (${ltr('+98')}) پذیرفته نمی‌شود: پیدو در ایران دفتر ندارد و نمی‌تواند امنیت معامله را با این شماره‌ها تضمین کند. اگر خارج از ایران زندگی می‌کنید، با یک حساب تلگرام روی شمارهٔ محلی‌تان دوباره امتحان کنید.`,
@@ -2311,7 +2375,36 @@ export const pages = {
  */
 export const admin = {
   title: 'پنل پیدو',
+  // Countries and cities (src/app/admin/cities; mockup admin-cities, round 12)
+  cities: {
+    title: 'کشورها و شهرها',
+    intro: 'هر شهر یک عدد دارد: تعداد کسب‌وکار تأییدشده. ثبت‌نام مردم فقط برای اطلاع است و شرط نیست. هیچ شهری خودکار باز نمی‌شود.',
+    columns: { city: 'شهر', status: 'وضعیت', businesses: 'کسب‌وکار / هدف', waiting: 'نفر منتظر (فقط برای اطلاع)', actions: '' },
+    status: { open: 'باز', waitlist: 'فهرست انتظار', later: 'با باز شدن کشور' },
+    with: (city: string) => `همراه با ${city}`,
+    radius: (km: number) => `تا ${km.toLocaleString('fa-IR')} کیلومتر`,
+    since: 'از',
+    ready: (city: string, n: number, goal: number) => `آمادهٔ تصمیم: ${city} ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار دارد.`,
+    saveGoal: 'ذخیرهٔ هدف',
+    open: (city: string) => `باز کردن ${city}…`,
+    toWaitlist: 'فهرست انتظار',
+    toLater: 'با کشور',
+    confirmOpen: (city: string, waiting: number) =>
+      `${city} باز می‌شود: از همین حالا آگهی در آن منتشر می‌شود و صفحهٔ شهر به جای فهرست انتظار آگهی‌ها را نشان می‌دهد. خبرش را خودتان با ایمیل برای ${waiting.toLocaleString('fa-IR')} نفر منتظر می‌فرستید (فهرست را از دکمهٔ «ایمیل‌ها» بردارید).`,
+    confirm: 'بله، باز شود',
+    cancel: 'انصراف',
+    export: 'ایمیل‌ها (CSV)',
+    country: {
+      title: (country: string) => `باز کردن کل ${country}`,
+      body: (country: string) => `همهٔ شهرهای ${country} باز می‌شوند و محدودهٔ کیلومتری برداشته می‌شود. وقتی شهرهای اصلی باز شدند.`,
+      button: (country: string) => `باز کردن کل ${country}…`,
+      confirm: (country: string) => `کل ${country} باز شود؟ این کار همهٔ شهرها را باز می‌کند.`,
+    },
+    done: 'ذخیره شد.',
+    error: 'ذخیره نشد: هدف باید عددی بین ۱ و ۱۰۰۰ باشد.',
+  },
   nav: {
+    cities: 'کشورها و شهرها',
     overview: 'نمای کلی',
     queue: 'صف بررسی',
     fresh: 'آگهی‌های تازه',

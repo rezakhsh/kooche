@@ -512,6 +512,8 @@ Grants: the app inserts; the worker updates.
 
 ## Decided by the owner (Oct 26, 2026)
 
+0. **Telegram login (item 2b) switched off after trying it on staging:** too complicated, and Telegram's page says Peydoo wants access to the person's Telegram. The bot stays the main and only Telegram path (with the +98 / +888 / allowlist refusal). The code stays, off, for when Telegram makes it simpler.
+
 1. **Business goals:** Hamburg **20**. The others keep the plan page's numbers: Cologne and Bonn 25, Düsseldorf 20, Frankfurt 20. All of them can be edited in admin.
 2. **Berlin area, Potsdam included.**
    - **Why a distance limit:** every postal code joins its nearest seeded city, so some codes that join Berlin are 138 km away in rural Brandenburg.

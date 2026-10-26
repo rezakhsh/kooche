@@ -20,6 +20,8 @@ const NOT_BROWSE = new Set([
   ...['b', 'business', 'pro'],
   // Reporting content; the admin page's internal route (Oct 23, 2026)
   ...['report', 'admin'],
+  // City waitlist: confirming and leaving (wave 0)
+  'waitlist',
 ]);
 /**
  * Stripe's hosted Checkout and Customer Portal. A purchase form posts to our server action, which

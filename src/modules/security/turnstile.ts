@@ -12,7 +12,7 @@ const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 export const TURNSTILE_FIELD = 'cf-turnstile-response';
 
 /** One action per form, so a token solved on one form can't be spent on another */
-export type TurnstileAction = 'login' | 'publish-listing' | 'publish-event' | 'report';
+export type TurnstileAction = 'login' | 'publish-listing' | 'publish-event' | 'report' | 'waitlist';
 
 /**
  * Cloudflare's published test secrets (always pass, always fail, always "already spent"). Their

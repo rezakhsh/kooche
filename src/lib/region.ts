@@ -4,8 +4,8 @@ import { visitorCountry } from './client-ip';
 // CF-IPCountry, trusted only when the request really came through Cloudflare) may read everything
 // but write nothing, except what protects the person: reporting content (DSA Art. 16), signing
 // out and ending other sessions, deleting the account, downloading their data, turning off
-// notifications and alerts, plus error reports and the payment and messenger webhooks (which never
-// come from Iran). No accounts, sign-ins, phone checks, posting, chat, favorites or payments.
+// notifications and alerts, leaving a city waitlist, plus error reports and the payment and
+// messenger webhooks (which never come from Iran). No accounts, sign-ins, phone checks, posting, chat, favorites or payments.
 //
 // Three layers: src/proxy.ts refuses the write with a Persian page (iranBlocksRequest), the
 // Cloudflare WAF rule (iranWafExpression, docs/setup.md) does the same at the edge, where it can't
@@ -24,7 +24,7 @@ export const IRAN_WRITE_PATHS = [
 ] as const;
 
 /** Writes allowed from Iran: path prefixes */
-export const IRAN_WRITE_PREFIXES = ['/report', '/alerts/off', '/api/monitoring', '/api/stripe/webhook', '/api/whatsapp/webhook'] as const;
+export const IRAN_WRITE_PREFIXES = ['/report', '/alerts/off', '/waitlist/leave', '/api/monitoring', '/api/stripe/webhook', '/api/whatsapp/webhook'] as const;
 
 const READS = new Set(['GET', 'HEAD', 'OPTIONS']);
 

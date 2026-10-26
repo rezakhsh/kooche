@@ -51,10 +51,6 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
               {me?.phone && <h2 className="mb-3 font-semibold">{t.change}</h2>}
               <TelegramLogin />
             </Card>
-            <div className="rounded-2xl border border-neutral-200 p-4 text-sm leading-7 text-neutral-700">
-              <b className="block text-neutral-900">{t.iranTipTitle}</b>
-              {t.iranTipBody}
-            </div>
             <details className="rounded-2xl border border-neutral-200 p-4">
               <summary className="cursor-pointer text-sm font-semibold text-brand-800">{t.botTitle}</summary>
               <p className="my-3 text-sm leading-relaxed text-neutral-600">{t.botIntro}</p>
@@ -68,6 +64,10 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
             <TelegramVerify />
           </Card>
         )}
+        <div className="rounded-2xl border border-neutral-200 p-4 text-sm leading-7 text-neutral-700">
+          <b className="block text-neutral-900">{t.iranTipTitle}</b>
+          {t.iranTipBody}
+        </div>
 
         <Card>
           <h2 className="mb-2 font-semibold">{t.smsTitle}</h2>

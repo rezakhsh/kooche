@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { RawParams } from '../../../../modules/search/filters';
 import { BrowsePage, browseMetadata } from '../../_browse/browse-page';
+import { CityWaitlist, waitingCity, waitlistMetadata } from '../../_browse/waitlist-page';
 import { resolveBrowse } from '../../_browse/resolve';
 
 // /germany/berlin/cars: a category in a city, the main browse page of a city-first site.
@@ -8,9 +9,14 @@ import { resolveBrowse } from '../../_browse/resolve';
 type Props = { params: Promise<{ country: string; place: string; category: string }>; searchParams: Promise<RawParams> };
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  return browseMetadata(await resolveBrowse(params, searchParams));
+  const b = await resolveBrowse(params, searchParams);
+  const launch = await waitingCity(b);
+  return launch ? waitlistMetadata(b, launch) : browseMetadata(b);
 }
 
 export default async function CityCategoryPage({ params, searchParams }: Props) {
-  return <BrowsePage b={await resolveBrowse(params, searchParams)} />;
+  const b = await resolveBrowse(params, searchParams);
+  // A city that isn't open yet shows its waitlist (round 12); its events pages work as usual
+  const launch = await waitingCity(b);
+  return launch ? <CityWaitlist b={b} launch={launch} /> : <BrowsePage b={b} />;
 }

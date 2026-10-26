@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   /** Everyone's audit rows (moderators see their own) */
   'audit.all': 'admin',
   'system.view': 'admin',
+  /** Countries and cities: opening, goals, the waitlist export (round 12) */
+  'cities.manage': 'admin',
   'staff.manage': 'admin',
 } as const satisfies Record<string, StaffRole>;
 

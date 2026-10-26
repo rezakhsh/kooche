@@ -1,7 +1,7 @@
 import { createPublicKey, verify as verifySignature, type JsonWebKey } from 'node:crypto';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { phoneVerifications } from '../../db/schema';
+import { phoneVerifications, users } from '../../db/schema';
 import { hmacSha256, linkToken, sha256 } from '../../lib/tokens';
 import { completeVerification, failVerification, type FailureReason } from './phone';
 import { checkVerifiedNumber, telegramNumberToE164 } from './phone-number';
@@ -178,6 +178,11 @@ export async function finishTelegramLogin(
   const number = e164 ? checkVerifiedNumber(e164) : null;
   if (!number) return fail('oidc_failed');
   if (!number.ok) return number.reason === 'invalid' ? fail('oidc_failed') : fail(number.reason, number.country);
+
+  // Open question (round 11): is `sub` the bot's user id? Logged as yes/no only, for accounts that
+  // also used the bot; never the id or the number. Linking waits for the answer.
+  const [known] = await db.select({ telegramUserId: users.telegramUserId }).from(users).where(eq(users.id, opts.userId));
+  if (known?.telegramUserId) console.log(`telegram-oidc: sub equals the bot's user id: ${String(claims.sub) === String(known.telegramUserId) ? 'yes' : 'no'}`);
 
   const done = await completeVerification(db, {
     verificationId: row.id,
