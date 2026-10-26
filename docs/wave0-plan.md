@@ -103,7 +103,7 @@ Production gets nothing until you ask for `peydoo-promote`.
   - the business count counts only verified, active businesses in that city (Bonn counts for Cologne).
 
 **Risks**
-- **Berlin's edge.** A Potsdam or Brandenburg postal code joins its own nearest city, so it is refused. Do you want the Berlin area (for example within 30 km) to count as Berlin?
+- **Berlin's edge** (decided: the Berlin area including Potsdam, within 40 km; see "Decided by the owner", point 2). A test covers Potsdam allowed and a postal code joining Berlin but 60 km away refused.
 - **Cached pages.** City pages are cached at Cloudflare. Opening a city must purge them; the worker already does purges.
 - The confirmation email is sent straight from the web (like login codes), because the outbox would store the token in plain text.
 
@@ -510,21 +510,23 @@ Grants: the app inserts; the worker updates.
 5. New: "**Cities:** posting non-event listings only in open cities; events and businesses everywhere in an active country."
 6. Unchanged but worth knowing: "money and entitlements only through webhooks" still holds with founding Pro as a Stripe trial. **The waitlist reward bumps (wave 2) will need a decision**: either a free Stripe order or a rule change for staff grants.
 
-## Decisions I need from you
+## Decided by the owner (Oct 26, 2026)
 
-1. **Business goals for Germany.**
-   - The plan page (version 6) says Hamburg 30, Cologne and Bonn 25, Düsseldorf 20, Frankfurt 20.
-   - `progress.md` and the mockups use Hamburg 20.
-   - Which numbers? They are editable later in admin either way.
-2. **Berlin's edge.** Only Berlin's own postal codes, or the Berlin area (for example within 30 km, Potsdam included)?
-3. **After 6 months of founding Pro.**
-   - The plan page's decision 12 says €12 a month for one year if they say yes.
-   - The `founding-business` mockup says €24.
-   - Which one? (€12 means one extra Stripe coupon applied when they opt in.)
-4. **Founding places in Berlin:** 30 (the plan's "big city" number), or another number?
-5. **The founding badge for one year:** in wave 0 (+0.5 day) or with the redesign in wave 1?
-6. **The limited email-only account** for people with neither messenger. It was in the plan page's wave 0 but isn't in your list. My suggestion: leave it for wave 2. In wave 0, «هیچ‌کدام را ندارم» explains the second-account trick and offers to email support, and every such case is logged for the SMS switch-on rule.
-7. **Turkey (+90) on the phone allowlist now?** It is seeded, and messenger checks cost nothing. My suggestion: yes.
-8. **To shorten wave 0, if you want:**
-   - a waitlist page without email signups (just the goal and the business button) saves about 1.5 days;
-   - pausing consumer purchases (bumps and featured) until the withdrawal button is ready saves 2 days now. That costs some early income, and you'd have nothing to sell to private sellers on day one.
+1. **Business goals:** Hamburg **20**. The others keep the plan page's numbers: Cologne and Bonn 25, Düsseldorf 20, Frankfurt 20. All of them can be edited in admin.
+2. **Berlin area, Potsdam included.**
+   - **Why a distance limit:** every postal code joins its nearest seeded city, so some codes that join Berlin are 138 km away in rural Brandenburg.
+   - **The rule:** the cities Berlin and Potsdam are open, and a listing must also be within **40 km of Berlin's centre** (Potsdam is 27 km away). Farther away, the seller sees "only the Berlin area for now".
+   - **How:** a `launch_radius_km` column on `locations`, in migration 0016, plus Potsdam's `launch_with_id` pointing to Berlin. About +0.25 day.
+3. **After 6 months, founding Pro costs €24 a month**, and only if the business says yes. No extra coupon.
+4. **Founding places in Berlin: 30.**
+5. **The founding badge:** explained to the owner; waiting for the answer.
+6. **Everyone verifies a phone number to post.** There is no email-only limited account.
+   - «هیچ‌کدام را ندارم» explains the second-account trick (Telegram "add account", WhatsApp's second account) and offers support by email.
+   - Each such case is logged for the SMS switch-on rule.
+   - This replaces the plan page's "limited account" for wave 0.
+7. **Turkey (+90) is on the phone allowlist.**
+8. **No cuts:**
+   - the waitlist page is built as in the `city-waitlist` mockup, with email signups;
+   - purchases stay on sale, with the withdrawal button.
+
+Total stays at about 16–18 working days (+0.25 for the Berlin area).

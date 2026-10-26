@@ -969,4 +969,4 @@ Done (branch `wave0`, `/root/classifieds-wave0`): `docs/wave0-plan.md`. It cover
 
 Found while reading: round 12 has no section in `docs/design-options.md` (it is in this file and the plan page v6); the founding-business mockup says €24 after 6 months while the plan page says €12; the `iran` mockup shows email sign-up and messaging, which the plan builds only in wave 4 after the lawyer.
 
-Next: the owner answers the plan's eight decisions and approves; then the build starts in the order given there.
+Owner's answers (same day): Hamburg 20; Berlin area including Potsdam (built as Berlin + Potsdam within 40 km); €24 a month after founding Pro, only on yes; 30 founding places in Berlin; everyone verifies a phone to post (no email-only account); +90 on the allowlist; no cuts. Open: the founding badge now or in wave 1. Next: the owner says go; then the build starts in the order in `docs/wave0-plan.md`.
