@@ -1,0 +1,555 @@
+<title>برنامهٔ ساخت موج ۰ پیدو</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: one reading column; summary first, then one section per item; technical details folded. Peydoo's own turquoise and saffron. */
+:root {
+  --bg: #ffffff;
+  --surface: #f3f8f8;
+  --fg: #12282a;
+  --muted: #4c6466;
+  --line: #d5e4e4;
+  --brand: #0b6e77;
+  --brand-soft: #e6f2f1;
+  --saffron: #f2a516;
+  --saffron-soft: #fff4dc;
+  --saffron-ink: #7a4b00;
+  --danger-soft: #fdecea;
+  --danger-ink: #8a2a1d;
+  --font: "Vazirmatn", "Vazir", Tahoma, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1a1b; --surface: #142628; --fg: #e3eeee; --muted: #9fb6b7; --line: #24393b;
+    --brand: #5fc3c9; --brand-soft: #16343a; --saffron: #f2b64a; --saffron-soft: #2e2512; --saffron-ink: #f5cf86;
+    --danger-soft: #3a1d18; --danger-ink: #f4b2a6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1a1b; --surface: #142628; --fg: #e3eeee; --muted: #9fb6b7; --line: #24393b;
+  --brand: #5fc3c9; --brand-soft: #16343a; --saffron: #f2b64a; --saffron-soft: #2e2512; --saffron-ink: #f5cf86;
+  --danger-soft: #3a1d18; --danger-ink: #f4b2a6; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.95;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 760px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.5; margin: 0; }
+h1 { font-size: 30px; font-weight: 900; }
+h2 { font-size: 22px; font-weight: 900; }
+h3 { font-size: 16px; font-weight: 700; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-inline-start: 1.3em; display: grid; gap: 6px; }
+code, .ltr { font-family: var(--mono); font-size: 13px; direction: ltr; unicode-bidi: isolate; }
+a { color: var(--brand); }
+
+header.top { padding-block: 32px 20px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 13px; font-weight: 700; color: var(--brand); letter-spacing: .02em; }
+.lead { color: var(--muted); font-size: 17px; }
+.status { display: inline-flex; align-items: center; gap: 8px; width: fit-content; background: var(--saffron-soft); color: var(--saffron-ink); font-weight: 700; font-size: 14px; padding: 4px 12px; border-radius: 999px; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 16px; }
+nav.toc a { text-decoration: none; font-size: 14px; color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--brand); color: var(--brand); outline: none; }
+
+section { padding-block: 28px; border-bottom: 1px solid var(--line); display: grid; gap: 14px; }
+section:last-of-type { border-bottom: 0; }
+
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border-radius: 16px; padding: 14px 16px; display: grid; gap: 2px; }
+.stat b { font-size: 26px; font-weight: 900; color: var(--brand); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--muted); }
+@media (max-width: 560px) { .summary { grid-template-columns: 1fr; } }
+
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: start; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--surface); font-size: 13px; color: var(--muted); font-weight: 700; }
+td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+tr.total td { font-weight: 900; background: var(--brand-soft); }
+
+.decided { display: grid; gap: 8px; list-style: none; padding: 0; }
+.decided li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.decided li::before { content: "✓"; color: var(--brand); font-weight: 900; }
+
+.item-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.days { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.num { color: var(--brand); }
+.block { display: grid; gap: 8px; }
+.you { background: var(--saffron-soft); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.you h3 { color: var(--saffron-ink); }
+.risk { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.quote { border-inline-start: 3px solid var(--brand); padding-inline-start: 12px; color: var(--fg); }
+.warn { background: var(--danger-soft); color: var(--danger-ink); border-radius: 14px; padding: 12px 16px; }
+
+details { border: 1px solid var(--line); border-radius: 14px; }
+summary { cursor: pointer; padding: 10px 16px; font-weight: 700; font-size: 14px; color: var(--muted); list-style-position: inside; }
+summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 14px; }
+details[open] summary { border-bottom: 1px solid var(--line); }
+details .inner { padding: 12px 16px; display: grid; gap: 10px; font-size: 14px; min-width: 0; }
+details .inner h4 { margin: 0; font-size: 14px; }
+
+ol.steps { counter-reset: s; list-style: none; padding: 0; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 10px; }
+ol.steps > li::before { content: counter(s, persian); width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: var(--bg); display: grid; place-items: center; font-weight: 700; font-size: 13px; margin-top: 3px; }
+
+.next { background: var(--brand); color: var(--bg); border-radius: 18px; padding: 18px 20px; display: grid; gap: 6px; }
+.next h2 { color: var(--bg); }
+footer { padding-top: 20px; font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap" dir="rtl" lang="fa">
+
+<header class="top">
+  <p class="eyebrow">پیدو · موج ۰ · ۲۶ اکتبر ۲۰۲۶</p>
+  <h1>برنامهٔ ساخت موج ۰: آنچه پیش از باز شدن برلین باید آماده باشد</h1>
+  <p class="lead">هنوز هیچ کدی عوض نشده. تصمیم‌هایتان در این نسخه آمده است. وقتی بگویید «شروع»، ساخت شروع می‌شود.</p>
+  <p class="status">منتظر «شروع» شما</p>
+</header>
+
+<nav class="toc" aria-label="بخش‌ها">
+  <a href="#summary">خلاصه</a>
+  <a href="#decided">تصمیم‌های شما</a>
+  <a href="#cities">۱. شهرها</a>
+  <a href="#telegram">۲. تلگرام</a>
+  <a href="#whatsapp">۳. واتس‌اپ</a>
+  <a href="#founding">۴. پروی بنیان‌گذار</a>
+  <a href="#iran">۵. ایران</a>
+  <a href="#withdraw">۶. دکمهٔ انصراف</a>
+  <a href="#todo">کارهای شما</a>
+  <a href="#rules">قوانین CLAUDE.md</a>
+</nav>
+
+<section id="summary">
+  <h2>خلاصه</h2>
+  <div class="summary">
+    <div class="stat"><b>۶</b><span>کار اصلی</span></div>
+    <div class="stat"><b>۱۶ تا ۱۸٫۵</b><span>روز کاری (برآورد)</span></div>
+    <div class="stat"><b>۰</b><span>تغییر در سرور اصلی، تا خودتان بخواهید</span></div>
+  </div>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>کار</th><th>روز</th></tr></thead>
+      <tbody>
+        <tr><td>۱. فقط منطقهٔ برلین باز؛ اتریش بسته؛ بقیهٔ شهرهای آلمان با فهرست انتظار</td><td class="n">۳ تا ۴</td></tr>
+        <tr><td>۲. تلگرام: رد ‎+98، ‎+888 و کشورهای خارج از فهرست؛ «ورود با تلگرام» راه اصلی</td><td class="n">۳ تا ۳٫۵</td></tr>
+        <tr><td>۳. واتس‌اپ: کاربر کد را برای ما می‌فرستد؛ پیامک ساخته ولی خاموش</td><td class="n">۳</td></tr>
+        <tr><td>۴. پروی بنیان‌گذار بدون کارت که خودش تمام می‌شود، و نشان «بنیان‌گذار»</td><td class="n">۲٫۵ تا ۳</td></tr>
+        <tr><td>۵. ایران فقط خواندنی، با متن تازه</td><td class="n">۱٫۵ تا ۲</td></tr>
+        <tr><td>۶. دکمهٔ انصراف برای خریدهای مردم عادی</td><td class="n">۲</td></tr>
+        <tr><td>مستندات، نصب روی سایت آزمایشی، بررسی در اندازهٔ گوشی</td><td class="n">۱</td></tr>
+        <tr class="total"><td>جمع</td><td class="n">۱۶ تا ۱۸٫۵</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>برنامهٔ قبلی برای موج ۰ حدود ۷ تا ۱۰ روز گفته بود. سه چیز آن را بزرگ‌تر کرد: فهرست انتظار شهرها از موج ۲ به موج ۰ آمد، «ورود با تلگرام» بعد از آزمایش ۲۵ اکتبر اضافه شد، و معلوم شد دکمهٔ انصراف وجود ندارد.</p>
+  <div class="block">
+    <h3>ترتیب ساخت</h3>
+    <p>هر قدم: آزمون، ثبت در گیت، رفتن روی سایت آزمایشی و بررسی همان‌جا. سرور اصلی (peydoo.com) فقط وقتی خودتان بخواهید.</p>
+    <ol class="steps">
+      <li>قفل ‎+98 و ‎+888 در ربات تلگرام (کوچک‌ترین قدم و مهم‌ترین شکاف)</li>
+      <li>بستن اتریش و ثبت آگهی فقط در منطقهٔ برلین</li>
+      <li>ایران فقط خواندنی</li>
+      <li>ورود با تلگرام</li>
+      <li>واتس‌اپ</li>
+      <li>پروی بنیان‌گذار و نشان</li>
+      <li>دکمهٔ انصراف</li>
+      <li>صفحه‌های فهرست انتظار و صفحهٔ «کشورها و شهرها» در پنل مدیریت</li>
+    </ol>
+  </div>
+</section>
+
+<section id="decided">
+  <h2>تصمیم‌های شما (۲۶ اکتبر)</h2>
+  <ul class="decided">
+    <li><span><b>هامبورگ: ۲۰ کسب‌وکار.</b> بقیه همان عدد صفحهٔ برنامه: کلن و بن ۲۵، دوسلدورف ۲۰، فرانکفورت ۲۰. همه در پنل مدیریت قابل تغییرند.</span></li>
+    <li><span><b>منطقهٔ برلین، با پوتسدام.</b> در داده‌های ما بعضی کدپستی‌هایی که «مال برلین» حساب می‌شوند تا ۱۳۸ کیلومتر دورند. پس قاعده این است: برلین و پوتسدام بازند، به شرط اینکه آگهی تا ۴۰ کیلومتری مرکز برلین باشد (پوتسدام ۲۷ کیلومتر است). دورتر از آن، پیام «فعلاً فقط منطقهٔ برلین» نشان داده می‌شود.</span></li>
+    <li><span><b>بعد از ۶ ماه، پرو ماهی ۲۴ €</b>، و فقط اگر خود کسب‌وکار بخواهد.</span></li>
+    <li><span><b>۳۰ جای بنیان‌گذار در برلین.</b></span></li>
+    <li><span><b>نشان «بنیان‌گذار» همین حالا در موج ۰.</b> یک سال از روزی که کسب‌وکار صفحه‌اش را در پیدو می‌سازد، بعد خودش برداشته می‌شود.</span></li>
+    <li><span><b>همه برای گذاشتن آگهی باید شماره‌شان را تأیید کنند.</b> حساب محدود فقط با ایمیل نداریم. دکمهٔ «هیچ‌کدام را ندارم» راه حساب دوم در تلگرام یا واتس‌اپ را توضیح می‌دهد و ایمیل پشتیبانی را نشان می‌دهد. هر مورد برای قاعدهٔ روشن کردن پیامک ثبت می‌شود.</span></li>
+    <li><span><b>شماره‌های ترکیه (‎+90) پذیرفته می‌شوند.</b></span></li>
+    <li><span><b>بدون کوتاه کردن:</b> صفحهٔ فهرست انتظار مثل طرح، با ثبت ایمیل؛ نردبان و ویژه همچنان فروخته می‌شوند، با دکمهٔ انصراف.</span></li>
+  </ul>
+</section>
+
+<section id="cities">
+  <div class="item-head"><h2><span class="num">۱.</span> فقط منطقهٔ برلین باز</h2><span class="days">۳ تا ۴ روز</span></div>
+  <div class="block">
+    <h3>چه چیزی می‌گیرید</h3>
+    <ul>
+      <li><b>اتریش بسته می‌شود.</b> صفحهٔ <span class="ltr">/austria</span> دیگر نیست و در انتخاب کشور هم نمی‌آید. (روی سایت آزمایشی هیچ آگهی اتریشی نیست، پس چیزی گم نمی‌شود.)</li>
+      <li><b>در آلمان، کالا، خانه و اتاق، خودرو، خدمات و کار فقط در منطقهٔ برلین</b> ثبت می‌شود.</li>
+      <li><b>صفحهٔ کسب‌وکار و رویداد در همهٔ شهرهای آلمان از روز اول</b>، همان‌طور که در دور ۱۲ تصمیم گرفتید.</li>
+      <li><b>هامبورگ، کلن و بن، دوسلدورف و فرانکفورت</b> صفحهٔ فهرست انتظار می‌گیرند (طرح <span class="ltr">city-waitlist</span>):
+        <ul>
+          <li>هدف کسب‌وکار و نوار پیشرفت («۱۲ از ۲۰ کسب‌وکار»)؛</li>
+          <li>«خبرم کن» با ایمیل و ایمیل تأیید؛</li>
+          <li>جعبهٔ کسب‌وکار بنیان‌گذار.</li>
+        </ul>
+      </li>
+      <li><b>بقیهٔ شهرهای آلمان</b> می‌نویسند «با باز شدن کل آلمان باز می‌شود» و همان ثبت ایمیل را دارند.</li>
+      <li><b>در پنل مدیریت، صفحهٔ «کشورها و شهرها»</b> (طرح <span class="ltr">admin-cities</span>): وضعیت هر شهر، تعداد کسب‌وکار در برابر هدف، تعداد منتظرها (فقط برای اطلاع)، دکمهٔ «باز کردن شهر…» و «باز کردن کل آلمان». هیچ شهری خودکار باز نمی‌شود.</li>
+      <li><b>چه چیزی شمرده می‌شود:</b> کسب‌وکار تأییدشده و فعال در همان شهر. کسب‌وکارهای بن برای کلن شمرده می‌شوند.</li>
+    </ul>
+  </div>
+  <div class="risk">
+    <h3>خطرها</h3>
+    <ul>
+      <li>صفحه‌های شهر در Cloudflare ذخیره می‌شوند؛ باز کردن شهر باید آن‌ها را پاک کند. این کار از قبل برای حذف آگهی ساخته شده و دوباره استفاده می‌شود.</li>
+      <li>ایمیل تأیید فهرست انتظار مستقیم فرستاده می‌شود، مثل کد ورود، تا کد در صف پیام‌ها ذخیره نشود.</li>
+    </ul>
+  </div>
+  <div class="you"><h3>کار شما</h3><p>فعلاً هیچ. بعداً، وقتی شهری باز شد، ایمیل خبرش را خودتان می‌فرستید، همان‌طور که تصمیم گرفتید.</p></div>
+  <details>
+    <summary>جزئیات فنی: فایل‌ها، پایگاه داده، آزمون‌ها</summary>
+    <div class="inner">
+      <h4>فایل‌ها</h4>
+      <ul>
+        <li><span class="ltr">seed/countries.ts</span>: اتریش از فهرست باز بیرون می‌رود. <span class="ltr">seed/locations/de.ts</span>: وضعیت و هدف هر شهر.</li>
+        <li>ماژول تازهٔ <span class="ltr">src/modules/launch/</span> (شهرها و فهرست انتظار).</li>
+        <li><span class="ltr">src/modules/listings/listings.ts</span>: آگهی غیررویداد در شهر بسته رد می‌شود (خطای <span class="ltr">city_not_open</span>).</li>
+        <li>صفحه‌ها: <span class="ltr">src/app/[country]/_browse/</span>، صفحهٔ انتظار شهر، لینک‌های تأیید و لغو، <span class="ltr">src/app/admin/cities/</span>، صفحهٔ اول و انتخاب شهر، متن‌ها در <span class="ltr">src/messages/fa.ts</span>.</li>
+      </ul>
+      <h4>پایگاه داده (migration 0016)</h4>
+      <ul>
+        <li>جدول شهرها چند ستون تازه می‌گیرد: وضعیت (<span class="ltr">open / waitlist / later</span>)، هدف کسب‌وکار، زمان باز شدن، شعاع (برلین ۴۰ کیلومتر)، و «همراه با» (بن ← کلن، پوتسدام ← برلین).</li>
+        <li>جدول تازهٔ فهرست انتظار: شهر، ایمیل، نقش (دنبال چیزی هستم / آگهی شخصی / کسب‌وکار)، تأیید و لغو. هر ایمیل یک بار در هر شهر. ثبت‌نام‌های تأییدنشده بعد از ۳۰ روز پاک می‌شوند.</li>
+      </ul>
+      <h4>آزمون‌ها</h4>
+      <ul>
+        <li>اتریش رد؛ آگهی در هامبورگ رد؛ رویداد و کسب‌وکار در هامبورگ پذیرفته؛ پوتسدام پذیرفته؛ کدپستی ۶۰ کیلومتری رد؛ تمدید آگهی برلین کار می‌کند.</li>
+        <li>فهرست انتظار: تأیید دومرحله‌ای، ایمیل تکراری، لغو، محدودیت تعداد، لینک یک‌بارمصرف، پاک شدن بعد از ۳۰ روز.</li>
+        <li>مدیریت: فقط کارکنان؛ ثبت در گزارش کارها؛ پاک شدن حافظهٔ Cloudflare؛ شمارش درست کسب‌وکارها.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="telegram">
+  <div class="item-head"><h2><span class="num">۲.</span> تلگرام</h2><span class="days">۳ تا ۳٫۵ روز</span></div>
+  <div class="block">
+    <h3>الف. قفل در ربات (شکافی که در دور ۸ پیدا شد)</h3>
+    <ul>
+      <li>امروز ربات هر شماره‌ای را می‌پذیرد، حتی ‎+98 و شماره‌های ناشناس ‎+888.</li>
+      <li>یک قاعده برای همهٔ راه‌ها (ربات، ورود با تلگرام، واتس‌اپ): <b>فقط شماره‌های کشورهای فهرست</b> (۳۷ کشور ثبت‌شده، با ترکیه). ایران در فهرست نیست و ‎+888 کشور ندارد، پس هر دو رد می‌شوند.</li>
+      <li>پیام رد شدن همان متن دور ۱۲ است (طرح <span class="ltr">iran-phone</span>) و هرگز کلمهٔ «تحریم» را نمی‌آورد.</li>
+      <li><b>هر رد شدن با کشورِ شماره ثبت می‌شود</b> (نه خود شماره)، تا از روز اول عدد لازم برای قاعدهٔ روشن کردن پیامک را داشته باشیم.</li>
+    </ul>
+  </div>
+  <div class="block">
+    <h3>ب. «ورود با تلگرام» به‌عنوان راه اصلی</h3>
+    <p>همان چیزی که ۲۵ اکتبر با گوشی شما آزمودیم، حالا داخل سایت:</p>
+    <ol class="steps">
+      <li>کاربر «تأیید با تلگرام» را می‌زند. پیش از آن یک جمله: «برای جلوگیری از کلاهبرداری، فقط یک بار؛ به کسی نشان داده نمی‌شود».</li>
+      <li>تلگرام باز می‌شود؛ کاربر اجازهٔ شماره را می‌دهد و خودکار به سایت برمی‌گردد.</li>
+      <li>سایت امضای تلگرام را بررسی می‌کند و فقط شمارهٔ «تأییدشده» را می‌پذیرد، با همان قفل ‎+98 و ‎+888.</li>
+      <li>نام، عکس و نام کاربری که تلگرام بی‌آنکه بخواهیم می‌فرستد، دور ریخته می‌شوند.</li>
+    </ol>
+    <p>دکمهٔ تلگرام بزرگ‌ترین دکمه است و واتس‌اپ دومی (طرح <span class="ltr">verify-phone</span>). لینک ربات کوچک می‌شود: «ورود با تلگرام کار نکرد؟ از ربات استفاده کنید».</p>
+  </div>
+  <div class="risk">
+    <h3>خطرها</h3>
+    <ul>
+      <li>آزمایش ۲۵ اکتبر نشان نداد شناسهٔ کاربر در «ورود با تلگرام» همان شناسهٔ ربات است یا نه. روز اول با حساب آزمایشی شما مقایسه می‌کنم. اگر یکی بود، اعلان‌های تلگرام هم وصل می‌مانند.</li>
+      <li>صفحهٔ تلگرام می‌نویسد «پیدو می‌خواهد شماره‌تان را ببیند». ممکن است بعضی‌ها نپذیرند؛ جملهٔ ما پیش از آن می‌آید، و ربات و واتس‌اپ هم هستند.</li>
+      <li>«ورود با تلگرام» تازه است. اگر تلگرام آن را عوض کند، ربات همچنان کار می‌کند.</li>
+    </ul>
+  </div>
+  <div class="you">
+    <h3>کار شما در BotFather</h3>
+    <ul>
+      <li><b>ربات آزمایشی (‎@Peydoo_bot)</b>، که از ۲۵ اکتبر مانده:
+        <ul>
+          <li>نشانی آزمایشی <span class="ltr">https://staging.peydoo.com/tg-oidc-test</span> را پاک کنید؛</li>
+          <li>رمز OIDC را دوباره بسازید (در گفت‌وگو چسبانده شده بود)؛</li>
+          <li>این نشانی را اضافه کنید: <span class="ltr">https://staging.peydoo.com/account/phone/telegram/callback</span></li>
+        </ul>
+      </li>
+      <li><b>ربات اصلی (‎@peydoobot)</b>:
+        <ul>
+          <li>OpenID Connect را روشن کنید؛</li>
+          <li>این نشانی را اضافه کنید: <span class="ltr">https://peydoo.com/account/phone/telegram/callback</span></li>
+        </ul>
+      </li>
+      <li><b>شناسه و رمز را در گفت‌وگو نچسبانید.</b>
+        <ul>
+          <li>روی سرور اصلی با دستور <span class="ltr">peydoo-secret</span>.</li>
+          <li>روی سرور آزمایشی این دستور هنوز نیست؛ همان را آنجا هم می‌گذارم تا همین‌طور بدهید.</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <details>
+    <summary>جزئیات فنی: فایل‌ها، پایگاه داده، آزمون‌ها</summary>
+    <div class="inner">
+      <h4>فایل‌ها</h4>
+      <ul>
+        <li><span class="ltr">src/modules/users/phone-number.ts</span> (قاعدهٔ تازهٔ <span class="ltr">checkVerifiedNumber()</span>)، <span class="ltr">phone.ts</span>، <span class="ltr">telegram-bot.ts</span>.</li>
+        <li>تازه: <span class="ltr">src/modules/users/telegram-oidc.ts</span> و دو مسیر <span class="ltr">src/app/account/phone/telegram/start</span> و <span class="ltr">callback</span>.</li>
+        <li>صفحهٔ <span class="ltr">src/app/account/phone/</span>، تنظیمات <span class="ltr">TELEGRAM_OIDC_CLIENT_ID</span> و <span class="ltr">TELEGRAM_OIDC_CLIENT_SECRET</span>، و اجازهٔ <span class="ltr">oauth.telegram.org</span> در CSP.</li>
+        <li>اسکریپت <span class="ltr">scripts/phone-country-check.ts</span>: شمارش شماره‌های تأییدشده‌ای که حالا رد می‌شوند، فقط بر اساس کشور. انتظار: صفر.</li>
+      </ul>
+      <h4>پایگاه داده (migration 0017)</h4>
+      <ul>
+        <li>کشورِ شماره روی هر تلاش تأیید؛ روش‌های تازهٔ <span class="ltr">telegram_oidc</span> و <span class="ltr">whatsapp</span>؛ شناسهٔ واتس‌اپ؛ دلیل‌های تازهٔ <span class="ltr">country_not_allowed</span> و <span class="ltr">declined</span>.</li>
+      </ul>
+      <h4>آزمون‌ها</h4>
+      <ul>
+        <li>‎+49 پذیرفته؛ ‎+98، ‎+888 و کشور ثبت‌نشده رد؛ شماره بدون «+» درست خوانده می‌شود؛ ثبت کشور و نه شماره.</li>
+        <li>توکن تلگرام با امضای غلط، صادرکنندهٔ غلط، مخاطب غلط، تاریخ گذشته، nonce غلط یا شمارهٔ تأییدنشده رد می‌شود.</li>
+        <li>state تکراری، state از حساب دیگر، state قدیمی‌تر از ۱۰ دقیقه، و ردِ اجازه.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="whatsapp">
+  <div class="item-head"><h2><span class="num">۳.</span> واتس‌اپ: کاربر کد را برای ما می‌فرستد</h2><span class="days">۳ روز</span></div>
+  <div class="block">
+    <h3>چطور کار می‌کند</h3>
+    <ol class="steps">
+      <li>کاربر «تأیید با واتس‌اپ» را می‌زند. سایت یک کد کوتاه می‌سازد (مثل <span class="ltr">PD-K7Q2-9XMD</span>)، ۱۰ دقیقه اعتبار، یک بار مصرف.</li>
+      <li>واتس‌اپ با یک پیام آماده باز می‌شود: «کد تأیید حساب پیدوی من: … این کد را کسی به من نداده است». روی کامپیوتر یک کد QR نشان داده می‌شود.</li>
+      <li>کاربر «فرستادن» را می‌زند. سایت خودش «تأیید شد» را با شمارهٔ نیمه‌پنهان نشان می‌دهد.</li>
+      <li><b>ما جواب نمی‌دهیم</b>، پس هزینه صفر است.</li>
+    </ol>
+    <ul>
+      <li>اگر کسی نام کاربری واتس‌اپ داشته باشد و شماره‌اش نیاید، یک بار دکمهٔ «اشتراک شماره» برایش می‌فرستیم (جزو ۱٬۰۰۰ پیام رایگان ماهانه).</li>
+      <li>همان قفل: نه ‎+98، نه ‎+888، فقط کشورهای فهرست، فقط موبایل. هیچ پیامی به ‎+98 فرستاده نمی‌شود.</li>
+      <li><b>پیامک ساخته می‌ماند ولی خاموش.</b> لینکش از صفحه برداشته می‌شود تا وقتی که قاعدهٔ روشن شدن (۵٪ یا ۵۰ نفر در ماه) برسد.</li>
+    </ul>
+  </div>
+  <div class="risk">
+    <h3>خطرها</h3>
+    <ul>
+      <li>متا ممکن است شماره را محدود کند (کم تا متوسط در یک سال). تلگرام راه اصلی می‌ماند، پس ثبت‌نام متوقف نمی‌شود.</li>
+      <li>سرور اصلی تا روز افتتاح پشت قفل Cloudflare است؛ نشانی واتس‌اپ باید مثل Stripe از قفل رد شود. اگر توکن Cloudflare اجازه نداد، یک کلیک از شما.</li>
+      <li>برای سایت آزمایشی یا شمارهٔ آزمایشی رایگان متا کار می‌کند (روز اول معلوم می‌شود)، یا یک شمارهٔ ارزان دوم لازم است.</li>
+    </ul>
+  </div>
+  <div class="you">
+    <h3>کار شما در متا</h3>
+    <p>همه از بیرون ایران، بدون وی‌پی‌ان ایران، بدون مدیر، کارت یا مدرک ایرانی.</p>
+    <ol class="steps">
+      <li><b>یک شمارهٔ جدا فقط برای تأیید</b> (سیم‌کارت اعتباری آلمان یا شمارهٔ اینترنتی، ۰ تا ۱۰ € در ماه). باید یک بار پیامک یا تماس بگیرد و نباید روی واتس‌اپ معمولی باشد. همیشه نگهش دارید.</li>
+      <li><b>Meta Business portfolio</b> در business.facebook.com، با ورود دومرحله‌ای روی فیسبوک‌تان.</li>
+      <li>developers.facebook.com: <b>Create app</b>، نوع <b>Business</b>، بعد محصول <b>WhatsApp</b> را اضافه و به portfolio وصل کنید.</li>
+      <li><b>WhatsApp Manager › Phone numbers › Add</b>: نام نمایشی «Peydoo» (متا بررسی می‌کند)، تأیید با پیامک یا تماس، و <b>PIN دومرحله‌ای</b>.</li>
+      <li><b>Business settings › System users</b>: یک کاربر سیستمی admin بسازید، اپ و حساب واتس‌اپ را به آن بدهید، و یک <b>توکن دائمی</b> با <span class="ltr">whatsapp_business_messaging</span> و <span class="ltr">whatsapp_business_management</span> بسازید.</li>
+      <li><b>App › WhatsApp › Configuration</b>:
+        <ul>
+          <li>نشانی <span class="ltr">https://staging.peydoo.com/api/whatsapp/webhook</span> (بعداً <span class="ltr">https://peydoo.com/api/whatsapp/webhook</span>)؛</li>
+          <li>رمز تأییدی که من می‌دهم؛</li>
+          <li>اشتراک در <span class="ltr">messages</span>؛</li>
+          <li>هشدارهای حساب به ایمیل‌تان روشن باشد.</li>
+        </ul>
+      </li>
+      <li><b>هیچ کارت پرداختی اضافه نکنید، هرگز.</b> همین هزینه را صفر نگه می‌دارد.</li>
+      <li>اپ را روی <b>Live</b> بگذارید. متا نشانی حریم خصوصی (<span class="ltr">https://peydoo.com/privacy</span>)، یک آیکون و یک دسته می‌خواهد.</li>
+      <li>این‌ها را با <span class="ltr">peydoo-secret</span> بدهید، نه در گفت‌وگو:
+        <ul>
+          <li>شناسهٔ شماره؛</li>
+          <li>توکن دائمی؛</li>
+          <li>رمز اپ (App settings › Basic)؛</li>
+          <li>خود شماره.</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+  <details>
+    <summary>جزئیات فنی: فایل‌ها، پایگاه داده، آزمون‌ها</summary>
+    <div class="inner">
+      <h4>فایل‌ها</h4>
+      <ul>
+        <li>تازه: <span class="ltr">src/modules/users/whatsapp.ts</span>، <span class="ltr">src/app/api/whatsapp/webhook/route.ts</span> (بررسی امضای <span class="ltr">X-Hub-Signature-256</span>، حذف پیام تکراری تا ۸ روز)، صفحهٔ <span class="ltr">src/app/account/phone/whatsapp/</span>، کار تازه در worker برای دکمهٔ «اشتراک شماره».</li>
+        <li>تنظیمات: <span class="ltr">WHATSAPP_NUMBER</span>، <span class="ltr">WHATSAPP_PHONE_NUMBER_ID</span>، <span class="ltr">WHATSAPP_ACCESS_TOKEN</span>، <span class="ltr">WHATSAPP_APP_SECRET</span>، <span class="ltr">WHATSAPP_VERIFY_TOKEN</span>. بدون آن‌ها دکمه پنهان است.</li>
+        <li>پیامک: صفحهٔ <span class="ltr">src/app/account/phone/sms/</span> فقط وقتی <span class="ltr">SMS_COUNTRIES_ON</span> کشوری داشته باشد.</li>
+      </ul>
+      <h4>پایگاه داده</h4>
+      <p>در همان migration 0017.</p>
+      <h4>آزمون‌ها</h4>
+      <ul>
+        <li>امضای غلط رد؛ کد در متن شلوغ و با رقم فارسی پیدا می‌شود؛ کد منقضی و مصرف‌شده رد؛ ‎+98، ‎+888، تلفن ثابت و شمارهٔ تکراری رد.</li>
+        <li>پیام تکراری یک بار؛ پیام بدون شماره دقیقاً یک درخواست؛ فقط <span class="ltr">contact_request</span> پذیرفته؛ هیچ پیامی به ‎+98.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="founding">
+  <div class="item-head"><h2><span class="num">۴.</span> پروی بنیان‌گذار و نشان «بنیان‌گذار»</h2><span class="days">۲٫۵ تا ۳ روز</span></div>
+  <div class="warn"><b>مشکل امروز:</b> پروی بنیان‌گذار یک کد تخفیف روی اشتراک ماهانه است. Stripe کارت می‌خواهد و بعد از ۶ ماه خودکار ۲۴ € برمی‌دارد.</div>
+  <div class="block">
+    <h3>چه چیزی می‌گیرید</h3>
+    <ul>
+      <li><b>۶ ماه پروی رایگان، بدون کارت.</b> از «دورهٔ آزمایشی بدون کارت» خود Stripe استفاده می‌کنیم. اگر کسب‌وکار کاری نکند، روز آخر اشتراک خودش تمام می‌شود و صفحه و ۳ آگهی رایگانش می‌ماند.</li>
+      <li><b>ادامه فقط با خواست خودشان.</b> در صفحهٔ صورت‌حساب دکمهٔ «ادامهٔ پرو بعد از ۶ ماه» هست. فقط اگر کارت اضافه کنند، Stripe بعد از ۶ ماه ماهی ۲۴ € برمی‌دارد.</li>
+      <li><b>یادآوری فارسی</b> ۱۴ روز و ۳ روز پیش از پایان: «پروی رایگان شما در … تمام می‌شود؛ چیزی از شما کم نمی‌شود؛ برای ادامه…».</li>
+      <li><b>چه کسی می‌گیرد:</b> شما در پنل مدیریت روی یک کسب‌وکار «پیشنهاد بنیان‌گذار» را می‌زنید. جای هر شهر برابر هدف همان شهر است (برلین ۳۰). هر کسب‌وکار فقط یک بار.</li>
+      <li><b>نشان «بنیان‌گذار»</b> روی صفحهٔ کسب‌وکار و کنار آگهی‌هایش. یک سال از روزی که صفحه‌اش را در پیدو ساخته، بعد خودش برداشته می‌شود.</li>
+      <li><b>کد تخفیف قدیمی و اسکریپت کدهای افتتاح</b> بازنشسته می‌شوند.</li>
+      <li><b>قانون CLAUDE.md حفظ می‌شود:</b> پرو همچنان فقط از پیام Stripe به ما می‌آید.</li>
+    </ul>
+    <p>روی سایت آزمایشی همه را با «ساعت آزمایشی» Stripe امتحان می‌کنم: Stripe زمان را ۶ ماه جلو می‌برد، یک بار با کارت و یک بار بدون کارت.</p>
+  </div>
+  <div class="you"><h3>کار شما در Stripe</h3><p>اگر فقط ایمیل‌های فارسی ما را می‌خواهید: در هر دو sandbox (و بعداً حالت واقعی) در <span class="ltr">Settings › Billing › Subscriptions and emails</span> یادآوری انگلیسی «trial ending» خود Stripe را خاموش کنید. بقیه را من با اسکریپت انجام می‌دهم؛ روی سرور اصلی فقط وقتی شما بخواهید.</p></div>
+  <details>
+    <summary>جزئیات فنی: فایل‌ها، پایگاه داده، آزمون‌ها</summary>
+    <div class="inner">
+      <h4>فایل‌ها</h4>
+      <ul>
+        <li><span class="ltr">src/modules/payments/checkout.ts</span> (تازه: <span class="ltr">startFoundingCheckout()</span>)، <span class="ltr">gateway.ts</span>، <span class="ltr">apply.ts</span>، <span class="ltr">plans.ts</span>.</li>
+        <li><span class="ltr">src/worker/payments.ts</span> (یادآوری‌ها)، رویداد <span class="ltr">customer.subscription.trial_will_end</span>.</li>
+        <li><span class="ltr">scripts/stripe-setup.ts</span>، <span class="ltr">scripts/stripe-launch-codes.ts</span>، <span class="ltr">src/app/b/[slug]/billing/</span>، <span class="ltr">src/app/admin/businesses/</span>.</li>
+      </ul>
+      <h4>پایگاه داده (migration 0018)</h4>
+      <p>چند ستون تازه روی کسب‌وکارها: زمان پیشنهاد، چه کسی پیشنهاد داد، شهر، زمان شروع، و پایان نشان (<span class="ltr">founding_badge_until</span>).</p>
+      <h4>آزمون‌ها</h4>
+      <ul>
+        <li>Checkout بدون گرفتن کارت و با «لغو در پایان دوره»؛ فقط مالک؛ فقط با پیشنهاد؛ فقط یک بار؛ سقف جای هر شهر.</li>
+        <li>صورت‌حساب صفر یورویی دقیقاً همان ۶ ماه را می‌دهد؛ پایان بدون کارت پرو را برمی‌دارد؛ با کارت، دورهٔ بعد پرداخت و داده می‌شود.</li>
+        <li>یادآوری‌ها در روز درست و یک بار؛ نشان بعد از یک سال دیده نمی‌شود؛ کد قدیمی دیگر جایی نیست.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="iran">
+  <div class="item-head"><h2><span class="num">۵.</span> ایران فقط خواندنی</h2><span class="days">۱٫۵ تا ۲ روز</span></div>
+  <div class="block">
+    <h3>برای بازدید از ایران</h3>
+    <ul>
+      <li><b>دیدن، جستجو و گزارش آگهی</b> کار می‌کند.</li>
+      <li><b>بقیه بسته است</b>، با یک پیام فارسی:
+        <ul>
+          <li>ورود و ساخت حساب؛</li>
+          <li>تأیید شماره؛</li>
+          <li>گذاشتن آگهی، رویداد یا کسب‌وکار؛</li>
+          <li>گفت‌وگو، نشان کردن و پرداخت؛</li>
+          <li>فهرست انتظار.</li>
+        </ul>
+      </li>
+      <li><b>کسی که حساب دارد و به ایران سفر می‌کند</b>، در آن مدت فقط می‌بیند. آگهی‌هایش زنده می‌مانند.</li>
+      <li><b>نوار بالای همهٔ صفحه‌ها</b>، با متن دور ۱۲ و بدون کلمهٔ «تحریم»:</li>
+    </ul>
+    <p class="quote">«از ایران می‌توانید آگهی‌ها و رویدادهای ایرانیان خارج از کشور را ببینید. گذاشتن آگهی، پیام و پرداخت از داخل ایران ممکن نیست: پیدو در ایران دفتر و نماینده ندارد و نمی‌تواند امنیت معامله و پرداخت را برای شما تضمین کند. این تصمیم دربارهٔ شما نیست.»</p>
+    <p>به‌اضافهٔ خط «اگر مهاجرت می‌کنید…» و یک صفحهٔ «چرا؟».</p>
+    <p><b>یک تفاوت با طرح <span class="ltr">iran</span>:</b> آن طرح ثبت‌نام با ایمیل و پیام دادن از ایران را نشان می‌دهد. طبق برنامه، این بعد از تأیید وکیل تحریم در موج ۴ ساخته می‌شود. پس موج ۰ آن جمله و دکمه‌ها را ندارد.</p>
+  </div>
+  <div class="block">
+    <h3>سه لایه</h3>
+    <ol class="steps">
+      <li><b>خود سایت:</b> یک بررسی در همهٔ کارهای نوشتنی، با آزمون. این قفل اصلی است.</li>
+      <li><b>حافظهٔ Cloudflare:</b> صفحه‌ها برای بازدیدکنندهٔ ایران ذخیره نمی‌شوند، تا نوار ایران به بقیه نرسد و او همیشه نوار را ببیند.</li>
+      <li><b>دیوار آتش Cloudflare</b> برای احتیاط: درخواست‌های نوشتنی از ایران مسدود، جز گزارش آگهی و پیام‌های Stripe و واتس‌اپ. توکن Cloudflare اجازه دارد؛ بعد از تأیید شما خودم می‌گذارم.</li>
+    </ol>
+  </div>
+  <div class="risk">
+    <h3>خطرها</h3>
+    <ul>
+      <li>وی‌پی‌ان ایران را پنهان می‌کند. پذیرفته است: قفل ‎+98 قفل اصلی است، و این لایه همان چیزی است که قانون‌گذار انتظار دارد.</li>
+      <li>کاربری در آلمان با وی‌پی‌انی که آی‌پی ایران دارد، برای همان بازدید فقط می‌بیند. کم پیش می‌آید و پیام توضیح می‌دهد.</li>
+      <li>وکیل هنوز «فقط خواندنی» را تأیید نکرده است.</li>
+    </ul>
+  </div>
+  <div class="you"><h3>کار شما</h3><p>هیچ؛ مگر Cloudflare قانون‌ها را از راه API نپذیرد، که آن وقت دو کلیک است.</p></div>
+  <details>
+    <summary>جزئیات فنی</summary>
+    <div class="inner">
+      <ul>
+        <li><span class="ltr">src/lib/client-ip.ts</span> (<span class="ltr">isIranRequest()</span>، فقط وقتی درخواست واقعاً از Cloudflare آمده)، <span class="ltr">src/modules/users/permissions.ts</span>، همهٔ کارهای نوشتنی در <span class="ltr">src/app/</span>، <span class="ltr">src/proxy.ts</span> (عدم ذخیره)، <span class="ltr">src/app/layout.tsx</span> (نوار)، صفحهٔ تازهٔ <span class="ltr">src/app/help/iran/</span>.</li>
+        <li>پایگاه داده: هیچ. شمارش روزانهٔ رد شدن‌ها در Valkey، بدون ذخیرهٔ آی‌پی.</li>
+        <li>آزمون‌ها: هر کار نوشتنی برای ایران رد؛ همان سرصفحه از جای دیگر نادیده؛ گزارش کار می‌کند؛ مسافر فقط می‌بیند؛ بازدیدکنندهٔ عادی بی‌تغییر؛ پاسخ ایران ذخیره نمی‌شود.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="withdraw">
+  <div class="item-head"><h2><span class="num">۶.</span> دکمهٔ انصراف برای خریدهای مردم عادی</h2><span class="days">۲ روز</span></div>
+  <div class="warn"><b>نتیجهٔ بررسی: نداریم و لازم است.</b> مردم عادی نردبان (۱٫۹۹ €)، ۳ نردبان (۴٫۴۹ €)، ویژهٔ ۷ روزه (۶٫۹۹ €) و رویداد ویژه (۹٫۹۹ €) می‌خرند. شرایط امروز ما می‌گوید انصراف «با ایمیل». از ۱۹ ژوئن ۲۰۲۶ قانون آلمان (§ 356a BGB) یک دکمهٔ انصراف آنلاین می‌خواهد، با یک مرحلهٔ تأیید و رسید فوری. بدون آن: نامهٔ اخطار وکیل‌ها، و به گفتهٔ یک منبع، مهلت انصراف تا ۱۲ ماه و ۱۴ روز طولانی می‌شود. فروش فقط به کسب‌وکارها از این قانون بیرون است.</div>
+  <div class="block">
+    <h3>چه چیزی می‌سازم</h3>
+    <ol class="steps">
+      <li>در «سفارش‌های من»، روی هر خرید کمتر از ۱۴ روز دکمهٔ <b>«انصراف از قرارداد (Vertrag widerrufen)»</b>.</li>
+      <li>صفحهٔ دوم سفارش، نام و ایمیل رسید را نشان می‌دهد، با دکمهٔ <b>«تأیید انصراف (Widerruf bestätigen)»</b>.</li>
+      <li>ایمیل رسید فوراً فرستاده می‌شود، با متن، تاریخ و ساعت.</li>
+      <li>بازپرداخت:
+        <ul>
+          <li><b>یک نردبان</b> که انجام شده: حق انصراف با انجامش تمام شده (همان تیکی که پیش از پرداخت می‌زنند)، پس بازپرداخت ندارد و رسید دلیلش را می‌گوید.</li>
+          <li><b>۳ نردبان:</b> نردبان‌های انجام‌نشده برمی‌گردند.</li>
+          <li><b>ویژه:</b> روزهای مانده به نسبت برمی‌گردند.</li>
+        </ul>
+        بازپرداخت از Stripe می‌آید و باقی ویژه یا نردبان فقط با پیام Stripe برداشته می‌شود.
+      </li>
+      <li><b>پرو فقط برای کسب‌وکارها:</b> یک تیک «برای کسب‌وکارم می‌خرم» و یک جمله در شرایط. آن وقت پرو دکمهٔ انصراف نمی‌خواهد (وکیل تأیید کند).</li>
+      <li>بند ۱۴٫۴ شرایط و متن انصراف، به آلمانی و فارسی، به دکمه اشاره می‌کنند.</li>
+    </ol>
+  </div>
+  <div class="risk">
+    <h3>خطرها</h3>
+    <ul>
+      <li>زبان دکمه: سایت فارسی است؛ برچسب دوزبانه پیشنهاد من است و وکیل باید تأیید کند.</li>
+      <li>اینکه دکمه بعد از انجام شدن یک نردبان هم باید دیده شود، سؤالی برای وکیل است. من در هر حال ۱۴ روز نشانش می‌دهم.</li>
+    </ul>
+  </div>
+  <div class="you"><h3>کار شما</h3><p>متن دکمه و بند ۱۴٫۴ را به فهرست سؤال‌های وکیل اضافه کنید. در Stripe کاری نیست.</p></div>
+  <details>
+    <summary>جزئیات فنی</summary>
+    <div class="inner">
+      <ul>
+        <li>تازه: <span class="ltr">src/modules/payments/withdrawals.ts</span>؛ تغییر در <span class="ltr">apply.ts</span>، <span class="ltr">checkout.ts</span>، <span class="ltr">src/worker/payments.ts</span>، <span class="ltr">src/app/my/orders/</span>، <span class="ltr">src/messages/legal-de.ts</span>.</li>
+        <li>پایگاه داده (migration 0019): جدول تازهٔ انصراف‌ها: سفارش (یکتا)، کاربر، زمان دریافت، ایمیل رسید، مبلغ بازپرداخت و ارز، وضعیت، شناسهٔ بازپرداخت.</li>
+        <li>آزمون‌ها: فقط سفارش خود و کمتر از ۱۴ روز؛ هرگز روی پرو؛ دو مرحله لازم؛ بار دوم بی‌اثر؛ ایمیل رسید؛ حساب نسبت‌ها؛ برداشتن باقی فقط با پیام Stripe.</li>
+      </ul>
+      <p>منابع: <a href="https://www.ihk-bonn.de/fileadmin/dokumente/Downloads/Recht_und_Steuern/Internetrecht/Checkliste_Widerrufsbutton.pdf" target="_blank" rel="noopener">IHK Bonn</a> · <a href="https://stripe.com/de/resources/more/withdrawal-button-2026-germany" target="_blank" rel="noopener">Stripe</a> · <a href="https://www.ihk.de/hanau/recht/rechtsgebiete/internetrecht/widerrufsbutton-kommt-ab-juni-2026-6981980" target="_blank" rel="noopener">IHK Hanau</a></p>
+    </div>
+  </details>
+</section>
+
+<section id="todo">
+  <h2>همهٔ کارهای شما، یک‌جا</h2>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>کجا</th><th>چه کاری</th><th>کی</th></tr></thead>
+      <tbody>
+        <tr><td>BotFather</td><td>ربات آزمایشی: پاک کردن نشانی آزمایشی، رمز تازه، نشانی تازه. ربات اصلی: روشن کردن OIDC و نشانی.</td><td>پیش از قدم ۴</td></tr>
+        <tr><td>متا</td><td>شمارهٔ جدا، اپ، توکن دائمی، نشانی وب‌هوک، حالت Live، بدون کارت پرداخت (۹ قدم بالا).</td><td>پیش از قدم ۵</td></tr>
+        <tr><td>Stripe</td><td>اختیاری: خاموش کردن یادآوری انگلیسی «trial ending».</td><td>پیش از قدم ۶</td></tr>
+        <tr><td>وکیل</td><td>متن دکمهٔ انصراف، بند ۱۴٫۴، «فقط خواندنی» برای ایران.</td><td>پیش از افتتاح</td></tr>
+        <tr><td>رمزها</td><td>همه با <span class="ltr">peydoo-secret</span>، هرگز در گفت‌وگو.</td><td>هر بار</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="rules">
+  <h2>قوانین CLAUDE.md که با تأیید شما عوض می‌شوند</h2>
+  <ol class="steps">
+    <li>«برای ایرانیان <b>اروپا</b>» ← «برای ایرانیان <b>در کشورهای زیاد</b>: اروپا، آمریکای شمالی، استرالیا، بعداً ترکیه».</li>
+    <li>«تاریخ <b>شمسی</b> در رابط کاربری» ← «تاریخ <b>میلادی</b> با نام ماه و رقم فارسی؛ شمسی فقط به‌عنوان برچسب دوم برای نوروز و یلدا». خود صفحه‌ها در موج ۱ (طراحی تازه) میلادی می‌شوند.</li>
+    <li>تازه: هر شماره از هر راهی (تلگرام، واتس‌اپ، پیامک) از یک قاعده رد می‌شود: فقط کشورهای فهرست، هرگز ‎+98 یا ‎+888.</li>
+    <li>تازه: درخواست‌های ایران فقط خواندنی‌اند؛ هیچ متنی برای کاربر کلمهٔ «تحریم» ندارد.</li>
+    <li>تازه: آگهی (جز رویداد) فقط در شهرهای باز؛ رویداد و کسب‌وکار همه‌جای کشورهای فعال.</li>
+  </ol>
+  <p><b>بدون تغییر:</b> «پول و امتیاز فقط از پیام سرویس پرداخت». پروی بنیان‌گذار با دورهٔ آزمایشی Stripe همین را حفظ می‌کند. نردبان رایگان فهرست انتظار در موج ۲ دربارهٔ همین قانون یک تصمیم لازم دارد.</p>
+</section>
+
+<section>
+  <div class="next">
+    <h2>قدم بعد</h2>
+    <p>بگویید «شروع». با قفل ‎+98 در ربات شروع می‌کنم، هر قدم را روی سایت آزمایشی می‌برم، و به سرور اصلی فقط وقتی شما بخواهید دست می‌زنم.</p>
+  </div>
+  <footer>نسخهٔ متنی همین برنامه: <span class="ltr">docs/wave0-plan.md</span> در شاخهٔ <span class="ltr">wave0</span>. همهٔ روزها برآوردند. هیچ‌چیز اینجا مشاورهٔ حقوقی نیست.</footer>
+</section>
+
+</div>

@@ -519,7 +519,10 @@ Grants: the app inserts; the worker updates.
    - **How:** a `launch_radius_km` column on `locations`, in migration 0016, plus Potsdam's `launch_with_id` pointing to Berlin. About +0.25 day.
 3. **After 6 months, founding Pro costs €24 a month**, and only if the business says yes. No extra coupon.
 4. **Founding places in Berlin: 30.**
-5. **The founding badge:** explained to the owner; waiting for the answer.
+5. **The founding badge «بنیان‌گذار» is built in wave 0** (+0.5 day).
+   - It lasts one year from the day the founding business creates its business page on Peydoo, then disappears by itself.
+   - It shows on the business page and next to its listings.
+   - Built as `organizations.founding_badge_until` (in migration 0018), set when the founding offer is used.
 6. **Everyone verifies a phone number to post.** There is no email-only limited account.
    - «هیچ‌کدام را ندارم» explains the second-account trick (Telegram "add account", WhatsApp's second account) and offers support by email.
    - Each such case is logged for the SMS switch-on rule.
@@ -529,4 +532,4 @@ Grants: the app inserts; the worker updates.
    - the waitlist page is built as in the `city-waitlist` mockup, with email signups;
    - purchases stay on sale, with the withdrawal button.
 
-Total stays at about 16–18 working days (+0.25 for the Berlin area).
+Total: about 16–18.5 working days (+0.25 for the Berlin area, +0.5 for the badge).
