@@ -3,7 +3,7 @@ import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, billingCustomers, eventDates, listings, orders, organizationMembers, organizations, productPrices, products, users } from '../../db/schema';
 import { manageableBy } from '../organizations/limits';
 import { activeSubscription } from './plans';
-import type { PaymentGateway } from './gateway';
+import type { InvoiceSummary, PaymentGateway } from './gateway';
 
 // Starting a purchase (docs/schema.md, section 12), as classifieds_app. The app may insert a
 // pending order and the billing customer and store the Checkout Session's id, nothing more: the
@@ -205,4 +205,20 @@ export async function openBillingPortal(
   if (!row) return { ok: false, reason: 'not_found' };
   const portal = await gateway.createPortal({ customerId: row.customerId, returnUrl: `${opts.appUrl}/b/${row.slug}/billing` });
   return { ok: true, url: portal.url };
+}
+
+/** The business's invoices from the provider, newest first; empty before its first checkout */
+export async function businessInvoices(db: Queryable, gateway: PaymentGateway | null, organizationId: string): Promise<InvoiceSummary[]> {
+  if (!gateway) return [];
+  const [row] = await db
+    .select({ customerId: billingCustomers.providerCustomerId })
+    .from(billingCustomers)
+    .where(and(eq(billingCustomers.provider, gateway.provider), eq(billingCustomers.organizationId, organizationId)));
+  if (!row) return [];
+  try {
+    return await gateway.listInvoices(row.customerId);
+  } catch (e) {
+    console.error('payments: invoices unavailable:', e instanceof Error ? e.message : e);
+    return [];
+  }
 }

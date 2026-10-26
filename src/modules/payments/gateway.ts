@@ -45,6 +45,9 @@ export type CheckoutInput = {
 
 export type CustomerInput = { email: string; name: string; metadata: Record<string, string> };
 
+/** One invoice as the billing page lists it (Stripe's own pages show and download it) */
+export type InvoiceSummary = { id: string; number: string | null; created: Date; totalMinor: number; currency: string; status: string | null; url: string | null };
+
 export interface PaymentGateway {
   readonly provider: 'stripe';
   createCustomer(input: CustomerInput): Promise<string>;
@@ -56,6 +59,8 @@ export interface PaymentGateway {
   getSubscription(id: string): Promise<unknown>;
   /** The invoice with its payments, which webhook payloads leave out */
   getInvoice(id: string): Promise<unknown>;
+  /** A customer's latest invoices, €0 trial invoices included (the Customer Portal leaves some out) */
+  listInvoices(customerId: string, limit?: number): Promise<InvoiceSummary[]>;
 }
 
 /** The Checkout Session parameters for one checkout (exported for the tests) */
@@ -162,5 +167,20 @@ export class StripeGateway implements PaymentGateway {
 
   async getInvoice(id: string): Promise<unknown> {
     return this.stripe.invoices.retrieve(id, { expand: ['payments'] });
+  }
+
+  async listInvoices(customerId: string, limit = 24): Promise<InvoiceSummary[]> {
+    const list = await this.stripe.invoices.list({ customer: customerId, limit });
+    return list.data
+      .filter((i) => i.status !== 'draft')
+      .map((i) => ({
+        id: i.id!,
+        number: i.number ?? null,
+        created: new Date(i.created * 1000),
+        totalMinor: i.total,
+        currency: i.currency.toUpperCase(),
+        status: i.status ?? null,
+        url: i.hosted_invoice_url ?? null,
+      }));
   }
 }

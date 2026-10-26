@@ -4,7 +4,7 @@ import { webEnv } from '../../../../lib/env';
 import { formatDate } from '../../../../lib/format';
 import { messages } from '../../../../messages/fa';
 import { formatPrice } from '../../../../modules/listings/price';
-import { activePrice } from '../../../../modules/payments/checkout';
+import { activePrice, businessInvoices } from '../../../../modules/payments/checkout';
 import { activeSubscription, businessPlan, latestSubscription } from '../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../modules/payments/server';
 import { foundingAction, portalAction, subscribeAction } from '../../../business/actions';
@@ -29,6 +29,8 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
     (['pro', 'pro-plus'] as const).map(async (code) => ({ code, month: await activePrice(db, code, 'EUR', 'month'), year: await activePrice(db, code, 'EUR', 'year') })),
   );
   const payments = !!paymentGateway();
+  // Listed here from Stripe: its Customer Portal leaves out some invoices (the €0 trial invoice)
+  const invoices = await businessInvoices(db, paymentGateway(), org.id);
   const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
   const hidden = (
     <>
@@ -88,6 +90,27 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
             </form>
           )}
         </Card>
+
+        {invoices.length > 0 && (
+          <Card className="space-y-2">
+            <h2 className="font-extrabold">{t.invoices.title}</h2>
+            <ul className="divide-y divide-neutral-100 text-sm">
+              {invoices.map((inv) => (
+                <li key={inv.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                  <span className="tabular-nums">{formatDate(inv.created, zone)}</span>
+                  {inv.number && <span className="text-xs text-neutral-500" dir="ltr">{inv.number}</span>}
+                  <b className="tabular-nums">{formatPrice(inv.totalMinor, inv.currency, 2)}</b>
+                  {inv.status && <Pill tone={inv.status === 'paid' ? 'success' : 'neutral'}>{t.invoices.status[inv.status] ?? inv.status}</Pill>}
+                  {inv.url && (
+                    <a href={inv.url} target="_blank" rel="noopener noreferrer" className="ms-auto font-bold text-brand-800 underline">
+                      {t.invoices.view}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
 
         {!running && payments && (
           <section className="space-y-3">

@@ -720,6 +720,12 @@ export const messages = {
       monthly: 'ماهانه',
       yearly: 'سالانه (دو ماه رایگان)',
       subscribe: 'ادامه و پرداخت',
+      invoices: {
+        title: 'فاکتورها',
+        empty: 'هنوز فاکتوری نیست.',
+        view: 'دیدن و دریافت',
+        status: { paid: 'پرداخت‌شده', open: 'پرداخت‌نشده', void: 'باطل', uncollectible: 'وصول‌نشده' } as Record<string, string>,
+      },
       // Founding Pro (src/modules/payments/founding.ts): a trial without a card that simply ends
       founding: {
         title: 'کسب‌وکار بنیان‌گذار: ۶ ماه پروی رایگان',
@@ -1218,6 +1224,41 @@ export const messages = {
       footer: 'این ایمیل را چون در پیدو آگهی دارید دریافت کرده‌اید.',
       text: (titles: string[], link: string) =>
         `این آگهی‌ها تا حدود ۳ روز دیگر منقضی می‌شوند:\n${titles.map((t) => `- ${t}`).join('\n')}\n\nبرای تمدید به «آگهی‌های من» بروید:\n${link}`,
+    },
+    // Payments (src/modules/payments/notices.ts); always sent
+    paymentNotice: {
+      invoice: 'دیدن و دریافت فاکتور',
+      proStarted: {
+        subject: (name: string) => `پروی «${name}» فعال شد`,
+        intro: (name: string, until: string) => `اشتراک پروی «${name}» فعال شد. دورهٔ فعلی تا ${until}.`,
+        introTrial: (name: string, until: string) => `پروی «${name}» فعال شد و تا ${until} رایگان است. چیزی از شما برداشته نمی‌شود.`,
+        body: 'امکانات اشتراک از همین حالا فعال است. نردبان‌ها و آگهی‌های ویژهٔ اشتراک را از «ارتقای آگهی» کنار هر آگهی استفاده کنید.',
+        button: 'مدیریت کسب‌وکار',
+      },
+      proRenewed: {
+        subject: (name: string) => `اشتراک «${name}» تمدید شد`,
+        intro: (name: string, until: string) => `اشتراک «${name}» تا ${until} تمدید شد.`,
+        body: 'فاکتور این پرداخت را از لینک زیر ببینید و دریافت کنید.',
+        button: 'اشتراک و فاکتورها',
+      },
+      proEnded: {
+        subject: (name: string) => `اشتراک «${name}» تمام شد`,
+        intro: (name: string) => `اشتراک «${name}» تمام شد.`,
+        body: 'صفحهٔ کسب‌وکار و آگهی‌های منتشرشده می‌مانند. برای آگهی تازه، سقف رایگان (۳ آگهی فعال) برقرار است. هر وقت خواستید می‌توانید دوباره مشترک شوید.',
+        button: 'اشتراک و فاکتورها',
+      },
+      orderPaid: {
+        subject: (product: string) => `پرداخت انجام شد: ${product}`,
+        intro: (product: string, title: string, amount: string) => `پرداخت «${product}» برای آگهی «${title}» انجام شد (${amount}).`,
+        body: 'فاکتور را از لینک زیر ببینید و دریافت کنید.',
+        button: 'دیدن آگهی',
+      },
+      bumped: {
+        subject: (title: string) => `آگهی «${title}» بالای فهرست رفت`,
+        intro: (title: string) => `آگهی «${title}» با نردبان بالای فهرست رفت.`,
+        body: 'آگهی شما حالا اول فهرست همان دسته و شهر است و با آمدن آگهی‌های تازه کم‌کم پایین می‌رود.',
+        button: 'دیدن آگهی',
+      },
     },
     // Staff changed something about a business (src/modules/organizations/notices.ts); always sent
     businessNotice: {

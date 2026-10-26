@@ -29,6 +29,7 @@ export async function ownOrder(db: Queryable, userId: string, orderId: string) {
       currency: orders.currency,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
+      providerInvoiceId: orders.providerInvoiceId,
       productCode: products.code,
       productName: products.nameFa,
       listingId: listings.id,

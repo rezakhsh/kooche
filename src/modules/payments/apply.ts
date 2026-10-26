@@ -27,6 +27,7 @@ import {
   type Refund,
   type Subscription,
 } from './stripe-objects';
+import { queuePaymentNotice } from './notices';
 
 // The worker applies stored webhooks (docs/schema.md, section 12), as classifieds_worker, the only
 // role that may write payments, subscriptions and entitlements. One webhook_events row is applied
@@ -205,6 +206,8 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
   }
   const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
   await grantForOrder(tx, order, product!, ctx.occurredAt);
+  // The buyer gets a receipt with the invoice's link (./notices.ts)
+  await queuePaymentNotice(tx, order.id, { kind: 'order_paid', invoiceId: session.invoice });
 }
 
 async function checkoutClosed(tx: Queryable, session: CheckoutSession, status: 'failed' | 'expired'): Promise<void> {
@@ -273,6 +276,7 @@ async function syncSubscription(tx: Queryable, sub: Subscription, ctx: Ctx) {
   if (!price) throw new Error(`subscription ${sub.id}: unknown price ${item.price.id}`);
 
   const organizationId = await subscriberOf(tx, sub);
+  const [before] = await tx.select({ status: subscriptions.status }).from(subscriptions).where(eq(subscriptions.providerSubscriptionId, sub.id));
   const values = {
     productPriceId: price.id,
     status: sub.status,
@@ -289,6 +293,8 @@ async function syncSubscription(tx: Queryable, sub: Subscription, ctx: Ctx) {
     .onConflictDoUpdate({ target: subscriptions.providerSubscriptionId, set: values })
     .returning();
 
+  // The owner hears when Pro ends, once (./notices.ts)
+  if (ENDED.has(sub.status) && before && !ENDED.has(before.status)) await queuePaymentNotice(tx, organizationId, { kind: 'pro_ended' });
   if (ENDED.has(sub.status)) {
     // What is left of the plan (its grace included) ends with the subscription
     await tx
@@ -353,7 +359,12 @@ async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<v
   }
   // A subscription that has already ended gets no new period
   if (ended) return;
-  await tx
+  const [earlier] = await tx
+    .select({ id: entitlements.id })
+    .from(entitlements)
+    .where(and(eq(entitlements.subscriptionId, row.id), eq(entitlements.type, 'pro_plan')))
+    .limit(1);
+  const granted = await tx
     .insert(entitlements)
     .values({
       type: 'pro_plan',
@@ -364,7 +375,19 @@ async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<v
       endsAt: new Date(fromUnix(line.period.end).getTime() + PRO_GRACE_MS),
       features: planProduct.features,
     })
-    .onConflictDoNothing({ target: entitlements.providerInvoiceId, where: sql`provider_invoice_id IS NOT NULL` });
+    .onConflictDoNothing({ target: entitlements.providerInvoiceId, where: sql`provider_invoice_id IS NOT NULL` })
+    .returning({ id: entitlements.id });
+  // The owner gets "Pro is active" (first period) or "renewed", with the invoice (./notices.ts)
+  if (granted.length > 0) {
+    const until = fromUnix(line.period.end).toISOString();
+    await queuePaymentNotice(
+      tx,
+      row.organizationId!,
+      earlier
+        ? { kind: 'pro_renewed', invoiceId: invoice.id, until }
+        : { kind: 'pro_started', invoiceId: invoice.id, trial: subscription.status === 'trialing', until },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

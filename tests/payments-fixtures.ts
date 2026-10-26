@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { priceKey, syncCatalog } from '../src/modules/payments/catalog-sync';
-import type { CheckoutInput, CustomerInput, PaymentGateway } from '../src/modules/payments/gateway';
+import type { CheckoutInput, CustomerInput, InvoiceSummary, PaymentGateway } from '../src/modules/payments/gateway';
 import { eventSchema, type ProviderEvent } from '../src/modules/payments/stripe-objects';
 import { products } from '../seed/products';
 import { db, makeListing, publicToken, type Tx } from './db';
@@ -62,6 +62,10 @@ export class FakeGateway implements PaymentGateway {
     const s = this.subscriptions.get(subId);
     if (!s) throw new Error(`no subscription ${subId}`);
     return s;
+  }
+  listed: InvoiceSummary[] = [];
+  async listInvoices() {
+    return this.listed;
   }
   async getInvoice(invoiceId: string) {
     this.calls.push(`invoice ${invoiceId}`);

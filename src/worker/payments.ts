@@ -8,6 +8,8 @@ import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
 import { sendFoundingReminders } from '../modules/payments/founding';
 import { BUSINESS_NOTICE, noticeKind, sendBusinessNotice } from '../modules/organizations/notices';
+import { PAYMENT_NOTICE, parsePaymentNotice, sendBumpNotice, sendPaymentNotice } from '../modules/payments/notices';
+import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { TelegramClient } from '../modules/notifications/telegram-api';
 import type { Mailer } from '../modules/notifications/mailer';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
@@ -73,6 +75,20 @@ export async function startPaymentJobs(
           console.log(`payments: business notice ${kind} ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
         }
+        case 'payment-notice': {
+          // Pro started, renewed or ended; an order paid (src/modules/payments/notices.ts)
+          const notice = parsePaymentNotice(job.data.payload);
+          if (!notice || !opts.mailer || !opts.appUrl) return 'skipped';
+          const sent = await sendPaymentNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, gateway: opts.gateway }, job.data.aggregateId, notice);
+          console.log(`payments: notice ${notice.kind} ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
+          return sent;
+        }
+        case 'bump-notice': {
+          if (!opts.mailer || !opts.appUrl) return 'skipped';
+          const sent = await sendBumpNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId);
+          console.log(`payments: bump notice ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
+          return sent;
+        }
         case 'founding-reminders': {
           if (!opts.mailer || !opts.appUrl) return 0;
           const n = await sendFoundingReminders(db, connection, opts.mailer, { appUrl: opts.appUrl });
@@ -95,6 +111,9 @@ export async function startPaymentJobs(
     [WEBHOOK_RECEIVED]: [{ name: 'apply', queue }],
     [ALLOWANCE_REQUESTED]: [{ name: 'allowance', queue }],
     [BUSINESS_NOTICE]: [{ name: 'business-notice', queue }],
+    [PAYMENT_NOTICE]: [{ name: 'payment-notice', queue }],
+    // The search worker re-indexes the bumped listing; this tells its seller
+    [LISTING_OUTBOX.bumped]: [{ name: 'bump-notice', queue }],
   };
   return {
     handlers,
