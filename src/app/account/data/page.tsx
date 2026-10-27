@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Icon } from '../../../components/icons';
-import { Alert, Button, Card, PageShell } from '../../../components/ui';
+import { Alert, Button, Card } from '../../../components/ui';
+import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { requireSession } from '../../../modules/users/server';
 
@@ -15,7 +16,7 @@ export default async function DataPage({ searchParams }: { searchParams: Promise
   const { error } = await searchParams;
   const t = messages.account.data;
   return (
-    <PageShell title={t.title}>
+    <TaskPage title={t.title} back="/account/settings" backLabel={messages.account.back}>
       <div className="space-y-6">
         {error === 'rate_limited' && <Alert tone="error">{t.exportLimited}</Alert>}
         <Card className="space-y-3">
@@ -40,6 +41,6 @@ export default async function DataPage({ searchParams }: { searchParams: Promise
           </Link>
         </Card>
       </div>
-    </PageShell>
+    </TaskPage>
   );
 }

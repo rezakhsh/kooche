@@ -13,7 +13,9 @@ import { InboxLive } from './inbox-live';
 export const metadata = { title: messages.chat.title, robots: { index: false } };
 
 // The inbox (approved Oct 18, 2026): buyer and seller conversations merged, newest first, with
-// unread badges and "seen" on my last message. Filters and paging are plain links.
+// unread badges and "seen" on my last message. Filters and paging are plain links. Wave 1 (no
+// mockup; designed like «آگهی‌های من»): the same title row, chips and rows, the unread badge in
+// saffron like the bottom bar's.
 
 const FILTERS: InboxFilter[] = ['all', 'buying', 'selling', 'archived'];
 
@@ -31,7 +33,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const query = (f: InboxFilter) => (f === 'all' ? '/chat' : `/chat?f=${f}`);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 pt-5 pb-24">
       <h1 className="mb-4 text-2xl font-extrabold">{t.title}</h1>
       <InboxLive />
       {sp.done === 'archived' && (
@@ -39,14 +41,14 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <Alert tone="success">{t.archived}</Alert>
         </div>
       )}
-      <nav aria-label={t.filterLabel} className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <nav aria-label={t.filterLabel} className="no-scrollbar -mx-4 mb-2 flex gap-2 overflow-x-auto px-4">
         {FILTERS.map((f) => (
           <Link
             key={f}
             href={query(f)}
             aria-current={f === filter ? 'page' : undefined}
-            className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium ${
-              f === filter ? 'border-brand-700 bg-brand-700 text-white' : 'border-neutral-200 bg-white text-neutral-700 hover:border-brand-300'
+            className={`flex h-10 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium whitespace-nowrap ${
+              f === filter ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50'
             }`}
           >
             {t.filters[f]}
@@ -54,11 +56,19 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
       {items.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center text-sm text-neutral-600">
-          {filter === 'archived' ? t.emptyArchived : t.empty}
-        </p>
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-3xl bg-neutral-50 px-6 py-10 text-center">
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-white text-brand-700">
+            <Icon name="chat" className="size-7" />
+          </span>
+          <p className="max-w-sm text-sm leading-7 text-neutral-700">{filter === 'archived' ? t.emptyArchived : t.empty}</p>
+          {filter !== 'archived' && (
+            <Link href="/" className="flex h-11 items-center rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800">
+              {t.browse}
+            </Link>
+          )}
+        </div>
       ) : (
-        <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
+        <ul>
           {items.map((c) => {
             const cover = c.listing.coverKey ? imageUrl(c.listing.coverKey, 'thumb', 'webp') : null;
             const mine = c.last.senderId === user.id;
@@ -70,7 +80,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                   : c.last.body;
             return (
               <li key={c.id}>
-                <Link href={`/chat/${c.id}`} className={`flex items-center gap-3 px-3 py-3 hover:bg-neutral-50 ${c.unread ? 'bg-brand-50/40' : ''}`}>
+                <Link href={`/chat/${c.id}`} className="-mx-2 flex items-center gap-3 rounded-2xl border-b border-neutral-200 px-2 py-3.5 hover:bg-neutral-50">
                   <span className="size-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
                     {cover ? <img src={cover} alt="" width={56} height={56} loading="lazy" className="size-full object-cover" /> : <Icon name="image" className="m-4 size-6 text-neutral-400" />}
                   </span>
@@ -88,7 +98,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                         {preview}
                       </span>
                       {c.unread > 0 && (
-                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-700 px-1.5 text-xs font-bold text-white" title={t.unreadBadge(c.unread)}>
+                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-saffron-500 px-1.5 text-xs font-bold text-neutral-900" title={t.unreadBadge(c.unread)}>
                           {c.unread.toLocaleString('fa-IR')}
                           <span className="sr-only">{t.unreadBadge(c.unread)}</span>
                         </span>

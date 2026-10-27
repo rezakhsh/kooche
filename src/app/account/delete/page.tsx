@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Icon } from '../../../components/icons';
-import { Alert, Button, Field, PageShell } from '../../../components/ui';
+import { Alert, Button, Field } from '../../../components/ui';
+import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { requireSession } from '../../../modules/users/server';
 import { deleteAccountAction } from './actions';
@@ -19,7 +20,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
   const t = messages.account.delete;
   const code = ERRORS.has(error as ErrorCode) ? (error as ErrorCode) : null;
   return (
-    <PageShell title={t.title}>
+    <TaskPage title={t.title} back="/account/settings" backLabel={messages.account.back}>
       <div className="space-y-6">
         {code && <Alert tone="error">{t.errors[code]}</Alert>}
         <section className="space-y-3">
@@ -47,6 +48,6 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
           </Button>
         </form>
       </div>
-    </PageShell>
+    </TaskPage>
   );
 }

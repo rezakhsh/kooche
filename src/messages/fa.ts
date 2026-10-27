@@ -217,6 +217,8 @@ export const messages = {
   },
   // Saved searches and their alerts (src/modules/search/saved.ts, /my/searches)
   savedSearches: {
+    close: 'بستن',
+    moreLabel: (name: string) => `کارهای بیشتر برای ${name}`,
     title: 'جستجوهای ذخیره‌شده',
     save: 'ذخیره این جستجو',
     // The short button on the result line (wave 1)
@@ -1148,6 +1150,23 @@ export const messages = {
     noPlan: 'بدون اشتراک',
     settings: 'تنظیمات',
     settingsHint: 'حساب، اعلان‌ها، ظاهر (روشن، تیره، خودکار)',
+    // The settings page (no mockup; wave 1 design in the approved style)
+    settingsPage: {
+      account: 'حساب',
+      notices: 'اعلان‌ها',
+      security: 'امنیت و دستگاه‌ها',
+      privacy: 'حریم خصوصی و داده‌ها',
+      phoneMissing: 'تأیید نشده؛ برای ثبت آگهی لازم است',
+      telegram: 'تلگرام',
+      email: 'ایمیل',
+      and: ' و ',
+      quietOn: '، ساعت آرام روشن',
+      devices: (n: number) => (n === 1 ? 'فقط همین دستگاه' : `${n.toLocaleString('fa-IR')} دستگاه وارد شده`),
+      noticesHint: 'تصمیم‌های پیدو دربارهٔ آگهی‌ها و حساب شما، و اعتراض',
+      myData: 'دریافت داده‌های من',
+      myDataHint: 'یک فایل با همهٔ چیزهایی که از شما نگه می‌داریم',
+      delete: 'حذف حساب',
+    },
     help: 'راهنما و معاملهٔ امن',
     support: 'تماس با پشتیبانی',
     legal: 'Impressum، شرایط و حریم خصوصی',
@@ -1517,6 +1536,7 @@ export const messages = {
     signedIn: (date: string) => `ورود: ${date}`,
     lastActive: (date: string) => `آخرین فعالیت: ${date}`,
     revoke: 'خروج از این دستگاه',
+    signOut: 'خروج',
     revokeOthers: 'خروج از همه دستگاه‌های دیگر',
     revoked: 'از آن دستگاه خارج شدید.',
     revokedOthers: (n: number) => `از ${n.toLocaleString('fa-IR')} دستگاه دیگر خارج شدید.`,
@@ -1820,6 +1840,7 @@ export const messages = {
     filterLabel: 'نمایش گفتگوها',
     empty: 'هنوز گفتگویی ندارید. از صفحه هر آگهی می‌توانید با آگهی‌دهنده گفتگو کنید.',
     emptyArchived: 'گفتگوی بایگانی‌شده‌ای ندارید.',
+    browse: 'دیدن آگهی‌ها',
     more: 'گفتگوهای بیشتر',
     you: 'شما: ',
     hiddenPreview: 'پیام پنهان شد',

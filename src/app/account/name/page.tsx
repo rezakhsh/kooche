@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm';
-import { Alert, Button, Field, PageShell } from '../../../components/ui';
+import { Alert, Button, Field } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { users } from '../../../db/schema';
 import { fieldDir } from '../../../lib/field-dir';
+import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { isPlaceholderName, MAX_DISPLAY_NAME } from '../../../modules/users/profile';
 import { requireSession } from '../../../modules/users/server';
@@ -23,7 +24,7 @@ export default async function NamePage({ searchParams }: { searchParams: Promise
   const current = row && !isPlaceholderName(row.name) ? row.name : '';
   const code = ERRORS.has(error as ErrorCode) ? (error as ErrorCode) : null;
   return (
-    <PageShell title={t.name}>
+    <TaskPage title={t.name} back="/account/settings" backLabel={messages.account.back}>
       <form action={saveNameAction} className="space-y-5">
         {saved && <Alert tone="success">{t.nameSaved}</Alert>}
         {code && <Alert tone="error">{t.nameErrors[code]}</Alert>}
@@ -43,6 +44,6 @@ export default async function NamePage({ searchParams }: { searchParams: Promise
           {t.nameSave}
         </Button>
       </form>
-    </PageShell>
+    </TaskPage>
   );
 }

@@ -1,5 +1,6 @@
-import { Card, PageShell } from '../../../components/ui';
+import { Card } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
+import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { placeLabel, placeValue } from '../../../modules/listings/places';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
@@ -18,7 +19,7 @@ export default async function SavedPlacePage() {
   const [countries, saved, chosen] = await Promise.all([activeCountries(db), savedPlace(db, user.id), chosenCountry(db)]);
   const t = messages.account;
   return (
-    <PageShell title={t.place}>
+    <TaskPage title={t.place} back="/account/settings" backLabel={messages.account.back}>
       <Card className="space-y-4">
         <p className="text-sm text-neutral-600">{saved ? t.placeHint : t.placeNone}</p>
         <SavedPlaceForm
@@ -34,6 +35,6 @@ export default async function SavedPlacePage() {
           }}
         />
       </Card>
-    </PageShell>
+    </TaskPage>
   );
 }

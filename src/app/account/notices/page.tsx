@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Alert, PageShell, Pill } from '../../../components/ui';
+import { Alert, Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { formatDateTime } from '../../../lib/format';
+import { TaskPage } from '../../../components/settings';
 import { faDigits, messages } from '../../../messages/fa';
 import { sectionAnchor } from '../../../messages/legal-types';
 import { appealable, decisionsAbout, type Notice } from '../../../modules/moderation/appeals';
@@ -29,7 +30,7 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
   const tz = webEnv().APP_TIME_ZONE;
   const t = messages.notices;
   return (
-    <PageShell title={t.title} wide>
+    <TaskPage title={t.title} back="/account/settings" backLabel={messages.account.back} wide>
       <p className="mb-6 text-sm text-neutral-700">{t.intro}</p>
       {sp.sent && <div className="mb-4"><Alert tone="success">{t.appealSent}</Alert></div>}
       {rows.length === 0 ? (
@@ -61,6 +62,6 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
           })}
         </ul>
       )}
-    </PageShell>
+    </TaskPage>
   );
 }
