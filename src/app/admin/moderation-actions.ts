@@ -7,7 +7,7 @@ import { userSanctions } from '../../db/schema';
 import { webEnv } from '../../lib/env';
 import { admin } from '../../messages/fa';
 import { can } from '../../modules/admin/access';
-import { opInput, opPermission, RESTRICTING_OPS } from '../../modules/admin/ops';
+import { nextPath, opInput, opPermission, RESTRICTING_OPS } from '../../modules/admin/ops';
 import { adminHref, requireStaffAction } from '../../modules/admin/server';
 import {
   approveListing,
@@ -99,7 +99,8 @@ export async function decideAction(_prev: DecideState, form: FormData): Promise<
       break;
   }
   if (!result.ok) return { error: t.errors[result.reason] };
-  redirect(adminHref(`/items/${i.kind}/${i.id}?done=1`));
+  // «… و بعدی» (wave 1): on to the next item in the queue, or the queue when it is empty
+  redirect(adminHref(`${nextPath(form.get('next'))}?done=1`));
 }
 
 /** «مشکلی ندارد» on the review of new listings: back to the same list */

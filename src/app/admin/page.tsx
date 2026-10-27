@@ -1,19 +1,30 @@
+import Link from 'next/link';
+import { Icon, type IconName } from '../../components/icons';
 import { appDb } from '../../db/drizzle';
+import { formatAgo } from '../../lib/format';
 import { webEnv } from '../../lib/env';
 import { admin } from '../../messages/fa';
+import { can } from '../../modules/admin/access';
+import { change } from '../../modules/admin/attention';
 import { cityMetrics, METRICS, overview, type CityMetrics } from '../../modules/admin/overview';
 import { queueAge } from '../../modules/admin/queue';
 import { adminHref, requireStaff } from '../../modules/admin/server';
+import { businessesAdmin } from '../../modules/admin/users';
 import { Bar, formatValue, LineChart } from './charts';
-import { AdminTitle, Ago, Chips, Panel } from './ui';
+import { problemText, systemState } from './system/checks';
+import { AdminTitle, Chips, Panel } from './ui';
 
-// The overview: totals, a chart per measure, and the launch metrics per city (docs/strategy.md).
-// Computed at most every 5 minutes per process; every staff member sees the same numbers.
+// The overview (wave 1, mockup admin-overview): what needs attention first (the queue, the
+// system's problems, businesses waiting for verification), then the period's numbers with their
+// change against the period before, then the biggest city against the next-city gates from
+// docs/strategy.md, the charts and every city. Numbers are computed at most every 5 minutes per
+// process; every staff member sees the same ones.
 
 const CACHE_MS = 5 * 60_000;
+const PERIODS = ['7', '30', '90'] as const;
 const cache = new Map<string, { at: number; data: Promise<[Awaited<ReturnType<typeof overview>>, CityMetrics[]]> }>();
 
-function data(days: 30 | 90) {
+function data(days: number) {
   const key = String(days);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
@@ -24,54 +35,125 @@ function data(days: 30 | 90) {
   return fresh;
 }
 
+/** The next-city gates (docs/strategy.md, "Gates") */
+const GATES = { active: 100, chat: 50, posters: 30 };
+
+function GateBar({ value, goal }: { value: number; goal: number }) {
+  const pct = Math.min(100, Math.round((value / goal) * 100));
+  return (
+    // SVG, not a style attribute: the CSP allows no inline styles. Drawn from the start side.
+    <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="mt-1 block h-2 w-full -scale-x-100 overflow-hidden rounded-full" aria-hidden="true">
+      <rect width={100} height={8} className="fill-neutral-100" />
+      {pct > 0 && <rect width={pct} height={8} rx={4} className={value >= goal ? 'fill-green-600' : 'fill-brand-600'} />}
+    </svg>
+  );
+}
+
 export default async function AdminHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  await requireStaff('overview.view');
-  const days = (await searchParams).days === '90' ? 90 : 30;
-  const [[{ totals, series }, cities], queue] = await Promise.all([data(days), queueAge(appDb())]);
+  const staff = await requireStaff('overview.view');
+  const sp = await searchParams;
+  const days = sp.days === '30' ? 30 : sp.days === '90' ? 90 : 7;
+  const db = appDb();
+  const tz = webEnv().APP_TIME_ZONE;
+  const [[{ totals, series }, cities], queue, system, waiting] = await Promise.all([
+    data(days),
+    can(staff.role, 'queue.view') ? queueAge(db) : null,
+    can(staff.role, 'system.view') ? systemState() : null,
+    can(staff.role, 'businesses.view') ? businessesAdmin(db, { waiting: true, q: '' }) : [],
+  ]);
   const t = admin.overview;
+  const period = t.periods[String(days)]!;
+
+  const attention: Array<{ icon: IconName; title: string; sub: string; href: string; red: boolean }> = [
+    ...(queue?.count ? [{ icon: 'flag' as const, title: t.queueItems(queue.count), sub: queue.oldest ? t.oldest(formatAgo(queue.oldest, tz)) : '', href: adminHref('/queue'), red: false }] : []),
+    ...(system?.problems ?? []).map((p) => ({ icon: 'alert' as const, title: problemText(p, tz).title, sub: t.systemLink, href: adminHref('/system'), red: true })),
+    ...(waiting.length ? [{ icon: 'store' as const, title: t.businessesWaiting(waiting.length), sub: formatAgo(waiting[0]!.updatedAt, tz), href: adminHref('/businesses'), red: false }] : []),
+  ];
+  const top = cities[0];
+  const chatPct = top?.cohort ? Math.round((top.withChat / top.cohort) * 100) : 0;
   const maxActive = Math.max(1, ...cities.map((c) => c.active));
+
   return (
     <>
       <AdminTitle title={t.title}>
-        <Chips items={(['30', '90'] as const).map((d) => ({ href: adminHref(d === '30' ? '' : '?days=90'), label: t.periods[d]!, active: String(days) === d }))} />
+        <Chips items={PERIODS.map((d) => ({ href: adminHref(d === '7' ? '' : `?days=${d}`), label: t.periods[d]!, active: String(days) === d }))} />
       </AdminTitle>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <a href={adminHref('/queue')} className="rounded-2xl border border-neutral-200 p-4 hover:bg-neutral-50">
-          <p className="text-sm text-neutral-600">{t.queue}</p>
-          <p className="mt-1 text-3xl font-extrabold tabular-nums">{queue.count.toLocaleString('fa-IR')}</p>
-          <p className="mt-1 text-xs text-neutral-500">{queue.oldest ? <>{t.queueOldest('')}<Ago date={queue.oldest} /></> : t.queueEmpty}</p>
-        </a>
-        {METRICS.map((m) => (
-          <div key={m} className="rounded-2xl border border-neutral-200 p-4">
-            <p className="text-sm text-neutral-600">{t.metrics[m]}</p>
-            <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatValue(totals[m].week, m === 'revenue')}</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              {t.week}، {t.today}: {formatValue(totals[m].today, m === 'revenue')}، {t.month}: {formatValue(totals[m].month, m === 'revenue')}
-            </p>
-            {Object.keys(totals[m].byCountry).length > 1 || !totals[m].byCountry['—'] ? (
-              <p className="mt-1 text-xs text-neutral-500" title={t.byCountry}>
-                {Object.entries(totals[m].byCountry).map(([c, v]) => `${c} ${formatValue(v, m === 'revenue')}`).join('، ')}
-              </p>
-            ) : null}
-          </div>
-        ))}
-      </div>
+      {attention.length > 0 ? (
+        <section className="grid gap-2 lg:grid-cols-3">
+          {attention.map((a) => (
+            <Link key={a.title} href={a.href} prefetch={false} className={`flex items-center gap-3 rounded-2xl border p-3.5 ${a.red ? 'border-red-300 bg-red-50 hover:bg-red-100/60' : 'border-saffron-100 bg-saffron-50 hover:bg-saffron-100/60'}`}>
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl bg-white ${a.red ? 'text-red-700' : 'text-saffron-800'}`}>
+                <Icon name={a.icon} className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-sm">{a.title}</b>
+                <span className="text-xs text-neutral-700">{a.sub}</span>
+              </span>
+              <Icon name="chevronEnd" className="size-4 shrink-0 text-neutral-500" />
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <p className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-bold text-green-800">
+          <Icon name="check" className="size-5" />
+          {t.allClear}
+        </p>
+      )}
 
+      <section className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
+        {METRICS.map((m) => {
+          const v = totals[m];
+          const d = change(v.period, v.previous);
+          return (
+            <div key={m} className="rounded-2xl border border-neutral-200 bg-white p-3.5">
+              <p className="text-xs text-neutral-600">{t.stat(t.statNames[m]!, period)}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums">{formatValue(v.period, m === 'revenue')}</p>
+              <p className={`text-xs font-bold ${d === null ? 'text-neutral-600' : d > 0 ? 'text-green-800' : 'text-neutral-600'}`}>
+                {d === null ? (v.period > 0 ? t.changeNew : '—') : `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d).toLocaleString('fa-IR')}٪`}
+              </p>
+            </div>
+          );
+        })}
+      </section>
+
+      {top && (
+        <section className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
+          <h2 className="font-extrabold">{t.gatesTitle(top.cityFa)}</h2>
+          <p className="text-xs text-neutral-600">{t.gatesIntro}</p>
+          <ul className="mt-3 space-y-3">
+            {[
+              [t.gates.active, top.gateActive, GATES.active, ''],
+              [t.gates.chat, chatPct, GATES.chat, '٪'],
+              [t.gates.posters, top.weeklyPosters, GATES.posters, ''],
+            ].map(([label, v, goal, unit]) => (
+              <li key={label as string}>
+                <p className="flex justify-between gap-3 text-sm">
+                  <span>{label}</span>
+                  <b className="shrink-0 tabular-nums">{t.of(`${(v as number).toLocaleString('fa-IR')}${unit}`, `${(goal as number).toLocaleString('fa-IR')}${unit}`)}</b>
+                </p>
+                <GateBar value={v as number} goal={goal as number} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <h2 className="mt-8 mb-3 font-extrabold">{t.charts}</h2>
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {METRICS.map((m) => (
-          <LineChart key={m} title={`${t.metrics[m]}، ${t.periods[String(days)]}`} points={series[m]} money={m === 'revenue'} />
+          <LineChart key={m} title={`${t.metrics[m]}، ${period}`} points={series[m]} money={m === 'revenue'} />
         ))}
       </div>
 
       <Panel title={t.cities}>
         <p className="mb-3 text-xs text-neutral-600">{t.citiesIntro}</p>
         {cities.length === 0 ? (
-          <p className="text-sm text-neutral-500">{t.noCities}</p>
+          <p className="text-sm text-neutral-600">{t.noCities}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] text-sm">
-              <thead className="text-xs text-neutral-500">
+              <thead className="text-xs text-neutral-600">
                 <tr>
                   <th className="py-2 text-start font-medium">{t.city}</th>
                   <th className="py-2 text-start font-medium">{t.active}</th>

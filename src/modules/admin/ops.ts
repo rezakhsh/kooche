@@ -25,6 +25,34 @@ export const OPS = [
 ] as const;
 export type Op = (typeof OPS)[number];
 
+/**
+ * The decision form lists the operations from mild to severe (wave 1, mockup admin-item): clearing
+ * and giving back first, then a warning, removing the content, restrictions, and the account last.
+ * Nothing is chosen in advance.
+ */
+const SEVERITY: Record<Op, number> = {
+  approve: 0,
+  no_violation: 0,
+  restore: 1,
+  unhide_message: 1,
+  lift_business: 1,
+  lift_sanction: 1,
+  keep: 2,
+  warning: 3,
+  hide_message: 4,
+  take_down: 4,
+  posting_restricted: 5,
+  messaging_restricted: 6,
+  suspend_business: 7,
+  suspended: 8,
+  banned: 9,
+};
+
+/** Mild to severe; operations of the same weight keep their order */
+export function bySeverity<T extends { op: Op }>(ops: T[]): T[] {
+  return ops.map((o, i) => [o, i] as const).sort((a, b) => SEVERITY[a[0].op] - SEVERITY[b[0].op] || a[1] - b[1]).map(([o]) => o);
+}
+
 const uuid = z.uuid();
 const text = (max: number) => z.string().trim().max(max).optional().default('');
 
@@ -79,3 +107,9 @@ export function opPermission(i: Pick<OpInput, 'op' | 'days' | 'appealId'>, sanct
 
 /** Operations that restrict something and so need a reason, a ground and the facts */
 export const RESTRICTING_OPS: ReadonlySet<Op> = new Set(['take_down', 'warning', 'posting_restricted', 'messaging_restricted', 'suspended', 'banned', 'hide_message', 'suspend_business']);
+
+/** Where «… و بعدی» may go after a decision (wave 1): an item page or the queue, under the admin path */
+export function nextPath(value: unknown): string {
+  const v = typeof value === 'string' ? value : '';
+  return /^\/items\/(listing|user|business|message)\/[0-9a-f-]{36}$/.test(v) ? v : '/queue';
+}

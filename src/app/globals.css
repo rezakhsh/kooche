@@ -121,6 +121,14 @@ body:has(details[data-sheet][open]) [data-bottom-nav] {
   display: none;
 }
 
+/* The admin page has its own bar and sections (src/app/admin/layout.tsx, wave 1): none of the
+   public header, footer, Iran note or bottom bar */
+body:has([data-admin]) > :is(header, footer),
+body:has([data-admin]) [data-iran-banner],
+body:has([data-admin]) [data-bottom-nav] {
+  display: none;
+}
+
 /* The posting pages have their own bar (src/app/new/posting-bar.tsx): no site header, and of the
    footer only one line of legal links (wave 1, part 8: the Impressum one tap away), kept clear of
    the steps' fixed bar on phones */

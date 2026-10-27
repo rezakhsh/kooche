@@ -38,13 +38,14 @@ function metricRows(metric: Metric, from: string) {
   }
 }
 
-export type Totals = Record<Metric, { today: number; week: number; month: number; byCountry: Record<string, number> }>;
+/** `period` is the chosen number of days, `previous` the same number of days before it (wave 1: the change) */
+export type Totals = Record<Metric, { today: number; week: number; month: number; period: number; previous: number; byCountry: Record<string, number> }>;
 export type Series = Record<Metric, Array<{ day: string; value: number }>>;
 
-/** Totals for today, 7 and 30 days (by country for 30 days), and a daily series for `days` days */
+/** Totals for today, 7 and 30 days (by country for 30 days), `days` and the `days` before, and a daily series for `days` days */
 export async function overview(db: Queryable, opts: { days: number; timeZone: string; now?: Date }): Promise<{ totals: Totals; series: Series }> {
   const now = opts.now ?? new Date();
-  const span = Math.max(opts.days, 30);
+  const span = Math.max(opts.days * 2, 30);
   const from = new Date(now.getTime() - span * 86_400_000).toISOString();
   const totals = {} as Totals;
   const series = {} as Series;
@@ -56,13 +57,17 @@ export async function overview(db: Queryable, opts: { days: number; timeZone: st
     const dayAgo = (n: number) => new Intl.DateTimeFormat('en-CA', { timeZone: opts.timeZone }).format(new Date(now.getTime() - n * 86_400_000));
     const weekFrom = dayAgo(6);
     const monthFrom = dayAgo(29);
-    const t = { today: 0, week: 0, month: 0, byCountry: {} as Record<string, number> };
+    const periodFrom = dayAgo(opts.days - 1);
+    const previousFrom = dayAgo(opts.days * 2 - 1);
+    const t = { today: 0, week: 0, month: 0, period: 0, previous: 0, byCountry: {} as Record<string, number> };
     const perDay = new Map<string, number>();
     for (const r of rows) {
       const v = Number(r.v);
       perDay.set(r.day, (perDay.get(r.day) ?? 0) + v);
       if (r.day === today) t.today += v;
       if (r.day >= weekFrom) t.week += v;
+      if (r.day >= periodFrom) t.period += v;
+      else if (r.day >= previousFrom) t.previous += v;
       if (r.day >= monthFrom) {
         t.month += v;
         const c = r.country ?? '—';

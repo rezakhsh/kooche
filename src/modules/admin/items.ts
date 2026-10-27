@@ -42,6 +42,9 @@ export function reportsOn(db: Queryable, where: { listingId?: string; userId?: s
       reporterName: sql<string | null>`coalesce(${reports.reporterName}, ${users.displayName})`,
       reporterEmail: sql<string | null>`coalesce(${reports.reporterEmail}, ${users.email})`,
       anonymous: sql<boolean>`${reports.reporterUserId} IS NULL`,
+      // The reporter's earlier reports that staff found baseless (wave 1, mockup admin-item)
+      reporterDismissed: sql<number>`(SELECT count(*)::int FROM reports r2 WHERE r2.status = 'dismissed' AND r2.id <> ${reports.id}
+        AND (r2.reporter_user_id = ${reports.reporterUserId} OR (${reports.reporterUserId} IS NULL AND r2.reporter_email = ${reports.reporterEmail})))`,
     })
     .from(reports)
     .leftJoin(users, eq(users.id, reports.reporterUserId))
@@ -97,6 +100,7 @@ export async function personHistory(db: Queryable, userId: string) {
       email: users.email,
       phone: users.phoneE164,
       phoneVerifiedAt: users.phoneVerifiedAt,
+      phoneMethod: users.phoneVerificationMethod,
       telegramLinked: sql<boolean>`${users.telegramUserId} IS NOT NULL`,
       status: users.status,
       staffRole: users.staffRole,
@@ -147,6 +151,14 @@ export async function listingForReview(db: Queryable, id: string) {
     .where(and(eq(listingImages.listingId, id), eq(listingImages.status, 'ready')))
     .orderBy(asc(listingImages.position));
   return { ...row, images };
+}
+
+/** How many of the seller's other listings carry exactly this description (wave 1: «متن مشابه») */
+export async function sameTextCount(db: Queryable, listingId: string): Promise<number> {
+  const [r] = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM listings o JOIN listings l ON l.id = ${listingId}
+    WHERE o.user_id = l.user_id AND o.id <> l.id AND o.status <> 'deleted' AND length(l.description) >= 40 AND o.description = l.description`);
+  return r?.n ?? 0;
 }
 
 /** The listing an escalation's near-duplicate photo came from, with that photo */

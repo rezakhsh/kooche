@@ -21,7 +21,7 @@ export async function IranBanner() {
   // A card above the page (wave 1, mockup final/iran); the mockup's header pill «دیدن و پیام» and
   // four-item bar are left out, since people in Iran may now do everything but pay (Oct 27, 2026)
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-3 sm:px-6">
+    <div data-iran-banner className="mx-auto max-w-6xl px-4 pt-3 sm:px-6">
       <section className="rounded-2xl border border-brand-200 bg-brand-50 p-4 lg:flex lg:items-start lg:gap-4">
         <span className="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700 lg:flex">
           <Icon name="globe" className="size-6" />
