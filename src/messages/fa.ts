@@ -47,7 +47,22 @@ export const messages = {
   },
   home: {
     title: 'هر چی بخوای، تو پیدو پیداست',
-    intro: 'خرید و فروش، خانه، کار و خدمات بین ایرانی‌های ساکن اروپا. ثبت آگهی رایگان است.',
+    intro: 'خانه، کار، خدمات، رویدادها و خرید و فروش بین ایرانی‌های خارج از کشور، به فارسی. ثبت آگهی رایگان است.',
+    searchPlaceholder: 'دنبال چی هستید؟ مثلاً «اتاق» یا «مترجم»',
+    chooseCity: 'شهرتان را انتخاب کنید',
+    seemsIn: (country: string) => `به نظر می‌رسد در ${country} هستید`,
+    otherCountry: 'کشور دیگر',
+    wholeCountry: (country: string) => `همه ${country}`,
+    waitlist: 'فهرست انتظار',
+    businesses: (n: number, goal: number) => `${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار`,
+    popular: 'بیشتر چه می‌خواهند',
+    trust: [
+      { text: 'شمارهٔ همهٔ آگهی‌دهنده‌ها تأیید شده', link: 'معاملهٔ امن', href: '/safety' },
+      { text: 'بدون دادن شماره، در پیدو گفتگو کنید', link: 'راهنما', href: '/help' },
+      { text: 'آگهی رایگان در چند دقیقه', link: 'ثبت آگهی', href: '/new' },
+    ],
+    business: 'کسب‌وکار دارید؟',
+    businessText: 'صفحهٔ کسب‌وکار در پیدو رایگان است، و کسب‌وکارهای بنیان‌گذار هر شهر ۶ ماه پروی رایگان می‌گیرند.',
     chooseCountry: 'کشورت را انتخاب کن',
     yourCountry: 'کشور شما',
     listingCount: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
@@ -97,6 +112,13 @@ export const messages = {
     removeFilter: (label: string) => `حذف فیلتر ${label}`,
     clearAll: 'پاک کردن همه',
     apply: 'نمایش نتایج',
+    // The filter sheet's button with the live count (src/modules/search/form-count.ts)
+    showCount: (n: number, capped: boolean) => (capped ? `نمایش بیش از ${n.toLocaleString('fa-IR')} آگهی` : n === 0 ? 'آگهی‌ای پیدا نشد' : `نمایش ${n.toLocaleString('fa-IR')} آگهی`),
+    // Under the price fields: the middle half of the prices in this category and place
+    typicalPrice: (scope: string, low: string, high: string) => `قیمت بیشتر آگهی‌های ${scope}: ${low} تا ${high}`,
+    // Rooms and flats (mockup final/category)
+    rentWarning: 'پیش از دیدن خانه یا اتاق و گرفتن قرارداد، ودیعه یا اجاره واریز نکنید.',
+    rentWarningLink: 'نکات اجارهٔ امن',
     any: 'همه',
     min: 'از',
     max: 'تا',
@@ -139,6 +161,7 @@ export const messages = {
     },
     postalUnknown: 'این کد پستی پیدا نشد.',
     breadcrumb: 'مسیر صفحه',
+    resultLine: 'نتیجه‌ها',
   },
   // Keyword search (src/modules/search/keyword.ts): the header box and browse pages with ?q=
   search: {
@@ -167,6 +190,9 @@ export const messages = {
   savedSearches: {
     title: 'جستجوهای ذخیره‌شده',
     save: 'ذخیره این جستجو',
+    // The short button on the result line (wave 1)
+    notify: 'خبرم کن',
+    notifying: 'خبرتان می‌کنیم',
     saved: 'این جستجو ذخیره شده است',
     savedNotice: 'جستجو ذخیره شد. وقتی آگهی تازه‌ای با آن بیاید خبرتان می‌کنیم.',
     saveHint: 'از آگهی‌های تازه این جستجو خبردار شوید',
@@ -2295,6 +2321,8 @@ export const pages = {
         ],
       },
       {
+        // The anchor of the rent warning on room and flat pages (/safety#rent)
+        id: 'rent',
         heading: 'خانه و اتاق',
         points: [
           'تا خانه را ندیده‌اید و کلید و قرارداد امضاشده را نگرفته‌اید، اجاره، ودیعه یا «هزینه رزرو» نفرستید.',

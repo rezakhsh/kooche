@@ -351,6 +351,38 @@ export function roundKm(m: number): number {
   return Math.max(1, Math.round(m / 1000));
 }
 
+/** Typical prices need this many priced listings, so a hint never rests on two or three */
+export const TYPICAL_PRICE_MIN = 8;
+
+/**
+ * The filter sheet's hint, «بیشتر اتاق‌های برلین: ۵۰۰ تا ۷۵۰ €» (wave 1): the middle half of the
+ * fixed and negotiable prices (25th to 75th percentile, rounded to a nice step) of the active
+ * listings in the page's category and city, whatever else is filtered. Null below TYPICAL_PRICE_MIN.
+ */
+export async function typicalPrice(db: Queryable, f: Pick<SearchFilters, 'countryCode' | 'categoryIds' | 'locationId'>): Promise<{ low: number; high: number } | null> {
+  if (!f.categoryIds) return null;
+  const [row] = await db.execute<{ n: number; low: number | null; high: number | null }>(sql`
+    SELECT count(*)::int AS n,
+      percentile_disc(0.25) WITHIN GROUP (ORDER BY ${listings.priceMinor}) AS low,
+      percentile_disc(0.75) WITHIN GROUP (ORDER BY ${listings.priceMinor}) AS high
+    FROM ${listings}
+    WHERE ${and(
+      eq(listings.status, 'active'),
+      eq(listings.countryCode, f.countryCode),
+      inArray(listings.categoryId, f.categoryIds),
+      f.locationId ? eq(listings.locationId, f.locationId) : undefined,
+      sql`${listings.priceType} IN ('fixed', 'negotiable') AND ${listings.priceMinor} > 0`,
+    )}`);
+  if (!row || row.n < TYPICAL_PRICE_MIN || row.low == null || row.high == null) return null;
+  return { low: niceStep(Number(row.low), 'down'), high: niceStep(Number(row.high), 'up') };
+}
+
+/** 487 € → 480 €, 742 € → 750 €: steps of 5, 10, 50, 100… in minor units by size */
+export function niceStep(minor: number, dir: 'down' | 'up'): number {
+  const step = minor >= 1_000_000 ? 100_000 : minor >= 100_000 ? 5_000 : minor >= 10_000 ? 1_000 : 500;
+  return (dir === 'down' ? Math.floor(minor / step) : Math.ceil(minor / step)) * step;
+}
+
 /** How many listings match, counted up to COUNT_CAP + 1 */
 export async function countListings(db: Queryable, f: SearchFilters): Promise<number> {
   const [row] = await db.execute<{ n: number }>(

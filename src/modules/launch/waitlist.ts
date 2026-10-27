@@ -68,16 +68,7 @@ export async function cityLaunch(db: Queryable, cityId: string): Promise<CityLau
     WHERE c.id = ${cityId} AND c.kind = 'city'`);
   if (!city) return null;
 
-  const keyCities = await db.execute<{ id: string; slug: string; name_fa: string; status: KeyCity['status']; goal: number | null; businesses: number }>(sql`
-    SELECT l.id, l.slug, l.name_fa, l.launch_status AS status, l.business_goal AS goal,
-      (SELECT count(*)::int FROM organizations o
-        WHERE o.location_id IN (SELECT g.id FROM locations g WHERE g.id = l.id OR g.launch_with_id = l.id)
-          AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
-    FROM locations l
-    WHERE l.country_code = ${city.country_code} AND l.kind = 'city' AND l.launch_with_id IS NULL
-      AND l.launch_status IN ('open', 'waitlist')
-    ORDER BY (l.launch_status = 'open') DESC, l.population DESC NULLS LAST`);
-
+  const keyCities = await keyCitiesOf(db, city.country_code);
   const places = rewardPlaces(city.anchor_population);
   return {
     status: city.status,
@@ -87,8 +78,22 @@ export async function cityLaunch(db: Queryable, cityId: string): Promise<CityLau
     businesses: city.businesses,
     waiting: city.waiting,
     reward: { places, left: Math.max(0, places - city.waiting) },
-    keyCities: keyCities.map((k) => ({ id: k.id, slug: k.slug, nameFa: k.name_fa, status: k.status, goal: k.goal, businesses: k.businesses })),
+    keyCities,
   };
+}
+
+/** A country's key cities (open or waitlist, not launching with another), open first, then by size */
+export async function keyCitiesOf(db: Queryable, countryCode: string): Promise<KeyCity[]> {
+  const rows = await db.execute<{ id: string; slug: string; name_fa: string; status: KeyCity['status']; goal: number | null; businesses: number }>(sql`
+    SELECT l.id, l.slug, l.name_fa, l.launch_status AS status, l.business_goal AS goal,
+      (SELECT count(*)::int FROM organizations o
+        WHERE o.location_id IN (SELECT g.id FROM locations g WHERE g.id = l.id OR g.launch_with_id = l.id)
+          AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
+    FROM locations l
+    WHERE l.country_code = ${countryCode} AND l.kind = 'city' AND l.launch_with_id IS NULL
+      AND l.launch_status IN ('open', 'waitlist')
+    ORDER BY (l.launch_status = 'open') DESC, l.population DESC NULLS LAST`);
+  return rows.map((k) => ({ id: k.id, slug: k.slug, nameFa: k.name_fa, status: k.status, goal: k.goal, businesses: k.businesses }));
 }
 
 export type JoinResult =

@@ -63,6 +63,7 @@ const PATHS = {
   /** Points right: "previous" or "back" in a right-to-left page */
   chevronStart: <path d="m9 6 6 6-6 6" />,
   /** Points left: "next" or "forward" in a right-to-left page */
+  chevronDown: <path d="m6 9 6 6 6-6" />,
   chevronEnd: <path d="m15 6-6 6 6 6" />,
   expand: <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />,
   clock: (

@@ -244,13 +244,39 @@ export function browseParamsSchema(ctx: FilterContext) {
 export type RawParams = Record<string, string | string[] | undefined>;
 
 /**
+ * The date field (src/components/date-input.tsx) sends a day as `<name>.day`, `.month` and
+ * `.year`; this joins them into `<name>=2026-12-01` (or the parts as typed, which then fail
+ * validation), so date filters work without JavaScript like the rest of the form.
+ */
+export function joinDateParts(raw: RawParams): RawParams {
+  // Built as entries: a key like "__proto__" must stay a key (and be refused), not set a prototype
+  const out: [string, string | string[] | undefined][] = [];
+  const parts = new Map<string, { day?: string; month?: string; year?: string }>();
+  for (const [key, v] of Object.entries(raw)) {
+    const m = /^(.+)\.(day|month|year)$/.exec(key);
+    if (!m) {
+      out.push([key, v]);
+      continue;
+    }
+    const value = (Array.isArray(v) ? v[0] : v)?.trim() ?? '';
+    parts.set(m[1]!, { ...parts.get(m[1]!), [m[2]!]: value });
+  }
+  for (const [name, p] of parts) {
+    const [y, mo, d] = [p.year ?? '', p.month ?? '', p.day ?? ''];
+    if (!y && !mo && !d) continue;
+    out.push([name, y && mo && d ? `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}` : `${y}-${mo}-${d}`]);
+  }
+  return Object.fromEntries(out);
+}
+
+/**
  * Reads a page's query parameters. Returns the state and the parameters that were refused
  * (unknown, not filterable here, invalid values, a distance sort without a place). Empty values
  * are simply dropped. The page redirects to `browseQuery(state)` whenever the address differs.
  */
 export function parseBrowseParams(raw: RawParams, ctx: FilterContext): { state: BrowseState; refused: string[] } {
   const refusedKeys: string[] = [];
-  const entries = Object.entries(raw).filter(([, v]) => v !== undefined) as [string, string | string[]][];
+  const entries = Object.entries(joinDateParts(raw)).filter(([, v]) => v !== undefined) as [string, string | string[]][];
   if (entries.length > MAX_PARAMS) return { state: { ...EMPTY_STATE }, refused: entries.map(([k]) => k) };
 
   // Fold the form's range inputs (`year_min`, `available_from_to`) and repeated checkboxes into

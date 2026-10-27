@@ -16,7 +16,7 @@ export default function SafetyPage() {
       <p className="leading-7 text-neutral-700">{t.intro}</p>
       <p className="mt-4 rounded-xl bg-saffron-50 px-4 py-3 font-semibold leading-7 text-neutral-900">{messages.chat.tip}</p>
       {t.sections.map((s) => (
-        <section key={s.heading}>
+        <section key={s.heading} id={'id' in s ? s.id : undefined} className="scroll-mt-20">
           <h2 className="mt-8 text-lg font-extrabold">{s.heading}</h2>
           <ul className="mt-2 list-disc space-y-1.5 ps-6 leading-7 text-neutral-700">
             {s.points.map((p) => (

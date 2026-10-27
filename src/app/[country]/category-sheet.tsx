@@ -13,12 +13,17 @@ export function CategorySheet({
   title,
   closeLabel,
   icon = 'grid',
+  tone = 'brand',
+  chevron = false,
   children,
 }: {
   label: string;
   title: string;
   closeLabel: string;
   icon?: IconName;
+  /** brand: the filters; on: filters applied; plain: «همه دسته‌ها» */
+  tone?: 'brand' | 'on' | 'plain';
+  chevron?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -32,17 +37,22 @@ export function CategorySheet({
   };
   return (
     <details ref={ref} className="shrink-0">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 [&::-webkit-details-marker]:hidden">
+      <summary
+        className={`flex h-10 cursor-pointer list-none items-center gap-1.5 rounded-full border px-3.5 text-sm whitespace-nowrap [&::-webkit-details-marker]:hidden ${
+          tone === 'on' ? 'border-neutral-900 bg-neutral-900 font-bold text-white' : tone === 'plain' ? 'border-neutral-300 bg-white font-medium text-neutral-800' : 'border-brand-200 bg-brand-50 font-bold text-brand-800'
+        }`}
+      >
         <Icon name={icon} className="size-4" />
         {label}
+        {chevron && <Icon name="chevronDown" className="size-3.5" />}
       </summary>
       <div className="fixed inset-0 z-40 flex items-end bg-neutral-900/45" onClick={(e) => e.target === e.currentTarget && close()}>
         <div className="max-h-[80dvh] w-full overflow-y-auto rounded-t-3xl bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-neutral-200" />
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-extrabold">{title}</h2>
-            <button type="button" onClick={close} className="rounded-full p-2 text-neutral-600 hover:bg-neutral-100" aria-label={closeLabel}>
-              <Icon name="close" className="size-4" />
+            <button type="button" onClick={close} className="flex size-11 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100" aria-label={closeLabel}>
+              <Icon name="close" className="size-5" />
             </button>
           </div>
           {children}

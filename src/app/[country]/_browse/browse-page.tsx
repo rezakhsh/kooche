@@ -22,7 +22,7 @@ import { cardOf } from '../../../modules/listings/card';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { currentSession } from '../../../modules/users/server';
 import { searchListings, type SearchResult } from '../../../modules/search';
-import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP, featuredForPage } from '../../../modules/search/browse';
+import { cachedCategoryCounts, cachedCityCounts, COUNT_CAP, featuredForPage, typicalPrice } from '../../../modules/search/browse';
 import { featuredListingIds } from '../../../modules/payments/plans';
 import { webMeili } from '../../../modules/search/client';
 import { browseQuery, defaultSort, EMPTY_STATE, isFiltered, SORTS, type BrowseState, type Sort } from '../../../modules/search/filters';
@@ -34,8 +34,8 @@ import { VIEW_COOKIE } from '../../country-cookie-name';
 import { CategorySheet } from '../category-sheet';
 import { RememberCountry, RememberView } from '../remember-country';
 import { ActiveFilters, filterChips } from './chips';
+import { formatPrice } from '../../../modules/listings/price';
 import { FilterForm } from './filter-form';
-import { NearMe } from './near-me';
 import { SaveSearchButton } from './save-search';
 import type { Browse } from './resolve';
 
@@ -45,6 +45,12 @@ import type { Browse } from './resolve';
 // filters as removable chips, sort links, 24 listings a page with a "more" link (keyset cursor).
 // With a keyword (?q=, approved Oct 22, 2026) the same page shows Meilisearch's matches, with
 // counts per category and option, and up to four matching events above them.
+// Wave 1 (mockups final/browse, final/category): on phones one sticky block with the search and one
+// chip row (filters, all categories, then the applied filters or the categories), a result line
+// with the count, sort, layout and «خبرم کن», and a rent-scam warning on rooms and flats.
+
+/** Rooms and flats to rent: the rent-scam warning (src/messages/fa.ts, browse.rentWarning) */
+const RENT_SLUGS = new Set(['real-estate', 'apartments-rent', 'houses-rent', 'shared-rooms', 'short-term-rent']);
 
 type View = 'grid' | 'list';
 
@@ -76,7 +82,9 @@ const pageData = cache(async (b: Browse) => {
   // badge on any card of the page that is featured
   const featured = !b.state.q && !b.state.after ? await featuredForPage(db, b.filters) : [];
   const featuredIds = await featuredListingIds(db, result.items.map((l) => l.id));
-  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds };
+  // «قیمت بیشتر آگهی‌های …: ۵۰۰ تا ۷۵۰ €» under the price fields, for a category with prices
+  const typical = b.category && b.ctx.priceAllowed ? await typicalPrice(db, { countryCode: b.country.code, categoryIds: b.filters.categoryIds, locationId: b.city?.id ?? null }) : null;
+  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical };
 });
 
 function titleOf(b: Browse): string {
@@ -131,7 +139,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   // A listing's code typed into the search box opens that listing (like Kleinanzeigen's ID)
   const coded = state.q ? await pathOfListingCode(appDb(), state.q) : null;
   if (coded) redirect(coded);
-  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds } = await pageData(b);
+  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical } = await pageData(b);
   const env = webEnv();
   const t = messages.country;
   const tb = messages.browse;
@@ -168,7 +176,9 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const cards = result.items.map((l) => ({ id: l.id, token: l.publicToken, card: { ...cardOf(b.catalog, l, env.APP_TIME_ZONE), featured: featuredIds.has(l.id) } }));
   const featuredCards = featured.map((l) => ({ id: l.id, token: l.publicToken, card: { ...cardOf(b.catalog, l, env.APP_TIME_ZONE), featured: true } }));
   const filtered = isFiltered(state);
-  const filterCount = filterChips(b).length;
+  const chips = filterChips(b);
+  const filterCount = chips.length;
+  const rent = path.some((c) => RENT_SLUGS.has(c.slug));
   const sorts = SORTS.filter((s) => (s === 'relevance' ? !!state.q : s === 'distance' ? !!b.filters.around : s.startsWith('price') ? ctx.priceAllowed : true));
   const topCities = city
     ? []
@@ -214,8 +224,24 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   const categoryLinks = <CategoryLinks roots={roots} counts={counts} total={total} root={root} selected={category} childrenOfRoot={children} link={link} />;
-  const filterForm = (id: string) => <FilterForm b={b} cities={cities} id={id} facets={result.facets} />;
   const scope = city && category ? `${category.nameFa}، ${city.nameFa}` : city ? city.nameFa : category ? category.nameFa : country.nameFa;
+  const money = (n: number) => formatPrice(n, country.currency.code, country.currency.minorUnit);
+  const typicalText = typical && category ? tb.typicalPrice(city ? `${category.nameFa} در ${city.nameFa}` : category.nameFa, money(typical.low), money(typical.high)) : null;
+  const filterForm = (id: string) => (
+    <FilterForm b={b} cities={cities} id={id} facets={result.facets} count={{ n: Math.min(result.total, COUNT_CAP), capped: result.total > COUNT_CAP }} typical={typicalText} />
+  );
+  const searchBox = (id: string, className: string) => (
+    <SearchBox
+      id={id}
+      action={b.path}
+      q={state.q}
+      placeholder={messages.search.placeholderIn(scope)}
+      hidden={keptFields(state, ctx.minorUnit)}
+      country={country.slug}
+      city={city?.slug ?? null}
+      className={className}
+    />
+  );
   const widen = state.q && (city || category) ? `${browsePath(country.slug, null, null)}?q=${encodeURIComponent(state.q)}` : null;
 
   return (
@@ -224,39 +250,44 @@ export async function BrowsePage({ b }: { b: Browse }) {
       <RememberCountry slug={country.slug} />
       <RememberView view={state.view} />
 
-      {/* Phones: categories as a row to swipe; "all categories" and the filters open sheets (no JavaScript needed) */}
-      <div className="border-b border-neutral-200 lg:hidden">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-2.5">
-          <CategorySheet label={t.allCategories} title={t.categories} closeLabel={t.close}>
-            {categoryLinks}
-          </CategorySheet>
-          <Chip href={link(null)} on={!category}>
-            {t.allShort}
-          </Chip>
-          <Link href={eventsHref} className="flex shrink-0 items-center gap-1.5 rounded-full border border-saffron-100 bg-saffron-50 px-3 py-1.5 text-sm font-bold whitespace-nowrap text-saffron-700">
-            <Icon name="calendar" className="size-4" />
-            {messages.events.section}
-          </Link>
-          {roots.map((c) => (
-            <Chip key={c.id} href={link(c.slug)} on={root?.id === c.id}>
-              {c.nameFa}
-            </Chip>
-          ))}
-        </div>
-        {children.length > 0 && (
-          <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-2.5">
-            {children.map((c) => (
-              <Chip key={c.id} href={link(c.slug)} on={path[1]?.id === c.id} small>
-                {c.nameFa}
-              </Chip>
-            ))}
-          </div>
-        )}
-        <div className="flex items-start gap-2 px-4 pb-2.5">
-          <CategorySheet label={filterCount ? tb.filtersCount(filterCount) : tb.filters} title={tb.filters} closeLabel={t.close} icon="sliders">
+      {/* Phones: one sticky block under the header, the search and one row of chips. The sheets
+          are <details>, so they open without JavaScript. */}
+      <div className="sticky top-[57px] z-20 border-b border-neutral-200 bg-white px-4 pt-2.5 pb-2.5 lg:hidden">
+        {searchBox('q', '')}
+        <div className="no-scrollbar -mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4">
+          <CategorySheet label={filterCount ? tb.filtersCount(filterCount) : tb.filters} title={tb.filters} closeLabel={t.close} icon="sliders" tone={filterCount ? 'on' : 'brand'}>
             {filterForm('m')}
           </CategorySheet>
-          {!city && <NearMe country={country.slug} countryName={country.nameFa} active={!!state.near} />}
+          <CategorySheet label={category ? category.nameFa : t.allCategories} title={t.categories} closeLabel={t.close} tone="plain" chevron>
+            {categoryLinks}
+          </CategorySheet>
+          {chips.length > 0 ? (
+            chips.map((c) => (
+              <Link
+                key={c.href + c.label}
+                href={c.href}
+                aria-label={tb.removeFilter(c.label)}
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 ps-3.5 pe-3 text-sm font-medium whitespace-nowrap text-brand-800"
+              >
+                {c.label}
+                <Icon name="close" className="size-3.5" />
+              </Link>
+            ))
+          ) : (
+            <>
+              {(children.length > 0 ? children : roots).map((c) => (
+                <Chip key={c.id} href={link(c.slug)} on={category?.id === c.id || path[1]?.id === c.id}>
+                  {c.nameFa}
+                </Chip>
+              ))}
+              {!category && (
+                <Link href={eventsHref} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-saffron-100 bg-saffron-50 px-3.5 text-sm font-bold whitespace-nowrap text-saffron-700">
+                  <Icon name="calendar" className="size-4" />
+                  {messages.events.section}
+                </Link>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -277,7 +308,6 @@ export async function BrowsePage({ b }: { b: Browse }) {
                 <Icon name="sliders" className="size-4 text-brand-700" />
                 {tb.filters}
               </h2>
-              {!city && <NearMe country={country.slug} countryName={country.nameFa} active={!!state.near} />}
             </div>
             {filterForm('d')}
           </section>
@@ -285,16 +315,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
 
         <div className="min-w-0 px-4 sm:px-0">
           {/* The page's own box searches within its city and category; from 1024 px the header's box covers the plain country page */}
-          <SearchBox
-            id="q"
-            action={b.path}
-            q={state.q}
-            placeholder={messages.search.placeholderIn(scope)}
-            hidden={keptFields(state, ctx.minorUnit)}
-            country={country.slug}
-            city={city?.slug ?? null}
-            className={`mt-3 lg:mt-0 lg:mb-4 ${state.q || city || category ? '' : 'lg:hidden'}`}
-          />
+          {(state.q || city || category) && searchBox('q-d', 'mb-4 hidden lg:block')}
           {(city || path.length > 0) && (
             <nav aria-label={tb.breadcrumb} className="mt-4 flex flex-wrap gap-1 text-xs text-neutral-500 lg:mt-0">
               <Link href={browsePath(country.slug, null, null)} className="hover:underline">
@@ -318,12 +339,15 @@ export async function BrowsePage({ b }: { b: Browse }) {
               ))}
             </nav>
           )}
-          <div className="mt-3 mb-3 flex items-end justify-between gap-3 lg:mt-1">
-            <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">{state.q ? messages.search.title(state.q) : titleOf(b)}</h1>
-              <p className="text-xs text-neutral-500">
-                {state.q && `${messages.search.within(titleOf(b))}، `}
-                {result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}
+          {/* The result line: what and how many, then sort, layout and «خبرم کن» */}
+          <div className="mt-3 lg:mt-1">
+            <h1 className="text-lg font-extrabold sm:text-2xl">
+              {state.q ? messages.search.title(state.q) : titleOf(b)}
+              <span className="ms-2 text-sm font-normal text-neutral-600">{result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}</span>
+            </h1>
+            {(state.q || widen) && (
+              <p className="text-xs text-neutral-600">
+                {state.q && messages.search.within(titleOf(b))}
                 {widen && (
                   <>
                     {'، '}
@@ -333,12 +357,36 @@ export async function BrowsePage({ b }: { b: Browse }) {
                   </>
                 )}
               </p>
-            </div>
+            )}
+          </div>
+          <div className="mt-2 mb-3 flex items-center gap-2">
+            <SortMenu sorts={sorts} current={state.sort} href={(s2) => withState({ sort: s2 })} />
             <div role="group" aria-label={t.view} className="flex shrink-0 overflow-hidden rounded-xl border border-neutral-200">
               <ViewLink href={withState({ view: 'grid', after: state.after })} on={view === 'grid'} label={t.viewGrid} icon="grid" />
               <ViewLink href={withState({ view: 'list', after: state.after })} on={view === 'list'} label={t.viewList} icon="list" />
             </div>
+            {saveable && (
+              <div className="ms-auto">
+                {state.near ? (
+                  <p className="text-xs text-neutral-600">{messages.savedSearches.nearNotSaveable}</p>
+                ) : (
+                  <SaveSearchButton path={b.path} query={browseQuery({ ...state, after: null, view: null }, ctx.minorUnit)} saved={searchSaved} compact />
+                )}
+              </div>
+            )}
           </div>
+
+          {rent && (
+            <p className="mb-3 flex gap-2 rounded-xl bg-saffron-50 p-3 text-sm leading-6 text-saffron-800">
+              <Icon name="alert" className="mt-1 size-4 shrink-0" />
+              <span>
+                {tb.rentWarning}{' '}
+                <Link href="/safety#rent" className="font-bold underline underline-offset-2">
+                  {tb.rentWarningLink}
+                </Link>
+              </span>
+            </p>
+          )}
 
           {notice && (
             <p role="status" className="mb-3 rounded-xl border border-saffron-100 bg-saffron-50 px-3 py-2 text-sm text-saffron-800">
@@ -357,31 +405,10 @@ export async function BrowsePage({ b }: { b: Browse }) {
             </nav>
           )}
 
-          <ActiveFilters b={b} />
-
-          {saveable && (
-            <div className="mb-4">
-              {state.near ? (
-                <p className="text-xs text-neutral-600">{messages.savedSearches.nearNotSaveable}</p>
-              ) : (
-                <SaveSearchButton path={b.path} query={browseQuery({ ...state, after: null, view: null }, ctx.minorUnit)} saved={searchSaved} />
-              )}
-            </div>
-          )}
-
-          <nav aria-label={tb.sort} className="no-scrollbar -mx-4 mb-4 flex items-center gap-1.5 overflow-x-auto px-4 text-sm sm:mx-0 sm:px-0">
-            <Icon name="sort" className="size-4 shrink-0 text-neutral-400" />
-            {sorts.map((s: Sort) => (
-              <Link
-                key={s}
-                href={withState({ sort: s })}
-                aria-current={state.sort === s ? 'true' : undefined}
-                className={`shrink-0 rounded-lg px-2.5 py-1 whitespace-nowrap ${state.sort === s ? 'bg-neutral-900 font-bold text-white' : 'text-neutral-600 hover:bg-neutral-100'}`}
-              >
-                {tb.sorts[s]}
-              </Link>
-            ))}
-          </nav>
+          {/* On phones the applied filters are in the chip row */}
+          <div className="hidden lg:block">
+            <ActiveFilters b={b} />
+          </div>
 
           {events.length > 0 && (
             <section aria-labelledby="search-events" className="mb-6">
@@ -461,12 +488,40 @@ function Chip({ href, on, small, children }: { href: string; on: boolean; small?
     <Link
       href={href}
       aria-current={on ? 'page' : undefined}
-      className={`shrink-0 rounded-full border whitespace-nowrap ${small ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'} ${
+      className={`flex shrink-0 items-center rounded-full border whitespace-nowrap ${small ? 'h-9 px-3 text-xs' : 'h-10 px-3.5 text-sm'} ${
         on ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300'
       }`}
     >
       {children}
     </Link>
+  );
+}
+
+/** Sort as a small menu on the result line: a <details>, so it opens without JavaScript */
+function SortMenu({ sorts, current, href }: { sorts: Sort[]; current: Sort; href: (s: Sort) => string }) {
+  const tb = messages.browse;
+  return (
+    <details className="relative">
+      <summary className="flex h-10 cursor-pointer list-none items-center gap-1 rounded-lg px-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+        <Icon name="sort" className="size-4" />
+        <span className="sr-only">{tb.sort}: </span>
+        {tb.sorts[current]}
+        <Icon name="chevronDown" className="size-3.5" />
+      </summary>
+      <ul className="absolute start-0 top-full z-20 mt-1 min-w-40 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
+        {sorts.map((s) => (
+          <li key={s}>
+            <Link
+              href={href(s)}
+              aria-current={current === s ? 'true' : undefined}
+              className={`flex min-h-11 items-center rounded-lg px-3 text-sm ${current === s ? 'bg-brand-50 font-bold text-brand-800' : 'text-neutral-700 hover:bg-neutral-50'}`}
+            >
+              {tb.sorts[s]}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -477,7 +532,7 @@ function ViewLink({ href, on, label, icon }: { href: string; on: boolean; label:
       aria-label={label}
       title={label}
       aria-current={on ? 'true' : undefined}
-      className={`flex items-center justify-center px-2.5 py-1.5 ${on ? 'bg-brand-50 text-brand-700' : 'bg-white text-neutral-500 hover:text-neutral-800'}`}
+      className={`flex size-10 items-center justify-center ${on ? 'bg-brand-50 text-brand-700' : 'bg-white text-neutral-600 hover:text-neutral-800'}`}
     >
       <Icon name={icon} className="size-5" />
     </Link>

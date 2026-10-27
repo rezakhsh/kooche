@@ -24,12 +24,15 @@ export function SearchSuggest({
   placeholder,
   country,
   city,
+  large = false,
 }: {
   id: string;
   defaultValue: string;
   placeholder: string;
   country: string;
   city: string | null;
+  /** The first page's big box */
+  large?: boolean;
 }) {
   const t = messages.search;
   const router = useRouter();
@@ -116,7 +119,7 @@ export function SearchSuggest({
         aria-expanded={open}
         aria-controls={listId}
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        className="block w-full rounded-xl border border-neutral-300 bg-white py-2 ps-3 pe-10 text-sm placeholder:text-neutral-400 focus:border-brand-700 focus:outline-none"
+        className={`block w-full border border-neutral-300 bg-white ps-3 pe-11 text-base placeholder:text-neutral-500 focus:border-brand-700 focus:outline-none ${large ? 'h-14 rounded-2xl shadow-sm' : 'h-12 rounded-xl lg:h-10 lg:text-sm'}`}
       />
       <ul
         id={listId}

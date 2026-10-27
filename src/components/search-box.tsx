@@ -16,6 +16,7 @@ export function SearchBox({
   className = '',
   country,
   city = null,
+  large = false,
 }: {
   action: string;
   q?: string | null;
@@ -28,6 +29,7 @@ export function SearchBox({
   /** The country (and city) slugs the suggestions are for */
   country: string;
   city?: string | null;
+  large?: boolean;
 }) {
   const t = messages.search;
   return (
@@ -38,9 +40,9 @@ export function SearchBox({
       <label htmlFor={id} className="sr-only">
         {t.label}
       </label>
-      <SearchSuggest id={id} defaultValue={q ?? ''} placeholder={placeholder} country={country} city={city} />
-      <button type="submit" aria-label={t.submit} title={t.submit} className="absolute inset-y-0 end-0 flex items-center px-3 text-neutral-500 hover:text-brand-700">
-        <Icon name="search" className="size-[18px]" />
+      <SearchSuggest id={id} defaultValue={q ?? ''} placeholder={placeholder} country={country} city={city} large={large} />
+      <button type="submit" aria-label={t.submit} title={t.submit} className="absolute inset-y-0 end-0 flex w-11 items-center justify-center text-neutral-600 hover:text-brand-700">
+        <Icon name="search" className="size-5" />
       </button>
     </form>
   );
