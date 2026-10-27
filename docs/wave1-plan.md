@@ -97,10 +97,17 @@ Help, Legal (Impressum, AGB, Datenschutz, DSA contact), Peydoo (about, Pro, even
 
 Automatic by default (follows the device), with «خودکار / روشن / تیره» in Settings › Appearance and in the footer, stored in a cookie like `view` (no account needed, no flash on load). Dark tokens from round 3 (surfaces #0f1716 / #16211f, turquoise #5cc0c7 with dark text on buttons, saffron #f5c862); photos never dimmed. Every page passes WCAG AA contrast in both modes (checked by script). Emails stay light.
 
-## 11. Check, Stripe test clock, docs (1.5 days)
+## 11. Check, Stripe test clock, abandoned payments, docs (2 days)
 
 - Phone-size browser check of every page on staging (light and dark), one browser at a time, no real users' data in screenshots.
 - The Stripe test-clock run of founding Pro (left from wave 0).
+- **Abandoned payments** (added Oct 28, 2026: the owner asked for a strategy and left the choice to Claude, "what others do"):
+  1. Back from any payment page (bump, featured, Pro, founding): «پرداخت انجام نشد و پولی از حساب‌تان کم نشد» with «دوباره امتحان کنید».
+  2. The same purchase started again while its payment page is still open goes back to that page, not a second order (no double payments from two tabs or the back button).
+  3. Unpaid payment pages close after 1 hour (Stripe `expires_at`, allowed 30 min to 24 h; default 24 h). While open, «سفارش‌های من» offers «ادامهٔ پرداخت»; then the order quietly becomes expired.
+  4. `checkout.session.expired` without an order needs nothing (done, not an error). In test mode an event for something this database never saw is skipped; in live mode it stays an error on the system page. Clears staging's 4 stuck events (from the Oct 22 local run on the shared Stripe test account). Local runs get their own Stripe sandbox.
+  5. Admin overview: payment pages opened vs paid, per product.
+  6. **No** "you didn't finish" emails: in Germany they are advertising and need prior double-opt-in consent (UWG § 7 (2) no. 1; the existing-customer exception needs a completed sale), and Stripe's own recovery emails require promotional consent.
 - `docs/setup.md`, `docs/progress.md`; remove the `wave0-test-*` containers at the end.
 
 ## What doesn't change
