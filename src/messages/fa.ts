@@ -1831,6 +1831,9 @@ export const messages = {
     list: {
       heading: (place: string) => `رویدادهای ${place}`,
       lead: 'کنسرت، مهمانی، شب شعر، دورهمی و کارگاه، به فارسی',
+      searchIn: (place: string) => `جستجو در رویدادهای ${place}…`,
+      searched: (q: string) => `«${q}»`,
+      clearSearch: 'پاک کردن جستجو',
       days: 'روزها',
       today: 'امروز',
       tomorrow: 'فردا',

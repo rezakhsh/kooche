@@ -32,6 +32,8 @@ const cursor = z
   });
 
 export type EventsState = {
+  /** Words from the header's box: titles, venues, organisers */
+  q: string | null;
   when: QuickWhen | null;
   /** A single day, "2026-10-29" */
   day: string | null;
@@ -65,7 +67,9 @@ export function readEventsQuery(q: EventsQuery, now: Date, timeZone: string): Ev
   const day = dayOf(q);
   const attendance = one(q.online) === '1' ? 'online' : one(q.attendance) === 'online' ? 'online' : one(q.attendance) === 'in_person' ? 'in_person' : null;
   const after = cursor.safeParse(one(q.after));
+  const words = one(q.q).trim().replace(/\s+/g, ' ').slice(0, 100);
   return {
+    q: words || null,
     when: day ? null : when,
     day: day ? iso(day) : null,
     types: many(q.type).filter((t) => /^[a-z0-9-]{1,60}$/.test(t)).slice(0, 10),
@@ -113,6 +117,7 @@ export function stateFilter(
     free: s.free,
     maxPriceMinor: s.cheap ? ctx.cheapMinor : null,
     languages: s.languages,
+    text: s.q,
     family: s.family,
     adults: s.adults,
     stepFree: s.stepFree,
@@ -123,8 +128,10 @@ export function stateFilter(
 
 /** The state back as query parameters (paging left out), for links that change one thing */
 export function stateQuery(s: EventsState, patch: Partial<Omit<EventsState, 'season' | 'after'>> & { season?: string | null } = {}): URLSearchParams {
+  // (q, the header's words, is kept like every other filter)
   const v = { ...s, ...patch };
   const q = new URLSearchParams();
+  if (v.q) q.set('q', v.q);
   if (v.day) q.set('day', v.day);
   else if (v.when) q.set('when', v.when);
   for (const t of v.types) q.append('type', t);

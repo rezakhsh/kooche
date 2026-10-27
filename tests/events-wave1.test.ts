@@ -108,6 +108,8 @@ describe('the events list (mockups final/events, events-filters)', () => {
     expect(await found({ inPerson: true })).toEqual([adults, family, pricey].sort());
     expect(await found({ online: true })).toEqual([online]);
     expect(await found({ season: seasonByKey('yalda', NOW, 'Europe/Berlin') })).toEqual([pricey]);
+    expect(await found({ text: 'یلدا' })).toEqual([pricey]);
+    expect(await found({ text: 'heimathafen' })).toEqual([adults, family, pricey].sort());
     expect(await countEvents(appDb, { ...base, adults: true }, NOW)).toBe(1);
 
     // The row carries what the list shows

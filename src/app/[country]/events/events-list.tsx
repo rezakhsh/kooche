@@ -160,6 +160,15 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
         </Link>
       </div>
 
+      {s.q && (
+        <div className="mt-3 flex px-4 lg:px-0">
+          <Link href={href({ q: null })} aria-label={t.clearSearch} className="flex h-10 items-center gap-1.5 rounded-full border border-neutral-900 bg-neutral-900 px-3.5 text-sm font-medium text-white">
+            <Icon name="search" className="size-4" />
+            {t.searched(s.q)}
+            <Icon name="close" className="size-3.5" />
+          </Link>
+        </div>
+      )}
       {season && seasonCount > 0 && <SeasonStrip season={season} count={seasonCount} place={placeName} href={href({ season: season.key, day: null, when: null })} />}
       {s.season && (
         <div className="mx-4 mt-4 flex items-center gap-2 rounded-2xl bg-[#5b1a1f] px-3 py-2 text-sm text-[#fff6e6] lg:mx-0">
@@ -356,6 +365,7 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
     >
       <form method="get" action={path} className="text-sm">
         {s.season && <input type="hidden" name="season" value={s.season.key} />}
+        {s.q && <input type="hidden" name="q" value={s.q} />}
         {place.city && (
           <>
             <H>{t.where}</H>

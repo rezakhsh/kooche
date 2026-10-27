@@ -169,6 +169,7 @@ describe('the events list address (wave 1)', () => {
     expect(s).toMatchObject({ when: 'weekend', types: ['concert', 'party'], cheap: true, free: false, languages: ['fa'], family: true, stepFree: true, near: true, attendance: 'online' });
     expect(stateQuery(s).toString()).toBe('when=weekend&type=concert&type=party&price=cheap&online=1&lang=fa&family=1&stepfree=1&range=near');
     expect(isFiltered(readEventsQuery({}, NOW, BERLIN))).toBe(false);
+    expect(stateQuery(readEventsQuery({ q: '  شب   شعر ' }, NOW, BERLIN)).toString()).toBe(new URLSearchParams({ q: 'شب شعر' }).toString());
   });
 
   it('a day wins over a quick choice; the sheet\'s date counts only with «انتخاب تاریخ…»', () => {

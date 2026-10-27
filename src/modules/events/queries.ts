@@ -66,6 +66,8 @@ export type EventFilter = {
   maxPriceMinor?: number | null;
   /** Any of these languages */
   languages?: string[] | null;
+  /** Words in the title, venue or organiser (the header's box on the events pages) */
+  text?: string | null;
   /** For all ages */
   family?: boolean;
   /** 18 and over only */
@@ -128,6 +130,7 @@ function eventConditions(f: EventFilter, now: Date) {
       : sql`AND (l.location_id = ${f.locationId} OR e.attendance <> 'in_person')`
     : sql``;
   const words = f.season?.words ?? [];
+  const text = f.text ? `%${normalizePersian(f.text).toLowerCase().replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
   const rest = sql`
     ${near}
     ${f.categoryIds?.length ? sql`AND l.category_id IN (${sql.join(f.categoryIds.map((id) => sql`${id}::uuid`), sql`, `)})` : sql``}
@@ -136,6 +139,7 @@ function eventConditions(f: EventFilter, now: Date) {
     ${f.free ? sql`AND l.price_type = 'free'` : sql``}
     ${f.maxPriceMinor != null ? sql`AND (l.price_type = 'free' OR (l.price_type = 'fixed' AND l.price_minor <= ${f.maxPriceMinor}))` : sql``}
     ${f.languages?.length ? sql`AND e.languages && ARRAY[${sql.join(f.languages.map((x) => sql`${x}`), sql`, `)}]::text[]` : sql``}
+    ${text ? sql`AND (lower(l.title_normalized) LIKE ${text} OR lower(coalesce(e.venue_name_normalized, '')) LIKE ${text} OR lower(coalesce(e.organizer_name_normalized, '')) LIKE ${text})` : sql``}
     ${f.family ? sql`AND e.min_age IS NULL` : sql``}
     ${f.adults ? sql`AND e.min_age >= 18` : sql``}
     ${f.stepFree ? sql`AND e.step_free` : sql``}

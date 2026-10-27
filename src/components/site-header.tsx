@@ -4,7 +4,7 @@ import { visitorCountry } from '../lib/client-ip';
 import { homeArea } from '../modules/listings/neighbourhood';
 import { cityOf } from '../modules/search/places';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
-import { browsePath } from '../modules/search/paths';
+import { browsePath, eventsPath } from '../modules/search/paths';
 import { chosenCountry } from '../app/country-choice';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -49,8 +49,11 @@ export async function SiteHeader() {
   const place = city ?? (country && !onCountryPages && home?.countryCode === country.code ? { slug: home.citySlug, nameFa: home.city } : null);
   const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
-  const searchIn = country ? browsePath(country.slug, place?.slug ?? null, category?.slug ?? null) : '/';
+  // On the events pages the box searches the events (wave 1, mockup final/events: «جستجو در رویدادهای برلین…»)
+  const onEvents = !!country && (segments[1] === 'events' || (!!city && segments[2] === 'events'));
+  const searchIn = country ? (onEvents ? eventsPath(country.slug, city?.slug ?? null) : browsePath(country.slug, place?.slug ?? null, category?.slug ?? null)) : '/';
   const searchScope = category?.nameFa ?? place?.nameFa ?? country?.nameFa ?? '';
+  const searchPlaceholder = onEvents ? messages.events.list.searchIn((city ?? null)?.nameFa ?? country!.nameFa) : messages.search.placeholderIn(searchScope);
   const t = messages.nav;
   const start = country ? `/${country.slug}` : '/';
   // Conversations with unread messages, for the badge (one small query on the inbox indexes)
@@ -84,7 +87,8 @@ export async function SiteHeader() {
               action={searchIn}
               country={country.slug}
               city={place?.slug ?? null}
-              placeholder={messages.search.placeholderIn(searchScope)}
+              placeholder={searchPlaceholder}
+              plain={onEvents}
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
