@@ -3,6 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Queryable } from '../../db/drizzle';
 import { favorites, listings, locations } from '../../db/schema';
 import { hit, type Limit } from '../../lib/rate-limit';
+import { listingNeighbourhood } from './neighbourhood';
 import { coverKeys } from './queries';
 
 // Favorites (approved Oct 18, 2026): signed-in users only; browsing and favorites need no
@@ -103,6 +104,7 @@ export async function myFavorites(db: Queryable, userId: string, cursor: string 
       placeName: listings.placeName,
       district: listings.district,
       cityFa: locations.nameFa,
+      neighbourhood: listingNeighbourhood,
       publishedAt: listings.publishedAt,
       rankedAt: listings.rankedAt,
       kind: listings.kind,

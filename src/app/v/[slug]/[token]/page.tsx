@@ -81,7 +81,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
 
-  const { listing: l, images, seller, business, cityFa, cityLocal } = data;
+  const { listing: l, images, seller, business, cityFa, cityLocal, neighbourhood } = data;
   const env = webEnv();
   const t = messages.listing;
   const catalog = await cachedCatalog(appDb());
@@ -329,7 +329,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 {hasPlace && (
                   <span className="flex items-center gap-1">
                     <Icon name="pin" className="size-3.5" />
-                    {place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city}
+                    {/* «ودینگ، برلین» where the city has neighbourhoods; the seller's own words after it */}
+                    {neighbourhood && cityFa ? `${neighbourhood}، ${cityFa}` : place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city}
                     {place.district && <span>، {place.district}</span>}
                   </span>
                 )}

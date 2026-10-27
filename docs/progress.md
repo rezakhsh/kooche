@@ -1068,3 +1068,11 @@ Asked by the owner after compacting: "plan wave 1". Done: `docs/wave1-plan.md` (
 - **Moved to part 10:** colours as tokens. Dark mode will swap the palette's values (white and the neutral scale) under the dark setting, so pages need no class changes now.
 - **Left for part 6:** the event page still shows the Jalali date under every event; the redesign shows it only on cultural dates.
 - **Tests:** 749 passing (new: `src/lib/date-parts.test.ts`, `src/components/bottom-nav.test.ts`, the badge on cards in `tests/founding.test.ts`; `src/lib/format.test.ts` and the price test now expect Gregorian dates and «۴۵۰ €»).
+
+## Oct 27, 2026: the server was restarted; wave 1, part 2 begins with neighbourhoods
+
+- **Restart:** the owner saw 100% CPU while staging built part 1 (right after a full test run) and restarted the server. Nothing was lost; web and worker were then deployed one after the other (Coolify already builds one at a time, `concurrent_builds=1`), and part 1 is on staging. The restart stopped the test containers (`docker start wave0-test-pg wave0-test-valkey wave0-test-meili`) and emptied the scratchpad. Rule kept: a gap between tests and a build, and tell the owner before each build.
+- **Owner's request:** listing cards said «برلین»; they should say the neighbourhood («ودینگ»، «موآبیت»), as in the mockup. Agreed, built first in part 2.
+- **Built:** `neighbourhoods` (migration 0022) with Berlin's 97 official Ortsteile (Geoportal Berlin, Datenlizenz Deutschland Zero 2.0; `scripts/import-neighbourhoods.mjs`, simplified to about 10 m, 158 KB) and Persian names in `seed/neighbourhoods/index.ts`. A listing's neighbourhood is looked up from its point (postal code or area, never a city centre): cards «ودینگ، ۲ ساعت پیش», the listing page «ودینگ، برلین» (the seller's own place text still follows), saved listings. Other cities add their file when they open.
+- **Tests:** 752 passing (new `tests/neighbourhoods.test.ts`: 97 named and valid shapes, Leopoldplatz → ودینگ, Turmstraße → موآبیت, Oranienplatz → کرویتسبرگ, Potsdam → none, city-only listings → none; `tests/grants.test.ts` counts 45 tables).
+- **On staging after the deploy:** run the seed once (`npm run db:seed`), else cards keep saying «برلین». The owner checks the Persian spellings (list page).

@@ -15,7 +15,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { geographyPoint, ltree } from '../types';
+import { geographyMultiPolygon, geographyPoint, ltree } from '../types';
 import {
   PATTERNS,
   createdAt,
@@ -182,6 +182,35 @@ export const postalPlaces = pgTable(
     index('postal_places_place_search_idx').on(t.countryCode, t.placeSearch.op('text_pattern_ops')),
     // Nearest postal code to the seller's ~500 m point
     index('postal_places_center_idx').using('gist', t.center),
+  ],
+);
+
+/**
+ * A city's neighbourhoods (wave 1, migration 0022): the official boundaries with a Persian name, so
+ * a card says «ودینگ» instead of «برلین». A listing's neighbourhood is the one covering its point,
+ * looked up when shown (never stored), and only when the point is a postal code or an area, not a
+ * city centre. Seeded from seed/neighbourhoods/; rows no longer in the files are set inactive.
+ */
+export const neighbourhoods = pgTable(
+  'neighbourhoods',
+  {
+    ...standardColumns(),
+    locationId: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    /** The city's official key (Berlin: the Ortsteil's Schlüssel, "110000010105") */
+    key: text('key').notNull(),
+    nameLocal: text('name_local').notNull(),
+    nameFa: text('name_fa').notNull(),
+    boundary: geographyMultiPolygon('boundary').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (t) => [
+    unique('neighbourhoods_location_id_key_key').on(t.locationId, t.key),
+    check('neighbourhoods_key_check', sql`char_length(${t.key}) BETWEEN 1 AND 40`),
+    check('neighbourhoods_name_local_check', sql`char_length(${t.nameLocal}) BETWEEN 1 AND 100`),
+    check('neighbourhoods_name_fa_check', sql`char_length(${t.nameFa}) BETWEEN 1 AND 100`),
+    index('neighbourhoods_boundary_idx').using('gist', t.boundary),
   ],
 );
 

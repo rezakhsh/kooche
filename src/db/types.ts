@@ -41,6 +41,14 @@ export const geographyPoint = customType<{ data: Point; driverData: string }>({
   fromDriver: parseEwkbPoint,
 });
 
+/**
+ * geography(MultiPolygon,4326): neighbourhood boundaries. Written as EWKT by the seed, never read
+ * back (queries test points against it in SQL). Unquote it in generated migrations like the point.
+ */
+export const geographyMultiPolygon = customType<{ data: string; driverData: string }>({
+  dataType: () => 'geography(MultiPolygon,4326)',
+});
+
 /** ltree: category paths such as `vehicles.cars`. */
 export const ltree = customType<{ data: string }>({
   dataType: () => 'ltree',

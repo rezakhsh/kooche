@@ -11,6 +11,7 @@ import {
   countries,
   currencies,
   locations,
+  neighbourhoods,
   postalPlaces,
 } from './schema';
 import { foldLatin } from '../lib/fold-latin';
@@ -35,6 +36,7 @@ export type SeedSummary = {
   regions: number;
   cities: number;
   postalPlaces: number;
+  neighbourhoods: number;
   categories: number;
   leafCategories: number;
   attributes: number;
@@ -52,6 +54,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         regions: 0,
         cities: 0,
         postalPlaces: 0,
+        neighbourhoods: 0,
         categories: 0,
         leafCategories: 0,
         attributes: 0,
@@ -63,6 +66,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         summary.cities += cities;
       }
       for (const code of seed.POSTAL_COUNTRIES) summary.postalPlaces += await seedPostalPlaces(tx, code);
+      summary.neighbourhoods = await seedNeighbourhoods(tx);
       Object.assign(summary, await seedCategories(tx, seed.categories));
 
       const failures = await runSeedChecks(tx);
@@ -211,6 +215,42 @@ async function seedPostalPlaces(tx: Tx, countryCode: string): Promise<number> {
       LIMIT 1)
     WHERE p.country_code = ${countryCode}`);
   return rows.length;
+}
+
+/** "SRID=4326;MULTIPOLYGON(((lng lat, …)), …)" for a geography column */
+export function multiPolygonEwkt(polygons: number[][][][]): string {
+  const ring = (points: number[][]) => `(${points.map(([lng, lat]) => `${lng} ${lat}`).join(',')})`;
+  return `SRID=4326;MULTIPOLYGON(${polygons.map((rings) => `(${rings.map(ring).join(',')})`).join(',')})`;
+}
+
+/**
+ * City neighbourhoods (seed/neighbourhoods/), by the city's official key. Rows no longer in the
+ * files are set inactive, never deleted. Every neighbourhood needs its Persian name.
+ */
+async function seedNeighbourhoods(tx: Tx): Promise<number> {
+  let count = 0;
+  for (const c of seed.NEIGHBOURHOOD_CITIES) {
+    const [city] = await tx
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.countryCode, c.countryCode), eq(locations.slug, c.city), eq(locations.kind, 'city')));
+    if (!city) throw new SeedCheckError([{ name: 'neighbourhoods', problems: [`no city ${c.countryCode}/${c.city}`] }]);
+    const rows = seed.neighbourhoods(c);
+    const unnamed = rows.filter((r) => !r.nameFa).map((r) => r.nameLocal);
+    if (unnamed.length > 0) throw new SeedCheckError([{ name: 'neighbourhoods', problems: [`${c.city} without a Persian name: ${unnamed.join(', ')}`] }]);
+    await tx.update(neighbourhoods).set({ isActive: false }).where(eq(neighbourhoods.locationId, city.id));
+    for (const r of rows) {
+      await tx
+        .insert(neighbourhoods)
+        .values({ locationId: city.id, key: r.key, nameLocal: r.nameLocal, nameFa: r.nameFa, boundary: multiPolygonEwkt(r.polygons), isActive: true })
+        .onConflictDoUpdate({
+          target: [neighbourhoods.locationId, neighbourhoods.key],
+          set: { nameLocal: sql`excluded.name_local`, nameFa: sql`excluded.name_fa`, boundary: sql`excluded.boundary`, isActive: true },
+        });
+    }
+    count += rows.length;
+  }
+  return count;
 }
 
 type Inherited = Required<

@@ -63,10 +63,10 @@ export default async function MyFavoritesPage({ searchParams }: { searchParams: 
                 {l.available && price && <p className="text-sm font-extrabold text-brand-700">{price}</p>}
                 <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
                   {!l.available && <Pill tone="neutral">{t.gone}</Pill>}
-                  {(place.local || place.city) && (
+                  {(l.neighbourhood || place.local || place.city) && (
                     <span className="flex items-center gap-1">
                       <Icon name="pin" className="size-3" />
-                      {place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city}
+                      {l.neighbourhood ?? (place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city)}
                     </span>
                   )}
                 </p>

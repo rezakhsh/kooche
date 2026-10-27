@@ -11,3 +11,4 @@ export { categories, countries, currencies };
 export const locations: LocationsSeed[] = [germany, austria];
 
 export { POSTAL_COUNTRIES, postalPlaces } from './postal';
+export { NEIGHBOURHOOD_CITIES, neighbourhoods } from './neighbourhoods';

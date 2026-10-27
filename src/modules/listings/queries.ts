@@ -4,6 +4,7 @@ import { countries, currencies, listingImages, listings, locations, moderationDe
 import { eventPath } from '../events/slug';
 import { lastTakeDown } from '../moderation/history';
 import type { Place } from './places';
+import { listingNeighbourhood } from './neighbourhood';
 import { listingPath } from './slug';
 
 // Reads for the posting pages, "my listings" and the public listing page.
@@ -133,6 +134,7 @@ export async function publicListing(db: Queryable, token: string) {
       listing: listings,
       cityFa: locations.nameFa,
       cityLocal: locations.nameLocal,
+      neighbourhood: listingNeighbourhood,
       seller: { displayName: users.displayName, publicToken: users.publicToken, createdAt: users.createdAt },
       // Posted for a business (roadmap step 6): the business is the seller shown
       business: { name: organizations.name, slug: organizations.slug, verificationStatus: organizations.verificationStatus, createdAt: organizations.createdAt },
