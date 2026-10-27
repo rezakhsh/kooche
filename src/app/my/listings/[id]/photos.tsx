@@ -35,6 +35,7 @@ export function PhotoEditor({
   enabled,
   onPhotos,
   bare = false,
+  poster = false,
 }: {
   /** null until the listing is saved or gets its first photo */
   listingId: string | null;
@@ -47,6 +48,8 @@ export function PhotoEditor({
   onPhotos?: (thumbs: (string | null)[]) => void;
   /** In the posting steps the photos sit on the page, under the step's lead (mockup final/post2) */
   bare?: boolean;
+  /** An event (mockup final/post-event1): the poster big and upright, «عکس‌های بیشتر» beside it */
+  poster?: boolean;
 }) {
   const [photos, setPhotos] = useState(initial);
   useEffect(() => onPhotos?.(photos.map((p) => p.thumb ?? null)), [photos, onPhotos]);
@@ -126,6 +129,9 @@ export function PhotoEditor({
   }
 
   const full = photos.length + uploading.filter((u) => !u.error).length >= max;
+  const picker = (
+    <input ref={input} type="file" accept={ACCEPTED_TYPES.join(',')} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
+  );
 
   const menuItem = 'flex min-h-11 w-full items-center px-3 text-start text-sm hover:bg-neutral-50';
   const Box = bare ? 'div' : Card;
@@ -134,8 +140,48 @@ export function PhotoEditor({
       {!bare && <h2 className="font-semibold">{t.photos}</h2>}
       {!bare && <p className="text-xs leading-relaxed text-neutral-600">{t.photosHint(max)}</p>}
       {!enabled && <Alert tone="info">{t.photosUnavailable}</Alert>}
-      <ul className="grid grid-cols-3 gap-2">
-        {photos.map((p, i) => (
+      {poster && (
+        <div className="grid grid-cols-[9rem_1fr] gap-3">
+          {photos[0] || uploading[0] ? (
+            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-100">
+              {photos[0]?.poster ? (
+                <img src={photos[0].poster} alt="" width={144} height={180} className="size-full object-cover" />
+              ) : uploading[0] && !photos[0] ? (
+                <img src={uploading[0].preview} alt="" className="size-full object-cover opacity-50" />
+              ) : (
+                <span className="flex size-full items-center justify-center p-2 text-center text-xs text-neutral-600">
+                  {photos[0]?.status === 'rejected' ? t.photoRejected : photos[0]?.status === 'failed' ? t.photoFailed : t.processing}
+                </span>
+              )}
+              {photos[0] && (
+                <button type="button" onClick={() => act(() => removeImageAction(photos[0]!.id))} aria-label={t.removePhoto} title={t.removePhoto} className="absolute end-1.5 bottom-1.5 flex size-8 items-center justify-center rounded-full bg-white/95 text-neutral-800 shadow-sm">
+                  <Icon name="trash" className="size-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <label className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 text-center text-brand-800 hover:bg-brand-50">
+              <Icon name="image" className="size-7" />
+              <b className="text-sm">{messages.events.steps.addPoster}</b>
+              {enabled && picker}
+            </label>
+          )}
+          <div className="flex flex-col gap-2">
+            {photos.length + uploading.length > 0 && enabled && !full && (
+              <label className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 text-sm font-bold text-brand-800 hover:bg-brand-50">
+                <Icon name="camera" className="size-6" />
+                {messages.events.steps.morePhotos}
+                {picker}
+              </label>
+            )}
+            <p className="text-xs leading-6 text-neutral-600">{messages.events.steps.morePhotosHint}</p>
+          </div>
+        </div>
+      )}
+      <ul className={poster ? (photos.length + uploading.length > 1 ? 'grid grid-cols-4 gap-2' : 'hidden') : 'grid grid-cols-3 gap-2'}>
+        {(poster ? photos.slice(1) : photos).map((p, j) => {
+          const i = poster ? j + 1 : j;
+          return (
           <li key={p.id} className="relative aspect-square overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
             {p.thumb ? (
               <img src={p.thumb} alt="" width={160} height={160} className="size-full object-cover" />
@@ -175,8 +221,9 @@ export function PhotoEditor({
               </div>
             </details>
           </li>
-        ))}
-        {uploading.map((u) => (
+          );
+        })}
+        {(poster ? uploading.slice(photos.length ? 0 : 1) : uploading).map((u) => (
           <li key={u.tempId} className="relative aspect-square overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
             <img src={u.preview} alt="" className="size-full object-cover opacity-50" />
             <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2 text-center text-xs">
@@ -189,12 +236,12 @@ export function PhotoEditor({
             </span>
           </li>
         ))}
-        {enabled && !full && (
+        {enabled && !full && !poster && (
           <li>
             <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 text-brand-800 hover:bg-brand-50">
               <Icon name="camera" className="size-7" />
               <b className="text-sm">{t.addPhotos}</b>
-              <input ref={input} type="file" accept={ACCEPTED_TYPES.join(',')} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
+              {picker}
             </label>
           </li>
         )}

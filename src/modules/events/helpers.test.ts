@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { cardDate, formatEventWhen, formatJalaliDate } from './format';
 import { buildIcs } from './ics';
-import { eventInputSchema, prepareEventFields, type EventInput } from './input';
+import { OPEN_END_MS, eventInputSchema, prepareEventFields, type EventInput } from './input';
+import { isFiltered, readEventsQuery, stateQuery, stateWindow } from './list-params';
+import { currentSeason, inSeason, seasonByKey } from './seasons';
 import { checkLink } from './links';
 import { whenWindow } from './queries';
 import { localParts, parseLocalDate, parseLocalTime, repeatDays, zonedToUtc } from './time';
@@ -115,7 +117,68 @@ describe('date rules', () => {
   it('a draft keeps whatever is complete and needs nothing', () => {
     const r = prepareEventFields(eventInputSchema.parse({ startDate: '2026-12-19' }), { timeZone: BERLIN, mode: 'draft', goingOut: false, now: NOW });
     expect(r).toMatchObject({ ok: true, dates: [] });
-    expect(publish({ startTime: '', endTime: '' })).toEqual({ ok: false, errors: { startTime: 'required', endTime: 'required' } });
+    expect(publish({ startTime: '', endTime: '' })).toEqual({ ok: false, errors: { startTime: 'required' } });
+  });
+
+  it('without an end time a date lasts three hours and is marked open (wave 1)', () => {
+    const r = publish({ endTime: '' });
+    expect(r).toMatchObject({ ok: true, values: { openEnd: true } });
+    if (!r.ok) throw new Error('refused');
+    expect(r.dates[0]!.endsAt.getTime() - r.dates[0]!.startsAt.getTime()).toBe(OPEN_END_MS);
+    expect(publish()).toMatchObject({ ok: true, values: { openEnd: false } });
+    // Over several days the last day needs its end time
+    expect(publish({ endDate: '2026-12-20', endTime: '' })).toEqual({ ok: false, errors: { endTime: 'required' } });
+  });
+});
+
+describe('the event page facts (wave 1)', () => {
+  it('keeps performers with a name, at most eight, and yes / no / not said', () => {
+    const r = publish({ performers: [{ name: ' رها  صادقی ', role: 'آواز' }, { name: '', role: '' }, { name: 'کیان', role: '' }], stepFree: 'yes', doorSales: '', seating: 'numbered', refundNote: ' تا ۷ روز پیش ' });
+    expect(r).toMatchObject({ ok: true, values: { performers: [{ name: 'رها صادقی', role: 'آواز' }, { name: 'کیان' }], stepFree: true, doorSales: null, seating: 'numbered', refundNote: 'تا ۷ روز پیش' } });
+    expect(publish({ performers: [{ name: '', role: 'تار' }] })).toEqual({ ok: false, errors: { performers: 'required' } });
+    expect(publish({ performers: Array.from({ length: 9 }, (_, i) => ({ name: `نفر ${i}`, role: '' })) })).toEqual({ ok: false, errors: { performers: 'too_many' } });
+  });
+});
+
+describe('seasons', () => {
+  it('finds Yalda, Chaharshanbe Suri, Nowruz and Sizdah in the Gregorian calendar', () => {
+    const yalda = currentSeason(new Date('2026-10-27T10:00:00Z'), BERLIN);
+    expect(yalda?.key).toBe('yalda');
+    expect(yalda?.day.toISOString().slice(0, 10)).toBe('2026-12-21');
+    expect(seasonByKey('nowruz', NOW, BERLIN)?.day.toISOString().slice(0, 10)).toBe('2027-03-21');
+    expect(seasonByKey('chaharshanbe', NOW, BERLIN)?.day.toISOString().slice(0, 10)).toBe('2027-03-16');
+    expect(seasonByKey('sizdah', NOW, BERLIN)?.day.toISOString().slice(0, 10)).toBe('2027-04-02');
+    // Too far ahead: no strip in August
+    expect(currentSeason(new Date('2026-08-01T10:00:00Z'), BERLIN)).toBeNull();
+    // After Yalda, the next is Chaharshanbe Suri, from mid January
+    expect(currentSeason(new Date('2027-01-20T10:00:00Z'), BERLIN)?.key).toBe('chaharshanbe');
+  });
+
+  it('puts an event in the season by its title and date', () => {
+    const yalda = seasonByKey('yalda', NOW, BERLIN)!;
+    expect(inSeason(yalda, 'جشن شب یلدا با موسیقی زنده', new Date('2026-12-19T18:00:00Z'))).toBe(true);
+    expect(inSeason(yalda, 'جشن شب يلدا', new Date('2026-12-19T18:00:00Z'))).toBe(true);
+    expect(inSeason(yalda, 'کنسرت گروه نوا', new Date('2026-12-19T18:00:00Z'))).toBe(false);
+    expect(inSeason(yalda, 'جشن یلدا', new Date('2026-11-01T18:00:00Z'))).toBe(false);
+  });
+});
+
+describe('the events list address (wave 1)', () => {
+  it('reads every filter and writes it back', () => {
+    const s = readEventsQuery({ when: 'weekend', type: ['concert', 'party'], price: 'cheap', lang: ['fa', 'xx'], family: '1', stepfree: '1', range: 'near', online: '1' }, NOW, BERLIN);
+    expect(s).toMatchObject({ when: 'weekend', types: ['concert', 'party'], cheap: true, free: false, languages: ['fa'], family: true, stepFree: true, near: true, attendance: 'online' });
+    expect(stateQuery(s).toString()).toBe('when=weekend&type=concert&type=party&price=cheap&online=1&lang=fa&family=1&stepfree=1&range=near');
+    expect(isFiltered(readEventsQuery({}, NOW, BERLIN))).toBe(false);
+  });
+
+  it('a day wins over a quick choice; the sheet\'s date counts only with «انتخاب تاریخ…»', () => {
+    expect(readEventsQuery({ day: '2026-10-29', when: 'week' }, NOW, BERLIN)).toMatchObject({ day: '2026-10-29', when: null });
+    expect(readEventsQuery({ when: 'today', 'day.day': '3', 'day.month': '11', 'day.year': '2026' }, NOW, BERLIN)).toMatchObject({ day: null, when: 'today' });
+    expect(readEventsQuery({ when: 'date', 'day.day': '3', 'day.month': '11', 'day.year': '2026' }, NOW, BERLIN)).toMatchObject({ day: '2026-11-03' });
+    const w = stateWindow(readEventsQuery({ day: '2026-10-29' }, NOW, BERLIN), NOW, BERLIN);
+    expect(w).toEqual({ from: new Date('2026-10-28T23:00:00Z'), to: new Date('2026-10-29T23:00:00Z') });
+    const tomorrow = stateWindow(readEventsQuery({ when: 'tomorrow' }, NOW, BERLIN), NOW, BERLIN);
+    expect(tomorrow).toEqual({ from: new Date('2026-10-18T22:00:00Z'), to: new Date('2026-10-19T22:00:00Z') });
   });
 });
 

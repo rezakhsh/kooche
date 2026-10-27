@@ -169,6 +169,13 @@
       "when": 1793124694189,
       "tag": "0023_first_city_waitlists",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793127177782,
+      "tag": "0024_event_follows",
+      "breakpoints": true
     }
   ]
 }

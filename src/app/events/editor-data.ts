@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Db } from '../../db/drizzle';
-import { eventDetails, listings, users } from '../../db/schema';
+import { eventDetails, listings, locations, users } from '../../db/schema';
 import { messages } from '../../messages/fa';
 import { DEFAULT_TIME_ZONE } from '../../modules/events/events';
 import { formatLocalDate, formatLocalTime, localParts } from '../../modules/events/time';
@@ -11,6 +11,7 @@ import { placeLabel, placeOfListing, placeValue, type Place } from '../../module
 import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { storage } from '../../modules/media/server';
+import { myBusinesses } from '../../modules/organizations/organizations';
 import { turnstileSiteKey } from '../../modules/security/server';
 import { photoView, type PhotoView } from '../my/listings/photo-view';
 import type { EventFormProps } from './form';
@@ -31,11 +32,12 @@ export async function eventEditorData(
   } | null,
   preferred: { countryCode: string | null; typeSlug: string | null },
 ): Promise<{ form: EventFormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
-  const [catalog, countries, saved, [me]] = await Promise.all([
+  const [catalog, countries, saved, [me], businesses] = await Promise.all([
     cachedCatalog(db),
     activeCountries(db),
     savedPlace(db, userId),
     db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)),
+    myBusinesses(db, userId),
   ]);
   const root = catalog.bySlug.get(EVENT_ROOT_SLUG);
   const types = (root?.childIds ?? []).map((id) => catalog.byId.get(id)!).filter((c) => c.isActive && c.allowsListings);
@@ -61,6 +63,9 @@ export async function eventEditorData(
   const overnight = first && !sameDay && first.endsAt.getTime() - first.startsAt.getTime() < 24 * 3_600_000;
 
   const preferredType = preferred.typeSlug ? catalog.bySlug.get(preferred.typeSlug) : undefined;
+  // «به وقت برلین»: the city of the place, else of the saved place, else the default zone's
+  const cityId = place?.locationId ?? null;
+  const [city] = cityId ? await db.select({ nameFa: locations.nameFa }).from(locations).where(eq(locations.id, cityId)) : [];
   return {
     form: {
       listingId: l?.id ?? null,
@@ -70,6 +75,12 @@ export async function eventEditorData(
       countries: countries.filter((c) => c.code === countryCode).map((c) => ({ code: c.code, nameFa: c.nameFa, currencySymbol: c.currency.symbol })),
       countryChangeable: !l?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
+      userName: me?.displayName ?? '',
+      cityName: city?.nameFa ?? messages.notifications.defaultCity,
+      postAs: {
+        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name })),
+        locked: !!l && l.status !== 'draft',
+      },
       turnstileSiteKey: turnstileSiteKey(),
       values: {
         categoryId: l?.categoryId ?? (preferredType && types.some((t) => t.id === preferredType.id) ? preferredType.id : ''),
@@ -90,7 +101,7 @@ export async function eventEditorData(
         startTime: start ? formatLocalTime(start) : '',
         // An end on the next morning is read from the time alone, like the organizer typed it
         endDate: end && !sameDay && !overnight ? formatLocalDate(end) : '',
-        endTime: end ? formatLocalTime(end) : '',
+        endTime: end && !d?.openEnd ? formatLocalTime(end) : '',
         repeat: d?.repeat ?? 'none',
         repeatUntil: d?.repeatUntil ?? '',
         attendance: d?.attendance ?? 'in_person',
@@ -103,6 +114,12 @@ export async function eventEditorData(
         minAge: d?.minAge ? String(d.minAge) : '',
         scheduleStatus: d?.scheduleStatus ?? 'scheduled',
         timeZone: tz,
+        seating: d?.seating ?? '',
+        stepFree: d?.stepFree == null ? '' : d.stepFree ? 'yes' : 'no',
+        doorSales: d?.doorSales == null ? '' : d.doorSales ? 'yes' : 'no',
+        refundNote: d?.refundNote ?? '',
+        performers: (d?.performers ?? []).map((p) => ({ name: p.name, role: p.role ?? '' })),
+        organizationId: l?.organizationId ?? '',
       },
     },
     photos: {

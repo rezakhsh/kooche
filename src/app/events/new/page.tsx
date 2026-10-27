@@ -6,6 +6,8 @@ import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 import { EventEditor } from '../editor';
 import { eventEditorData } from '../editor-data';
+import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
+import { PostingBar } from '../../new/posting-bar';
 
 export const metadata = { title: messages.events.form.newTitle, robots: { index: false } };
 
@@ -36,11 +38,14 @@ export default async function NewEventPage({ searchParams }: { searchParams: Pro
     countryCode: (await chosenCountry(db))?.code ?? null,
     typeSlug: typeof type === 'string' ? type : null,
   });
+  // Wave 1 (mockup final/post-event1): the posting bar and the steps, like a listing's
   return (
-    <PageShell title={messages.events.form.newTitle}>
-      <div className="space-y-6">
+    <>
+      <PostingBar title={messages.events.form.newTitle} closeHref="/my/events" />
+      <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6">
+        <NoScriptSteps />
         <EventEditor {...editor} />
-      </div>
-    </PageShell>
+      </main>
+    </>
   );
 }

@@ -6,12 +6,13 @@ import { messages } from '../../../messages/fa';
 // The filter form's button, «نمایش ۲۳ آگهی» (wave 1, mockup final/filters): it starts with the
 // page's own count, which matches the form as sent, and follows each change of the form with the
 // count it would show (/api/search/count, src/modules/search/form-count.ts). Without JavaScript it
-// keeps the first count; a failed count shows the plain «نمایش نتایج».
+// keeps the first count; a failed count shows the plain «نمایش نتایج». `of: 'events'`: the events
+// list's sheet (mockup final/events-filters), counted by /api/events/count.
 
 const WAIT_MS = 350;
 
-export function FilterSubmit({ path, count, capped }: { path: string; count: number; capped: boolean }) {
-  const t = messages.browse;
+export function FilterSubmit({ path, count, capped, of = 'listings' }: { path: string; count: number; capped: boolean; of?: 'listings' | 'events' }) {
+  const t = of === 'events' ? messages.events.sheet : messages.browse;
   const ref = useRef<HTMLButtonElement>(null);
   const [label, setLabel] = useState(t.showCount(count, capped));
   const [none, setNone] = useState(count === 0);
@@ -30,7 +31,7 @@ export function FilterSubmit({ path, count, capped }: { path: string; count: num
         query.set('p', path);
         for (const [k, v] of new FormData(form)) if (typeof v === 'string' && v !== '') query.append(k, v);
         try {
-          const res = await fetch(`/api/search/count?${query}`, { signal: controller.signal });
+          const res = await fetch(`/api/${of === 'events' ? 'events' : 'search'}/count?${query}`, { signal: controller.signal });
           const body = (await res.json()) as { count: number | null; capped?: boolean };
           if (!res.ok || body.count === null) throw new Error('no count');
           setLabel(t.showCount(body.count, !!body.capped));
@@ -50,7 +51,7 @@ export function FilterSubmit({ path, count, capped }: { path: string; count: num
       form.removeEventListener('change', update);
       form.removeEventListener('input', update);
     };
-  }, [path, t]);
+  }, [path, t, of]);
 
   return (
     <button

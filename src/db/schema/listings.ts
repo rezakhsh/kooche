@@ -525,6 +525,8 @@ export const favorites = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
+    /** A saved event: the start of the date its reminder went out for (wave 1, migration 0024) */
+    remindedFor: tstz('reminded_for'),
   },
   (t) => [
     primaryKey({ name: 'favorites_pkey', columns: [t.listingId, t.userId] }),

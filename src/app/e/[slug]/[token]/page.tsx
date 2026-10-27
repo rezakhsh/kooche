@@ -3,35 +3,44 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
+import { EventRow } from '../../../../components/event-row';
 import { FavoriteButton } from '../../../../components/favorite-button';
-import { Icon } from '../../../../components/icons';
-import { clientIp } from '../../../../lib/client-ip';
-import { valkey } from '../../../../lib/valkey';
-import { countView } from '../../../../modules/listings/views';
+import { Icon, type IconName } from '../../../../components/icons';
 import { ListingFooter } from '../../../../components/report-link';
-import { OutlineMap } from '../../../../components/outline-map';
-import { Alert, Card, LinkButton } from '../../../../components/ui';
+import { Alert } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
+import { clientIp } from '../../../../lib/client-ip';
 import { webEnv } from '../../../../lib/env';
+import { valkey } from '../../../../lib/valkey';
 import { messages } from '../../../../messages/fa';
-import { eventPriceText, formatEventWhen, formatJalaliDate, zoneName } from '../../../../modules/events/format';
-import { publicEvent } from '../../../../modules/events/queries';
+import { eventRowOf } from '../../../../modules/events/card';
+import { isFollowing, organizerFacts } from '../../../../modules/events/follows';
+import { eventPriceText } from '../../../../modules/events/format';
+import { publicEvent, upcomingEvents } from '../../../../modules/events/queries';
+import { currentSeason } from '../../../../modules/events/seasons';
 import { eventPath } from '../../../../modules/events/slug';
+import { dayNumber, localParts } from '../../../../modules/events/time';
 import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
-import { amountInputValue } from '../../../../modules/listings/price';
 import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
+import { amountInputValue } from '../../../../modules/listings/price';
 import { activeCountries } from '../../../../modules/listings/queries';
+import { countView } from '../../../../modules/listings/views';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
+import { eventsPath } from '../../../../modules/search/paths';
 import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession } from '../../../../modules/users/server';
-import { Contact } from '../../../v/[slug]/[token]/contact';
-import { ShareButtons } from './share';
+import { followAction } from '../../../events/follow-actions';
+import { BackButton, ShareButton } from '../../../v/[slug]/[token]/photo-bar';
 
-// The event page, /e/{persian-title}/{token}. Unlike a listing, the venue's address is public
-// (people have to get there); the stored point is still only the postal-code area or a ~500 m
-// cell. The online link is shown only to signed-in visitors. schema.org Event markup lets search
-// engines show the event in their event listings.
+// The event page, /e/{persian-title}/{token} (wave 1, mockup final/event). Phones: the poster whole
+// (4:5) on a blurred copy of itself with back, share and ♡ over it, then the date, the place and
+// the tickets as three rows with their actions (calendar, route, tickets), the other dates of a
+// series, who is on stage, the details, the organiser with «دنبال کردن», the ticket-scam warning
+// and similar events; «خرید بلیت» stays at the bottom. Computers: the poster on one side with a
+// sticky ticket box under it, everything else beside it. Unlike a listing, the venue's address is
+// public (people have to get there); the online link is shown only to signed-in visitors.
+// schema.org Event markup lets search engines show the event in their event listings.
 
 type Params = { slug: string; token: string };
 
@@ -67,7 +76,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   };
 }
 
-export default async function EventPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<{ published?: string }> }) {
+export default async function EventPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<{ published?: string; followed?: string; follow?: string }> }) {
   const { token } = await params;
   const data = await load(token);
   if (!data) notFound();
@@ -75,9 +84,10 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
 
-  const { listing: l, details: d, dates, images, seller, cityFa, cityLocal } = data;
+  const { listing: l, details: d, dates, images, seller, business, cityFa, cityLocal } = data;
   const env = webEnv();
   const t = messages.events.page;
+  const v = messages.events.view;
   const now = new Date();
   const db = appDb();
   const [catalog, countries] = await Promise.all([cachedCatalog(db), activeCountries(db)]);
@@ -88,25 +98,70 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const upcoming = dates.filter((x) => x.endsAt > now);
   const next = upcoming[0] ?? dates.at(-1);
   const ended = l.status === 'expired' || upcoming.length === 0;
+  const live = l.status === 'active' && !ended;
   const path = eventPath(l.title, l.publicToken);
-  // The seller sees no chat button on their own listing
-  const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
-  // The ♡ for visitors; the organizer sees how many saved it instead (nobody else does)
-  const savedByMe = session && !isOwner ? (await savedAmong(appDb(), session.user.id, [l.id])).has(l.id) : false;
-  const favCount = isOwner ? ((await favoriteCounts(appDb(), session!.user.id, [l.id])).get(l.id) ?? 0) : null;
   const url = `${env.APP_URL}${path}`;
   const inPerson = d.attendance !== 'online';
-  const placeLine = [l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : null, cityFa && cityLocal !== l.placeName ? cityFa : null].filter(Boolean).join('، ');
-  const addressText = [d.venueName, d.streetAddress, l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : cityLocal, country?.nameLocal].filter(Boolean).join(', ');
+  const tz = d.timeZone;
+  const free = l.priceType === 'free';
+  const cityName = cityFa ?? cityLocal ?? '';
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
   // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own
   if (!isOwner && l.status === 'active') {
     await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
   }
-  const { published } = await searchParams;
-  const organizer = d.organizerName ?? seller.displayName;
+  const sp = await searchParams;
+
+  const organizationId = business ? l.organizationId : null;
+  const [chat, savedSet, going, facts, following, similar] = await Promise.all([
+    isOwner || l.status !== 'active' ? Promise.resolve(null) : chatEntry(db, { userId: session?.user.id ?? null, listing: l, returnTo: path }),
+    session && !isOwner ? savedAmong(db, session.user.id, [l.id]) : Promise.resolve(new Set<string>()),
+    favoriteCounts(db, l.userId, [l.id]).then((m) => m.get(l.id) ?? 0),
+    organizerFacts(db, { userId: l.userId, organizationId }),
+    session && organizationId && !isOwner ? isFollowing(db, session.user.id, organizationId) : Promise.resolve(false),
+    l.countryCode
+      ? upcomingEvents(db, { countryCode: l.countryCode, locationId: l.locationId, categoryIds: l.categoryId ? [l.categoryId] : null, from: now, to: null, notId: l.id }, now, 3).then(async (r) =>
+          r.items.length >= 2 ? r.items : (await upcomingEvents(db, { countryCode: l.countryCode!, locationId: l.locationId, from: now, to: null, notId: l.id }, now, 3)).items,
+        )
+      : Promise.resolve([]),
+  ]);
+  const saved = savedSet.has(l.id);
+  const similarSaved = session ? await savedAmong(db, session.user.id, similar.map((e) => e.id)) : new Set<string>();
+  const season = currentSeason(now, tz);
+  const organizer = d.organizerName ?? business?.name ?? seller.displayName;
+  const organizerHref = business ? `/b/${business.slug}` : sellerPath(seller.publicToken);
+  const verified = business?.verificationStatus === 'verified';
+
+  // The date row: «یکشنبه، ۸ نوامبر ۲۰۲۶», «۱۴ روز دیگر», «ساعت ۲۰:۰۰ تا ۲۳:۰۰، به وقت برلین»
+  const fmt = (o: Intl.DateTimeFormatOptions, date: Date) => new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { timeZone: tz, ...o }).format(date);
+  const time = (date: Date) => new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz }).format(date);
+  const fullDate = (date: Date) => `${fmt({ weekday: 'long' }, date)}، ${fmt({ day: 'numeric', month: 'long', year: 'numeric' }, date)}`;
+  const dayMonth = (date: Date) => fmt({ day: 'numeric', month: 'long' }, date);
+  const inDays = (() => {
+    if (!next) return null;
+    const a = localParts(now, tz);
+    const b = localParts(next.startsAt, tz);
+    const n = dayNumber(b) - dayNumber(a);
+    return n >= 0 ? v.inDays(n) : null;
+  })();
+  const multiDay = next && next.endsAt.getTime() - next.startsAt.getTime() > 24 * 3_600_000;
+  const timeLine = next
+    ? v.time(time(next.startsAt), d.openEnd ? null : multiDay ? `${dayMonth(next.endsAt)}، ${time(next.endsAt)}` : time(next.endsAt), cityName)
+    : '';
+  const placeLine = [d.streetAddress, l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : cityLocal].filter(Boolean).join(', ');
+  const addressText = [d.venueName, d.streetAddress, l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : cityLocal, country?.nameLocal].filter(Boolean).join(', ');
+  const ticketLink = d.ticketUrl && d.scheduleStatus !== 'cancelled' ? d.ticketUrl : null;
+  const buyLabel = free ? v.register : v.buy;
   const languages = d.languages.map((x) => messages.events.languages[x as keyof typeof messages.events.languages]).join('، ');
+  const factRows: [string, string][] = [
+    ...(languages ? [[v.facts.language, languages] as [string, string]] : []),
+    [v.facts.age, d.minAge ? messages.events.age.min(d.minAge) : messages.events.age.all],
+    ...(d.seating ? [[v.facts.seating, v.seating[d.seating]] as [string, string]] : []),
+    ...(d.stepFree !== null && inPerson ? [[v.facts.access, v.stepFree[d.stepFree ? 'yes' : 'no']] as [string, string]] : []),
+    ...(d.refundNote ? [[v.facts.refund, d.refundNote] as [string, string]] : []),
+    ...(d.doorSales !== null && !free ? [[v.facts.door, v.door[d.doorSales ? 'yes' : 'no']] as [string, string]] : []),
+  ];
 
   const jsonLd = next && {
     '@context': 'https://schema.org',
@@ -115,7 +170,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     description: l.description,
     url,
     startDate: next.startsAt.toISOString(),
-    endDate: next.endsAt.toISOString(),
+    ...(d.openEnd ? {} : { endDate: next.endsAt.toISOString() }),
     eventStatus: STATUS[d.scheduleStatus],
     eventAttendanceMode: MODE[d.attendance],
     image: images.map((i) => imageUrl(i.key, 'full', 'webp')).filter(Boolean),
@@ -137,15 +192,16 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         : []),
       ...(d.attendance !== 'in_person' ? [{ '@type': 'VirtualLocation', url }] : []),
     ],
-    organizer: { '@type': d.organizerName ? 'Organization' : 'Person', name: organizer },
+    organizer: { '@type': business || d.organizerName ? 'Organization' : 'Person', name: organizer },
+    ...(d.performers.length ? { performer: d.performers.map((p) => ({ '@type': 'Person', name: p.name })) } : {}),
     ...(d.languages.length ? { inLanguage: d.languages.filter((x) => x !== 'other') } : {}),
     ...(d.minAge ? { typicalAgeRange: `${d.minAge}-` } : {}),
-    ...(currency && (l.priceType === 'free' || l.priceMinor !== null)
+    ...(currency && (free || l.priceMinor !== null)
       ? {
           offers: {
             '@type': 'Offer',
             url: d.ticketUrl ?? url,
-            price: l.priceType === 'free' ? '0' : amountInputValue(l.priceMinor!, currency.minorUnit),
+            price: free ? '0' : amountInputValue(l.priceMinor!, currency.minorUnit),
             priceCurrency: currency.code,
             availability: 'https://schema.org/InStock',
             validFrom: (l.publishedAt ?? l.createdAt).toISOString(),
@@ -154,229 +210,344 @@ export default async function EventPage({ params, searchParams }: { params: Prom
       : {}),
   };
 
-  const [cover, ...rest] = images;
+  const [cover] = images;
+  const posterSrc = cover ? imageSources(cover.key, 'full') : null;
+  const blurSrc = cover ? imageUrl(cover.key, 'poster', 'webp') : null;
+
+  // What the main button does: the organiser's ticket page, else a message to them
+  const main: { href: string; label: string; external: boolean } | null = !live
+    ? null
+    : ticketLink
+      ? { href: ticketLink, label: buyLabel, external: true }
+      : chat
+        ? { href: chat.href, label: v.message, external: false }
+        : null;
+
+  const rows: { icon: IconName; title: ReactNode; sub: ReactNode; action?: ReactNode }[] = [];
+  if (next) {
+    rows.push({
+      icon: 'calendar',
+      title: fullDate(next.startsAt),
+      sub: (
+        <>
+          {inDays && !ended && <span className="me-1 rounded-full bg-saffron-100 px-2 whitespace-nowrap text-saffron-800">{inDays}</span>}
+          {timeLine}
+        </>
+      ),
+      action: live ? (
+        <a href={`${path}/calendar`} className="text-sm font-bold text-brand-800 hover:underline">
+          {v.calendar}
+        </a>
+      ) : undefined,
+    });
+  }
+  if (inPerson) {
+    rows.push({
+      icon: 'pin',
+      title: <bdi>{d.venueName ?? cityName}</bdi>,
+      sub: placeLine ? <bdi dir="ltr">{placeLine}</bdi> : cityName,
+      action:
+        live && addressText ? (
+          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressText)}`} target="_blank" rel="noopener noreferrer nofollow" className="text-sm font-bold text-brand-800 hover:underline">
+            {v.route}
+          </a>
+        ) : undefined,
+    });
+  }
+  if (d.attendance !== 'in_person' && !ended) {
+    rows.push({
+      icon: 'globe',
+      title: v.onlineOnly,
+      sub: v.onlineHint,
+      action: session ? (
+        d.onlineUrl && (
+          <a href={d.onlineUrl} target="_blank" rel="noopener noreferrer nofollow ugc" className="text-sm font-bold text-brand-800 hover:underline">
+            {v.join}
+          </a>
+        )
+      ) : (
+        <Link href={`/login?next=${encodeURIComponent(path)}`} className="text-sm font-bold text-brand-800 hover:underline">
+          {v.join}
+        </Link>
+      ),
+    });
+  }
+  if (price) {
+    rows.push({
+      icon: 'ticket',
+      title: price,
+      sub: ticketLink ? (free ? v.registerAt : v.soldAt) : free ? '' : v.noLink,
+    });
+  }
+
+  const ticketBox = (
+    <div className="rounded-2xl border border-neutral-200 p-4">
+      <p className="text-sm text-neutral-600">{t.tickets}</p>
+      <p className="text-2xl font-black">{price}</p>
+      {isOwner ? (
+        <OwnerTools listingId={l.id} active={l.status === 'active'} saved={going} />
+      ) : (
+        <>
+          {main && <MainButton {...main} className="mt-3 h-12 w-full" />}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {l.status === 'active' && <FavoriteButton token={l.publicToken} saved={saved} back={path} variant="interest" />}
+            <ShareBox title={l.title} />
+          </div>
+          {going >= 3 && <p className="mt-3 text-xs text-neutral-600">{v.going(going)}</p>}
+        </>
+      )}
+    </div>
+  );
+
+  const organizerBox = (
+    <section id="organizer" className="rounded-2xl border border-neutral-200 p-4">
+      <div className="flex items-center gap-3">
+        <Link href={organizerHref} className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-950 text-lg font-black text-white">
+          {facts.logoKey ? <img src={imageUrl(facts.logoKey, 'thumb', 'webp') ?? ''} alt="" className="size-full object-cover" /> : organizer.slice(0, 1)}
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Link href={organizerHref} className="flex items-center gap-1 font-bold hover:underline">
+            <span className="truncate">{organizer}</span>
+            {verified && <Icon name="verified" className="size-4 shrink-0 text-brand-700" />}
+          </Link>
+          <p className="text-xs text-neutral-600">{verified ? v.organizerVerified(facts.events) : v.organizerEvents(facts.events)}</p>
+        </div>
+        {organizationId && !isOwner && (
+          <form action={followAction}>
+            <input type="hidden" name="organizationId" value={organizationId} />
+            <input type="hidden" name="intent" value={following ? 'unfollow' : 'follow'} />
+            <input type="hidden" name="back" value={path} />
+            <button
+              type="submit"
+              aria-pressed={following}
+              title={following ? v.unfollow : v.followHint}
+              className={`flex h-10 items-center gap-1 rounded-lg border px-3 text-sm font-bold ${following ? 'border-neutral-300 bg-white text-neutral-800' : 'border-brand-200 bg-brand-50 text-brand-800 hover:bg-brand-100'}`}
+            >
+              {following && <Icon name="check" className="size-4" />}
+              {following ? v.following : v.follow}
+            </button>
+          </form>
+        )}
+      </div>
+      {sp.followed === '1' && (
+        <p role="status" className="mt-3 text-xs leading-6 text-brand-800">
+          {v.followHint}
+        </p>
+      )}
+      {sp.follow === 'limit' && <p className="mt-3 text-xs text-red-700">{messages.events.follow.limit}</p>}
+      {!isOwner && chat && ticketLink && (
+        <Link href={chat.href} className="mt-3 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-neutral-300 text-sm font-bold hover:bg-neutral-50">
+          <Icon name="chat" className="size-4" />
+          {v.message}
+        </Link>
+      )}
+    </section>
+  );
+
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <main data-listing-page className="mx-auto w-full max-w-6xl pb-28 lg:grid lg:grid-cols-[22rem_1fr] lg:gap-10 lg:px-6 lg:pt-8 lg:pb-10">
       {jsonLd && !ended && (
         <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       )}
-      <nav aria-label="breadcrumb" className="mb-4 flex flex-wrap gap-1 text-xs text-neutral-500">
-        {country && (
-          <Link href={`/${country.slug}/events`} className="hover:underline">
-            {t.back(country.nameFa)}
-          </Link>
+      <div className="relative lg:sticky lg:top-20 lg:self-start">
+        <div className="relative overflow-hidden bg-brand-950 lg:rounded-3xl">
+          {blurSrc && <img src={blurSrc} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-2xl" />}
+          <div className="relative mx-auto w-[72%] py-14 lg:w-full lg:py-0">
+            {posterSrc ? (
+              <picture>
+                <source srcSet={posterSrc.avif} type="image/avif" />
+                <img src={posterSrc.webp} alt={l.title} width={cover!.width ?? undefined} height={cover!.height ?? undefined} fetchPriority="high" className="w-full rounded-xl shadow-2xl lg:rounded-none" />
+              </picture>
+            ) : (
+              <div className="flex aspect-[4/5] flex-col justify-between rounded-xl bg-brand-900 p-[8%] text-white shadow-2xl lg:rounded-none">
+                <span className="text-sm font-bold opacity-80">{type?.nameFa}</span>
+                <span className="text-2xl font-black leading-[1.4]">{l.title}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {images.length > 1 && (
+          <ul className="no-scrollbar flex gap-2 overflow-x-auto px-4 pt-3 lg:px-0">
+            {images.slice(1).map((img, i) => (
+              <li key={img.id} className="shrink-0">
+                <a href={imageUrl(img.key, 'full', 'webp') ?? '#'} target="_blank" rel="noopener">
+                  <img src={imageUrl(img.key, 'thumb', 'webp') ?? ''} alt={messages.listing.photo(i + 2, images.length)} width={80} height={80} loading="lazy" className="size-20 rounded-xl object-cover" />
+                </a>
+              </li>
+            ))}
+          </ul>
         )}
-        {type && country && (
-          <Link href={`/${country.slug}/events?type=${type.slug}`} className="hover:underline">
-            › {type.nameFa}
-          </Link>
-        )}
-      </nav>
+        <div className="mt-4 hidden lg:block">{ticketBox}</div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 p-3 lg:hidden">
+          <BackButton fallback={country ? eventsPath(country.slug, null) : '/'} />
+          <span className="ms-auto" />
+          <span className="pointer-events-auto">
+            <ShareButton title={l.title} />
+          </span>
+          {!isOwner && l.status === 'active' && <FavoriteButton token={l.publicToken} saved={saved} back={path} variant="photo" />}
+        </div>
+      </div>
 
-      <div className="space-y-4">
-        {published && <Alert tone="success">{t.published}</Alert>}
+      <div className="min-w-0 space-y-5 px-4 pt-4 lg:px-0 lg:pt-0">
+        {sp.published && <Alert tone="success">{t.published}</Alert>}
         {!PUBLIC.has(l.status) && <Alert tone="info">{messages.listing.ownerPreview}</Alert>}
         {ended && <Alert tone="info">{t.ended}</Alert>}
         {!ended && d.scheduleStatus === 'cancelled' && <Alert tone="error">{t.cancelled}</Alert>}
         {!ended && d.scheduleStatus === 'postponed' && <Alert tone="info">{t.postponed}</Alert>}
         {l.status === 'paused' && <Alert tone="info">{t.paused}</Alert>}
 
-        <div className="grid gap-4 sm:grid-cols-[16rem_1fr]">
-          <div className="space-y-2">
-            {cover ? (
-              <Poster image={cover} alt={l.title} />
-            ) : (
-              <div className="flex aspect-[4/5] items-center justify-center rounded-2xl bg-neutral-100 text-sm text-neutral-500">{type?.nameFa}</div>
-            )}
-            {rest.length > 0 && (
-              <ul className="grid grid-cols-3 gap-2">
-                {rest.map((img, i) => (
-                  <li key={img.id}>
-                    <a href={imageUrl(img.key, 'full', 'webp') ?? '#'} target="_blank" rel="noopener">
-                      <img src={imageUrl(img.key, 'thumb', 'webp') ?? ''} alt={messages.listing.photo(i + 2, images.length)} width={160} height={160} loading="lazy" className="aspect-square w-full rounded-xl object-cover" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              {type && <span className="mb-1 inline-block rounded-md bg-brand-50 px-2 py-0.5 text-xs text-brand-800">{type.nameFa}</span>}
-              <h1 className="text-2xl font-bold leading-snug">{l.title}</h1>
-              {!isOwner && l.status === 'active' && (
-                <div className="mt-2">
-                  <FavoriteButton token={l.publicToken} saved={savedByMe} back={path} variant="page" />
-                </div>
-              )}
-            </div>
-
-            <dl className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
-              {next && (
-                <Row
-                  label={t.when}
-                  value={
-                    <span className="flex flex-col items-end gap-0.5">
-                      <span className="font-semibold">{formatEventWhen(next.startsAt, next.endsAt, d.timeZone)}</span>
-                      <span className="text-xs text-neutral-500">
-                        {t.jalali} {formatJalaliDate(next.startsAt, d.timeZone)}
-                      </span>
-                      <span className="text-xs text-neutral-500">{t.timeZone(zoneName(next.startsAt, d.timeZone))}</span>
-                    </span>
-                  }
-                />
-              )}
-              {inPerson && (
-                <Row
-                  label={t.where}
-                  value={
-                    <span className="flex flex-col items-end gap-0.5">
-                      {d.venueName && <span className="font-semibold">{d.venueName}</span>}
-                      {d.streetAddress && <bdi dir="ltr">{d.streetAddress}</bdi>}
-                      {placeLine && <span className="text-neutral-600">{placeLine}</span>}
-                      {!ended && addressText && (
-                        <a
-                          href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(addressText)}`}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="text-xs text-brand-800 hover:underline"
-                        >
-                          {t.openMap}
-                        </a>
-                      )}
-                    </span>
-                  }
-                />
-              )}
-              {d.attendance !== 'in_person' && !ended && (
-                <Row
-                  label={t.online}
-                  value={
-                    session ? (
-                      d.onlineUrl && (
-                        <a href={d.onlineUrl} target="_blank" rel="noopener noreferrer nofollow ugc" dir="ltr" className="break-all text-brand-800 hover:underline">
-                          {d.onlineUrl}
-                        </a>
-                      )
-                    ) : (
-                      <Link href={`/login?next=${encodeURIComponent(path)}`} className="text-brand-800 hover:underline">
-                        {t.onlineSignIn}
-                      </Link>
-                    )
-                  }
-                />
-              )}
-              {price && <Row label={t.tickets} value={<span className="font-semibold">{price}</span>} />}
-              <Row label={t.organizer} value={organizer} />
-              {languages && <Row label={t.language} value={languages} />}
-              <Row label={t.age} value={d.minAge ? messages.events.age.min(d.minAge) : messages.events.age.all} />
-            </dl>
-
-            {!ended && (
-              <div className="flex flex-wrap gap-2">
-                {d.ticketUrl && d.scheduleStatus !== 'cancelled' && (
-                  <LinkButton href={d.ticketUrl} target="_blank" rel="noopener noreferrer nofollow ugc">
-                    {t.buyTickets}
-                  </LinkButton>
-                )}
-                <LinkButton href={`${path}/calendar`} variant="secondary">
-                  {t.addToCalendar}
-                </LinkButton>
-              </div>
-            )}
-            {!ended && l.priceType !== 'free' && <p className="text-xs text-neutral-500">{t.ticketWarning}</p>}
-
-            {upcoming.length > 1 && (
-              <section>
-                <h2 className="mb-2 font-semibold">{t.allDates}</h2>
-                <ul className="space-y-1 text-sm">
-                  {upcoming.map((x) => (
-                    <li key={x.startsAt.toISOString()}>{formatEventWhen(x.startsAt, x.endsAt, d.timeZone)}</li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {l.description && (
-              <section>
-                <h2 className="mb-2 font-semibold">{messages.listing.description}</h2>
-                <p className="whitespace-pre-line leading-relaxed text-neutral-800">{l.description}</p>
-              </section>
-            )}
-
-            {l.point && l.countryCode && inPerson && (
-              <figure className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4">
-                <OutlineMap countryCode={l.countryCode} point={l.point} label={t.mapCaption} />
-                <figcaption className="text-xs text-neutral-500">{t.mapCaption}</figcaption>
-              </figure>
-            )}
-
-            {!ended && (
-              <section className="space-y-2">
-                <h2 className="font-semibold">{t.share}</h2>
-                <ShareButtons url={url} title={l.title} />
-              </section>
-            )}
-
-            <Card className="space-y-4">
-              <div>
-                <span className="block text-xs text-neutral-500">{t.organizer}</span>
-                <span className="font-semibold">{organizer}</span>
-              </div>
-              <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-1 text-sm text-brand-800 hover:underline">
-                <Icon name="store" className="size-4" />
-                <span>
-                  {messages.listing.seller}: <bdi className="font-medium">{seller.displayName}</bdi>
-                </span>
+        <div>
+          <p className="text-sm font-bold text-brand-800">
+            {country && type ? (
+              <Link href={`${eventsPath(country.slug, null)}?type=${type.slug}`} className="hover:underline">
+                {type.nameFa}
               </Link>
-              {isOwner && favCount !== null && (
-                <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
-                  <Icon name="heart" className="size-4 text-red-600" />
-                  {messages.favorites.count(favCount)}
-                  <span className="sr-only">{messages.favorites.countHint}</span>
-                </p>
-              )}
-              {isOwner ? (
-                <>
-                  <LinkButton href={`/my/events/${l.id}`} variant="secondary" className="w-full">
-                    {t.edit}
-                  </LinkButton>
-                  {l.status === 'active' && (
-                    <LinkButton href={`/my/listings/${l.id}/promote`} variant="accent" className="mt-2 w-full">
-                      <Icon name="arrow-up" className="size-4" />
-                      {messages.promote.link}
-                    </LinkButton>
-                  )}
-                </>
-              ) : chat && l.status === 'active' ? (
-                <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat} />
-              ) : null}
-            </Card>
-            <ListingFooter refNumber={l.refNumber} token={l.publicToken} isOwner={isOwner} isEvent />
-          </div>
+            ) : (
+              type?.nameFa
+            )}
+            {cityName && `، ${cityName}`}
+          </p>
+          <h1 className="mt-1 text-2xl font-black leading-[1.5] lg:text-3xl">{l.title}</h1>
         </div>
+
+        <ul className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
+          {rows.map((r, i) => (
+            <li key={i} className="flex items-center gap-3 p-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <Icon name={r.icon} className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-[15px]">{r.title}</b>
+                {r.sub && <span className="block truncate text-xs text-neutral-600">{r.sub}</span>}
+              </span>
+              {r.action && <span className="shrink-0">{r.action}</span>}
+            </li>
+          ))}
+        </ul>
+
+        {upcoming.length > 1 && (
+          <section>
+            <h2 className="mb-2 text-lg font-extrabold">{v.otherDates}</h2>
+            <div className="no-scrollbar flex gap-2 overflow-x-auto">
+              {upcoming.slice(1, 9).map((x) => (
+                <span key={x.startsAt.toISOString()} className="min-w-28 flex-1 shrink-0 rounded-2xl border border-neutral-200 p-3">
+                  <b className="block">{dayMonth(x.startsAt)}</b>
+                  <span className="text-xs text-neutral-600">
+                    {fmt({ weekday: 'long' }, x.startsAt)}، {time(x.startsAt)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {d.performers.length > 0 && (
+          <section>
+            <h2 className="mb-2 text-lg font-extrabold">{v.performers}</h2>
+            <div className="flex flex-wrap gap-2">
+              {d.performers.map((p, i) => (
+                <span key={i} className="flex items-center gap-2 rounded-full border border-neutral-200 py-1 ps-1 pe-3">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-brand-50 font-bold text-brand-800">{p.name.slice(0, 1)}</span>
+                  <span className="text-sm">
+                    <b>{p.name}</b> {p.role && <span className="text-xs text-neutral-600">{p.role}</span>}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <h2 className="mb-2 text-lg font-extrabold">{v.about}</h2>
+          {l.description && <p className="text-base leading-8 whitespace-pre-line text-neutral-800">{l.description}</p>}
+          <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            {factRows.map(([k, val]) => (
+              <div key={k} className="rounded-xl bg-neutral-50 p-3">
+                <dt className="text-xs text-neutral-600">{k}</dt>
+                <dd className="font-bold">{val}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <div className="lg:hidden">{organizerBox}</div>
+        {isOwner && <div className="lg:hidden">{ticketBox}</div>}
+        {!free && (
+          <p className="flex gap-2 rounded-xl bg-saffron-50 p-3 text-sm leading-7 text-saffron-800">
+            <Icon name="alert" className="mt-1 size-5 shrink-0" />
+            <span>{v.safety}</span>
+          </p>
+        )}
+        <div className="hidden lg:block">{organizerBox}</div>
+
+        {similar.length > 0 && (
+          <section>
+            <h2 className="mb-2 text-lg font-extrabold">{v.similar}</h2>
+            <div className="divide-y divide-neutral-200">
+              {similar.map((e) => (
+                <EventRow key={e.id} e={eventRowOf(catalog, e, { saved: similarSaved, season })} back={path} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <ListingFooter refNumber={l.refNumber} token={l.publicToken} isOwner={isOwner} isEvent />
       </div>
+
+      {/* Phones: the date, the price and the main button, always in reach */}
+      {!isOwner && live && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+          <p className="min-w-0 flex-1">
+            {next && (
+              <span className="block truncate text-xs text-neutral-600">
+                {dayMonth(next.startsAt)}، {time(next.startsAt)}
+              </span>
+            )}
+            <b className="block truncate text-lg">{price}</b>
+          </p>
+          <FavoriteButton token={l.publicToken} saved={saved} back={path} variant="bar" />
+          {main && <MainButton {...main} className="h-12 px-5" />}
+        </div>
+      )}
     </main>
   );
 }
 
-function Poster({ image, alt }: { image: { key: string; width: number | null; height: number | null }; alt: string }) {
-  const src = imageSources(image.key, 'full');
-  if (!src) return null;
-  return (
-    <picture>
-      <source srcSet={src.avif} type="image/avif" />
-      <img src={src.webp} alt={alt} width={image.width ?? undefined} height={image.height ?? undefined} fetchPriority="high" className="w-full rounded-2xl" />
-    </picture>
+function MainButton({ href, label, external, className }: { href: string; label: string; external: boolean; className: string }) {
+  const cls = `flex items-center justify-center gap-2 rounded-xl bg-brand-700 font-bold text-white hover:bg-brand-800 ${className}`;
+  return external ? (
+    <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className={cls}>
+      {label}
+      <Icon name="share" className="size-4" />
+    </a>
+  ) : (
+    <Link href={href} className={cls}>
+      <Icon name="chat" className="size-4" />
+      {label}
+    </Link>
   );
 }
 
-function Row({ label, value }: { label: string; value: ReactNode }) {
+function ShareBox({ title }: { title: string }) {
+  return <ShareButton title={title} label={messages.events.view.shareShort} />;
+}
+
+function OwnerTools({ listingId, active, saved }: { listingId: string; active: boolean; saved: number }) {
   return (
-    <div className="flex justify-between gap-4 px-4 py-3 text-sm">
-      <dt className="text-neutral-500">{label}</dt>
-      <dd className="text-end">{value}</dd>
+    <div className="mt-3 space-y-2">
+      <Link href={`/my/events/${listingId}`} className="flex h-11 items-center justify-center rounded-xl border border-neutral-300 text-sm font-bold hover:bg-neutral-50">
+        {messages.events.page.edit}
+      </Link>
+      {active && (
+        <Link href={`/my/listings/${listingId}/promote`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-saffron-500 text-sm font-bold text-neutral-900 hover:bg-saffron-400">
+          <Icon name="arrow-up" className="size-4" />
+          {messages.promote.link}
+        </Link>
+      )}
+      <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
+        <Icon name="heart" className="size-4 text-red-600" />
+        {messages.favorites.count(saved)}
+      </p>
     </div>
   );
 }

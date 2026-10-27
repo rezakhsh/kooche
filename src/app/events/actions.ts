@@ -23,7 +23,11 @@ import { chosenCountry } from '../country-choice';
 // The event form and the buttons on "my events". The listing part of the form has the same
 // field names as the listing form; the event's own fields are read here too.
 
-export type EventSaveState = { errors?: FieldErrors; error?: string; notice?: string; listingId?: string } | undefined;
+/**
+ * `missing`: after «ادامه» (intent `next`), what publishing would still refuse (the posting steps);
+ * `at` tells one answer from the next.
+ */
+export type EventSaveState = { errors?: FieldErrors; missing?: FieldErrors; error?: string; notice?: string; listingId?: string; at?: number } | undefined;
 
 const uuid = z.uuid();
 
@@ -128,14 +132,19 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
     rememberPlace: false,
     allowPhoneContact: form.get('allowPhoneContact') === 'on',
     displayName: str(form, 'displayName'),
+    organizationId: form.get('organizationId') ?? '',
   });
+  // «چند روز پشت سر هم» is one date over several days; the last day counts only then
+  const repeatMode = str(form, 'repeatMode') ?? str(form, 'repeat');
+  const names = form.getAll('performerName').map(String);
+  const roles = form.getAll('performerRole').map(String);
   const eventInput = eventInputSchema.safeParse({
     startDate: dateFromForm(form, 'startDate'),
     startTime: str(form, 'startTime'),
-    endDate: dateFromForm(form, 'endDate'),
+    endDate: repeatMode === 'days' || !form.has('repeatMode') ? dateFromForm(form, 'endDate') : undefined,
     endTime: str(form, 'endTime'),
-    repeat: str(form, 'repeat') || undefined,
-    repeatUntil: dateFromForm(form, 'repeatUntil'),
+    repeat: repeatMode === 'weekly' || repeatMode === 'monthly' ? repeatMode : undefined,
+    repeatUntil: repeatMode === 'weekly' || repeatMode === 'monthly' ? dateFromForm(form, 'repeatUntil') : undefined,
     attendance: str(form, 'attendance') || undefined,
     venueName: str(form, 'venueName'),
     streetAddress: str(form, 'streetAddress'),
@@ -145,19 +154,26 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
     languages: form.getAll('languages').map(String),
     minAge: str(form, 'minAge'),
     scheduleStatus: str(form, 'scheduleStatus') || undefined,
+    seating: str(form, 'seating') ?? '',
+    stepFree: str(form, 'stepFree') ?? '',
+    doorSales: str(form, 'doorSales') ?? '',
+    refundNote: str(form, 'refundNote'),
+    performers: names.map((name, i) => ({ name, role: roles[i] ?? '' })),
   });
-  if (!listingInput.success || !eventInput.success) return { error: messages.form.fixErrors, listingId: created };
+  if (!listingInput.success || !eventInput.success) return { error: messages.form.fixErrors, listingId: created, at: Date.now() };
 
   const intent = publishing ? 'publish' : 'save';
-  const r = await saveEvent(db, { userId: user.id, listingId, input: listingInput.data, event: eventInput.data, intent });
+  const next = form.get('intent') === 'next';
+  const r = await saveEvent(db, { userId: user.id, listingId, input: listingInput.data, event: eventInput.data, intent, check: next });
   if (!r.ok) {
-    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created };
-    return { error: refusal(r.reason), listingId: created };
+    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created, at: Date.now() };
+    return { error: refusal(r.reason), listingId: created, at: Date.now() };
   }
+  if (next) return { missing: r.missing ?? {}, listingId: created, at: Date.now() };
   if (intent === 'publish' && r.status === 'active' && own.listing.status === 'draft') {
     redirect(`${eventPath(listingInput.data.title, r.publicToken)}?published=1`);
   }
-  return { notice: r.status === 'pending_review' ? messages.form.submitted : messages.form.saved, listingId: created };
+  return { notice: r.status === 'pending_review' ? messages.form.submitted : messages.form.saved, listingId: created, at: Date.now() };
 }
 
 const statusSchema = z.object({

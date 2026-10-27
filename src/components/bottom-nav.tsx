@@ -12,8 +12,9 @@ import { Icon, type IconName } from './icons';
 // themselves.
 
 const TASK_PAGES = [
-  // A listing page has its own bar (chat, phone, save)
+  // A listing page has its own bar (chat, phone, save); an event page too (tickets, save)
   /^\/v\//,
+  /^\/e\//,
   /^\/chat\/./,
   /^\/new(\/|$)/,
   /^\/my\/(listings|events|orders)\/./,

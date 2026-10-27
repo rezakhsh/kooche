@@ -12,6 +12,7 @@ import { ancestry, cachedCatalog } from '../../../modules/listings/catalog';
 import { favoriteCounts } from '../../../modules/listings/favorites';
 import { canApply, type StatusAction } from '../../../modules/listings/listings';
 import { myListings } from '../../../modules/listings/queries';
+import { hasOwnEvents } from '../../../modules/events/queries';
 import { formatPrice } from '../../../modules/listings/price';
 import { safetyKind } from '../../../modules/listings/safety-kind';
 import { listingPath } from '../../../modules/listings/slug';
@@ -54,7 +55,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
   const rows = await myListings(db, user.id);
   const ids = rows.map((r) => r.listing.id);
   // How many people saved each listing and wrote about it: only the seller sees it
-  const [saves, chats, catalog] = await Promise.all([favoriteCounts(db, user.id, ids), conversationCounts(db, user.id, ids), cachedCatalog(db)]);
+  const [saves, chats, catalog, hasEvents] = await Promise.all([favoriteCounts(db, user.id, ids), conversationCounts(db, user.id, ids), cachedCatalog(db), hasOwnEvents(db, user.id)]);
   // «از ۱٫۹۹ €»: the cheapest way up, in each currency of a live listing
   const currencies = [...new Set(rows.filter((r) => r.listing.status === 'active').map((r) => r.listing.currency ?? 'EUR'))];
   const cheapest = new Map(
@@ -100,6 +101,17 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
           </Alert>
         )}
       </div>
+      {/* Someone who posts events switches to them here (part 6; «رویدادهای من» has the same pair) */}
+      {hasEvents && (
+        <nav aria-label={messages.events.my.title} className="mt-4 flex gap-2">
+          <span aria-current="page" className="flex h-10 items-center rounded-full border border-neutral-900 bg-neutral-900 px-3.5 text-sm font-medium text-white">
+            {messages.events.my.listings}
+          </span>
+          <Link href="/my/events" className="flex h-10 items-center rounded-full border border-neutral-300 bg-white px-3.5 text-sm font-medium hover:bg-neutral-50">
+            {messages.events.my.events}
+          </Link>
+        </nav>
+      )}
       {rows.length > 0 && (
         <nav aria-label={t.tabs} className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4">
           <Link href="/my/listings" className={chip(!tab)} aria-current={!tab ? 'page' : undefined}>

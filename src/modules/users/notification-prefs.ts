@@ -9,11 +9,14 @@ import { users } from '../../db/schema';
 // out in the morning) and bundling (saved searches once a day in one message).
 //
 // Kinds: `chat` (a new message in a conversation), `reply` (the first message about one of your
-// listings), `searches` (new listings for saved searches; each search also has its own frequency).
-// Defaults keep the behaviour from before the switches: Telegram when the bot can reach the
-// person, else email. The older `chat` / `savedSearches` booleans still turn a kind off.
+// listings), `searches` (new listings for saved searches; each search also has its own frequency),
+// `reminders` (a saved event the day before, a followed business's new event) and `events` (this
+// week's events in the city, Monday mornings; part 6). Defaults keep the behaviour from before the
+// switches: Telegram when the bot can reach the person, else email; the weekly events message is
+// off until asked for («خبرم کن» on the events list). The older `chat` / `savedSearches` booleans
+// still turn a kind off.
 
-export const NOTICE_KINDS = ['chat', 'reply', 'searches'] as const;
+export const NOTICE_KINDS = ['chat', 'reply', 'searches', 'reminders', 'events'] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 export type NoticeChannel = 'telegram' | 'email';
 
@@ -21,9 +24,19 @@ const pairSchema = z.object({ telegram: z.boolean().optional(), email: z.boolean
 const prefsSchema = z.object({
   chat: z.boolean().optional(),
   savedSearches: z.boolean().optional(),
-  channels: z.object({ chat: pairSchema.optional(), reply: pairSchema.optional(), searches: pairSchema.optional() }).optional(),
+  channels: z
+    .object({
+      chat: pairSchema.optional(),
+      reply: pairSchema.optional(),
+      searches: pairSchema.optional(),
+      reminders: pairSchema.optional(),
+      events: pairSchema.optional(),
+    })
+    .optional(),
   quiet: z.boolean().optional(),
   bundle: z.boolean().optional(),
+  /** The city of the weekly events message; without it, the saved place's city */
+  eventsCity: z.uuid().optional(),
 });
 export type NotificationPrefs = z.infer<typeof prefsSchema>;
 
@@ -45,8 +58,9 @@ export function parsePrefs(value: unknown): NotificationPrefs {
  */
 export function noticeSwitches(value: unknown, kind: NoticeKind, telegramReady: boolean): Record<NoticeChannel, boolean> {
   const p = parsePrefs(value);
-  const legacyOff = kind === 'searches' ? p.savedSearches === false : p.chat === false;
   const stored = p.channels?.[kind] ?? {};
+  if (kind === 'events') return { telegram: stored.telegram ?? false, email: stored.email ?? false };
+  const legacyOff = kind === 'searches' ? p.savedSearches === false : kind === 'reminders' ? false : p.chat === false;
   if (legacyOff && !p.channels?.[kind]) return { telegram: false, email: false };
   return { telegram: stored.telegram ?? true, email: stored.email ?? !telegramReady };
 }
@@ -58,6 +72,26 @@ export function noticeChannels(value: unknown, kind: NoticeKind, telegramReady: 
   if (s.telegram && telegramReady) out.push('telegram');
   if (s.email) out.push('email');
   return out;
+}
+
+/** The city of the weekly events message, when one was chosen («خبرم کن» on a city's events) */
+export function eventsCityOf(value: unknown): string | null {
+  return parsePrefs(value).eventsCity ?? null;
+}
+
+/**
+ * «خبرم کن» on the events list: the weekly message on, for this city, by Telegram when the bot
+ * can reach the person, else by email. `off` stops it (both switches off).
+ */
+export async function setWeeklyEvents(db: Queryable, userId: string, change: { cityId: string | null; telegramReady: boolean } | 'off'): Promise<void> {
+  const pair = change === 'off' ? { telegram: false, email: false } : { telegram: change.telegramReady, email: !change.telegramReady };
+  const city = change !== 'off' && change.cityId ? sql` || jsonb_build_object('eventsCity', ${change.cityId}::text)` : sql``;
+  await db
+    .update(users)
+    .set({
+      notificationPrefs: sql`${users.notificationPrefs} || jsonb_build_object('channels', coalesce(${users.notificationPrefs} -> 'channels', '{}'::jsonb) || jsonb_build_object('events', ${JSON.stringify(pair)}::jsonb))${city}`,
+    })
+    .where(eq(users.id, userId));
 }
 
 export function quietHoursOn(value: unknown): boolean {
@@ -92,7 +126,7 @@ export function quietDelay(now: Date, timeZone: string): number {
 export async function saveNotificationPrefs(
   db: Queryable,
   userId: string,
-  change: { channels: Record<NoticeKind, Record<NoticeChannel, boolean>>; quiet: boolean; bundle: boolean },
+  change: { channels: Partial<Record<NoticeKind, Record<NoticeChannel, boolean>>>; quiet: boolean; bundle: boolean },
 ): Promise<void> {
   // The older booleans go: the switches say it all now
   const value = prefsSchema.parse({ channels: change.channels, quiet: change.quiet, bundle: change.bundle });

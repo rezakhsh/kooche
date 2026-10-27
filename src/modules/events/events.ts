@@ -84,6 +84,12 @@ const DETAIL_FIELDS = [
   'repeat',
   'repeatUntil',
   'scheduleStatus',
+  'seating',
+  'stepFree',
+  'doorSales',
+  'refundNote',
+  'performers',
+  'openEnd',
 ] as const;
 
 function detailsDiff(before: Details, after: EventDetailsValues): Record<string, [unknown, unknown]> {
@@ -156,7 +162,7 @@ export type SaveEventResult = SaveResult | { ok: false; reason: 'too_many_events
  */
 export async function saveEvent(
   db: Db,
-  opts: { userId: string; listingId: string; input: ListingInput; event: EventInput; intent: 'save' | 'publish'; now?: Date },
+  opts: { userId: string; listingId: string; input: ListingInput; event: EventInput; intent: 'save' | 'publish'; now?: Date; check?: boolean },
 ): Promise<SaveEventResult> {
   const now = opts.now ?? new Date();
   const [current] = await db
@@ -173,15 +179,23 @@ export async function saveEvent(
       return { ok: false, reason: fresh ? 'new_account_limit' : 'too_many_events' };
     }
   }
-  return saveListing(db, {
+  const r = await saveListing(db, {
     userId: opts.userId,
     listingId: opts.listingId,
     // Events have no "wanted" kind, no shipping and no district (the venue and address say where)
     input: { ...opts.input, kind: 'offer', shippingOffered: false, district: '' },
     intent: opts.intent,
     now,
+    check: opts.check,
     extension: eventExtension(opts.event, opts.input),
   });
+  // The posting steps (wave 1): what publishing would still refuse of the event's own fields too
+  if (r.ok && r.missing) {
+    const [d] = await db.select({ timeZone: eventDetails.timeZone }).from(eventDetails).where(eq(eventDetails.listingId, opts.listingId));
+    const strict = prepareEventFields(opts.event, { timeZone: d?.timeZone ?? DEFAULT_TIME_ZONE, mode: 'publish', goingOut: true, now });
+    if (!strict.ok) return { ...r, missing: { ...strict.errors, ...r.missing } };
+  }
+  return r;
 }
 
 /** Cancels a live event in one tap: it stays visible, marked cancelled, until its last date ends */
@@ -274,6 +288,12 @@ export async function copyEvent(
         languages: d.languages,
         minAge: d.minAge,
         timeZone: d.timeZone,
+        seating: d.seating,
+        stepFree: d.stepFree,
+        doorSales: d.doorSales,
+        refundNote: d.refundNote,
+        performers: d.performers,
+        openEnd: d.openEnd,
       });
     },
   });

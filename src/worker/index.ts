@@ -89,13 +89,13 @@ async function main(): Promise<void> {
 
   const retention = await startRetention(sql, connection);
   const listingJobs = await startListingJobs(db, connection);
-  const eventJobs = await startEventJobs(db, connection);
   const chatJobs = await startChatJobs(db, connection, {
     telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal) : null,
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
     appUrl: env.APP_URL,
     timeZone: env.APP_TIME_ZONE,
   });
+  const eventJobs = await startEventJobs(db, connection, { appUrl: env.APP_URL, send: chatJobs.queues });
   const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
   const accountJobs = await startAccountJobs(db, connection);
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;

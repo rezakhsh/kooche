@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, date, foreignKey, index, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, date, foreignKey, index, jsonb, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { createdAt, id, isIn, matches, textArrayWithin, tstz, updatedAt } from './_columns';
 import { countries, listings, locations } from './listings';
 
@@ -12,6 +12,10 @@ export const EVENT_ATTENDANCE = ['in_person', 'online', 'hybrid'] as const;
 export const EVENT_LANGUAGES = ['fa', 'de', 'en', 'other'] as const;
 export const EVENT_REPEATS = ['none', 'weekly', 'monthly'] as const;
 export const EVENT_SCHEDULE_STATUSES = ['scheduled', 'postponed', 'cancelled'] as const;
+/** Wave 1 (mockup final/event): how people sit or stand */
+export const EVENT_SEATING = ['numbered', 'seated', 'standing', 'mixed'] as const;
+/** Who is on stage: name and part («آواز», «تار»), at most 8 */
+export type EventPerformer = { name: string; role?: string };
 
 const httpsUrl = '^https://[^\\s]{4,}$';
 
@@ -40,6 +44,15 @@ export const eventDetails = pgTable(
     /** Last day a repeating event may fall on, in the event's time zone */
     repeatUntil: date('repeat_until'),
     scheduleStatus: text('schedule_status', { enum: EVENT_SCHEDULE_STATUSES }).notNull().default('scheduled'),
+    // The event page's facts (wave 1, migration 0024); null: not said
+    seating: text('seating', { enum: EVENT_SEATING }),
+    stepFree: boolean('step_free'),
+    /** «تا ۷ روز پیش از کنسرت» */
+    refundNote: text('refund_note'),
+    doorSales: boolean('door_sales'),
+    /** No end time was given: the dates end three hours after they start, and pages show only the start */
+    openEnd: boolean('open_end').notNull().default(false),
+    performers: jsonb('performers').$type<EventPerformer[]>().notNull().default(sql`'[]'::jsonb`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -61,6 +74,9 @@ export const eventDetails = pgTable(
     check('event_details_repeat_check', isIn(t.repeat, EVENT_REPEATS)),
     check('event_details_repeat_until_check', sql`(${t.repeat} = 'none') = (${t.repeatUntil} IS NULL)`),
     check('event_details_schedule_status_check', isIn(t.scheduleStatus, EVENT_SCHEDULE_STATUSES)),
+    check('event_details_seating_check', isIn(t.seating, EVENT_SEATING)),
+    check('event_details_refund_note_check', sql`char_length(${t.refundNote}) BETWEEN 1 AND 80`),
+    check('event_details_performers_check', sql`jsonb_typeof(${t.performers}) = 'array' AND jsonb_array_length(${t.performers}) <= 8`),
   ],
 );
 

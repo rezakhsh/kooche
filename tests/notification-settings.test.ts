@@ -23,6 +23,13 @@ const NOON = new Date('2026-11-10T11:00:00Z');
 const all = (telegram: boolean, email: boolean) => ({ chat: { telegram, email }, reply: { telegram, email }, searches: { telegram, email } });
 
 describe('the switches', () => {
+  it('event reminders follow the usual defaults; the weekly events message waits to be asked for (part 6)', () => {
+    expect(noticeSwitches({}, 'reminders', true)).toEqual({ telegram: true, email: false });
+    expect(noticeSwitches({}, 'events', true)).toEqual({ telegram: false, email: false });
+    expect(noticeSwitches({ chat: false }, 'reminders', false)).toEqual({ telegram: true, email: true });
+    expect(noticeChannels({ channels: { events: { email: true } } }, 'events', true)).toEqual(['email']);
+  });
+
   it('keep the old behaviour by default: Telegram when the bot reaches the person, else email', () => {
     expect(noticeSwitches({}, 'chat', true)).toEqual({ telegram: true, email: false });
     expect(noticeSwitches({}, 'chat', false)).toEqual({ telegram: true, email: true });

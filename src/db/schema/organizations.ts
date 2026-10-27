@@ -131,6 +131,27 @@ export const organizationMembers = pgTable(
   ],
 );
 
+/**
+ * People following a business (wave 1, migration 0024): its new events reach them, at most two
+ * messages a day (src/modules/events/follows.ts). Deleted with the account (erase_user).
+ */
+export const organizationFollows = pgTable(
+  'organization_follows',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'organization_follows_pkey', columns: [t.organizationId, t.userId] }),
+    index('organization_follows_user_id_idx').on(t.userId),
+  ],
+);
+
 export const organizationInvitations = pgTable(
   'organization_invitations',
   {

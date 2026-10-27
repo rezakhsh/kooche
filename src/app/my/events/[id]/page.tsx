@@ -14,11 +14,14 @@ import { requireSession } from '../../../../modules/users/server';
 import { EventEditor } from '../../../events/editor';
 import { chosenCountry } from '../../../country-choice';
 import { eventEditorData } from '../../../events/editor-data';
+import { NoScriptSteps } from '../../listings/[id]/no-script-steps';
+import { PostingBar } from '../../../new/posting-bar';
 
 export const metadata = { title: messages.events.form.editTitle, robots: { index: false } };
 
-export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditEventPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ step?: string }> }) {
   const { id } = await params;
+  const { step } = await searchParams;
   const { user } = await requireSession(`/my/events/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
   const db = appDb();
@@ -38,6 +41,19 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         .orderBy(listingImages.position)
     : [];
   const editor = editable ? await eventEditorData(db, user.id, { ...own, images }, { countryCode: (await chosenCountry(db))?.code ?? null, typeSlug: null }) : null;
+
+  // A draft continues in steps (wave 1, src/app/events/steps.ts), at the step its address names
+  if (listing.status === 'draft' && editor) {
+    return (
+      <>
+        <PostingBar title={messages.events.form.newTitle} category={listing.title || undefined} closeHref="/my/events" />
+        <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6">
+          <NoScriptSteps />
+          <EventEditor {...editor} initialStep={step === '2' ? 2 : step === '3' ? 3 : 1} />
+        </main>
+      </>
+    );
+  }
 
   return (
     <PageShell title={listing.status === 'draft' ? messages.events.form.newTitle : messages.events.form.editTitle}>

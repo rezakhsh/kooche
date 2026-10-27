@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EVENT_ATTENDANCE, EVENT_LANGUAGES, EVENT_REPEATS, EVENT_SCHEDULE_STATUSES } from '../../db/schema/events';
+import { EVENT_ATTENDANCE, EVENT_LANGUAGES, EVENT_REPEATS, EVENT_SCHEDULE_STATUSES, EVENT_SEATING, type EventPerformer } from '../../db/schema/events';
 import { normalizePersian } from '../../lib/normalize-persian';
 import type { FieldErrors } from '../listings/listings';
 import { checkLink } from './links';
@@ -32,6 +32,15 @@ const DAY_MS = 86_400_000;
 const MAX_VENUE = 100;
 const MAX_ADDRESS = 120;
 const MAX_ORGANIZER = 80;
+const MAX_REFUND = 80;
+export const MAX_PERFORMERS = 8;
+const MAX_PERFORMER = 60;
+const MAX_ROLE = 40;
+/** Without an end time, a date lasts this long (the page shows only its start) */
+export const OPEN_END_MS = 3 * 3_600_000;
+
+/** A yes / no / not said answer as the form sends it */
+const triState = z.enum(['', 'yes', 'no']).default('');
 
 /** What the event form sends besides the listing fields (src/app/events/actions.ts) */
 export const eventInputSchema = z.object({
@@ -53,6 +62,12 @@ export const eventInputSchema = z.object({
   /** '' for all ages */
   minAge: z.string().max(5).default(''),
   scheduleStatus: z.enum(EVENT_SCHEDULE_STATUSES).default('scheduled'),
+  // Wave 1 (mockup final/event): the page's facts and who is on stage
+  seating: z.enum(['', ...EVENT_SEATING]).default(''),
+  stepFree: triState,
+  doorSales: triState,
+  refundNote: z.string().max(500).default(''),
+  performers: z.array(z.object({ name: z.string().max(500), role: z.string().max(500) })).max(20).default([]),
 });
 export type EventInput = z.infer<typeof eventInputSchema>;
 
@@ -71,6 +86,12 @@ export type EventDetailsValues = {
   repeat: (typeof EVENT_REPEATS)[number];
   repeatUntil: string | null;
   scheduleStatus: ScheduleStatus;
+  seating: (typeof EVENT_SEATING)[number] | null;
+  stepFree: boolean | null;
+  doorSales: boolean | null;
+  refundNote: string | null;
+  performers: EventPerformer[];
+  openEnd: boolean;
 };
 
 export type EventDate = { startsAt: Date; endsAt: Date };
@@ -103,21 +124,23 @@ export function prepareEventFields(
   else if (!startTime && publish) errors.startTime = 'required';
   if (input.endDate.trim() && !endDateIn) errors.endDate = 'invalid';
   if (input.endTime.trim() && !endTime) errors.endTime = 'invalid';
-  else if (!endTime && publish) errors.endTime = 'required';
+  // No end time: an open end (OPEN_END_MS), unless the event runs over several days
+  const openEnd = !input.endTime.trim();
+  if (openEnd && endDateIn && publish) errors.endTime = 'required';
   if (input.repeat !== 'none') {
     if (input.repeatUntil.trim() && !until) errors.repeatUntil = 'invalid';
     else if (!until && publish) errors.repeatUntil = 'required';
   }
 
   let dates: EventDate[] = [];
-  if (startDate && startTime && endTime && !errors.endDate && (input.repeat === 'none' || until)) {
+  if (startDate && startTime && (endTime || (openEnd && !endDateIn)) && !errors.endDate && !errors.endTime && (input.repeat === 'none' || until)) {
     // The end day as typed, else the start day (or the next one when the end is earlier)
-    const endDate =
-      endDateIn ??
-      (endTime.h * 60 + endTime.mi <= startTime.h * 60 + startTime.mi ? addDays(startDate, 1) : startDate);
+    const endDate = endTime
+      ? (endDateIn ?? (endTime.h * 60 + endTime.mi <= startTime.h * 60 + startTime.mi ? addDays(startDate, 1) : startDate))
+      : startDate;
     const spanDays = dayNumber(endDate) - dayNumber(startDate);
     const firstStart = zonedToUtc({ ...startDate, ...startTime }, timeZone);
-    const firstEnd = zonedToUtc({ ...endDate, ...endTime }, timeZone);
+    const firstEnd = endTime ? zonedToUtc({ ...endDate, ...endTime }, timeZone) : new Date(firstStart.getTime() + OPEN_END_MS);
     if (firstEnd <= firstStart || firstEnd.getTime() - firstStart.getTime() > MAX_DURATION_MS) {
       errors.endTime = 'before_start';
     } else if (until && dayNumber(until) < dayNumber(startDate)) {
@@ -128,10 +151,10 @@ export function prepareEventFields(
       const days = repeatDays(startDate, input.repeat, until);
       if (days.length > MAX_DATES) errors.repeatUntil = 'too_many_dates';
       else {
-        dates = days.map((day) => ({
-          startsAt: zonedToUtc({ ...day, ...startTime }, timeZone),
-          endsAt: zonedToUtc({ ...addDays(day, spanDays), ...endTime }, timeZone),
-        }));
+        dates = days.map((day) => {
+          const startsAt = zonedToUtc({ ...day, ...startTime }, timeZone);
+          return { startsAt, endsAt: endTime ? zonedToUtc({ ...addDays(day, spanDays), ...endTime }, timeZone) : new Date(startsAt.getTime() + OPEN_END_MS) };
+        });
         // Clocks changing inside one date can make it an hour shorter or longer, never reversed
         dates = dates.filter((d) => d.endsAt > d.startsAt);
         if (publish) {
@@ -176,6 +199,20 @@ export function prepareEventFields(
     else minAge = Number(age);
   }
 
+  const refundNote = clean(input.refundNote);
+  if (refundNote.length > MAX_REFUND) errors.refundNote = 'too_long';
+  const performers: EventPerformer[] = [];
+  for (const p of input.performers) {
+    const name = clean(p.name);
+    const role = clean(p.role);
+    if (!name && !role) continue;
+    if (!name) errors.performers = 'required';
+    else if (name.length > MAX_PERFORMER || role.length > MAX_ROLE) errors.performers = 'too_long';
+    else performers.push(role ? { name, role } : { name });
+  }
+  if (performers.length > MAX_PERFORMERS) errors.performers = 'too_many';
+  const tri = (v: '' | 'yes' | 'no') => (v === '' ? null : v === 'yes');
+
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
     ok: true,
@@ -195,6 +232,12 @@ export function prepareEventFields(
       repeat: until ? input.repeat : 'none',
       repeatUntil: until ? formatLocalDate(until) : null,
       scheduleStatus: input.scheduleStatus,
+      seating: input.seating || null,
+      stepFree: tri(input.stepFree),
+      doorSales: tri(input.doorSales),
+      refundNote: refundNote || null,
+      performers,
+      openEnd: openEnd && !endDateIn,
     },
     dates,
   };
