@@ -222,7 +222,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
             return (
               <li key={l.id} className="flex min-h-16 items-center gap-3 px-4 py-2">
                 <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 px-0.5 text-center text-[11px] leading-4 font-black text-brand-800">
-                  {(l.categoryId && catalog.byId.get(l.categoryId)?.nameFa) || <Icon name={l.isEvent ? 'calendar' : 'doc'} className="size-5" />}
+                  {(l.categoryId && <span className="line-clamp-2">{catalog.byId.get(l.categoryId)?.nameFa.split(' ')[0]}</span>) || <Icon name={l.isEvent ? 'calendar' : 'doc'} className="size-5" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   {view ? (
