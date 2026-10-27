@@ -146,7 +146,8 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const session = await currentSession();
   const saved = session ? await savedAmong(appDb(), session.user.id, [...result.items, ...featured].map((l) => l.id)) : new Set<string>();
   // Any page narrower than a whole country can be saved as a search with alerts
-  const saveable = !!(state.q || isFiltered(state) || city || category);
+  // A search, filters or a category can be saved; a plain city page has the layout switch instead (mockup final/browse)
+  const saveable = !!(state.q || isFiltered(state) || category);
   const searchSaved = saveable && session && !state.near ? await isSaved(appDb(), session.user.id, { country, city, category, ctx, state }) : false;
   const here = `${b.path}${browseQuery(state, ctx.minorUnit)}`;
   // Category pages are rows by default (mockup final/category); the rest a grid unless switched
@@ -342,7 +343,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
 
         <div className="min-w-0 px-4 sm:px-0">
           {/* The page's own box searches within its city and category; from 1024 px the header's box covers the plain country page */}
-          {(state.q || city || category) && searchBox('q-d', 'mb-4 hidden lg:block')}
+          {/* Computers search in the header, which searches this page (mockup final/browse) */}
           {category && breadcrumb('mb-2 hidden lg:flex')}
           {/* The result line (mockups final/browse, final/category): what and how many, the sort, then
               «خبرم کن» where a search can be saved, else the layout switch */}

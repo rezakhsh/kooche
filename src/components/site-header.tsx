@@ -2,6 +2,8 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { visitorCountry } from '../lib/client-ip';
 import { cityOf } from '../modules/search/places';
+import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
+import { browsePath } from '../modules/search/paths';
 import { chosenCountry } from '../app/country-choice';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -26,9 +28,21 @@ export async function SiteHeader() {
   // Before a country is chosen, the visitor's own (Cloudflare's header) when it is open (wave 1, mockup final/home)
   const here = visitorCountry(requestHeaders);
   const country = chosen ?? open.find((c) => c.code === here) ?? null;
-  // The place chip says the city on a city's pages («برلین ▾»), else the country
-  const segment = country ? new RegExp(`^/${country.slug}/([^/]+)`).exec(requestHeaders.get('x-pathname') ?? '')?.[1] : undefined;
-  const city = country && segment ? await cityOf(appDb(), country.code, decodeURIComponent(segment)).catch(() => null) : null;
+  // The place chip says the city on a city's pages («برلین ▾»), else the country; on a browse page
+  // the header's search searches that page (mockups final/browse, final/category: «جستجو در برلین…»)
+  const segments = country ? (new RegExp(`^/${country.slug}/([^/]+)(?:/([^/]+))?`).exec(requestHeaders.get('x-pathname') ?? '') ?? []) : [];
+  const decode = (x?: string) => {
+    try {
+      return x ? decodeURIComponent(x) : '';
+    } catch {
+      return '';
+    }
+  };
+  const city = country && segments[1] ? await cityOf(appDb(), country.code, decode(segments[1])).catch(() => null) : null;
+  const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
+  const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
+  const searchIn = country ? browsePath(country.slug, city?.slug ?? null, category?.slug ?? null) : '/';
+  const searchScope = category?.nameFa ?? city?.nameFa ?? country?.nameFa ?? '';
   const t = messages.nav;
   const home = country ? `/${country.slug}` : '/';
   // Conversations with unread messages, for the badge (one small query on the inbox indexes)
@@ -57,11 +71,12 @@ export async function SiteHeader() {
           )}
           {country && (
             <SearchBox
-              key={country.slug}
+              key={searchIn}
               id="header-q"
-              action={`/${country.slug}`}
+              action={searchIn}
               country={country.slug}
-              placeholder={messages.search.placeholderIn(country.nameFa)}
+              city={city?.slug ?? null}
+              placeholder={messages.search.placeholderIn(searchScope)}
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
