@@ -289,6 +289,11 @@ export async function businessBySlug(db: Queryable, slug: string) {
       cityFa: sql<string | null>`(SELECT name_fa FROM locations c WHERE c.id = ${organizations.locationId})`,
       // The town of the postal code (the Impressum is in German), else the city's local name
       cityLocal: sql<string | null>`coalesce(${organizations.placeName}, (SELECT name_local FROM locations c WHERE c.id = ${organizations.locationId}))`,
+      // The page's «الان باز است» is read in the city's time; «شارلوتنبورگ، برلین» from the point
+      timeZone: sql<string | null>`(SELECT timezone FROM locations c WHERE c.id = ${organizations.locationId})`,
+      neighbourhood: sql<string | null>`(SELECT n.name_fa FROM neighbourhoods n
+        WHERE n.location_id = ${organizations.locationId} AND n.is_active AND ${organizations.postalCode} IS NOT NULL AND ST_Covers(n.boundary, ${organizations.point})
+        ORDER BY n.key LIMIT 1)`,
     })
     .from(organizations)
     .where(and(eq(organizations.slug, slug), eq(organizations.status, 'active')));

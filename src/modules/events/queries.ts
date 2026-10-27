@@ -50,6 +50,8 @@ export type EventFilter = {
   countryCode?: string;
   /** Only this seller's own events, not their organizations' (the seller page) */
   sellerId?: string;
+  /** Only this business's events (its page, wave 1) */
+  organizationId?: string;
   /** One city's events, with the country's online ones (wave 1: online events are for anyone) */
   locationId?: string | null;
   /** With `locationId`: also events up to this far from the city's centre */
@@ -117,6 +119,7 @@ function eventConditions(f: EventFilter, now: Date) {
   const dates = sql`
     ${f.countryCode ? sql`d.country_code = ${f.countryCode}` : sql`true`}
     ${f.sellerId ? sql`AND d.listing_id IN (SELECT id FROM listings WHERE user_id = ${f.sellerId} AND organization_id IS NULL)` : sql``}
+    ${f.organizationId ? sql`AND d.listing_id IN (SELECT id FROM listings WHERE organization_id = ${f.organizationId})` : sql``}
     AND d.ends_at > ${now.toISOString()}::timestamptz
     AND d.ends_at > ${f.from.toISOString()}::timestamptz
     ${f.to ? sql`AND d.starts_at < ${f.to.toISOString()}::timestamptz` : sql``}
@@ -153,7 +156,7 @@ function eventConditions(f: EventFilter, now: Date) {
  * event_dates_country_ends_idx or event_dates_location_ends_idx: only rows not over yet.
  */
 export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Date(), pageSize = EVENTS_PAGE_SIZE) {
-  if (!f.countryCode && !f.sellerId) throw new Error('upcomingEvents needs a country or a seller');
+  if (!f.countryCode && !f.sellerId && !f.organizationId) throw new Error('upcomingEvents needs a country, a seller or a business');
   const where = eventConditions(f, now);
   const rows = await db.execute<{
     id: string;

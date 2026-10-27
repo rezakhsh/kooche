@@ -10,6 +10,7 @@ import { activeSubscription, businessPlan, latestSubscription } from '../../../.
 import { paymentGateway } from '../../../../modules/payments/server';
 import { foundingAction, portalAction, subscribeAction } from '../../../business/actions';
 import { foundingState } from '../../../../modules/payments/founding';
+import { legalComplete } from '../../../../modules/organizations/organizations';
 import { memberOf } from '../member';
 
 // The business's plan (owner only): subscribe through Stripe Checkout, or manage the running
@@ -50,6 +51,15 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {query.done && <Alert tone="success">{t.done}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
+        {/* Wave 1: the legal details can wait until here; paying needs them (legal_missing) */}
+        {payments && !running && !legalComplete(org) && (
+          <Alert tone="info">
+            {t.errors.legal_missing}{' '}
+            <a href={`/b/${org.slug}/edit`} className="font-bold underline">
+              {messages.business.wizard.legalHeading}
+            </a>
+          </Alert>
+        )}
 
         {founding === 'offered' && !running && payments && (
           <form action={foundingAction} className="space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
