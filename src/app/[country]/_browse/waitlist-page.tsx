@@ -5,11 +5,11 @@ import { cityLaunch } from '../../../modules/launch/waitlist';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import type { Browse } from './resolve';
 import { Flag } from '../../../components/flag';
-import { Icon } from '../../../components/icons';
+import { Icon, type IconName } from '../../../components/icons';
 import { LinkButton } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
 import type { CityLaunch } from '../../../modules/launch/waitlist';
-import { browsePath, eventsPath } from '../../../modules/search/paths';
+import { browsePath, eventsPath, foundingPath } from '../../../modules/search/paths';
 import type { City } from '../../../modules/search/places';
 import type { Country } from '../../../modules/listings/queries';
 import { WaitlistForm } from './waitlist-form';
@@ -48,6 +48,8 @@ function Bar({ value, max }: { value: number; max: number }) {
   );
 }
 
+const PERK_ICONS: IconName[] = ['store', 'star', 'sparkle'];
+
 export function WaitlistPage({ country, city, launch, turnstileSiteKey }: { country: Country; city: City; launch: CityLaunch; turnstileSiteKey: string | null }) {
   const t = messages.launch;
   const name = launch.groupNames.join(' و ');
@@ -85,7 +87,7 @@ export function WaitlistPage({ country, city, launch, turnstileSiteKey }: { coun
         <div className="rounded-3xl border border-neutral-200 p-4 lg:p-6">
           <div className="flex items-center gap-3 rounded-2xl bg-saffron-50 p-3">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white text-saffron-800">
-              <Icon name="star" className="size-6" />
+              <Icon name="sparkle" className="size-6" />
             </span>
             <span>
               <b className="block text-sm">{t.reward(launch.reward.places, name)}</b>
@@ -93,7 +95,7 @@ export function WaitlistPage({ country, city, launch, turnstileSiteKey }: { coun
             </span>
           </div>
           <h2 className="mt-4 mb-3 text-lg font-extrabold">{t.notifyTitle}</h2>
-          <WaitlistForm cityId={city.id} turnstileSiteKey={turnstileSiteKey} />
+          <WaitlistForm cityId={city.id} turnstileSiteKey={turnstileSiteKey} rewardLeft={launch.reward.left > 0} />
         </div>
 
         <div>
@@ -105,9 +107,9 @@ export function WaitlistPage({ country, city, launch, turnstileSiteKey }: { coun
               </p>
               <h2 className="mt-1 text-lg font-extrabold">{t.business.title(goal, name)}</h2>
               <ul className="mt-3 space-y-2">
-                {t.business.perks.map((p) => (
+                {t.business.perks.map((p, i) => (
                   <li key={p} className="flex items-center gap-2.5 text-sm">
-                    <Icon name="check" className="size-5 shrink-0 text-brand-700" />
+                    <Icon name={PERK_ICONS[i]!} className="size-5 shrink-0 text-brand-700" />
                     {p}
                   </li>
                 ))}
@@ -115,6 +117,9 @@ export function WaitlistPage({ country, city, launch, turnstileSiteKey }: { coun
               <LinkButton href="/business/new" className="mt-4 w-full">
                 {t.business.cta}
               </LinkButton>
+              <Link href={foundingPath(country.slug, city.slug)} className="mt-2 flex h-10 items-center justify-center text-sm font-bold text-brand-800 hover:underline">
+                {t.business.more}
+              </Link>
             </div>
           )}
           {launch.keyCities.length > 0 && (

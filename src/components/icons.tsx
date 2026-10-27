@@ -109,6 +109,8 @@ const PATHS = {
   check: <path d="m5 12 5 5 9-10" />,
   arrowUp: <path d="M12 19V5M5 12l7-7 7 7" />,
   checks: <path d="m2 12 5 5 9-10M12 16l1 1 9-10" />,
+  sparkle: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />,
+  ticket: <path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z M14 6v12" />,
   send: <path d="M21 3 3 10.5l7 3 3 7.5L21 3ZM10 13.5l4-4" />,
   flag: <path d="M5 21V4m0 0h11l-2 4 2 4H5" />,
   more: (

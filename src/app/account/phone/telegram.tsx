@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
+import { Icon } from '../../../components/icons';
 import { Alert, Button, LinkButton } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
 import { startTelegram, startTelegramLoginAction, type TelegramState } from './actions';
@@ -70,17 +71,22 @@ export function TelegramVerify() {
   );
 }
 
-/** "Log in with Telegram": one button; the server action sends the browser to Telegram */
-export function TelegramLogin() {
+/** "Log in with Telegram": one big button in Telegram's blue (mockup final/verify-phone); the server action sends the browser to Telegram */
+export function TelegramLogin({ label, hint = true }: { label?: string; hint?: boolean }) {
   const [state, action, pending] = useActionState<TelegramState>(startTelegramLoginAction, undefined);
   const t = messages.phone;
   return (
-    <form action={action} className="space-y-2">
+    <form action={action}>
       {state && 'error' in state && <Alert tone="error">{state.error}</Alert>}
-      <Button type="submit" disabled={pending} className="h-14 w-full text-base">
-        {t.loginButton}
-      </Button>
-      <p className="text-center text-xs text-neutral-600">{t.loginHint}</p>
+      <button
+        type="submit"
+        disabled={pending}
+        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9] disabled:opacity-70"
+      >
+        <Icon name="send" className="size-5" />
+        {label ?? t.loginButton}
+      </button>
+      {hint && <p className="mt-1.5 text-center text-xs text-neutral-600">{t.loginHint}</p>}
     </form>
   );
 }

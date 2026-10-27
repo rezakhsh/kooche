@@ -6,8 +6,8 @@ import { Alert, Button, Field } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
 import { joinWaitlistAction, type WaitlistState } from '../../waitlist/actions';
 
-/** "Notify me" on a city's waitlist page: email, who you are, Turnstile */
-export function WaitlistForm({ cityId, turnstileSiteKey }: { cityId: string; turnstileSiteKey: string | null }) {
+/** "Notify me" on a city's waitlist page: email, who you are, Turnstile; `rewardLeft`: the button keeps the free bump («…و نردبانم را نگه دار») */
+export function WaitlistForm({ cityId, turnstileSiteKey, rewardLeft = false }: { cityId: string; turnstileSiteKey: string | null; rewardLeft?: boolean }) {
   const [state, action, pending] = useActionState<WaitlistState, FormData>(joinWaitlistAction, undefined);
   const turnstile = useTurnstile(turnstileSiteKey, 'waitlist');
   const { reset } = turnstile;
@@ -34,7 +34,7 @@ export function WaitlistForm({ cityId, turnstileSiteKey }: { cityId: string; tur
       {turnstile.widget}
       {state && 'error' in state && <Alert tone="error">{state.error}</Alert>}
       <Button type="submit" disabled={pending || !turnstile.ready} className="w-full">
-        {turnstile.ready ? t.submit : messages.turnstile.checking}
+        {turnstile.ready ? (rewardLeft ? t.submitReward : t.submit) : messages.turnstile.checking}
       </Button>
       <p className="text-xs leading-6 text-neutral-600">{t.privacy}</p>
     </form>

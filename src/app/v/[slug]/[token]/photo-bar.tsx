@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { BackLink } from '../../../../components/back-link';
 import { Icon } from '../../../../components/icons';
 import { messages } from '../../../../messages/fa';
 
@@ -11,23 +12,10 @@ import { messages } from '../../../../messages/fa';
 const round = 'pointer-events-auto flex size-11 items-center justify-center rounded-full bg-white/95 text-neutral-900 shadow';
 
 export function BackButton({ fallback }: { fallback: string }) {
-  const t = messages.listing;
   return (
-    <a
-      href={fallback}
-      aria-label={t.back}
-      title={t.back}
-      className={round}
-      onClick={(e) => {
-        const fromHere = document.referrer && new URL(document.referrer).origin === location.origin;
-        if (fromHere && history.length > 1) {
-          e.preventDefault();
-          history.back();
-        }
-      }}
-    >
+    <BackLink fallback={fallback} label={messages.listing.back} className={round}>
       <Icon name="back" className="size-5" />
-    </a>
+    </BackLink>
   );
 }
 

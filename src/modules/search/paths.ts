@@ -13,3 +13,8 @@ export function browsePath(country: string, city: string | null, category: strin
 export function eventsPath(country: string, city: string | null): string {
   return city ? `/${country}/${city}/events` : `/${country}/events`;
 }
+
+/** What a founding business gets in a city that isn't open yet (mockup final/founding-business) */
+export function foundingPath(country: string, city: string): string {
+  return `/${country}/${city}/founding`;
+}
