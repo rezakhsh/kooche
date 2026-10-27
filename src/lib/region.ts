@@ -5,7 +5,8 @@ import { visitorCountry } from './client-ip';
 // but write nothing, except what protects the person: reporting content (DSA Art. 16), signing
 // out and ending other sessions, deleting the account, downloading their data, turning off
 // notifications and alerts, leaving a city waitlist, plus error reports and the payment and
-// messenger webhooks (which never come from Iran). No accounts, sign-ins, phone checks, posting, chat, favorites or payments.
+// messenger webhooks (which never come from Iran). No accounts, sign-ins, phone checks, posting,
+// chat, favorites or payments.
 //
 // Three layers: src/proxy.ts refuses the write with a Persian page (iranBlocksRequest), the
 // Cloudflare WAF rule (iranWafExpression, docs/setup.md) does the same at the edge, where it can't

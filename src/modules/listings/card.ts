@@ -30,7 +30,8 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     title: l.title,
     price,
     place: place.local ? { text: l.placeName!, latin: true } : place.city ? { text: place.city, latin: false } : null,
-    ago: l.publishedAt ? formatAgo(l.publishedAt, timeZone) : null,
+    // The last bump counts as new, as on Kleinanzeigen: a bumped listing says «۵ دقیقه پیش»
+    ago: (l.rankedAt ?? l.publishedAt) ? formatAgo((l.rankedAt ?? l.publishedAt)!, timeZone) : null,
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
     photoCount: l.photoCount,
     wanted: l.kind === 'wanted',

@@ -104,6 +104,7 @@ export async function myFavorites(db: Queryable, userId: string, cursor: string 
       district: listings.district,
       cityFa: locations.nameFa,
       publishedAt: listings.publishedAt,
+      rankedAt: listings.rankedAt,
       kind: listings.kind,
       savedAt,
     })

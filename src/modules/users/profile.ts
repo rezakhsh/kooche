@@ -109,7 +109,8 @@ export async function sellerProfile(
 
   const after = decodeCursor(opts.after ?? null, 'newest');
   const rows = await db
-    .select({ ...cardColumns, rankedAt: sql<string>`to_char(${listings.rankedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` })
+    // The cursor needs microseconds, which a Date loses
+    .select({ ...cardColumns, cursorKey: sql<string>`to_char(${listings.rankedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` })
     .from(listings)
     .leftJoin(locations, eq(locations.id, listings.locationId))
     .where(
@@ -134,8 +135,8 @@ export async function sellerProfile(
     memberSince: seller.createdAt,
     phoneVerified: seller.phoneVerified,
     isOwner: !!opts.viewerId && opts.viewerId === seller.id,
-    listings: page.map(({ rankedAt: _r, ...r }) => ({ ...r, coverKey: covers.get(r.id) ?? null, distanceKm: null })),
-    next: rows.length > PAGE_SIZE && last ? encodeCursor(last.rankedAt, last.id) : null,
+    listings: page.map(({ cursorKey: _k, ...r }) => ({ ...r, coverKey: covers.get(r.id) ?? null, distanceKm: null })),
+    next: rows.length > PAGE_SIZE && last ? encodeCursor(last.cursorKey, last.id) : null,
     events,
   };
 }

@@ -1,3 +1,4 @@
+import { rtlLines } from '../../lib/bidi';
 import type { BotApi, ReplyMarkup } from '../users/telegram-bot';
 
 // The Telegram Bot API client, shared by the bot's polling loop (src/worker/telegram.ts) and the
@@ -46,7 +47,8 @@ export class TelegramClient implements BotApi {
   async sendMessage(chatId: number, text: string, replyMarkup?: ReplyMarkup): Promise<void> {
     await this.call('sendMessage', {
       chat_id: chatId,
-      text,
+      // Every line right to left, whatever it starts with (../../lib/bidi.ts)
+      text: rtlLines(text),
       ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     });
   }

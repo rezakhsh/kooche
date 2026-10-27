@@ -56,6 +56,8 @@ export type BrowseItem = {
   district: string | null;
   cityFa: string | null;
   publishedAt: Date | null;
+  /** Publishing or the last bump: the card's time, like Kleinanzeigen's after "Hochschieben" */
+  rankedAt: Date | null;
   kind: (typeof listings.$inferSelect)['kind'];
   /** The listing's field values, for the card facts */
   attributes: Record<string, unknown>;
@@ -222,6 +224,7 @@ export const cardColumns = {
   district: listings.district,
   cityFa: locations.nameFa,
   publishedAt: listings.publishedAt,
+  rankedAt: listings.rankedAt,
   kind: listings.kind,
   attributes: sql<Record<string, unknown>>`${listings.attributes}`,
   photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,

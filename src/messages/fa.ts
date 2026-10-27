@@ -427,6 +427,7 @@ export const messages = {
     all: 'همه',
     tabs: 'وضعیت آگهی‌ها',
     daysLeft: (n: number) => (n <= 1 ? 'کمتر از یک روز مانده' : `${n.toLocaleString('fa-IR')} روز مانده`),
+    bumpedAgo: (ago: string) => `نردبان: ${ago}`,
     newListing: 'ثبت آگهی تازه',
     untitled: 'بی‌عنوان',
     expires: (date: string) => `تا ${date}`,

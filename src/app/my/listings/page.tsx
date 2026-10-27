@@ -4,7 +4,7 @@ import { Icon } from '../../../components/icons';
 import { Alert, Button, LinkButton, PageShell, Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
-import { formatDate } from '../../../lib/format';
+import { formatAgo, formatDate } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
 import { favoriteCounts } from '../../../modules/listings/favorites';
 import { canApply, type StatusAction } from '../../../modules/listings/listings';
@@ -110,6 +110,13 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                     {l.status !== 'draft' && <ListingCode value={l.refNumber} />}
                     {l.status === 'active' && days !== null && <span title={t.expires(formatDate(l.expiresAt!, zone))}>{t.daysLeft(days)}</span>}
                     {l.expiresAt && l.status === 'expired' && <span>{t.expiredOn(formatDate(l.expiresAt, zone))}</span>}
+                    {/* Moved up by a bump since publishing (a minute's slack for the publish itself) */}
+                    {l.status === 'active' && l.publishedAt && l.rankedAt && l.rankedAt.getTime() - l.publishedAt.getTime() > 60_000 && (
+                      <span className="flex items-center gap-1 font-bold text-brand-700">
+                        <Icon name="arrowUp" className="size-3.5" />
+                        {t.bumpedAgo(formatAgo(l.rankedAt, zone))}
+                      </span>
+                    )}
                     {(saves.get(l.id) ?? 0) > 0 && (
                       <span className="flex items-center gap-1" title={messages.favorites.countHint}>
                         <Icon name="heart" className="size-3.5 text-red-600" />

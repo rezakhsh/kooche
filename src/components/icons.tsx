@@ -101,6 +101,7 @@ const PATHS = {
   ),
   logout: <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M14 8l-4 4 4 4M10 12h11" />,
   check: <path d="m5 12 5 5 9-10" />,
+  arrowUp: <path d="M12 19V5M5 12l7-7 7 7" />,
   checks: <path d="m2 12 5 5 9-10M12 16l1 1 9-10" />,
   send: <path d="M21 3 3 10.5l7 3 3 7.5L21 3ZM10 13.5l4-4" />,
   flag: <path d="M5 21V4m0 0h11l-2 4 2 4H5" />,
