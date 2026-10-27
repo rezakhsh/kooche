@@ -6,6 +6,7 @@ import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
 import { IranBanner } from '../components/iran';
 import { SiteFooter, SiteHeader } from '../components/site-header';
+import { Toaster } from '../components/toast';
 import { webEnv } from '../lib/env';
 import { MONITORING_META } from '../lib/monitoring/browser';
 import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <IranBanner />
         <div className="flex-1">{children}</div>
         <SiteFooter />
+        <Toaster />
         <FormValidation />
         <AutoDirection />
       </body>

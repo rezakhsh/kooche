@@ -54,7 +54,8 @@ export function BottomNav({ home, signedIn, unread }: { home: string; signedIn: 
           aria-current={i.active ? 'page' : undefined}
           className={`flex flex-col items-center gap-0.5 pt-2 pb-2.5 text-xs ${i.active ? 'font-bold text-brand-700' : 'text-neutral-600'}`}
         >
-          <span className={`relative ${i.primary ? 'rounded-xl bg-brand-700 px-3 py-0.5 text-white' : ''}`}>
+          {/* The page you are on: a soft pill behind its icon (owner's choice, Oct 27, 2026) */}
+          <span className={`relative ${i.primary ? 'rounded-xl bg-brand-700 px-3 py-0.5 text-white' : `rounded-full px-4 py-0.5 transition-colors ${i.active ? 'bg-brand-50' : ''}`}`}>
             <Icon name={i.icon} className="size-5" />
             {!!i.badge && (
               <span className="absolute -top-1.5 -end-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-neutral-900">

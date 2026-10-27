@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { favoriteAction } from '../app/favorites/actions';
 import { messages } from '../messages/fa';
 import { Icon } from './icons';
+import { showToast } from './toast';
 
 // The ♡ on listing cards and pages: a form with a server action, so it works without JavaScript
 // (the page renders again with the new state). With JavaScript the heart flips at once while
@@ -14,6 +15,15 @@ import { Icon } from './icons';
 export function FavoriteButton({ token, saved, back, variant = 'card' }: { token: string; saved: boolean; back: string; variant?: 'card' | 'page' | 'photo' | 'bar' | 'interest' }) {
   const t = messages.favorites;
   const [state, action, pending] = useActionState(favoriteAction, { saved });
+  // «ذخیره شد» / «برداشته شد» after a change (not on the first render), and the ♡'s pop
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!state.error) showToast(state.saved ? messages.favorites.savedToast : messages.favorites.removedToast);
+  }, [state]);
   // While the request runs, show what it will do
   const on = pending ? !state.saved : state.saved;
   const label = on ? t.remove : t.add;
@@ -42,10 +52,10 @@ export function FavoriteButton({ token, saved, back, variant = 'card' }: { token
         {/* On cards a 36px circle inside a 44px target */}
         {variant === 'card' ? (
           <span className="flex size-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-neutral-900/5 backdrop-blur group-hover:bg-white">
-            <Icon name="heart" className={`size-5 ${on ? 'fill-current' : ''}`} />
+            <Icon name="heart" className={`size-5 ${on ? 'heart-pop fill-current' : ''}`} />
           </span>
         ) : (
-          <Icon name="heart" className={`${variant === 'page' ? 'size-[18px]' : variant === 'interest' ? 'size-4' : 'size-5'} ${on ? 'fill-current' : ''}`} />
+          <Icon name="heart" className={`${variant === 'page' ? 'size-[18px]' : variant === 'interest' ? 'size-4' : 'size-5'} ${on ? 'heart-pop fill-current' : ''}`} />
         )}
         {variant === 'page' && <span>{on ? t.saved : t.save}</span>}
         {variant === 'interest' && <span>{messages.events.view.interested}</span>}

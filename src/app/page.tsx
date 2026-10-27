@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { Flag } from '../components/flag';
 import { categoryIcon, Icon, type IconName } from '../components/icons';
 import { SearchBox } from '../components/search-box';
+import { SectionTitle } from '../components/section-title';
 import { appDb } from '../db/drizzle';
 import { visitorCountry } from '../lib/client-ip';
 import { messages } from '../messages/fa';
@@ -54,7 +55,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
 
   return (
-    <main>
+    <main data-soft-page>
       <section className="bg-gradient-to-b from-brand-50 to-white px-4 pt-7 pb-6 sm:px-6 lg:pt-14 lg:pb-10">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-[1.75rem] font-black leading-[1.45] text-balance lg:text-5xl lg:leading-[1.3]">{t.title}</h1>
@@ -84,7 +85,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               <li key={c.id}>
                 <Link
                   href={browsePath(country.slug, c.slug, null)}
-                  className={`flex min-h-14 items-center justify-between gap-2 rounded-2xl border p-3.5 hover:shadow-sm ${open ? 'border-brand-300 bg-brand-50' : 'border-neutral-200'}`}
+                  className={`flex min-h-14 items-center justify-between gap-2 rounded-2xl border p-3.5 hover:shadow-sm ${open ? 'border-brand-300 bg-brand-50' : 'border-neutral-200 bg-white'}`}
                 >
                   <b className="text-[15px]">{c.nameFa}</b>
                   <span className={`text-xs whitespace-nowrap ${open ? 'text-neutral-600' : 'text-saffron-800'}`}>
@@ -102,8 +103,17 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </Link>
         </div>
 
-        <h2 className="mt-7 text-lg font-extrabold">{t.popular}</h2>
+        <SectionTitle title={t.popular} href={browsePath(country.slug, null, null)} className="mt-7" />
         <ul className="mt-3 grid grid-cols-4 gap-2 lg:grid-cols-8">
+          {/* Events first, in saffron, so people find them at once (owner, Oct 27, 2026) */}
+          <li>
+            <Link href={eventsPath(country.slug, null)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-bold hover:bg-saffron-50">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-saffron-100 text-saffron-800 ring-1 ring-saffron-300 ring-inset">
+                <Icon name="calendar" className="size-6" />
+              </span>
+              {messages.events.section}
+            </Link>
+          </li>
           {roots.slice(0, 7).map((c) => (
             <li key={c.id}>
               <Link href={browsePath(country.slug, null, c.slug)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-medium hover:bg-neutral-50">
@@ -114,20 +124,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               </Link>
             </li>
           ))}
-          <li>
-            <Link href={eventsPath(country.slug, null)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-medium hover:bg-neutral-50">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-saffron-100 text-saffron-800">
-                <Icon name="calendar" className="size-6" />
-              </span>
-              {messages.events.section}
-            </Link>
-          </li>
         </ul>
 
         <ul className="mt-7 grid gap-2 lg:grid-cols-3">
           {t.trust.map((x, i) => (
-            <li key={x.text} className="flex items-center gap-3 rounded-2xl bg-neutral-50 p-3.5">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700">
+            <li key={x.text} className="flex items-center gap-3 rounded-2xl bg-white p-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <Icon name={TRUST_ICONS[i]!} className="size-5" />
               </span>
               <span className="flex-1 text-sm font-medium">{x.text}</span>
@@ -137,7 +139,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </li>
           ))}
         </ul>
-        <Link href="/business/new" className="mt-3 flex items-center gap-3 rounded-2xl border border-saffron-100 p-3.5 hover:bg-saffron-50">
+        <Link href="/business/new" className="mt-3 flex items-center gap-3 rounded-2xl border border-saffron-100 bg-white p-3.5 hover:bg-saffron-50">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-100 text-saffron-800">
             <Icon name="store" className="size-5" />
           </span>

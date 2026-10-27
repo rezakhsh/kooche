@@ -27,10 +27,10 @@ export default async function MyFavoritesPage({ searchParams }: { searchParams: 
   const t = messages.favorites;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 pt-5 pb-24">
+    <main data-soft-page className="mx-auto w-full max-w-3xl px-4 pt-5 pb-24">
       <h1 className="text-2xl font-extrabold">{t.title}</h1>
       {page.items.length === 0 && !after && (
-        <div className="mt-6 flex flex-col items-center gap-3 rounded-3xl bg-neutral-50 px-6 py-10 text-center">
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-3xl bg-white px-6 py-10 text-center">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-white text-red-600">
             <Icon name="heart" className="size-7" />
           </span>

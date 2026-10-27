@@ -128,7 +128,7 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
   );
   const link =
     view === 'grid' ? (
-      <Link href={card.href} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
+      <Link href={card.href} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-[0_1px_2px_rgb(16_40_38/0.06)] transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
         {photo}
         {body}
       </Link>

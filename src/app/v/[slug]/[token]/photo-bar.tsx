@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { BackLink } from '../../../../components/back-link';
 import { Icon } from '../../../../components/icons';
 import { messages } from '../../../../messages/fa';
+import { showToast } from '../../../../components/toast';
 
 // Back and share over the photo on phones (wave 1, mockup final/listing), where the listing page
 // hides the site header. Back returns to the previous Peydoo page, or to the listing's category
@@ -37,6 +38,7 @@ export function ShareButton({ title, label }: { title: string; label?: string })
         }
         await navigator.clipboard?.writeText(url).catch(() => undefined);
         setCopied(true);
+        showToast(t.copied);
         setTimeout(() => setCopied(false), 2000);
       }}
     >

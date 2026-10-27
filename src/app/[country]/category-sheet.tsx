@@ -14,6 +14,7 @@ export function CategorySheet({
   icon = 'grid',
   tone = 'brand',
   chevron = false,
+  full = false,
   children,
 }: {
   label: string;
@@ -23,11 +24,14 @@ export function CategorySheet({
   /** brand: the filters; on: filters applied; plain: «همه دسته‌ها» */
   tone?: 'brand' | 'on' | 'plain';
   chevron?: boolean;
+  /** The filters: one full page on phones (src/components/sheet.tsx) */
+  full?: boolean;
   children: ReactNode;
 }) {
   return (
     <Sheet
       dialog={false}
+      full={full}
       className="shrink-0"
       title={title}
       closeLabel={closeLabel}

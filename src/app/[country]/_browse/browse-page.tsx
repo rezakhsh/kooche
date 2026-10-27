@@ -15,7 +15,9 @@ import { hit } from '../../../lib/rate-limit';
 import { valkey } from '../../../lib/valkey';
 import { messages } from '../../../messages/fa';
 import { eventCardOf } from '../../../modules/events/card';
-import { upcomingEvents } from '../../../modules/events/queries';
+import { cityBySlug, countEvents, upcomingEvents, whenWindow } from '../../../modules/events/queries';
+import { DEFAULT_TIME_ZONE } from '../../../modules/events/events';
+import { imageUrl } from '../../../modules/media/server';
 import { pathOfListingCode } from '../../../modules/listings/queries';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
 import { cardOf } from '../../../modules/listings/card';
@@ -80,9 +82,16 @@ const pageData = cache(async (b: Browse) => {
   // badge on any card of the page that is featured
   const featured = !b.state.q && !b.state.after ? await featuredForPage(db, b.filters) : [];
   const featuredIds = await featuredListingIds(db, result.items.map((l) => l.id));
+  // «این هفته در برلین» (wave 1, mockup final/browse): this week's events above the listings of
+  // the plain city or country page, when there are some
+  const plain = !b.category && !b.state.q && !b.state.after;
+  const zone = b.city ? ((await cityBySlug(db, b.country.code, b.city.slug))?.timeZone ?? DEFAULT_TIME_ZONE) : DEFAULT_TIME_ZONE;
+  const weekFilter = { countryCode: b.country.code, locationId: b.city?.id ?? null, ...whenWindow('week', new Date(), zone) };
+  const [week, weekCount] = plain ? await Promise.all([upcomingEvents(db, weekFilter, new Date(), 1), countEvents(db, weekFilter)]) : [null, 0];
+  const weekEvent = week?.items[0] ?? null;
   // «قیمت بیشتر آگهی‌های …: ۵۰۰ تا ۷۵۰ €» under the price fields, for a category with prices
   const typical = b.category && b.ctx.priceAllowed ? await typicalPrice(db, { countryCode: b.country.code, categoryIds: b.filters.categoryIds, locationId: b.city?.id ?? null }) : null;
-  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical };
+  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount };
 });
 
 function titleOf(b: Browse): string {
@@ -137,7 +146,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   // A listing's code typed into the search box opens that listing (like Kleinanzeigen's ID)
   const coded = state.q ? await pathOfListingCode(appDb(), state.q) : null;
   if (coded) redirect(coded);
-  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical } = await pageData(b);
+  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount } = await pageData(b);
   const env = webEnv();
   const t = messages.country;
   const tb = messages.browse;
@@ -272,7 +281,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const widen = state.q && (city || category) ? `${browsePath(country.slug, null, null)}?q=${encodeURIComponent(state.q)}` : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl pb-6 sm:px-6">
+    <main data-soft-page className="mx-auto w-full max-w-6xl pb-6 sm:px-6">
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <RememberCountry slug={country.slug} />
       <RememberView view={state.view} />
@@ -283,9 +292,16 @@ export async function BrowsePage({ b }: { b: Browse }) {
         {category && breadcrumb('mb-2')}
         {searchBox('q', '')}
         <div className="no-scrollbar -mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4">
-          <CategorySheet label={filterCount ? tb.filtersCount(filterCount) : tb.filters} title={tb.filters} closeLabel={t.close} icon="sliders" tone={filterCount ? 'on' : 'brand'}>
+          <CategorySheet label={filterCount ? tb.filtersCount(filterCount) : tb.filters} title={tb.filters} closeLabel={t.close} icon="sliders" tone={filterCount ? 'on' : 'brand'} full>
             {filterForm('m')}
           </CategorySheet>
+          {/* Events right after the filters, apart from the categories (owner, Oct 27, 2026) */}
+          {!category && chips.length === 0 && (
+            <Link href={eventsHref} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-saffron-100 bg-saffron-50 px-3.5 text-sm font-bold whitespace-nowrap text-saffron-700">
+              <Icon name="calendar" className="size-4" />
+              {messages.events.section}
+            </Link>
+          )}
           <CategorySheet label={category ? category.nameFa : t.allCategories} title={t.categories} closeLabel={t.close} tone="plain" chevron>
             {categoryLinks}
           </CategorySheet>
@@ -308,12 +324,6 @@ export async function BrowsePage({ b }: { b: Browse }) {
                   {c.nameFa}
                 </Chip>
               ))}
-              {!category && (
-                <Link href={eventsHref} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-saffron-100 bg-saffron-50 px-3.5 text-sm font-bold whitespace-nowrap text-saffron-700">
-                  <Icon name="calendar" className="size-4" />
-                  {messages.events.section}
-                </Link>
-              )}
             </>
           )}
         </div>
@@ -322,7 +332,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
       <div className="lg:grid lg:grid-cols-[16rem_1fr] lg:gap-8 lg:pt-6">
         {/* Computers: categories and filters in a sidebar; with a category chosen, the filters come first */}
         <aside className="hidden lg:flex lg:flex-col lg:gap-4">
-          <nav aria-label={t.categories} className={`rounded-2xl border border-neutral-200 p-2 ${category ? 'order-2' : ''}`}>
+          <nav aria-label={t.categories} className={`rounded-2xl border border-neutral-200/60 bg-white p-2 ${category ? 'order-2' : ''}`}>
             <h2 className="px-2 pt-1 pb-2 text-xs font-bold text-neutral-500">{t.categories}</h2>
             {categoryLinks}
             <Link href={eventsHref} className="mt-1 flex items-center gap-2.5 rounded-xl border-t border-neutral-200 px-2 pt-3 pb-2 text-sm font-bold text-saffron-700 hover:bg-saffron-50">
@@ -330,7 +340,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
               {city ? tb.cityEvents(city.nameFa) : messages.events.linkFromCountry}
             </Link>
           </nav>
-          <section aria-label={tb.filters} className="rounded-2xl border border-neutral-200 p-4">
+          <section aria-label={tb.filters} className="rounded-2xl border border-neutral-200/60 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="flex items-center gap-1.5 text-sm font-extrabold">
                 <Icon name="sliders" className="size-4 text-brand-700" />
@@ -417,6 +427,23 @@ export async function BrowsePage({ b }: { b: Browse }) {
                 </Link>
               ))}
             </nav>
+          )}
+
+          {weekEvent && (
+            <Link href={eventsHref} className="mb-3 flex items-center gap-3 rounded-2xl bg-saffron-50 p-2.5 hover:bg-saffron-100/70">
+              {weekEvent.coverKey ? (
+                <img src={imageUrl(weekEvent.coverKey, 'thumb', 'webp') ?? ''} alt="" width={48} height={48} className="size-12 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-saffron-700">
+                  <Icon name="calendar" className="size-6" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold text-saffron-800">{tb.thisWeekIn(city?.nameFa ?? country.nameFa)}</span>
+                <span className="block truncate text-sm font-bold">{weekEvent.title}</span>
+              </span>
+              <span className="shrink-0 text-sm font-extrabold text-saffron-800">{tb.weekCount(weekCount)}</span>
+            </Link>
           )}
 
           {/* On phones the applied filters are in the chip row */}

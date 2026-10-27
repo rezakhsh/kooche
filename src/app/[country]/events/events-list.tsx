@@ -147,7 +147,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
   const gday = (d: LocalDate, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { timeZone: 'UTC', ...o }).format(new Date(Date.UTC(d.y, d.m - 1, d.d, 12)));
 
   return (
-    <main className="mx-auto w-full max-w-6xl pb-4 lg:px-6 lg:pt-6">
+    <main data-soft-page className="mx-auto w-full max-w-6xl pb-4 lg:px-6 lg:pt-6">
       <RememberCountry slug={country.slug} />
       <div className="flex items-center gap-2 px-4 pt-4 lg:px-0 lg:pt-0">
         <div className="min-w-0 flex-1">
@@ -202,7 +202,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
               key={day}
               href={href({ day: on ? null : day, when: null })}
               aria-current={on ? 'date' : undefined}
-              className={`relative flex w-14 shrink-0 flex-col items-center rounded-2xl border py-2 ${on ? 'border-neutral-900 bg-neutral-900 text-white' : i === 0 && !s.day ? 'border-neutral-900' : 'border-neutral-200 hover:bg-neutral-50'}`}
+              className={`relative flex w-14 shrink-0 flex-col items-center rounded-2xl border py-2 ${on ? 'border-neutral-900 bg-neutral-900 text-white' : i === 0 && !s.day ? 'border-neutral-900 bg-white' : 'border-neutral-200 bg-white hover:bg-neutral-50'}`}
             >
               <span className={`text-xs ${on ? '' : 'text-neutral-600'}`}>{i === 0 ? t.today : i === 1 ? t.tomorrow : gday(d, { weekday: 'long' })}</span>
               <b className="text-lg leading-7">{gday(d, { day: 'numeric' })}</b>
@@ -253,7 +253,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
       )}
 
       {page.items.length === 0 ? (
-        <div className="mx-4 mt-6 flex flex-col items-center gap-3 rounded-3xl bg-neutral-50 px-6 py-10 text-center lg:mx-0">
+        <div className="mx-4 mt-6 flex flex-col items-center gap-3 rounded-3xl bg-white px-6 py-10 text-center lg:mx-0">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-white text-brand-700">
             <Icon name="calendar" className="size-7" />
           </span>
@@ -269,8 +269,8 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
         <div className="px-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:px-0">
           {groups.map((g) => (
             <section key={g.key} className="mt-6">
-              <h2 className="sticky top-[61px] z-10 bg-white py-1 text-base font-extrabold">{g.label}</h2>
-              <div className="divide-y divide-neutral-200">
+              <h2 className="sticky top-[61px] z-10 bg-page py-1 text-base font-extrabold">{g.label}</h2>
+              <div className="divide-y divide-neutral-200 rounded-2xl bg-white px-3">
                 {g.items.map((e) => (
                   <EventRow key={e.id} e={row(e)} back={back} />
                 ))}
@@ -317,11 +317,11 @@ function SeasonStrip({ season, count, place, href }: { season: ActiveSeason; cou
 
 function Pills({ name, options, checked, type = 'checkbox' }: { name: string; options: [string, string][]; checked: (v: string) => boolean; type?: 'checkbox' | 'radio' }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {options.map(([value, label]) => (
         <label key={value} className="relative cursor-pointer">
           <input type={type} name={name} value={value} defaultChecked={checked(value)} className="peer sr-only" />
-          <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 text-sm peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
+          <span className={pillClass}>
             {label}
           </span>
         </label>
@@ -336,7 +336,7 @@ function Segments({ name, options, value }: { name: string; options: [string, st
       {options.map(([v, label]) => (
         <label key={v} className="relative flex-1 cursor-pointer">
           <input type="radio" name={name} value={v} defaultChecked={v === value} className="peer sr-only" />
-          <span className="flex h-10 items-center justify-center rounded-lg px-1 text-center text-sm text-neutral-700 peer-checked:bg-white peer-checked:font-bold peer-checked:text-neutral-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
+          <span className="flex h-9 items-center justify-center rounded-lg px-1 text-center text-sm text-neutral-700 peer-checked:bg-white peer-checked:font-bold peer-checked:text-neutral-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
             {label}
           </span>
         </label>
@@ -345,7 +345,10 @@ function Segments({ name, options, value }: { name: string; options: [string, st
   );
 }
 
-const H = ({ children }: { children: ReactNode }) => <p className="mt-5 mb-1.5 text-sm font-bold first:mt-0">{children}</p>;
+// Tight enough that the whole sheet is one phone screen (owner, Oct 27, 2026: "it should be one page")
+const H = ({ children }: { children: ReactNode }) => <p className="mt-3.5 mb-1.5 text-sm font-bold first:mt-0">{children}</p>;
+const pillClass =
+  'flex h-9 items-center rounded-full border border-neutral-300 px-3 text-sm peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40';
 
 function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPlace; s: EventsState; path: string; count: number; capped: boolean; types: { id: string; slug: string; nameFa: string }[] }) {
   const t = messages.events.sheet;
@@ -362,8 +365,12 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
       summaryClassName={chipClass(false, 'brand')}
       title={t.title}
       closeLabel={t.close}
+      full
     >
       <form method="get" action={path} className="text-sm">
+        {/* Computers: two columns, so the whole form shows at once */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-x-8">
+        <div>
         {s.season && <input type="hidden" name="season" value={s.season.key} />}
         {s.q && <input type="hidden" name="q" value={s.q} />}
         {place.city && (
@@ -383,18 +390,18 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
         )}
         <H>{t.when}</H>
         <div className="group">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {QUICK_WHEN.map((v) => (
               <label key={v} className="relative cursor-pointer">
                 <input type="radio" name="when" value={v} defaultChecked={s.when === v} className="peer sr-only" />
-                <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
+                <span className={pillClass}>
                   {w[v]}
                 </span>
               </label>
             ))}
             <label className="relative cursor-pointer">
               <input type="radio" name="when" value="date" data-pick-date defaultChecked={!!s.day} className="peer sr-only" />
-              <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
+              <span className={pillClass}>
                 {t.pickDate}
               </span>
             </label>
@@ -403,8 +410,6 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
             <DateInput label={t.date} name="day" defaultValue={s.day ?? ''} years={{ before: 0, after: 1 }} showDay />
           </div>
         </div>
-        <H>{t.type}</H>
-        <Pills name="type" options={types.filter((c) => c.slug !== OTHER_TYPE).map((c) => [c.slug, c.nameFa])} checked={(v) => s.types.includes(v)} />
         <H>{t.price}</H>
         <Segments
           name="price"
@@ -415,25 +420,6 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
             ['cheap', t.priceOptions.cheap(cheap)],
           ]}
         />
-        <H>{t.language}</H>
-        <Pills name="lang" options={(['fa', 'de', 'en'] as const).map((l) => [l, messages.events.languages[l]])} checked={(v) => s.languages.includes(v)} />
-        <H>{t.suits}</H>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ['family', t.suitsOptions.family, s.family],
-              ['adults', t.suitsOptions.adults, s.adults],
-              ['stepfree', t.suitsOptions.stepFree, s.stepFree],
-            ] as const
-          ).map(([name, label, on]) => (
-            <label key={name} className="relative cursor-pointer">
-              <input type="checkbox" name={name} value="1" defaultChecked={on} className="peer sr-only" />
-              <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
-                {label}
-              </span>
-            </label>
-          ))}
-        </div>
         <H>{t.attendance}</H>
         <Segments
           name="attendance"
@@ -444,8 +430,33 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
             ['online', t.attendanceOptions.online],
           ]}
         />
+        </div>
+        <div>
+        <H>{t.type}</H>
+        <Pills name="type" options={types.filter((c) => c.slug !== OTHER_TYPE).map((c) => [c.slug, c.nameFa])} checked={(v) => s.types.includes(v)} />
+        <H>{t.language}</H>
+        <Pills name="lang" options={(['fa', 'de', 'en'] as const).map((l) => [l, messages.events.languages[l]])} checked={(v) => s.languages.includes(v)} />
+        <H>{t.suits}</H>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              ['family', t.suitsOptions.family, s.family],
+              ['adults', t.suitsOptions.adults, s.adults],
+              ['stepfree', t.suitsOptions.stepFree, s.stepFree],
+            ] as const
+          ).map(([name, label, on]) => (
+            <label key={name} className="relative cursor-pointer">
+              <input type="checkbox" name={name} value="1" defaultChecked={on} className="peer sr-only" />
+              <span className={pillClass}>
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+        </div>
+        </div>
         {/* Down to the sheet's own edge, so nothing shows under the buttons */}
-        <div className="sticky -bottom-4 -mx-4 mt-5 -mb-4 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-4">
+        <div className="sticky -bottom-4 -mx-4 mt-4 -mb-4 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-4 lg:static lg:mx-0 lg:mb-0 lg:px-0 lg:pb-0">
           <Link href={s.season ? `${path}?season=${s.season.key}` : path} className="px-2 text-sm font-medium text-neutral-700 hover:underline">
             {t.clear}
           </Link>

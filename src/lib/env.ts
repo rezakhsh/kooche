@@ -84,6 +84,9 @@ const webSchema = z.object({
   // The bot's @username without @, for the t.me/<bot>?start=<token> link. The token itself is
   // only in the worker.
   TELEGRAM_BOT_USERNAME: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{3,31}$/),
+  // Peydoo's public Telegram channel (@username without @) for the footer's «کانال تلگرام پیدو».
+  // Unset: the footer leaves the channel out.
+  TELEGRAM_CHANNEL: optional(z.string().regex(/^[A-Za-z][A-Za-z0-9_]{3,31}$/)),
   // "Log in with Telegram" (OpenID Connect, phone scope): the bot's client ID and secret from
   // BotFather (src/modules/users/telegram-oidc.ts). Set together; unset, the bot is the only path.
   TELEGRAM_OIDC_CLIENT_ID: optional(z.string().regex(/^[0-9A-Za-z_-]{3,64}$/)),

@@ -37,6 +37,8 @@ export const messages = {
     invalid: 'این مقدار درست نیست.',
   },
   site: {
+    /** «همه ←» at the end of a row's title (src/components/section-title.tsx) */
+    seeAll: 'همه',
     // Brand approved Oct 17, 2026: the name, the line under it and the slogan
     name: 'پیدو',
     tagline: 'نیازمندی‌های ایرانیان خارج از کشور',
@@ -129,6 +131,8 @@ export const messages = {
     clearFilters: 'پاک کردن فیلترها',
     cities: 'شهرها',
     allCities: 'همه شهرهای این کشور',
+    thisWeekIn: (place: string) => `این هفته در ${place}`,
+    weekCount: (n: number) => `${n.toLocaleString('fa-IR')} رویداد`,
     popularCities: 'شهرهای پرآگهی',
     cityEvents: (city: string) => `رویدادهای ${city}`,
     filters: 'فیلترها',
@@ -255,6 +259,8 @@ export const messages = {
   // Favorites (src/modules/listings/favorites.ts, /my/favorites)
   favorites: {
     title: 'نشان‌شده‌ها',
+    savedToast: 'ذخیره شد',
+    removedToast: 'از نشان‌شده‌ها برداشته شد',
     add: 'نشان کردن این آگهی',
     remove: 'برداشتن نشان',
     save: 'نشان کردن',
@@ -272,8 +278,15 @@ export const messages = {
   },
   footer: {
     rights: (year: number) => `© ${year.toLocaleString('fa-IR', { useGrouping: false })} پیدو`,
+    // Wave 1 (mockup ui.js footer(), approved; built Oct 27, 2026 at the owner's request)
+    legalLine: (year: number) => `© ${year.toLocaleString('fa-IR', { useGrouping: false })} پیدو، برلین. آگهی برای اشخاص رایگان است.`,
     countries: 'کشورها',
     about: 'پیدو',
+    help: 'کمک',
+    legal: 'حقوقی',
+    channel: 'کانال تلگرام پیدو',
+    soon: (names: string) => `به‌زودی: ${names} و بیشتر.`,
+    notifyMe: 'خبرم کن',
     links: {
       help: 'راهنما',
       safety: 'نکات ایمنی',
@@ -281,6 +294,21 @@ export const messages = {
       terms: 'شرایط استفاده',
       privacy: 'حریم خصوصی',
       impressum: 'اطلاعات حقوقی (Impressum)',
+    },
+    columns: {
+      help: 'راهنما و پرسش‌ها',
+      safety: 'معاملهٔ امن',
+      report: 'گزارش یک آگهی',
+      contact: 'تماس با ما',
+      impressum: 'Impressum (اطلاعات ناشر)',
+      terms: 'شرایط استفاده (AGB)',
+      privacy: 'حریم خصوصی و کوکی‌ها (Datenschutz)',
+      dsa: 'تماس طبق DSA و قوانین محتوا',
+      about: 'دربارهٔ پیدو',
+      pro: 'پیدو برای کسب‌وکارها (پرو)',
+      founding: 'پرو رایگان برای کسب‌وکارهای بنیان‌گذار',
+      events: 'رویدادها',
+      channel: 'کانال تلگرام',
     },
   },
   nav: {

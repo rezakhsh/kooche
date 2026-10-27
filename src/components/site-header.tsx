@@ -1,10 +1,13 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { visitorCountry } from '../lib/client-ip';
 import { homeArea } from '../modules/listings/neighbourhood';
 import { cityOf } from '../modules/search/places';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
-import { browsePath, eventsPath } from '../modules/search/paths';
+import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
+import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
+import { webEnv } from '../lib/env';
 import { chosenCountry } from '../app/country-choice';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -12,6 +15,7 @@ import { unreadConversations } from '../modules/chat/queries';
 import { activeCountries } from '../modules/listings/queries';
 import { currentSession } from '../modules/users/server';
 import { BottomNav } from './bottom-nav';
+import { Flag } from './flag';
 import { Icon } from './icons';
 import { LogoMark } from './logo';
 import { SearchBox } from './search-box';
@@ -165,42 +169,98 @@ export function UnreadBadge({ count, className = '' }: { count: number; classNam
   );
 }
 
-const FOOTER_LINKS = [
-  ['help', '/help'],
-  ['safety', '/safety'],
-  ['contact', '/contact'],
-  ['terms', '/terms'],
-  ['privacy', '/privacy'],
-  ['impressum', '/impressum'],
-] as const satisfies readonly (readonly [keyof typeof messages.footer.links, string])[];
+/** One group of the footer: a heading and its links (mockup ui.js footer()) */
+function FooterColumn({ title, links }: { title: string; links: [ReactNode, string][] }) {
+  return (
+    <div>
+      <h2 className="mb-2 text-sm font-extrabold text-neutral-900">{title}</h2>
+      <ul className="space-y-1">
+        {links.map(([label, href]) => (
+          <li key={href}>
+            <Link href={href} className="flex min-h-9 items-center text-sm text-neutral-700 hover:text-brand-800 hover:underline">
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
+/**
+ * The footer on every browsing page (wave 1, mockup ui.js footer(); built early at the owner's
+ * request): help, legal (Impressum by its German name), Peydoo, the open countries with the ones
+ * coming soon, and Peydoo's Telegram channel when TELEGRAM_CHANNEL is set. Task pages hide it.
+ */
 export async function SiteFooter() {
-  const countries = await activeCountries(appDb());
+  const db = appDb();
+  const [countries, chosen, waiting] = await Promise.all([activeCountries(db), chosenCountry(db), waitingCountries(db).catch(() => [])]);
+  const country = chosen ?? countries[0] ?? null;
+  const firstCity = country ? (await keyCitiesOf(db, country.code).catch(() => []))[0] : undefined;
+  const t = messages.footer;
+  const c = t.columns;
+  const channel = webEnv().TELEGRAM_CHANNEL;
+  const channelUrl = channel ? `https://t.me/${channel}` : null;
   return (
     <footer className="mt-12 border-t border-neutral-200 bg-neutral-50">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-neutral-600 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-8 lg:px-6">
         <div className="flex items-center gap-3">
-          <LogoMark className="size-8" />
+          <LogoMark className="size-10" />
           <div>
-            <p className="font-bold text-neutral-900">{messages.site.tagline}</p>
-            <p>{messages.site.slogan}</p>
+            <p className="font-extrabold text-neutral-900">{messages.site.tagline}</p>
+            <p className="text-sm text-neutral-700">{messages.site.slogan}</p>
+          </div>
+          {channelUrl && (
+            <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="ms-auto hidden h-10 items-center gap-1.5 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-bold hover:bg-neutral-50 lg:flex">
+              <Icon name="send" className="size-4 text-brand-700" />
+              {t.channel}
+            </a>
+          )}
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-4">
+          <FooterColumn title={t.help} links={[[c.help, '/help'], [c.safety, '/safety'], [c.report, '/help#report'], [c.contact, '/contact']]} />
+          <FooterColumn
+            title={t.legal}
+            links={[
+              [<span key="i"><bdi>Impressum</bdi> (اطلاعات ناشر)</span>, '/impressum'],
+              [c.terms, '/terms'],
+              [c.privacy, '/privacy'],
+              [c.dsa, '/contact#dsa'],
+            ]}
+          />
+          <FooterColumn
+            title={t.about}
+            links={[
+              [c.about, '/help#about'],
+              [c.pro, '/pro'],
+              ...(country && firstCity ? [[c.founding, foundingPath(country.slug, firstCity.slug)] as [ReactNode, string]] : []),
+              ...(country ? [[c.events, eventsPath(country.slug, null)] as [ReactNode, string]] : []),
+              ...(channelUrl ? [[c.channel, channelUrl] as [ReactNode, string]] : []),
+            ]}
+          />
+          <div>
+            <h2 className="mb-2 text-sm font-extrabold text-neutral-900">{t.countries}</h2>
+            <ul className="space-y-1">
+              {countries.map((x) => (
+                <li key={x.code}>
+                  <Link href={`/${x.slug}`} className="flex min-h-9 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline">
+                    <Flag code={x.code} className="h-4 w-6" />
+                    {x.nameFa}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {waiting.length > 0 && (
+              <p className="mt-2 text-xs leading-6 text-neutral-600">
+                {t.soon(waiting.map((w) => w.nameFa).join('، '))}{' '}
+                <Link href="/cities" className="font-bold text-brand-800 hover:underline">
+                  {t.notifyMe}
+                </Link>
+              </p>
+            )}
           </div>
         </div>
-        <nav aria-label={messages.footer.about} className="flex flex-wrap gap-x-4 gap-y-1 sm:max-w-xs">
-          {FOOTER_LINKS.map(([key, href]) => (
-            <Link key={key} href={href} className="hover:text-brand-800 hover:underline">
-              {messages.footer.links[key]}
-            </Link>
-          ))}
-        </nav>
-        <nav aria-label={messages.footer.countries} className="flex flex-wrap gap-x-4 gap-y-1">
-          {countries.map((c) => (
-            <Link key={c.code} href={`/${c.slug}`} className="hover:text-brand-800 hover:underline">
-              {messages.country.title(c.nameFa)}
-            </Link>
-          ))}
-        </nav>
-        <p className="text-xs text-neutral-500">{messages.footer.rights(new Date().getFullYear())}</p>
+        <p className="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-600">{t.legalLine(new Date().getFullYear())}</p>
       </div>
     </footer>
   );
