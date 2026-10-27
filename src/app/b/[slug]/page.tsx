@@ -253,7 +253,10 @@ export default async function BusinessPage({ params, searchParams }: { params: P
               {items.map((l) => (
                 <li key={l.id}>
                   <ListingCard
-                    card={{ ...cardOf(catalog, l, env.APP_TIME_ZONE), featured: featured.has(l.id) }}
+                    card={(() => {
+                      const card = cardOf(catalog, l, env.APP_TIME_ZONE);
+                      return { ...card, featured: featured.has(l.id), tile: card.tile ? { ...card.tile, sub: org.name } : null };
+                    })()}
                     view="grid"
                     favorite={member ? undefined : <FavoriteButton token={l.publicToken} saved={saved.has(l.id)} back={path} />}
                   />

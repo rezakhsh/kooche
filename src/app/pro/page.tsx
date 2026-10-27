@@ -143,7 +143,7 @@ export default async function ProPage() {
                     href={startHref(p.code)}
                     className={`mt-5 flex h-12 items-center justify-center rounded-xl font-bold ${rec ? 'bg-brand-700 text-white hover:bg-brand-800' : 'border border-neutral-300 hover:bg-neutral-50'}`}
                   >
-                    {p.code === 'free' ? (mine ? t.mine : t.createFirst) : mine ? t.start(name) : t.createFirst}
+                    {p.code === 'free' ? (mine ? t.mine : t.createFirst) : t.start(name)}
                   </Link>
                 ) : (
                   <p className="mt-5 text-xs leading-6 text-neutral-600">{t.iranNote}</p>

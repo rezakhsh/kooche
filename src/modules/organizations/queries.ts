@@ -40,6 +40,7 @@ export type ManagedListing = {
   chats: number;
   phoneReveals: number;
   isEvent: boolean;
+  categoryId: string | null;
 };
 
 /**
@@ -61,6 +62,7 @@ export async function managedListings(db: Queryable, organizationId: string, opt
       chats: sql<number>`(SELECT count(*)::int FROM conversations c WHERE c.listing_id = ${listings.id})`,
       phoneReveals: sql<number>`(SELECT count(*)::int FROM audit_log a WHERE a.target_type = 'listing' AND a.target_id = ${listings.id} AND a.action = 'listing.phone_revealed')`,
       isEvent: sql<boolean>`EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`,
+      categoryId: listings.categoryId,
     })
     .from(listings)
     .innerJoin(users, eq(users.id, listings.userId))

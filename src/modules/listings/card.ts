@@ -35,6 +35,7 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     // The last bump counts as new, as on Kleinanzeigen: a bumped listing says «۵ دقیقه پیش»
     ago: (l.rankedAt ?? l.publishedAt) ? formatAgo((l.rankedAt ?? l.publishedAt)!, timeZone) : null,
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
+    tile: !l.coverKey && l.categoryId ? { label: catalog.byId.get(l.categoryId)?.nameFa ?? '' } : null,
     photoCount: l.photoCount,
     founding: l.founding,
     verified: l.verified,

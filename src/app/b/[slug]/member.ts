@@ -10,5 +10,5 @@ export async function memberOf(slug: string, path: string, roles: readonly Role[
   if (!found) notFound();
   const role = await roleIn(appDb(), user.id, found.org.id);
   if (!role || !roles.includes(role)) notFound();
-  return { user, org: found.org, cityFa: found.cityFa, cityLocal: found.cityLocal, role };
+  return { user, org: found.org, cityFa: found.cityFa, neighbourhood: found.neighbourhood, cityLocal: found.cityLocal, role };
 }

@@ -20,7 +20,8 @@ const TASK_PAGES = [
   /^\/my\/(listings|events|orders)\/./,
   /^\/events\/new/,
   /^\/business\/new/,
-  /^\/b\/[^/]+\/./,
+  // A business's dashboard is a hub (mockup final/business-dashboard); its edit, team and billing aren't
+  /^\/b\/[^/]+\/(edit|team|billing)/,
   /^\/account\/./,
   /^\/(login|report|contact|waitlist|cities)(\/|$)/,
 ];
@@ -38,7 +39,7 @@ export function BottomNav({ home, signedIn, unread }: { home: string; signedIn: 
     { href: home, label: t.listings, icon: 'home', active: path === '/' || (home !== '/' && path.startsWith(home)) || path.startsWith('/v/') },
     { href: signedIn ? '/chat' : '/login?next=%2Fchat', label: t.chat, icon: 'chat', active: path.startsWith('/chat'), badge: unread },
     { href: '/new', label: t.post, icon: 'plus', active: path.startsWith('/new'), primary: true },
-    { href: '/my/listings', label: t.myListings, icon: 'doc', active: /^\/my\/(listings|events)/.test(path) },
+    { href: '/my/listings', label: t.myListings, icon: 'doc', active: /^\/my\/(listings|events)/.test(path) || /^\/b\/[^/]+\/manage/.test(path) },
     { href: signedIn ? '/account' : '/login', label: signedIn ? t.account : t.signIn, icon: 'user', active: path.startsWith('/account') || path.startsWith('/login') || /^\/my\/(favorites|searches|orders)/.test(path) },
   ];
   return (

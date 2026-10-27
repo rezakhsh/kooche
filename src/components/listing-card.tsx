@@ -29,6 +29,8 @@ export type CardData = {
   verified?: boolean;
   /** After the price: «سرد، ماهانه» for rent */
   unit?: string | null;
+  /** Without a photo: the category on a soft tile, and the business under it on its page (mockup final/business-page) */
+  tile?: { label: string; sub?: string | null } | null;
 };
 
 /** `favorite`: the ♡ button, laid over the card next to the link (a button can't sit inside a link) */
@@ -39,9 +41,16 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
       {card.cover ? (
         <img src={card.cover} alt="" width={480} height={360} loading="lazy" decoding="async" className="size-full object-cover" />
       ) : (
-        <div className="flex size-full items-center justify-center text-neutral-400">
-          <Icon name="image" className="size-8" />
-        </div>
+        card.tile ? (
+          <div className="flex size-full flex-col items-center justify-center gap-0.5 bg-brand-50 px-2 text-center">
+            <span className="line-clamp-2 text-base font-black text-brand-800">{card.tile.label}</span>
+            {card.tile.sub && <span className="line-clamp-1 text-xs text-brand-700">{card.tile.sub}</span>}
+          </div>
+        ) : (
+          <div className="flex size-full items-center justify-center text-neutral-400">
+            <Icon name="image" className="size-8" />
+          </div>
+        )
       )}
       {(card.featured || card.founding || card.verified) && (
         <span className="absolute top-2 start-2 flex flex-col items-start gap-1">

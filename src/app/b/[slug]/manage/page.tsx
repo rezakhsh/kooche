@@ -10,6 +10,7 @@ import { imageUrl } from '../../../../modules/media/server';
 import { validHours } from '../../../../modules/organizations/hours';
 import { businessUsage } from '../../../../modules/organizations/limits';
 import { legalComplete } from '../../../../modules/organizations/organizations';
+import { cachedCatalog } from '../../../../modules/listings/catalog';
 import { managedListings } from '../../../../modules/organizations/queries';
 import { foundingPlaces, foundingState } from '../../../../modules/payments/founding';
 import { activeSubscription } from '../../../../modules/payments/plans';
@@ -43,11 +44,11 @@ function Step({ done, title, sub }: { done: boolean; title: string; sub: string 
 export default async function ManageBusinessPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ created?: string; saved?: string; joined?: string }> }) {
   const { slug } = await params;
   const query = await searchParams;
-  const { user, org, role, cityFa } = await memberOf(slug, `/b/${slug}/manage`);
+  const { user, org, role, cityFa, neighbourhood } = await memberOf(slug, `/b/${slug}/manage`);
   const db = appDb();
   const t = messages.business;
   const d = t.dashboard;
-  const [usage, rows] = await Promise.all([businessUsage(db, org.id), managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {})]);
+  const [usage, rows, catalog] = await Promise.all([businessUsage(db, org.id), managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {}), cachedCatalog(db)]);
   const planName = (usage.plan.code && messages.pro.planNames[usage.plan.code]) || t.manage.free;
   // A founding business's owner starts the free months right here (src/modules/payments/founding.ts)
   // Not from Iran: paying (a Stripe checkout, even a free one) isn't possible there (src/lib/region.ts)
@@ -87,7 +88,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
             <bdi className="truncate">{org.name}</bdi>
             {org.verificationStatus === 'verified' && <Icon name="verified" className="size-5 shrink-0 text-brand-700" />}
           </h1>
-          <p className="text-sm text-neutral-600">{d.subtitle(cityFa ?? '')}</p>
+          <p className="text-sm text-neutral-600">{d.subtitle([neighbourhood, cityFa].filter(Boolean).join('، '))}</p>
         </div>
       </div>
 
@@ -220,8 +221,8 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
             const view = l.status === 'draft' ? null : l.isEvent ? eventPath(l.title, l.publicToken) : listingPath(l.title, l.publicToken);
             return (
               <li key={l.id} className="flex min-h-16 items-center gap-3 px-4 py-2">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-800">
-                  <Icon name={l.isEvent ? 'calendar' : 'doc'} className="size-5" />
+                <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 px-0.5 text-center text-[11px] leading-4 font-black text-brand-800">
+                  {(l.categoryId && catalog.byId.get(l.categoryId)?.nameFa) || <Icon name={l.isEvent ? 'calendar' : 'doc'} className="size-5" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   {view ? (
