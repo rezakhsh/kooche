@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { Icon } from '../../../components/icons';
-import { Alert, Button, LinkButton } from '../../../components/ui';
+import { Alert } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
 import { startTelegram, startTelegramLoginAction, type TelegramState } from './actions';
 
@@ -49,9 +49,15 @@ export function TelegramVerify() {
   if (state && 'link' in state && !failed) {
     return (
       <div className="space-y-3">
-        <LinkButton href={state.link} target="_blank" rel="noopener noreferrer" className="w-full">
+        <a
+          href={state.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9]"
+        >
+          <Icon name="send" className="size-5" />
           {t.telegramOpen}
-        </LinkButton>
+        </a>
         <p className="text-sm leading-relaxed text-neutral-600">{t.telegramSteps}</p>
         <p className="text-xs text-neutral-500">{t.telegramExpires}</p>
         <Alert tone="info">{t.waiting}</Alert>
@@ -64,9 +70,15 @@ export function TelegramVerify() {
     <form action={action} className="space-y-3">
       {state && 'error' in state && <Alert tone="error">{state.error}</Alert>}
       {failed && <Alert tone="error">{reason && t.failed[reason] ? t.failed[reason] : t.expired}</Alert>}
-      <Button type="submit" disabled={pending} className="w-full">
-        {failed ? t.retry : t.telegramStart}
-      </Button>
+      <button
+        type="submit"
+        disabled={pending}
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9] disabled:opacity-70"
+      >
+        <Icon name="send" className="size-5" />
+        {failed ? t.retry : t.loginButton}
+      </button>
+      {!failed && <p className="text-center text-xs text-neutral-600">{t.botHint}</p>}
     </form>
   );
 }

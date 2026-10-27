@@ -64,11 +64,6 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                     <tr key={k}>
                       <td className="p-3 text-[13px] leading-6">
                         {t.kinds[k]}
-                        {k === 'searches' && (
-                          <Link href="/my/searches" className="block text-xs font-bold text-brand-800 hover:underline">
-                            {t.manageSearches}
-                          </Link>
-                        )}
                       </td>
                       <td className="p-2 text-center">
                         {telegramReady ? (

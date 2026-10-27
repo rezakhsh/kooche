@@ -56,7 +56,7 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <AppBar title={t.title} back={country ? `/${country.slug}` : '/'} backLabel={t.close} />
+      <AppBar title={t.title} back={country ? `/${country.slug}` : '/'} backLabel={t.close} close />
       <main className="mx-auto w-full max-w-xl px-4 pt-4 pb-10">
         <CityFilter placeholder={t.search} />
 

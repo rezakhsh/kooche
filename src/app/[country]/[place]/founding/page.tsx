@@ -84,6 +84,15 @@ export default async function FoundingPage({ params }: Props) {
           ))}
         </ol>
 
+        <div className="mt-6 flex items-center gap-3 rounded-2xl bg-neutral-100 p-3.5">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700">
+            <Icon name="camera" className="size-6" />
+          </span>
+          <span className="flex-1">
+            <b className="block text-sm">{t.video}</b>
+            <span className="text-xs text-neutral-600">{t.soon}</span>
+          </span>
+        </div>
         <p className="mt-6 text-xs leading-6 text-neutral-600">
           {t.after}{' '}
           <Link href="/pro" className="font-bold text-brand-800 underline">

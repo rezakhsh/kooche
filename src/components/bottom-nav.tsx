@@ -37,8 +37,8 @@ export function BottomNav({ home, signedIn, unread }: { home: string; signedIn: 
     { href: home, label: t.listings, icon: 'home', active: path === '/' || (home !== '/' && path.startsWith(home)) || path.startsWith('/v/') },
     { href: signedIn ? '/chat' : '/login?next=%2Fchat', label: t.chat, icon: 'chat', active: path.startsWith('/chat'), badge: unread },
     { href: '/new', label: t.post, icon: 'plus', active: path.startsWith('/new'), primary: true },
-    { href: '/my/listings', label: t.myListings, icon: 'doc', active: path.startsWith('/my') },
-    { href: signedIn ? '/account' : '/login', label: signedIn ? t.account : t.signIn, icon: 'user', active: path.startsWith('/account') || path.startsWith('/login') },
+    { href: '/my/listings', label: t.myListings, icon: 'doc', active: /^\/my\/(listings|events)/.test(path) },
+    { href: signedIn ? '/account' : '/login', label: signedIn ? t.account : t.signIn, icon: 'user', active: path.startsWith('/account') || path.startsWith('/login') || /^\/my\/(favorites|searches|orders)/.test(path) },
   ];
   return (
     <nav
