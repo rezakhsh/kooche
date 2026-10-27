@@ -1,3 +1,4 @@
+import { IranPaymentNotice, fromIran } from '../../../../components/iran';
 import { Alert, Button, Card, PageShell, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
@@ -28,7 +29,9 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   const offers = await Promise.all(
     (['pro', 'pro-plus'] as const).map(async (code) => ({ code, month: await activePrice(db, code, 'EUR', 'month'), year: await activePrice(db, code, 'EUR', 'year') })),
   );
-  const payments = !!paymentGateway();
+  // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
+  const iran = await fromIran();
+  const payments = !!paymentGateway() && !iran;
   // Listed here from Stripe: its Customer Portal leaves out some invoices (the €0 trial invoice)
   const invoices = await businessInvoices(db, paymentGateway(), org.id);
   const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
@@ -46,7 +49,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {query.done && !plan.code && <meta httpEquiv="refresh" content="4" />}
         {query.done && <Alert tone="success">{t.done}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
-        {!payments && <Alert tone="info">{t.off}</Alert>}
+        {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
 
         {founding === 'offered' && !running && payments && (
           <form action={foundingAction} className="space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">

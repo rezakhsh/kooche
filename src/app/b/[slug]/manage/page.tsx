@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { fromIran } from '../../../../components/iran';
 import { Icon } from '../../../../components/icons';
 import { Alert, Button, Card, LinkButton, PageShell, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -27,7 +28,8 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
   const [usage, rows] = await Promise.all([businessUsage(db, org.id), managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {})]);
   const planName = (usage.plan.code && messages.pro.planNames[usage.plan.code]) || t.manage.free;
   // A founding business's owner starts the free months right here (src/modules/payments/founding.ts)
-  const founding = role === 'owner' && paymentGateway() && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
+  // Not from Iran: paying (a Stripe checkout, even a free one) isn't possible there (src/lib/region.ts)
+  const founding = role === 'owner' && paymentGateway() && !(await fromIran()) && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
 
   return (
     <PageShell title={org.name} wide>

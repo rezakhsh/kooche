@@ -6,7 +6,6 @@ import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 import { EventEditor } from '../editor';
 import { eventEditorData } from '../editor-data';
-import { IranNotice, fromIran } from '../../../components/iran';
 
 export const metadata = { title: messages.events.form.newTitle, robots: { index: false } };
 
@@ -14,8 +13,6 @@ export const metadata = { title: messages.events.form.newTitle, robots: { index:
 // event needs a verified phone, like a listing (decided Oct 18, 2026).
 
 export default async function NewEventPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { user } = await requireSession('/events/new');
   const db = appDb();
   const allowed = await canPostEvent(db, user.id);

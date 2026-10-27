@@ -12,7 +12,6 @@ import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { myBusinesses } from '../../modules/organizations/organizations';
 import { chosenCountry } from '../country-choice';
 import { pickCategory } from './actions';
-import { IranNotice, fromIran } from '../../components/iran';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -24,8 +23,6 @@ export default async function NewListingPage({
 }: {
   searchParams: Promise<{ c?: string; listing?: string; error?: string }>;
 }) {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { user } = await requireSession('/new');
   const t = messages.post;
   const allowed = canPostListing(await loadActor(appDb(), user.id));

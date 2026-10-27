@@ -7,6 +7,7 @@ import { appDb } from '../../../../../db/drizzle';
 import { clientIp } from '../../../../../lib/client-ip';
 import { webEnv } from '../../../../../lib/env';
 import { reportError } from '../../../../../lib/monitoring/server';
+import { isIranRequest } from '../../../../../lib/region';
 import { hit } from '../../../../../lib/rate-limit';
 import { valkey } from '../../../../../lib/valkey';
 import { requestAllowance } from '../../../../../modules/payments/allowances';
@@ -36,6 +37,7 @@ export async function startPromotionAction(form: FormData): Promise<void> {
     appUrl: webEnv().APP_URL,
     ip: clientIp(h),
     userAgent: h.get('user-agent'),
+    fromIran: isIranRequest(h),
   }).catch((e: unknown) => {
     // Stripe unreachable or refusing: the pending order (if any) expires by itself
     console.error('payments: checkout failed:', e instanceof Error ? e.message : e);

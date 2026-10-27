@@ -4,10 +4,10 @@ import { isIranRequest } from '../lib/region';
 import { messages } from '../messages/fa';
 import { currentSession } from '../modules/users/server';
 import { Icon } from './icons';
-import { Card, PageShell } from './ui';
+import { Alert } from './ui';
 
-// Iran read-only (src/lib/region.ts): the banner on every page and the notice that replaces a form.
-// Only shown to requests from Iran, whose pages are never kept by Cloudflare (src/proxy.ts).
+// People in Iran (src/lib/region.ts): the banner on every page and the notice that replaces the pay
+// buttons. Only shown to requests from Iran, whose pages are never kept by Cloudflare (src/proxy.ts).
 
 export async function fromIran(): Promise<boolean> {
   return isIranRequest(await headers());
@@ -25,7 +25,7 @@ export async function IranBanner() {
           {t.title}
         </h2>
         <p className="mt-1 text-sm leading-7 text-neutral-800">{t.body}</p>
-        <p className="mt-1 text-sm leading-7 text-neutral-800">{session ? t.traveling : t.moving}</p>
+        <p className="mt-1 text-sm leading-7 text-neutral-800">{session ? t.traveling : t.guest}</p>
         <p className="mt-1 flex flex-wrap gap-x-4 text-sm font-bold">
           <Link href="/help#iran" className="text-brand-800 underline">
             {t.why}
@@ -39,17 +39,7 @@ export async function IranBanner() {
   );
 }
 
-/** Instead of a form that would be refused anyway (sign-in, posting, phone, chat) */
-export function IranNotice() {
-  const t = messages.iran.notice;
-  return (
-    <PageShell title={t.title}>
-      <Card>
-        <p className="leading-7 text-neutral-700">{t.body}</p>
-        <Link href="/" className="mt-4 inline-block font-bold text-brand-800 underline">
-          {t.browse}
-        </Link>
-      </Card>
-    </PageShell>
-  );
+/** Instead of the pay buttons: paying isn't possible from Iran (src/modules/payments/checkout.ts) */
+export function IranPaymentNotice() {
+  return <Alert tone="info">{messages.iran.payments}</Alert>;
 }

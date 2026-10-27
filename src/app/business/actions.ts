@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
 import { clientIp } from '../../lib/client-ip';
+import { isIranRequest } from '../../lib/region';
 import { webEnv } from '../../lib/env';
 import { reportError } from '../../lib/monitoring/server';
 import { hit } from '../../lib/rate-limit';
@@ -131,10 +132,10 @@ export async function acceptInvitationAction(form: FormData): Promise<void> {
   redirect(r.ok ? `/b/${r.slug}/manage?joined=1` : `${back}?error=${r.reason}`);
 }
 
-/** The "for my business, not as a consumer" tick (terms 14.5), with the request's IP and browser */
+/** The "for my business, not as a consumer" tick (terms 14.5), with the request's IP, browser and region */
 async function businessBuyer(form: FormData) {
   const h = await headers();
-  return { business: form.get('business') === 'on', ip: clientIp(h), userAgent: h.get('user-agent') };
+  return { business: form.get('business') === 'on', ip: clientIp(h), userAgent: h.get('user-agent'), fromIran: isIranRequest(h) };
 }
 
 const planSchema = z.object({ organizationId: z.uuid(), slug: z.string().max(40), plan: z.enum(['pro', 'pro-plus']), interval: z.enum(['month', 'year']) });
@@ -187,7 +188,8 @@ export async function portalAction(form: FormData): Promise<void> {
   if (!parsed.success) redirect('/business');
   const back = `/b/${parsed.data.slug}/billing`;
   const { user } = await requireSession(back);
-  const r = await openBillingPortal(appDb(), paymentGateway(), { userId: user.id, organizationId: parsed.data.organizationId, appUrl: webEnv().APP_URL }).catch((e: unknown) => {
+  const fromIran = isIranRequest(await headers());
+  const r = await openBillingPortal(appDb(), paymentGateway(), { userId: user.id, organizationId: parsed.data.organizationId, appUrl: webEnv().APP_URL, fromIran }).catch((e: unknown) => {
     console.error('payments: portal failed:', e instanceof Error ? e.message : e);
     reportError(e, { tags: { action: 'payments.portal' } });
     return { ok: false, reason: 'failed' } as const;

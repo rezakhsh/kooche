@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { organizations, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
-import { activePrice, confirmBusinessBuyer, customerFor, isOwner, type BusinessBuyer, type CheckoutResult } from './checkout';
+import { activePrice, confirmBusinessBuyer, customerFor, isOwner, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
 import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
@@ -90,9 +90,10 @@ export async function foundingState(db: Queryable, organizationId: string): Prom
 export async function startFoundingCheckout(
   db: Db,
   gateway: PaymentGateway | null,
-  opts: { userId: string; organizationId: string; appUrl: string; now?: Date } & BusinessBuyer,
+  opts: { userId: string; organizationId: string; appUrl: string; now?: Date } & BusinessBuyer & Where,
 ): Promise<CheckoutResult> {
   if (!gateway) return { ok: false, reason: 'payments_off' };
+  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
   if (!(await isOwner(db, opts.userId, opts.organizationId))) return { ok: false, reason: 'not_found' };
   if ((await foundingState(db, opts.organizationId)) !== 'offered') return { ok: false, reason: 'not_allowed' };
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };

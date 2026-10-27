@@ -1040,6 +1040,13 @@ The owner asked for the visible waitlist before WhatsApp (they are setting up Me
 - **Pro is B2B only:** a required "for my business" tick before every Pro checkout (billing page and the founding offer), logged in `audit_log`.
 - **Texts:** terms 14.4 and 14.5 (de, fa; dated Oct 27, 2026); the bump waiver now says the right ends with *complete* performance, not with the start (it was wrong for featured).
 - **Tests:** 747 passing (9 new in `tests/withdrawals.test.ts`; `tests/grants.test.ts` counts 44 tables).
-- **For the lawyer:** the bilingual labels, the button only after login, the button on a bump that already ran, Pro as B2B only. From Iran the button is refused like every write (changing that needs the Cloudflare rule, which also covers production).
+- **For the lawyer:** the bilingual labels, the button only after login, the button on a bump that already ran, Pro as B2B only.
 
 **Where wave 0 stands:** steps 1–4, 6, 7 and 8 done on staging. Left: step 5 WhatsApp (owner setting up Meta); final docs and a phone-size browser check; a Stripe test-clock run; the live bot's profile waits for the owner's OK. Then wave 1, the «صیقل‌خورده» redesign.
+
+## Oct 27, 2026: people in Iran use their account like anyone; only paying is refused
+
+- **Owner's rule** (replaces wave 0's "Iran read-only"): from Iran, without an account only reading; an email account can message; an account verified with a foreign number can do everything. Travellers keep full use of their account. Saved in memory.
+- **Built** (`docs/setup.md`, "People in Iran"): the proxy no longer refuses writes from Iran, and the sign-in, posting, events, business, phone and chat pages no longer show the Iran notice. Paying is refused from Iran (`from_iran` in the checkouts and the Stripe portal; a notice instead of the pay buttons). Pro's included bumps, refunds and the withdrawal button work. New banner and `/help#iran` texts, still never "sanctions".
+- **Cloudflare:** the WAF rule `iran_read_only` now skips `staging.peydoo.com`; production keeps the old block until wave 0 is promoted, then the rule is deleted.
+- **Tests:** 743 passing (`tests/iran.test.ts` rewritten: payments refused from Iran, writes let through). `tests/search-sync.test.ts` › "the queue puts back a rebuild…" failed once while memory was low and passed on its own.

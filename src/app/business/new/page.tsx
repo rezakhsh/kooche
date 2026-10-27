@@ -5,13 +5,10 @@ import { canPostListing, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { createBusinessAction } from '../actions';
 import { BusinessForm } from '../business-form';
-import { IranNotice, fromIran } from '../../../components/iran';
 
 export const metadata = { title: messages.business.createTitle, robots: { index: false } };
 
 export default async function NewBusinessPage() {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { user } = await requireSession('/business/new');
   const t = messages.business;
   const allowed = canPostListing(await loadActor(appDb(), user.id));

@@ -8,7 +8,6 @@ import { requireSession } from '../../../modules/users/server';
 import { ListingEditor } from '../../my/listings/[id]/editor';
 import { editorData } from '../../my/listings/editor-data';
 import { chosenCountry } from '../../country-choice';
-import { IranNotice, fromIran } from '../../../components/iran';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -16,8 +15,6 @@ export const metadata = { title: messages.post.title, robots: { index: false } }
 // adds a photo, so browsing categories leaves no drafts behind.
 
 export default async function NewInCategoryPage({ params }: { params: Promise<{ slug: string }> }) {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { slug } = await params;
   const { user } = await requireSession(`/new/${encodeURIComponent(slug)}`);
   const db = appDb();

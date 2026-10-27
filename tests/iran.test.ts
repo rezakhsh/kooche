@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { IRAN_WRITE_PATHS, IRAN_WRITE_PREFIXES, iranBlocksRequest, iranWafExpression, isIranRequest } from '../src/lib/region';
-import { messages } from '../src/messages/fa';
+import { isIranRequest } from '../src/lib/region';
+import { messages, pages } from '../src/messages/fa';
+import { openBillingPortal, startListingCheckout, startPlanCheckout } from '../src/modules/payments/checkout';
+import { startFoundingCheckout } from '../src/modules/payments/founding';
+import { appDb } from './accounts';
+import { business, FakeGateway, seedCatalog, sellerWithListing } from './payments-fixtures';
 
-// Iran read-only (wave 0, docs/wave0-plan.md, item 5): reading works, writing doesn't, except
-// what protects the person (report, sign out, sessions, delete, download, notifications).
+// People in Iran (owner's rule, Oct 27, 2026; src/lib/region.ts): the account decides, as
+// everywhere; only paying is refused from Iran.
 
+const APP = 'https://app.example.test';
 const CLOUDFLARE = '172.71.10.20'; // a Cloudflare address, as Traefik writes it
 const fromCloudflare = (country: string) => new Headers({ 'x-forwarded-for': CLOUDFLARE, 'cf-ipcountry': country });
 
@@ -20,44 +25,24 @@ describe('who counts as Iran', () => {
   });
 });
 
-describe('what Iran may write', () => {
-  it('reads everything', () => {
-    for (const method of ['GET', 'HEAD', 'OPTIONS', 'get']) {
-      expect(iranBlocksRequest('/new', method)).toBe(false);
-      expect(iranBlocksRequest('/germany/berlin', method)).toBe(false);
-    }
-  });
-
-  it('refuses sign-in, phone checks, posting, chat, favorites, payments and the waitlist', () => {
-    for (const path of ['/login', '/login/code', '/account/phone', '/account/phone/sms', '/account/name', '/account/place', '/new', '/new/bicycles', '/events/new', '/business/new', '/chat/abc', '/chat/new', '/favorites', '/my/listings/x/promote', '/b/shop/billing', '/v/x/y', '/germany/berlin', '/my/searches', '/']) {
-      expect(iranBlocksRequest(path, 'POST'), path).toBe(true);
-    }
-    expect(iranBlocksRequest('/new', 'PUT')).toBe(true);
-    expect(iranBlocksRequest('/new', 'DELETE')).toBe(true);
-  });
-
-  it('allows what protects the person', () => {
-    for (const path of ['/report', '/report/sent', '/account', '/account/', '/account/devices', '/account/delete', '/account/data/export', '/account/notifications', '/alerts/off', '/alerts/off/one-click', '/api/monitoring', '/api/stripe/webhook', '/api/whatsapp/webhook']) {
-      expect(iranBlocksRequest(path, 'POST'), path).toBe(false);
-    }
-    // A prefix is a whole path segment
-    expect(iranBlocksRequest('/reports', 'POST')).toBe(true);
-    expect(iranBlocksRequest('/account/devicesx', 'POST')).toBe(true);
-  });
-
-  it('gives Cloudflare the same rule', () => {
-    const rule = iranWafExpression();
-    expect(rule).toContain('ip.src.country eq "IR"');
-    expect(rule).toContain('not http.request.method in {"GET" "HEAD" "OPTIONS"}');
-    for (const p of IRAN_WRITE_PATHS) expect(rule).toContain(`"${p}"`);
-    for (const p of IRAN_WRITE_PREFIXES) {
-      expect(rule).toContain(`http.request.uri.path eq "${p}"`);
-      expect(rule).toContain(`starts_with(http.request.uri.path, "${p}/")`);
-    }
+describe('what Iran may do (owner, Oct 27, 2026)', () => {
+  it('pays for nothing: the checkouts and the portal are refused before Stripe is asked', async () => {
+    await seedCatalog();
+    const gateway = new FakeGateway();
+    const { seller, listing } = await sellerWithListing();
+    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromIran: true })).toEqual({ ok: false, reason: 'from_iran' });
+    const { org, ownerId } = await business();
+    const plan = { userId: ownerId, organizationId: org.id, appUrl: APP, business: true, fromIran: true };
+    expect(await startPlanCheckout(appDb, gateway, { ...plan, plan: 'pro', interval: 'month' })).toEqual({ ok: false, reason: 'from_iran' });
+    expect(await startFoundingCheckout(appDb, gateway, plan)).toEqual({ ok: false, reason: 'from_iran' });
+    expect(await openBillingPortal(appDb, gateway, plan)).toEqual({ ok: false, reason: 'from_iran' });
+    expect(gateway.checkouts).toHaveLength(0);
+    // The same purchase from elsewhere goes ahead
+    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromIran: false })).toMatchObject({ ok: true });
   });
 
   it('never says "sanctions" to the person', () => {
-    const texts = JSON.stringify([messages.iran, messages.bot.iranNumber, messages.phone.failed.country_not_allowed]);
+    const texts = JSON.stringify([messages.iran, pages.help, messages.bot.iranNumber, messages.phone.failed.country_not_allowed, messages.promote.errors, messages.business.billing.errors]);
     expect(texts).not.toContain('تحریم');
     expect(texts).not.toMatch(/وی‌?پی‌?ان|VPN/i);
   });
@@ -77,19 +62,11 @@ describe('the proxy', () => {
   const request = (path: string, method: string, country: string) =>
     new NextRequest(`https://app.example.test${path}`, { method, headers: fromCloudflare(country) });
 
-  it('refuses a write from Iran with a Persian page, never cached', async () => {
+  it('lets Iran sign in, post and write like anyone (the account decides), and never lets Cloudflare keep its pages', async () => {
     const { proxy } = await import('../src/proxy');
-    const res = proxy(request('/new', 'POST', 'IR'));
-    expect(res.status).toBe(403);
-    expect(res.headers.get('cache-control')).toBe('private, no-store');
-    const body = await res.text();
-    expect(body).toContain(messages.iran.refused.title);
-    expect(body).toContain('dir="rtl"');
-  });
-
-  it('lets Iran report and read, and never lets Cloudflare keep its pages', async () => {
-    const { proxy } = await import('../src/proxy');
-    expect(proxy(request('/report', 'POST', 'IR')).status).not.toBe(403);
+    for (const path of ['/login', '/new', '/chat/new', '/account/phone', '/my/orders/x/withdraw', '/report']) {
+      expect(proxy(request(path, 'POST', 'IR')).status, path).not.toBe(403);
+    }
     const page = proxy(request('/germany/berlin', 'GET', 'IR'));
     expect(page.status).toBe(200);
     expect(page.headers.get('cache-control')).toBe('private, no-store');

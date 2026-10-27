@@ -13,7 +13,6 @@ import { imageUrl } from '../../../modules/media/server';
 import { canSendMessage, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { Composer } from '../composer';
-import { IranNotice, fromIran } from '../../../components/iran';
 
 export const metadata = { title: messages.chat.newTitle, robots: { index: false } };
 
@@ -21,8 +20,6 @@ export const metadata = { title: messages.chat.newTitle, robots: { index: false 
 // conversation is created with its first message), and an existing conversation opens instead.
 
 export default async function NewConversationPage({ searchParams }: { searchParams: Promise<{ l?: string }> }) {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { l: token } = await searchParams;
   if (!token || !/^[0-9a-hjkmnp-tv-z]{10}$/.test(token)) notFound();
   const { user } = await requireSession(`/chat/new?l=${token}`);

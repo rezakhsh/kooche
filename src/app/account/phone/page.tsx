@@ -8,13 +8,10 @@ import { eq } from 'drizzle-orm';
 import { users } from '../../../db/schema';
 import { TelegramLogin, TelegramVerify } from './telegram';
 import { Icon } from '../../../components/icons';
-import { IranNotice, fromIran } from '../../../components/iran';
 
 export const metadata = { title: messages.phone.title, robots: { index: false } };
 
 export default async function PhonePage({ searchParams }: { searchParams: Promise<{ telegram?: string }> }) {
-  // Iran is read-only (src/lib/region.ts): a notice instead of a form that would be refused
-  if (await fromIran()) return <IranNotice />;
   const { user } = await requireSession('/account/phone');
   const [me] = await appDb()
     .select({ phone: users.phoneE164, method: users.phoneVerificationMethod })
