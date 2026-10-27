@@ -21,7 +21,7 @@ export const austria: LocationsSeed = {
     { slug: "wien", nameFa: "وین", nameLocal: "Wien", geonamesId: 2761367, lat: 48.2082, lng: 16.37169, population: 2014614, timezone: "Europe/Vienna" },
   ],
   cities: [
-    { slug: "wien", nameFa: "وین", nameLocal: "Wien", geonamesId: 2761369, region: "wien", lat: 48.20849, lng: 16.37208, population: 1691468, timezone: "Europe/Vienna" },
+    { slug: "wien", nameFa: "وین", nameLocal: "Wien", geonamesId: 2761369, region: "wien", lat: 48.20849, lng: 16.37208, population: 1691468, timezone: "Europe/Vienna", launch: { status: 'waitlist', goal: 15 } },
     { slug: "graz", nameFa: "گراتس", nameLocal: "Graz", geonamesId: 2778067, region: "steiermark", lat: 47.06733, lng: 15.44197, population: 303270, timezone: "Europe/Vienna" },
     { slug: "linz", nameFa: "لینتس", nameLocal: "Linz", geonamesId: 2772400, region: "oberoesterreich", lat: 48.30639, lng: 14.28611, population: 204846, timezone: "Europe/Vienna" },
     { slug: "salzburg", nameFa: "سالزبورگ", nameLocal: "Salzburg", geonamesId: 2766824, region: "salzburg", lat: 47.79941, lng: 13.04399, population: 157245, timezone: "Europe/Vienna" },

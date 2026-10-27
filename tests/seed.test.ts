@@ -136,7 +136,7 @@ describe('seeded data', () => {
       (SELECT count(*) FROM category_attribute_options) AS o, (SELECT count(*) FROM locations) AS l`;
     const before = await db.execute(counts);
     const summary = await runSeed(process.env.TEST_DATABASE_URL!);
-    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25, cities: 81, postalPlaces: 15_050 + 18_998, neighbourhoods: 97 });
+    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 30, cities: 86, postalPlaces: 15_050 + 18_998, neighbourhoods: 97 });
     expect(await db.execute(counts)).toEqual(before);
   });
 

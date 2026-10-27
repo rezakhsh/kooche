@@ -4,6 +4,7 @@ import * as schema from '../src/db/schema';
 import { createEventDraft, saveEvent } from '../src/modules/events/events';
 import { eventInputSchema } from '../src/modules/events/input';
 import { listingArea } from '../src/modules/launch/cities';
+import { waitingCountries } from '../src/modules/launch/waitlist';
 import { createDraft, listingInputSchema, saveListing, type ListingInput } from '../src/modules/listings/listings';
 import { appDb } from './accounts';
 import { db } from './db';
@@ -72,6 +73,19 @@ describe('city launch: seed', () => {
   it('closes Austria', async () => {
     const [at] = await db.select().from(schema.countries).where(eq(schema.countries.code, 'AT'));
     expect(at!.isActive).toBe(false);
+  });
+
+  it('gives each closed country of the plan its first city on a waitlist (city chooser)', async () => {
+    const waiting = await waitingCountries(appDb);
+    const by = new Map(waiting.map((w) => [w.code, w]));
+    expect([...by.keys()].sort()).toEqual(['AT', 'AU', 'CA', 'GB', 'NL', 'US']);
+    expect(by.get('AT')).toMatchObject({ slug: 'austria', city: { slug: 'wien', nameFa: 'وین' }, goal: 15, businesses: 0 });
+    expect(by.get('CA')).toMatchObject({ city: { slug: 'toronto' }, goal: 30 });
+    expect(by.get('NL')).toMatchObject({ city: { slug: 'amsterdam' }, goal: 15 });
+    // Largest goal first
+    expect(waiting.map((w) => w.goal)).toEqual([...waiting.map((w) => w.goal)].sort((a, b) => (b ?? 0) - (a ?? 0)));
+    // Germany is open, so it isn't listed
+    expect(by.has('DE')).toBe(false);
   });
 });
 

@@ -3,7 +3,8 @@ import { cache } from 'react';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { browsableCategory, cachedCatalog, EVENT_ROOT_SLUG, isEventCategory, subtreeIds, type Catalog, type CategoryNode } from '../../../modules/listings/catalog';
-import { activeCountries, type Country } from '../../../modules/listings/queries';
+import { cityLaunch } from '../../../modules/launch/waitlist';
+import { activeCountries, closedCountry, type Country } from '../../../modules/listings/queries';
 import { resolveFilters, type PlaceNotice, type ResolvedPlace, type SearchFilters } from '../../../modules/search';
 import { browseQuery, currentQuery, filterContext, parseBrowseParams, type BrowseState, type FilterContext, type RawParams } from '../../../modules/search/filters';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
@@ -39,10 +40,24 @@ function eventsRedirect(catalog: Catalog, country: string, city: string | null, 
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() ?? '';
 
+/**
+ * A country that isn't open yet has no pages except its waitlist cities (round 12, mockup
+ * city-chooser: «اول تورنتو: ۹ از ۳۰ کسب‌وکار»): /canada/toronto shows Toronto's waitlist, and
+ * every other address in it stays "not found".
+ */
+async function waitingIn(countrySlug: string, placeSlug: string, categorySlug: string): Promise<Country | null> {
+  if (!placeSlug || categorySlug) return null;
+  const db = appDb();
+  const closed = await closedCountry(db, countrySlug);
+  const city = closed ? await cityOf(db, closed.code, placeSlug) : null;
+  const launch = city ? await cityLaunch(db, city.id) : null;
+  return launch?.status === 'waitlist' ? closed : null;
+}
+
 async function resolve(countrySlug: string, placeSlug: string, categorySlug: string, rawJson: string): Promise<Browse> {
   const raw = JSON.parse(rawJson) as RawParams;
   const db = appDb();
-  const country = (await activeCountries(db)).find((c) => c.slug === countrySlug);
+  const country = (await activeCountries(db)).find((c) => c.slug === countrySlug) ?? (await waitingIn(countrySlug, placeSlug, categorySlug));
   if (!country) notFound();
   const catalog = await cachedCatalog(db);
 

@@ -7,7 +7,7 @@ import { SearchBox } from '../components/search-box';
 import { appDb } from '../db/drizzle';
 import { visitorCountry } from '../lib/client-ip';
 import { messages } from '../messages/fa';
-import { keyCitiesOf } from '../modules/launch/waitlist';
+import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { cachedCatalog, EVENT_ROOT_SLUG } from '../modules/listings/catalog';
 import { activeCountries, countryCounts } from '../modules/listings/queries';
 import { cachedCityCounts } from '../modules/search/browse';
@@ -21,7 +21,9 @@ import { cityFoundingPlaces } from '../modules/payments/founding';
 // the first open country, with one line on what Peydoo is, search at once, the country's key
 // cities (open ones with their counts, waitlist ones with their business goal), the categories,
 // three trust lines and the business offer. A visitor who chose a country before goes straight to
-// it; `?choose` (the header's country chip, «کشور دیگر») lists every open country.
+// it; «کشور دیگر» and the header's chip open the city chooser (/cities); `?choose` (from posting,
+// to change the listing's country) lists the open countries and, under «به‌زودی», the ones with a
+// waitlist (mockup final/countries).
 
 const TRUST_ICONS: IconName[] = ['shield', 'chat', 'plus'];
 
@@ -70,7 +72,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               {detected ? t.seemsIn(country.nameFa) : country.nameFa}
             </p>
           </div>
-          <Link href="/?choose" className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-bold text-brand-800 hover:bg-brand-50">
+          <Link href="/cities" className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-bold text-brand-800 hover:bg-brand-50">
             <Icon name="globe" className="size-4" />
             {t.otherCountry}
           </Link>
@@ -156,10 +158,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   );
 }
 
-/** «کشور دیگر»: every open country with its count, the visitor's own first */
+/** `?choose`: every open country with its count, the visitor's own first, then «به‌زودی» (mockup final/countries) */
 async function CountryChooser({ here }: { here: string | null }) {
   const db = appDb();
-  const [countries, counts] = await Promise.all([activeCountries(db), countryCounts(db)]);
+  const [countries, counts, waiting] = await Promise.all([activeCountries(db), countryCounts(db), waitingCountries(db)]);
   const ordered = [...countries].sort((a, b) => Number(b.code === here) - Number(a.code === here));
   const t = messages.home;
   return (
@@ -186,6 +188,25 @@ async function CountryChooser({ here }: { here: string | null }) {
           );
         })}
       </ul>
+      {waiting.length > 0 && (
+        <>
+          <h2 className="mt-6 mb-1 text-sm font-bold text-neutral-600">{t.soon}</h2>
+          <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 px-4">
+            {waiting.map((c) => (
+              <li key={c.code} className="flex min-h-14 items-center gap-3 py-2">
+                <Flag code={c.code} className="h-5 w-8" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-base">{c.nameFa}</span>
+                  <span className="text-xs text-saffron-800">{t.soonCity(c.city.nameFa)}</span>
+                </span>
+                <Link href={browsePath(c.slug, c.city.slug, null)} className="rounded-full border border-brand-200 bg-brand-50 px-3 text-sm font-bold leading-8 text-brand-800 hover:bg-brand-100">
+                  {t.notifyMe}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </main>
   );
 }

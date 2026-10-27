@@ -68,9 +68,9 @@ export async function SiteHeader() {
           </Link>
           {country && (
             <Link
-              href="/?choose"
+              href="/cities"
               className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 ps-2.5 pe-3 text-[13px] font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
-              title={messages.country.change}
+              title={messages.cities.title}
             >
               <Icon name="pin" className="size-4 text-brand-700" />
               {place?.nameFa ?? country.nameFa}

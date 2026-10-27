@@ -162,6 +162,13 @@
       "when": 1793105537007,
       "tag": "0022_neighbourhoods",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793124694189,
+      "tag": "0023_first_city_waitlists",
+      "breakpoints": true
     }
   ]
 }

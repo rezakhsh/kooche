@@ -85,6 +85,9 @@ export const messages = {
     placesLeft: (n: number) => `${n.toLocaleString('fa-IR')} جا مانده`,
     chooseCountry: 'کشورت را انتخاب کن',
     yourCountry: 'کشور شما',
+    soon: 'به‌زودی',
+    soonCity: (city: string) => `اول ${city}`,
+    notifyMe: 'خبرم کن',
     listingCount: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
     why: [
       { title: 'پیدا کن', text: 'آگهی‌های ایرانی‌های شهر خودت، به فارسی' },
@@ -1278,6 +1281,24 @@ export const messages = {
     // Wave 1 (mockup final/notifications): short rows with a switch
     chatShort: 'پیام تازه در گفت‌وگو',
     savedSearchesShort: 'آگهی تازه در جستجوی ذخیره‌شده',
+  },
+  // Choosing a city (src/app/cities, mockup final/city-chooser)
+  cities: {
+    title: 'شهر شما',
+    close: 'بستن',
+    search: 'جستجوی شهر',
+    openOf: (open: number, all: number) => `${open.toLocaleString('fa-IR')} از ${all.toLocaleString('fa-IR')} شهر باز`,
+    openCity: (n: number) => `باز، ${n.toLocaleString('fa-IR')} آگهی`,
+    soon: (n: number, goal: number) => `به‌زودی: ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار`,
+    soonNoGoal: 'به‌زودی',
+    notify: 'خبرم کن',
+    countryRule: (n: number, country: string) =>
+      `وقتی این ${n.toLocaleString('fa-IR')} شهر باز شوند، کل ${country} با همهٔ شهرها باز می‌شود. تا آن موقع، رویدادها و صفحهٔ کسب‌وکارها در همهٔ ${country} آزادند.`,
+    otherCountries: 'کشورهای دیگر',
+    openCountry: (n: number) => `باز، ${n.toLocaleString('fa-IR')} آگهی`,
+    firstCity: (city: string, n: number, goal: number) => `اول ${city}: ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار`,
+    firstCityNoGoal: (city: string) => `اول ${city}، به‌زودی`,
+    notListed: 'کشور من در این فهرست نیست',
   },
   // What a founding business gets in a city (src/app/[country]/[place]/founding, mockup final/founding-business)
   founding: {

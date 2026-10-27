@@ -21,7 +21,7 @@ const TASK_PAGES = [
   /^\/business\/new/,
   /^\/b\/[^/]+\/./,
   /^\/account\/./,
-  /^\/(login|report|contact|waitlist)(\/|$)/,
+  /^\/(login|report|contact|waitlist|cities)(\/|$)/,
 ];
 
 /** Whether the bar shows on this path (phones only) */

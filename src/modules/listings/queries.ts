@@ -43,6 +43,22 @@ export function activeCountries(db: Queryable): Promise<Country[]> {
   return value;
 }
 
+/** A country that isn't open yet, by its slug: only its waitlist cities have pages (round 12) */
+export async function closedCountry(db: Queryable, slug: string): Promise<Country | null> {
+  const [row] = await db
+    .select({
+      code: countries.code,
+      slug: countries.slug,
+      nameFa: countries.nameFa,
+      nameLocal: countries.nameLocal,
+      currency: { code: currencies.code, symbol: currencies.symbol, minorUnit: currencies.minorUnit, nameFa: currencies.nameFa },
+    })
+    .from(countries)
+    .innerJoin(currencies, eq(currencies.code, countries.defaultCurrency))
+    .where(and(eq(countries.isActive, false), eq(countries.slug, slug)));
+  return row ? { ...row, slug: row.slug! } : null;
+}
+
 /**
  * The account's saved place (users.home_*), pre-filled in new listings. The postal code and place
  * are looked up again, so a place that left the postal data is simply not offered any more.
