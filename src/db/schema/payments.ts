@@ -349,3 +349,42 @@ export const webhookEvents = pgTable(
   ],
 );
 
+
+export const WITHDRAWAL_STATUSES = ['received', 'refunded', 'no_refund'] as const;
+
+/**
+ * A consumer's withdrawal from a one-time order with the withdrawal button (§ 356a BGB, wave 0;
+ * migration 0021). created_at = when it was received. The app records it (the IP and browser go
+ * to audit_log); the worker works out the refund, asks the provider for it and fills in the rest.
+ * What is left of the order ends only with the refund's webhook.
+ */
+export const orderWithdrawals = pgTable(
+  'order_withdrawals',
+  {
+    ...insertOnlyColumns(),
+    orderId: uuid('order_id')
+      .notNull()
+      .unique('order_withdrawals_order_id_key')
+      .references(() => orders.id, { onDelete: 'restrict' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    /** Where the receipt went, as it was when the button was pressed */
+    receiptEmail: text('receipt_email').notNull(),
+    status: text('status', { enum: WITHDRAWAL_STATUSES }).notNull().default('received'),
+    refundMinor: bigint('refund_minor', { mode: 'number' }),
+    currency: text('currency')
+      .notNull()
+      .references(() => currencies.code),
+    /** re_… (pyr_… for PayPal) */
+    providerRefundId: text('provider_refund_id'),
+    processedAt: tstz('processed_at'),
+  },
+  (t) => [
+    check('order_withdrawals_status_check', isIn(t.status, WITHDRAWAL_STATUSES)),
+    check('order_withdrawals_refund_minor_check', sql`${t.refundMinor} >= 0`),
+    check('order_withdrawals_processed_check', sql`(${t.status} = 'received') = (${t.processedAt} IS NULL)`),
+    check('order_withdrawals_refunded_check', sql`${t.status} <> 'refunded' OR (${t.refundMinor} > 0 AND ${t.providerRefundId} IS NOT NULL)`),
+    index('order_withdrawals_user_id_idx').on(t.userId),
+  ],
+);

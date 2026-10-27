@@ -8,7 +8,7 @@ import type { LegalDoc } from './legal-types';
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 22. Oktober 2026',
+  updated: 'Stand: 27. Oktober 2026',
   draft: true,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Deutsch und auf Persisch vor; rechtlich maßgeblich ist diese deutsche Fassung (Ziffer 13.2).',
@@ -348,14 +348,15 @@ const terms: LegalDoc = {
       heading: '14.4 Widerrufsrecht für Verbraucher',
       body: [
         'Verbraucher haben bei Verträgen über Dienstleistungen ein Widerrufsrecht von 14 Tagen ab Vertragsschluss. Auf Ihren ausdrücklichen Wunsch beginnen wir mit der Leistung sofort. Sie bestätigen vor der Zahlung, dass Ihnen bekannt ist, dass Ihr Widerrufsrecht mit vollständiger Erbringung der Leistung erlischt (§ 356 Abs. 4 BGB); ein Hochschieben ist mit seiner Ausführung vollständig erbracht.',
-        'Bei Leistungen über einen Zeitraum (Hervorhebung) können Sie innerhalb der 14 Tage widerrufen; Sie zahlen dann den Anteil, der bis zum Widerruf erbracht wurde (§ 357a Abs. 2 BGB). Den Widerruf erklären Sie per E-Mail an die Adresse in Ziffer 1.1.',
+        'Bei Leistungen über einen Zeitraum (Hervorhebung) und bei noch nicht ausgeführten Hochschiebungen können Sie innerhalb der 14 Tage widerrufen; Sie zahlen dann den Anteil, der bis zum Widerruf erbracht wurde (§ 357a Abs. 2 BGB). Ausgeführte Hochschiebungen gelten als erbracht; nicht ausgeführte und die verbleibende Zeit der Hervorhebung erstatten wir anteilig.',
+        'Den Widerruf erklären Sie am einfachsten mit der Widerrufsfunktion: unter „Meine Käufe“ (خریدهای من) bei der Bestellung die Schaltfläche „Vertrag widerrufen“, dann „Widerruf bestätigen“. Sie steht während der gesamten Widerrufsfrist bereit; wir bestätigen den Eingang sofort per E-Mail mit Inhalt, Datum und Uhrzeit. Sie können den Widerruf auch auf anderem Weg erklären, zum Beispiel per E-Mail an die Adresse in Ziffer 1.1. Die Erstattung erfolgt innerhalb von 14 Tagen über das ursprüngliche Zahlungsmittel.',
       ],
     },
     {
       id: '14.5',
       heading: '14.5 Abonnements für Geschäftskonten',
       body: [
-        'Abonnements richten sich an Unternehmer. Sie laufen monatlich oder jährlich und verlängern sich jeweils um die gewählte Laufzeit, wenn sie nicht vorher gekündigt werden. Sie können jederzeit zum Ende der laufenden Laufzeit kündigen, Tarif und Zahlungsweise wechseln und Rechnungen abrufen, im Kundenportal von Stripe, das unter „Abonnement und Rechnungen“ erreichbar ist.',
+        'Abonnements richten sich ausschließlich an Unternehmer (§ 14 BGB). Vor dem Abschluss bestätigen Sie, dass Sie für Ihr Unternehmen und nicht als Verbraucher buchen; ein Widerrufsrecht für Verbraucher besteht daher nicht. Sie laufen monatlich oder jährlich und verlängern sich jeweils um die gewählte Laufzeit, wenn sie nicht vorher gekündigt werden. Sie können jederzeit zum Ende der laufenden Laufzeit kündigen, Tarif und Zahlungsweise wechseln und Rechnungen abrufen, im Kundenportal von Stripe, das unter „Abonnement und Rechnungen“ erreichbar ist.',
         'Bei kostenlosen Startzeiträumen (Angebot für Gründungsunternehmen) endet das Abonnement nach deren Ablauf, wenn keine Zahlungsart hinterlegt ist; sonst läuft es zum regulären Preis weiter. Im Abonnement enthaltene Hochschiebungen und Hervorhebungen verfallen, wenn sie nicht genutzt werden.',
       ],
     },
@@ -604,3 +605,21 @@ export const reportMailDe = {
   redress: (email: string) => `Wenn Sie mit der Entscheidung nicht einverstanden sind, schreiben Sie uns an ${email}. Der Rechtsweg zu den Gerichten bleibt Ihnen offen.`,
   message: 'eine Nachricht im Chat',
 } as const;
+
+/** The German names of the one-time products, for the withdrawal receipt */
+const PRODUCTS_DE: Record<string, string> = {
+  'bump-1': 'Hochschieben einer Anzeige',
+  'bump-3': 'Drei Hochschiebungen innerhalb von sieben Tagen',
+  'featured-7d': 'Hervorhebung einer Anzeige für sieben Tage',
+  'featured-event': 'Hervorhebung einer Veranstaltung',
+};
+
+/**
+ * The binding German confirmation of receipt of a withdrawal (§ 356a BGB), sent with the Persian
+ * receipt on a durable medium (src/modules/payments/notices.ts): the content, date and time.
+ */
+export function withdrawalReceiptDe(w: { productCode: string; totalMinor: number; currency: string; paidAt: Date; receivedAt: Date; timeZone: string }): string {
+  const at = (d: Date) => new Intl.DateTimeFormat('de-DE', { dateStyle: 'long', timeStyle: 'short', timeZone: w.timeZone }).format(d);
+  const amount = new Intl.NumberFormat('de-DE', { style: 'currency', currency: w.currency }).format(w.totalMinor / 100);
+  return `Eingangsbestätigung: Ihren Widerruf des Vertrags „${PRODUCTS_DE[w.productCode] ?? w.productCode}“ (${amount}, geschlossen am ${at(w.paidAt)}) haben wir am ${at(w.receivedAt)} erhalten. Den Betrag für den bis dahin nicht erbrachten Teil der Leistung erstatten wir über das ursprüngliche Zahlungsmittel innerhalb von 14 Tagen.`;
+}

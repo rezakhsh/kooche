@@ -75,7 +75,7 @@ describe('the checkout', () => {
   it('the normal Pro checkout no longer offers the retired launch code', async () => {
     const gateway = new FakeGateway();
     const { org, ownerId } = await business();
-    expect(await startPlanCheckout(db, gateway, { userId: ownerId, organizationId: org.id, plan: 'pro', interval: 'month', appUrl: APP })).toMatchObject({ ok: true });
+    expect(await startPlanCheckout(db, gateway, { userId: ownerId, organizationId: org.id, plan: 'pro', interval: 'month', appUrl: APP, business: true })).toMatchObject({ ok: true });
     expect(gateway.checkouts[0]!.promotionCodes).toBe(false);
   });
 });
@@ -112,15 +112,15 @@ describe('the free months (business owner)', () => {
   it('only the owner of an offered business starts them, once', async () => {
     const gateway = new FakeGateway();
     const plain = await verifiedBusiness();
-    expect(await startFoundingCheckout(db, gateway, { userId: plain.ownerId, organizationId: plain.org.id, appUrl: APP })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await startFoundingCheckout(db, gateway, { userId: plain.ownerId, organizationId: plain.org.id, appUrl: APP, business: true })).toEqual({ ok: false, reason: 'not_allowed' });
 
     const b = await offered();
     const stranger = await business();
-    expect(await startFoundingCheckout(db, gateway, { userId: stranger.ownerId, organizationId: b.org.id, appUrl: APP })).toEqual({ ok: false, reason: 'not_found' });
+    expect(await startFoundingCheckout(db, gateway, { userId: stranger.ownerId, organizationId: b.org.id, appUrl: APP, business: true })).toEqual({ ok: false, reason: 'not_found' });
     expect(await foundingState(appDb, b.org.id)).toBe('offered');
 
     const now = new Date('2026-11-20T09:00:00Z');
-    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP, now })).toMatchObject({ ok: true });
+    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP, now, business: true })).toMatchObject({ ok: true });
     expect(gateway.checkouts.at(-1)).toMatchObject({
       mode: 'subscription',
       priceId: stripePriceId('pro', 'month'),
@@ -142,7 +142,7 @@ describe('the free months (business owner)', () => {
     await applyWebhookEvent(workerDb, gateway, await storeEvent(event('invoice.paid', invoice)));
     expect((await businessPlan(db, b.org.id)).code).toBe('pro');
     expect(await foundingState(appDb, b.org.id)).toBe('used');
-    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP, business: true })).toEqual({ ok: false, reason: 'not_allowed' });
 
     // Stripe's trial_settings: no payment method at the end, so it cancels
     const ended = { ...sub, status: 'canceled', ended_at: unix(new Date()) };

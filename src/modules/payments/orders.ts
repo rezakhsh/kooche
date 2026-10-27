@@ -1,6 +1,7 @@
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { listings, orders, products } from '../../db/schema';
+import { listings, orders, products, users } from '../../db/schema';
+import { eligibilityColumns } from './withdrawals';
 
 // Purchases as their buyer sees them (/my/orders), and the worker's clean-up of checkouts that
 // were started and never finished.
@@ -35,9 +36,13 @@ export async function ownOrder(db: Queryable, userId: string, orderId: string) {
       listingId: listings.id,
       listingTitle: listings.title,
       listingToken: listings.publicToken,
+      buyerName: users.displayName,
+      buyerEmail: users.email,
+      ...eligibilityColumns,
     })
     .from(orders)
     .innerJoin(products, eq(products.id, orders.productId))
+    .innerJoin(users, eq(users.id, orders.buyerUserId))
     .leftJoin(listings, eq(listings.id, orders.listingId))
     .where(and(eq(orders.id, orderId), eq(orders.buyerUserId, userId)));
   return row ?? null;
@@ -54,6 +59,8 @@ export async function ownOrders(db: Queryable, userId: string, limit = 50) {
       createdAt: orders.createdAt,
       productName: products.nameFa,
       listingTitle: listings.title,
+      paidAt: orders.paidAt,
+      ...eligibilityColumns,
     })
     .from(orders)
     .innerJoin(products, eq(products.id, orders.productId))

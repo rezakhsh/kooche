@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { priceKey, syncCatalog } from '../src/modules/payments/catalog-sync';
-import type { CheckoutInput, CustomerInput, InvoiceSummary, PaymentGateway } from '../src/modules/payments/gateway';
+import type { CheckoutInput, CustomerInput, InvoiceSummary, PaymentGateway, RefundInput } from '../src/modules/payments/gateway';
 import { eventSchema, type ProviderEvent } from '../src/modules/payments/stripe-objects';
 import { products } from '../seed/products';
 import { db, makeListing, publicToken, type Tx } from './db';
@@ -66,6 +66,13 @@ export class FakeGateway implements PaymentGateway {
   listed: InvoiceSummary[] = [];
   async listInvoices() {
     return this.listed;
+  }
+  refunds: RefundInput[] = [];
+  async createRefund(input: RefundInput) {
+    // Stripe answers a repeated idempotency key with the same refund
+    const i = this.refunds.findIndex((r) => r.idempotencyKey === input.idempotencyKey);
+    if (i < 0) this.refunds.push(input);
+    return { id: `re_test_${input.idempotencyKey.replaceAll('-', '').slice(-20)}` };
   }
   async getInvoice(invoiceId: string) {
     this.calls.push(`invoice ${invoiceId}`);

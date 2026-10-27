@@ -13,6 +13,7 @@ import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { TelegramClient } from '../modules/notifications/telegram-api';
 import type { Mailer } from '../modules/notifications/mailer';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
+import { processWithdrawal, WITHDRAWAL_RECEIVED } from '../modules/payments/withdrawals';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
 
@@ -76,7 +77,7 @@ export async function startPaymentJobs(
           return sent;
         }
         case 'payment-notice': {
-          // Pro started, renewed or ended; an order paid (src/modules/payments/notices.ts)
+          // Pro started, renewed or ended; an order paid; a withdrawal (src/modules/payments/notices.ts)
           const notice = parsePaymentNotice(job.data.payload);
           if (!notice || !opts.mailer || !opts.appUrl) return 'skipped';
           const sent = await sendPaymentNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, gateway: opts.gateway }, job.data.aggregateId, notice);
@@ -88,6 +89,14 @@ export async function startPaymentJobs(
           const sent = await sendBumpNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId);
           console.log(`payments: bump notice ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
+        }
+        case 'withdrawal': {
+          // A consumer's withdrawal: refund what wasn't used (src/modules/payments/withdrawals.ts)
+          if (!opts.gateway) throw new Error('payments: STRIPE_SECRET_KEY is not set, withdrawal kept for later');
+          const withdrawalId = String(job.data.payload.withdrawal_id);
+          const outcome = await processWithdrawal(db, opts.gateway, withdrawalId);
+          console.log(`payments: withdrawal ${withdrawalId}: ${outcome}`);
+          return outcome;
         }
         case 'founding-reminders': {
           if (!opts.mailer || !opts.appUrl) return 0;
@@ -112,6 +121,7 @@ export async function startPaymentJobs(
     [ALLOWANCE_REQUESTED]: [{ name: 'allowance', queue }],
     [BUSINESS_NOTICE]: [{ name: 'business-notice', queue }],
     [PAYMENT_NOTICE]: [{ name: 'payment-notice', queue }],
+    [WITHDRAWAL_RECEIVED]: [{ name: 'withdrawal', queue }],
     // The search worker re-indexes the bumped listing; this tells its seller
     [LISTING_OUTBOX.bumped]: [{ name: 'bump-notice', queue }],
   };

@@ -18,6 +18,8 @@ export type CheckoutRefusal =
   | 'not_allowed'
   /** The withdrawal waiver for an immediate start wasn't ticked */
   | 'waiver_required'
+  /** Pro is sold to businesses only: the "for my business" tick wasn't ticked */
+  | 'business_required'
   | 'already_subscribed';
 export type CheckoutResult = { ok: true; url: string; orderId?: string } | { ok: false; reason: CheckoutRefusal };
 
@@ -151,11 +153,34 @@ export async function isOwner(db: Queryable, userId: string, organizationId: str
   return m?.role === 'owner';
 }
 
+/** What a plan checkout records about who buys: the business tick, with the request's IP and browser */
+export type BusinessBuyer = { business: boolean; ip?: string | null; userAgent?: string | null };
+
+/**
+ * Pro is sold to businesses only (terms 14.5, wave 0): the owner ticks "for my business, not as a
+ * consumer" before every plan checkout, recorded in audit_log. So Pro has no consumer withdrawal
+ * button (./withdrawals.ts); the lawyer confirms.
+ */
+export async function confirmBusinessBuyer(db: Queryable, userId: string, organizationId: string, buyer: BusinessBuyer, plan: string): Promise<boolean> {
+  if (!buyer.business) return false;
+  await db.insert(auditLog).values({
+    actorType: 'user',
+    actorUserId: userId,
+    action: 'subscription.business_buyer',
+    targetType: 'organization',
+    targetId: organizationId,
+    ipAddress: buyer.ip ?? null,
+    userAgent: buyer.userAgent ?? null,
+    data: { plan },
+  });
+  return true;
+}
+
 /** Pro or Pro Plus for a business, monthly or yearly. Owner only; one subscription at a time. */
 export async function startPlanCheckout(
   db: Db,
   gateway: PaymentGateway | null,
-  opts: { userId: string; organizationId: string; plan: PlanCode; interval: 'month' | 'year'; appUrl: string },
+  opts: { userId: string; organizationId: string; plan: PlanCode; interval: 'month' | 'year'; appUrl: string } & BusinessBuyer,
 ): Promise<CheckoutResult> {
   if (!gateway) return { ok: false, reason: 'payments_off' };
   const user = await activeUser(db, opts.userId);
@@ -172,6 +197,7 @@ export async function startPlanCheckout(
     .where(eq(organizations.id, opts.organizationId));
   const found = await activePrice(db, opts.plan, 'EUR', opts.interval);
   if (!org || !found) return { ok: false, reason: 'not_allowed' };
+  if (!(await confirmBusinessBuyer(db, user.id, org.id, opts, opts.plan))) return { ok: false, reason: 'business_required' };
 
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? user.email, name: org.legalName ?? org.name });
   const session = await gateway.createCheckout({

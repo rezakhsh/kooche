@@ -42,6 +42,10 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
             </p>
             <h2 className="text-lg font-extrabold">{t.billing.founding.title}</h2>
             <p className="text-sm leading-7 text-neutral-700">{t.billing.founding.body}</p>
+            <label className="flex gap-2 text-sm">
+              <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
+              <span>{t.billing.businessTick}</span>
+            </label>
             <Button type="submit" className="w-full sm:w-auto">
               {t.billing.founding.start}
             </Button>

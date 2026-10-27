@@ -1033,3 +1033,13 @@ The owner asked for the visible waitlist before WhatsApp (they are setting up Me
 - **RTL:** the owner saw the final «.» of a bump email on the wrong side. Gmail strips `dir` from `<html>`/`<body>`, so the direction is now on the message box itself (`emailHtml()`, login-code email), and every plain-text line, subject and Telegram message starts with a Right-to-Left Mark (`src/lib/bidi.ts`). Covers all system emails and Telegram messages at once.
 - **Bumps:** Kleinanzeigen shows no badge for "Hochschieben"; the listing gets the bump's time. Peydoo now does the same: cards show the last bump's time, and «آگهی‌های من» shows «نردبان: …». Featured keeps its «ویژه» label.
 - 738 tests passing.
+
+## Oct 27, 2026: wave 0, step 7: the withdrawal button (§ 356a BGB)
+
+- **Built** (`docs/setup.md`, "Payments and Pro", "Withdrawal button"): «انصراف از قرارداد (Vertrag widerrufen)» on a consumer's paid bump or featured order for 14 days, a second step with the contract, account and receipt email, then «تأیید انصراف (Widerruf bestätigen)». The receipt is emailed at once (with the German confirmation). The worker refunds what wasn't used through Stripe; the refund's webhook ends the rest. Migration 0021 (`order_withdrawals`, column grants). Withdrawals are in the user's data export.
+- **Pro is B2B only:** a required "for my business" tick before every Pro checkout (billing page and the founding offer), logged in `audit_log`.
+- **Texts:** terms 14.4 and 14.5 (de, fa; dated Oct 27, 2026); the bump waiver now says the right ends with *complete* performance, not with the start (it was wrong for featured).
+- **Tests:** 747 passing (9 new in `tests/withdrawals.test.ts`; `tests/grants.test.ts` counts 44 tables).
+- **For the lawyer:** the bilingual labels, the button only after login, the button on a bump that already ran, Pro as B2B only. From Iran the button is refused like every write (changing that needs the Cloudflare rule, which also covers production).
+
+**Where wave 0 stands:** steps 1–4, 6, 7 and 8 done on staging. Left: step 5 WhatsApp (owner setting up Meta); final docs and a phone-size browser check; a Stripe test-clock run; the live bot's profile waits for the owner's OK. Then wave 1, the «صیقل‌خورده» redesign.

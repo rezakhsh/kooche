@@ -56,7 +56,7 @@ The ten decisions from the plan are kept. These are the additional choices this 
 | organizations | `organizations`, `organization_members`, `organization_invitations` |
 | chat | `conversations`, `messages` |
 | moderation | `reports`, `moderation_decisions`, `user_sanctions` |
-| payments | `products`, `product_prices`, `billing_customers`, `orders`, `payments`, `subscriptions`, `entitlements`, `webhook_events` |
+| payments | `products`, `product_prices`, `billing_customers`, `orders`, `payments`, `subscriptions`, `entitlements`, `webhook_events`, `order_withdrawals` |
 | shared (`src/db`) | `outbox_events`, `audit_log` |
 
 ```mermaid
@@ -1055,6 +1055,23 @@ Flow: the Next.js route checks the Stripe signature, inserts with `ON CONFLICT (
 
 Indexes: `UNIQUE (provider, provider_event_id)` (idempotency), `(created_at) WHERE processed_at IS NULL` (retry and alerting on stuck events).
 
+### `order_withdrawals`
+
+A consumer's withdrawal from a one-time order with the withdrawal button (§ 356a BGB; migration 0021, Oct 27, 2026; `src/modules/payments/withdrawals.ts`). The IP and browser go to `audit_log` (`order.withdrawn`), whose IPs are scrubbed after 90 days.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id`, `created_at` | | `created_at` = received; no `updated_at` |
+| `order_id` | `uuid UNIQUE → orders` | One per order: pressing twice does nothing |
+| `user_id` | `uuid → users` | The buyer |
+| `receipt_email` | `text` | Where the receipt went |
+| `status` | `text DEFAULT 'received'` | `received`, `refunded`, `no_refund` |
+| `refund_minor`, `currency` | `bigint null`, `text` | What the worker asked Stripe to refund (the part not used, § 357a (2) BGB) |
+| `provider_refund_id` | `text null` | Set with `refunded` |
+| `processed_at` | `timestamptz null` | Null exactly while `received` |
+
+Flow: the app inserts the row, an `order.withdrawn` outbox event and the receipt notice in one transaction. The worker refunds through Stripe with `metadata.withdrawal_id`. The refund's webhook revokes what is left of the order (featured time, bumps not run) with `revoke_reason = 'withdrawal'`, the one case where a partial refund revokes anything.
+
 ---
 
 ## 13. Outbox, audit log, roles
@@ -1120,8 +1137,8 @@ The plan asks for "each component its own database role with least privilege". T
 | Role | Used by | Rights |
 | --- | --- | --- |
 | `classifieds_owner` | Migrations (deploy step) | Owns all objects. Never used by running code. |
-| `classifieds_app` | Next.js | Read and write on user-facing tables. **Insert only** on `listing_events`, `moderation_decisions`, `audit_log`, `outbox_events`, `webhook_events`. On `orders`: `INSERT` of a pending order's columns only (since migration 0014: no `status`, `paid_at`, `buyer_country` or invoice), plus `UPDATE (provider_checkout_id)` only (column grants), so the app can start a checkout but never mark an order paid, not even by inserting it paid. **Read only** on `payments`, `subscriptions`, `entitlements`, `products`, `product_prices`. |
-| `classifieds_worker` | Worker | Everything the app has, plus writes on the money tables (applying webhooks), `UPDATE`/`DELETE` on `outbox_events`, `UPDATE` on `webhook_events`, `UPDATE (applied_at)` on `entitlements`. Still insert-only on `listing_events`, `moderation_decisions`, `audit_log`. |
+| `classifieds_app` | Next.js | Read and write on user-facing tables. **Insert only** on `listing_events`, `moderation_decisions`, `audit_log`, `outbox_events`, `webhook_events`. On `orders`: `INSERT` of a pending order's columns only (since migration 0014: no `status`, `paid_at`, `buyer_country` or invoice), plus `UPDATE (provider_checkout_id)` only (column grants), so the app can start a checkout but never mark an order paid, not even by inserting it paid. On `order_withdrawals`: `INSERT (order_id, user_id, receipt_email, currency)` only (migration 0021). **Read only** on `payments`, `subscriptions`, `entitlements`, `products`, `product_prices`. |
+| `classifieds_worker` | Worker | Everything the app has, plus writes on the money tables (applying webhooks), `UPDATE`/`DELETE` on `outbox_events`, `UPDATE` on `webhook_events`, `UPDATE (applied_at)` on `entitlements`, `UPDATE (status, refund_minor, provider_refund_id, processed_at)` on `order_withdrawals`. Still insert-only on `listing_events`, `moderation_decisions`, `audit_log`. |
 | `classifieds_readonly` | `pg_dump` backups, manual analysis | `SELECT` only (tables and sequences; `pg_dump` reads every sequence) |
 
 Retention and GDPR erasure must delete or scrub rows in append-only tables. The worker can't do that directly. Instead it calls a few `SECURITY DEFINER` functions owned by `classifieds_owner`, each of which can do only one bounded thing, such as `purge_audit_log(older_than interval)`, `scrub_audit_ip(older_than interval)` and `erase_user(user_id uuid)`. This also stops a bug in the app from rewriting history.

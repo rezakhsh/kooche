@@ -5,10 +5,17 @@
 // each line fixes the direction without changing what the line says. Links stay untouched, so
 // apps still recognise them.
 
-const RLM = '‏';
+const RLM = '\u200F';
+/** Left-to-Right Mark: a line that must stay left to right (German legal text in a receipt) */
+const LRM = '\u200E';
 
 export function rtlLine(line: string): string {
-  return line === '' || line.startsWith(RLM) || /^https?:\/\//.test(line) ? line : `${RLM}${line}`;
+  return line === '' || line.startsWith(RLM) || line.startsWith(LRM) || /^https?:\/\//.test(line) ? line : `${RLM}${line}`;
+}
+
+/** Keeps one line left to right inside right-to-left text */
+export function ltrLine(line: string): string {
+  return line.startsWith(LRM) ? line : `${LRM}${line}`;
 }
 
 export function rtlLines(text: string): string {

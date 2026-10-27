@@ -6,6 +6,7 @@ import { formatDate } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
 import { formatPrice } from '../../../modules/listings/price';
 import { ownOrders } from '../../../modules/payments/orders';
+import { canWithdraw } from '../../../modules/payments/withdrawals';
 import { requireSession } from '../../../modules/users/server';
 
 // «خریدهای من»: the user's own purchases of bumps and featured (roadmap step 6). Invoices come by
@@ -38,6 +39,12 @@ export default async function OrdersPage() {
                 <Pill tone={TONE[o.status]}>{t.status[o.status]}</Pill>
               </span>
             </Link>
+            {/* The withdrawal button's first step (§ 356a BGB), for 14 days after paying */}
+            {canWithdraw(o) && (
+              <Link href={`/my/orders/${o.id}/withdraw`} className="mb-3 inline-block text-xs font-bold text-red-700 underline">
+                {t.withdraw.button}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

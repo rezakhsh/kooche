@@ -99,6 +99,8 @@ export const refundSchema = z.object({
   status: z.string().nullable(),
   payment_intent: ref.nullable(),
   created: z.int(),
+  /** withdrawal_id on a withdrawal's refund (./withdrawals.ts) */
+  metadata: z.record(z.string(), z.string()).nullish(),
 });
 export type Refund = z.infer<typeof refundSchema>;
 

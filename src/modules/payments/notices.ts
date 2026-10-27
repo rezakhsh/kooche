@@ -3,11 +3,13 @@ import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { outboxEvents } from '../../db/schema';
-import { formatDate } from '../../lib/format';
+import { formatDate, formatDateTime } from '../../lib/format';
+import { withdrawalReceiptDe } from '../../messages/legal-de';
 import { messages } from '../../messages/fa';
 import { formatPrice } from '../listings/price';
 import { listingPath } from '../listings/slug';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
+import { ltrLine } from '../../lib/bidi';
 import { isUnreachable, type TelegramClient } from '../notifications/telegram-api';
 import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
 import type { PaymentGateway } from './gateway';
@@ -25,6 +27,9 @@ const payloadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('pro_renewed'), invoiceId: z.string().nullable(), until: z.string() }),
   z.object({ kind: z.literal('pro_ended') }),
   z.object({ kind: z.literal('order_paid'), invoiceId: z.string().nullable() }),
+  // A consumer's withdrawal (./withdrawals.ts): the receipt at once, then the refund or why none
+  z.object({ kind: z.literal('withdrawal_received'), withdrawalId: z.uuid() }),
+  z.object({ kind: z.literal('withdrawal_processed'), withdrawalId: z.uuid() }),
 ]);
 export type PaymentNotice = z.infer<typeof payloadSchema>;
 
@@ -32,7 +37,7 @@ export type PaymentNotice = z.infer<typeof payloadSchema>;
 export async function queuePaymentNotice(tx: Queryable, aggregateId: string, notice: PaymentNotice): Promise<void> {
   await tx.insert(outboxEvents).values({
     eventType: PAYMENT_NOTICE,
-    aggregateType: notice.kind === 'order_paid' ? 'order' : 'organization',
+    aggregateType: notice.kind.startsWith('pro_') ? 'organization' : 'order',
     aggregateId,
     payload: notice,
   });
@@ -45,7 +50,8 @@ export function parsePaymentNotice(payload: Record<string, unknown>): PaymentNot
 
 type Recipient = { email: string; telegramUserId: number | null; timeZone: string };
 type Deps = { mail: Mailer; telegram: TelegramClient | null; appUrl: string; gateway: PaymentGateway | null };
-type Content = { subject: string; lines: string[]; button: string; link: string; invoiceUrl: string | null };
+/** `note`: a left-to-right paragraph after the lines (the German receipt) */
+type Content = { subject: string; lines: string[]; note?: string; button: string; link: string; invoiceUrl: string | null };
 
 const invoiceLinks = z.object({ hosted_invoice_url: z.string().url().nullable().optional() });
 
@@ -63,19 +69,21 @@ export async function invoiceUrl(gateway: PaymentGateway | null, invoiceId: stri
 async function deliver(redis: Redis, deps: Deps, to: Recipient, c: Content): Promise<{ email: boolean; telegram: boolean }> {
   const t = messages.email.paymentNotice;
   const invoice = c.invoiceUrl ? `<p><a href="${escapeHtml(c.invoiceUrl)}" style="color:#0b6e77;font-weight:bold">${escapeHtml(t.invoice)}</a></p>` : '';
+  const note = c.note ? `<p dir="ltr" lang="de" style="direction:ltr;text-align:left;color:#525252;font-size:13px">${escapeHtml(c.note)}</p>` : '';
+  const lines = c.note ? [...c.lines, ltrLine(c.note)] : c.lines;
   await deps.mail({
     to: to.email,
     subject: c.subject,
-    text: [...c.lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link].join('\n\n'),
+    text: [...lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link].join('\n\n'),
     html: emailHtml(
-      `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>`,
+      `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${note}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>`,
     ),
   });
   let telegram = false;
   if (deps.telegram && to.telegramUserId !== null && !(await isUnreachableMarked(redis, to.telegramUserId))) {
     try {
       const buttons = [[{ text: c.button, url: c.link }], ...(c.invoiceUrl ? [[{ text: t.invoice, url: c.invoiceUrl }]] : [])];
-      await deps.telegram.sendMessage(to.telegramUserId, c.lines.join('\n\n'), { inline_keyboard: buttons });
+      await deps.telegram.sendMessage(to.telegramUserId, lines.join('\n\n'), { inline_keyboard: buttons });
       telegram = true;
     } catch (e) {
       if (isUnreachable(e)) await markUnreachable(redis, to.telegramUserId);
@@ -110,6 +118,8 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId),
     });
   }
+
+  if (notice.kind === 'withdrawal_received' || notice.kind === 'withdrawal_processed') return sendWithdrawalNotice(db, redis, deps, notice);
 
   const [r] = await db.execute<{ name: string; slug: string; email: string; telegram_user_id: string | number | null; tz: string }>(sql`
     SELECT o.name, o.slug, u.email, u.telegram_user_id,
@@ -146,6 +156,53 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
   }
   const c = t.proEnded;
   return deliver(redis, deps, to, { subject: c.subject(r.name), lines: [c.intro(r.name), c.body], button: c.button, link: billing, invoiceUrl: null });
+}
+
+/** The withdrawal's receipt (to the address it named) and, once refunded, its amount or why none */
+async function sendWithdrawalNotice(
+  db: Queryable,
+  redis: Redis,
+  deps: Deps,
+  notice: Extract<PaymentNotice, { kind: 'withdrawal_received' | 'withdrawal_processed' }>,
+): Promise<{ email: boolean; telegram: boolean }> {
+  const [r] = await db.execute<{
+    order_id: string; email: string; name: string; telegram_user_id: string | number | null; product: string; code: string; title: string | null;
+    total: number; currency: string; paid_at: Date; received_at: Date; status: string; refund: number | null; tz: string;
+  }>(sql`
+    SELECT o.id AS order_id, w.receipt_email AS email, u.display_name AS name, u.telegram_user_id, p.name_fa AS product, p.code, l.title,
+      o.total_minor AS total, o.currency, o.paid_at, w.created_at AS received_at, w.status, w.refund_minor AS refund,
+      coalesce((SELECT c.timezone FROM locations c WHERE c.id = l.location_id), 'Europe/Berlin') AS tz
+    FROM order_withdrawals w
+    JOIN orders o ON o.id = w.order_id
+    JOIN users u ON u.id = w.user_id
+    JOIN products p ON p.id = o.product_id
+    LEFT JOIN listings l ON l.id = o.listing_id
+    WHERE w.id = ${notice.withdrawalId}`);
+  if (!r) return { email: false, telegram: false };
+  const t = messages.email.withdrawal;
+  const to = { email: r.email, telegramUserId: tgId(r.telegram_user_id), timeZone: r.tz };
+  const link = `${deps.appUrl}/my/orders/${r.order_id}`;
+  const title = r.title ?? '—';
+  if (notice.kind === 'withdrawal_received') {
+    const received = formatDateTime(new Date(r.received_at), r.tz);
+    const paid = formatPrice(r.total, r.currency, 2);
+    return deliver(redis, deps, to, {
+      subject: t.received.subject(r.product),
+      lines: [
+        t.received.intro(r.product, title, received),
+        t.received.details(r.product, paid, formatDateTime(new Date(r.paid_at), r.tz), r.name, r.email),
+        t.received.body,
+      ],
+      note: withdrawalReceiptDe({ productCode: r.code, totalMinor: Number(r.total), currency: r.currency, paidAt: new Date(r.paid_at), receivedAt: new Date(r.received_at), timeZone: r.tz }),
+      button: t.button,
+      link,
+      invoiceUrl: null,
+    });
+  }
+  if (r.status === 'received') return { email: false, telegram: false };
+  const c = r.status === 'refunded' ? t.refunded : t.noRefund;
+  const amount = formatPrice(r.refund ?? 0, r.currency, 2);
+  return deliver(redis, deps, to, { subject: c.subject(r.product, amount), lines: [c.intro(r.product, amount), c.body], button: t.button, link, invoiceUrl: null });
 }
 
 /** Worker (outbox `listing.bumped`): tells the seller their listing moved to the top */

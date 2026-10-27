@@ -118,7 +118,7 @@ describe('starting a checkout (app role)', () => {
     const { org, ownerId } = await business();
     const manager = await user();
     await db.insert(schema.organizationMembers).values({ organizationId: org.id, userId: manager.id, role: 'manager' });
-    const start = (userId: string) => startPlanCheckout(appDb, gateway, { userId, organizationId: org.id, plan: 'pro', interval: 'year', appUrl: APP_URL });
+    const start = (userId: string) => startPlanCheckout(appDb, gateway, { userId, organizationId: org.id, plan: 'pro', interval: 'year', appUrl: APP_URL, business: true });
     expect(await start(manager.id)).toEqual({ ok: false, reason: 'not_found' });
     expect(await start(ownerId)).toMatchObject({ ok: true });
     expect(gateway.checkouts[0]).toMatchObject({ mode: 'subscription', priceId: stripePriceId('pro', 'year'), clientReferenceId: org.id, metadata: { organization_id: org.id }, promotionCodes: false });

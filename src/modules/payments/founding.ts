@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { organizations, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
-import { customerFor, activePrice, isOwner, type CheckoutResult } from './checkout';
+import { activePrice, confirmBusinessBuyer, customerFor, isOwner, type BusinessBuyer, type CheckoutResult } from './checkout';
 import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
@@ -90,7 +90,7 @@ export async function foundingState(db: Queryable, organizationId: string): Prom
 export async function startFoundingCheckout(
   db: Db,
   gateway: PaymentGateway | null,
-  opts: { userId: string; organizationId: string; appUrl: string; now?: Date },
+  opts: { userId: string; organizationId: string; appUrl: string; now?: Date } & BusinessBuyer,
 ): Promise<CheckoutResult> {
   if (!gateway) return { ok: false, reason: 'payments_off' };
   if (!(await isOwner(db, opts.userId, opts.organizationId))) return { ok: false, reason: 'not_found' };
@@ -102,6 +102,7 @@ export async function startFoundingCheckout(
     .where(eq(organizations.id, opts.organizationId));
   const price = await activePrice(db, 'pro', 'EUR', 'month');
   if (!org || !price) return { ok: false, reason: 'not_allowed' };
+  if (!(await confirmBusinessBuyer(db, opts.userId, org.id, opts, 'pro-founding'))) return { ok: false, reason: 'business_required' };
   const [owner] = await db.execute<{ email: string }>(sql`SELECT email FROM users WHERE id = ${opts.userId}`);
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? owner!.email, name: org.legalName ?? org.name });
   const session = await gateway.createCheckout({

@@ -53,6 +53,10 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
             {hidden}
             <h2 className="text-lg font-extrabold">{t.founding.title}</h2>
             <p className="text-sm leading-7 text-neutral-700">{t.founding.body}</p>
+            <label className="flex gap-2 text-sm">
+              <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
+              <span>{t.businessTick}</span>
+            </label>
             <Button type="submit" className="w-full sm:w-auto">
               {t.founding.start}
             </Button>
@@ -135,6 +139,10 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                       </label>
                     )}
                   </fieldset>
+                  <label className="flex gap-2 text-sm">
+                    <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
+                    <span>{t.businessTick}</span>
+                  </label>
                   <Button type="submit" className="w-full">
                     {t.subscribe}
                   </Button>
@@ -142,6 +150,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
               ))}
             </div>
             <p className="text-xs text-neutral-500">{t.methods}</p>
+            <p className="text-xs text-neutral-500">{t.businessTickHint}</p>
             <p className="text-xs text-neutral-500">{messages.pro.noVat}</p>
           </section>
         )}

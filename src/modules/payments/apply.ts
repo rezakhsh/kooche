@@ -28,6 +28,7 @@ import {
   type Subscription,
 } from './stripe-objects';
 import { queuePaymentNotice } from './notices';
+import { endWithdrawnOrder } from './withdrawals';
 
 // The worker applies stored webhooks (docs/schema.md, section 12), as classifieds_worker, the only
 // role that may write payments, subscriptions and entitlements. One webhook_events row is applied
@@ -429,7 +430,8 @@ const REFUND_STATUS: Record<string, 'pending' | 'succeeded' | 'failed'> = {
 /**
  * A refund is its own payments row. A full refund (all refunds of the charge, pending or done,
  * reach its amount) revokes what the charge granted; a partial one leaves it (decided
- * Oct 22, 2026). Revoked entitlements never come back, even if a refund fails later.
+ * Oct 22, 2026), except a consumer's withdrawal, whose refund ends what is left of the order
+ * (./withdrawals.ts). Revoked entitlements never come back, even if a refund fails later.
  */
 async function refundChanged(tx: Queryable, refund: Refund, ctx: Ctx): Promise<void> {
   const charge = await chargeOf(tx, refund.payment_intent, `refund ${refund.id}`);
@@ -449,6 +451,7 @@ async function refundChanged(tx: Queryable, refund: Refund, ctx: Ctx): Promise<v
       occurredAt: fromUnix(refund.created),
     })
     .onConflictDoUpdate({ target: [payments.provider, payments.providerPaymentId], set: { status } });
+  if (charge.orderId) await endWithdrawnOrder(tx, charge.orderId, refund.metadata, ctx.now);
 
   const [sum] = await tx.execute<{ refunded: number }>(sql`
     SELECT coalesce(sum(amount_minor), 0)::bigint AS refunded FROM payments

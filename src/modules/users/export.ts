@@ -129,8 +129,10 @@ export async function exportUserData(db: Queryable, userId: string, appUrl: stri
     WHERE r.reporter_user_id = ${userId} ORDER BY r.created_at
   `);
   const orders = await db.execute<Row>(sql`
-    SELECT o.status, o.currency, o.subtotal_minor, o.discount_minor, o.tax_minor, o.total_minor, o.created_at, p.code AS product
+    SELECT o.status, o.currency, o.subtotal_minor, o.discount_minor, o.tax_minor, o.total_minor, o.created_at, p.code AS product,
+      w.created_at AS withdrawn_at, w.status AS withdrawal_status, w.refund_minor AS withdrawal_refund_minor
     FROM orders o JOIN products p ON p.id = o.product_id
+    LEFT JOIN order_withdrawals w ON w.order_id = o.id
     WHERE o.buyer_user_id = ${userId} ORDER BY o.created_at
   `);
   const activity = await db.execute<Row>(sql`
@@ -152,7 +154,7 @@ export async function exportUserData(db: Queryable, userId: string, appUrl: stri
     savedSearches: savedSearches.map((s) => ({ ...s, created_at: iso(s.created_at) })),
     blocked: blocked.map(({ public_token, ...b }) => ({ ...b, public_page: b.status === 'active' ? `${appUrl}${sellerPath(public_token as string)}` : null, created_at: iso(b.created_at) })),
     reports: reports.map((r) => ({ ...r, created_at: iso(r.created_at) })),
-    orders: orders.map((o) => ({ ...o, created_at: iso(o.created_at) })),
+    orders: orders.map((o) => ({ ...o, created_at: iso(o.created_at), withdrawn_at: iso(o.withdrawn_at) })),
     chats: await exportChatData(db, userId),
     activity: activity.map((a) => ({ ...a, created_at: iso(a.created_at) })),
   };

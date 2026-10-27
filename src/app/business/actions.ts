@@ -1,8 +1,10 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
+import { clientIp } from '../../lib/client-ip';
 import { webEnv } from '../../lib/env';
 import { reportError } from '../../lib/monitoring/server';
 import { hit } from '../../lib/rate-limit';
@@ -129,6 +131,12 @@ export async function acceptInvitationAction(form: FormData): Promise<void> {
   redirect(r.ok ? `/b/${r.slug}/manage?joined=1` : `${back}?error=${r.reason}`);
 }
 
+/** The "for my business, not as a consumer" tick (terms 14.5), with the request's IP and browser */
+async function businessBuyer(form: FormData) {
+  const h = await headers();
+  return { business: form.get('business') === 'on', ip: clientIp(h), userAgent: h.get('user-agent') };
+}
+
 const planSchema = z.object({ organizationId: z.uuid(), slug: z.string().max(40), plan: z.enum(['pro', 'pro-plus']), interval: z.enum(['month', 'year']) });
 
 export async function subscribeAction(form: FormData): Promise<void> {
@@ -143,6 +151,7 @@ export async function subscribeAction(form: FormData): Promise<void> {
     plan: parsed.data.plan as PlanCode,
     interval: parsed.data.interval,
     appUrl: webEnv().APP_URL,
+    ...(await businessBuyer(form)),
   }).catch((e: unknown) => {
     console.error('payments: plan checkout failed:', e instanceof Error ? e.message : e);
     reportError(e, { tags: { action: 'payments.plan_checkout' } });
@@ -159,7 +168,12 @@ export async function foundingAction(form: FormData): Promise<void> {
   const back = `/b/${parsed.data.slug}/billing`;
   const { user } = await requireSession(back);
   if (!(await hit(valkey(), [[PAYMENT_LIMITS.checkoutsPerUserHour, user.id]])).ok) redirect(`${back}?error=rate_limited`);
-  const r = await startFoundingCheckout(appDb(), paymentGateway(), { userId: user.id, organizationId: parsed.data.organizationId, appUrl: webEnv().APP_URL }).catch((e: unknown) => {
+  const r = await startFoundingCheckout(appDb(), paymentGateway(), {
+    userId: user.id,
+    organizationId: parsed.data.organizationId,
+    appUrl: webEnv().APP_URL,
+    ...(await businessBuyer(form)),
+  }).catch((e: unknown) => {
     console.error('payments: founding checkout failed:', e instanceof Error ? e.message : e);
     reportError(e, { tags: { action: 'payments.founding_checkout' } });
     return { ok: false, reason: 'failed' } as const;

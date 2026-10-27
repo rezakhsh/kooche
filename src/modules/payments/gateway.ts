@@ -61,7 +61,14 @@ export interface PaymentGateway {
   getInvoice(id: string): Promise<unknown>;
   /** A customer's latest invoices, €0 trial invoices included (the Customer Portal leaves some out) */
   listInvoices(customerId: string, limit?: number): Promise<InvoiceSummary[]>;
+  /**
+   * Refunds part or all of a payment (a consumer's withdrawal, ./withdrawals.ts). The key makes a
+   * retried job ask once. What the refund ends is applied from its webhook, never from here.
+   */
+  createRefund(input: RefundInput): Promise<{ id: string }>;
 }
+
+export type RefundInput = { paymentIntentId: string; amountMinor: number; metadata: Record<string, string>; idempotencyKey: string };
 
 /** The Checkout Session parameters for one checkout (exported for the tests) */
 export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCreateParams {
@@ -182,5 +189,13 @@ export class StripeGateway implements PaymentGateway {
         status: i.status ?? null,
         url: i.hosted_invoice_url ?? null,
       }));
+  }
+
+  async createRefund(input: RefundInput): Promise<{ id: string }> {
+    const refund = await this.stripe.refunds.create(
+      { payment_intent: input.paymentIntentId, amount: input.amountMinor, reason: 'requested_by_customer', metadata: input.metadata },
+      { idempotencyKey: input.idempotencyKey },
+    );
+    return { id: refund.id };
   }
 }
