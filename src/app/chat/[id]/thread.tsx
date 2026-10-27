@@ -42,7 +42,7 @@ function dayLabel(iso: string, timeZone: string): string {
   const now = Date.now();
   if (key === dayKey(new Date(now).toISOString(), timeZone)) return t.today;
   if (key === dayKey(new Date(now - 86_400_000).toISOString(), timeZone)) return t.yesterday;
-  return new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone, day: 'numeric', month: 'long', weekday: 'long' }).format(new Date(iso));
+  return new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { timeZone, day: 'numeric', month: 'long', weekday: 'long' }).format(new Date(iso));
 }
 
 function timeLabel(iso: string, timeZone: string): string {
@@ -157,7 +157,7 @@ export function Thread(props: Props) {
               <li key={m.id}>
                 {divider && (
                   <p className="my-3 text-center">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] text-neutral-600">{dayLabel(m.createdAt, timeZone)}</span>
+                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">{dayLabel(m.createdAt, timeZone)}</span>
                   </p>
                 )}
                 <Bubble m={m} mine={m.senderId === meId} seen={!!otherReadAt && m.createdAt <= otherReadAt} timeZone={timeZone} onReport={() => setReporting(m.id)} />
@@ -167,7 +167,7 @@ export function Thread(props: Props) {
         </ol>
       </div>
       {!live && (
-        <p className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-center text-[11px] text-neutral-600" role="status">
+        <p className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-center text-xs text-neutral-600" role="status">
           {t.offline}
         </p>
       )}
@@ -212,7 +212,7 @@ function Bubble({ m, mine, seen, timeZone, onReport }: { m: WireMessage; mine: b
               {m.body}
             </p>
           )}
-          <p className={`mt-0.5 flex items-center justify-end gap-1 text-[11px] ${mine ? 'text-brand-100' : 'text-neutral-500'}`}>
+          <p className={`mt-0.5 flex items-center justify-end gap-1 text-xs ${mine ? 'text-brand-100' : 'text-neutral-500'}`}>
             <time dateTime={m.createdAt}>{timeLabel(m.createdAt, timeZone)}</time>
             {mine && (
               <span className="flex items-center" title={seen ? t.seen : t.sent}>

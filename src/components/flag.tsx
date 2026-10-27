@@ -21,7 +21,7 @@ export function Flag({ code, className = 'h-5 w-7.5' }: { code: string; classNam
   const drawing = FLAGS[code];
   if (!drawing) {
     return (
-      <span aria-hidden className={`inline-flex items-center justify-center rounded-sm bg-neutral-200 text-[10px] font-bold text-neutral-600 ${className}`}>
+      <span aria-hidden className={`inline-flex items-center justify-center rounded-sm bg-neutral-200 text-xs font-bold text-neutral-600 ${className}`}>
         {code}
       </span>
     );

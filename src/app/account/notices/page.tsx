@@ -44,7 +44,7 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
                   <Pill tone={RESTRICTING.has(n.decision) ? 'danger' : 'success'}>{about(n)}</Pill>
                   {n.listingCode !== null && <span className="text-xs text-neutral-500">{messages.listingCode}: {faDigits(String(n.listingCode))}</span>}
                   <span className="text-xs text-neutral-500">{formatDateTime(n.createdAt, tz)}</span>
-                  <span className="text-xs text-neutral-500">· {t.by[n.decidedBy]}</span>
+                  <span className="text-xs text-neutral-500">{t.by[n.decidedBy]}</span>
                 </div>
                 {n.answers && <p className="mb-1 text-xs font-bold text-neutral-600">{t.answer}</p>}
                 <p className="text-sm leading-relaxed">{n.statement}</p>

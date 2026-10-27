@@ -134,10 +134,10 @@ export function PhotoEditor({
                 </span>
               )}
               {i === 0 && p.status === 'ready' && (
-                <span className="absolute start-1 top-1 rounded-md bg-brand-700 px-1.5 py-0.5 text-[10px] text-white">{t.cover}</span>
+                <span className="absolute start-1 top-1 rounded-md bg-brand-700 px-1.5 py-0.5 text-xs text-white">{t.cover}</span>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-2 text-[11px]">
+            <div className="flex flex-wrap gap-x-2 text-xs">
               {i > 0 && (
                 <button type="button" className="text-brand-800 underline" onClick={() => act(() => moveImageAction(p.id, 'first'))}>
                   {t.makeCover}
@@ -170,7 +170,7 @@ export function PhotoEditor({
             {u.error && (
               <button
                 type="button"
-                className="text-[11px] text-neutral-600 underline"
+                className="text-xs text-neutral-600 underline"
                 onClick={() => setUploading((x) => x.filter((y) => y.tempId !== u.tempId))}
               >
                 {messages.my.cancel}

@@ -51,14 +51,20 @@ export function amountInputValue(minor: number, minorUnit: number): string {
   return /^0*$/.test(fraction) ? whole : `${whole}.${fraction}`;
 }
 
-/** Display only: «۱۲۰٫۵۰ €». The integer is exact; Intl gets a number just to format it. */
+/**
+ * Display only: «۸۷۰ €», «۱۲۰٫۵۰ €» (the amount, a no-break space, then the symbol, as people
+ * write it in Persian). The integer is exact; Intl gets a number just to format it.
+ */
 export function formatPrice(minor: number, currency: string, minorUnit: number): string {
   const hasFraction = minor % 10 ** minorUnit !== 0;
-  return new Intl.NumberFormat('fa-IR', {
+  const parts = new Intl.NumberFormat('fa-IR', {
     style: 'currency',
     currency,
     currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: hasFraction ? minorUnit : 0,
     maximumFractionDigits: minorUnit,
-  }).format(minor / 10 ** minorUnit);
+  }).formatToParts(minor / 10 ** minorUnit);
+  const amount = parts.filter((p) => ['minusSign', 'integer', 'group', 'decimal', 'fraction'].includes(p.type)).map((p) => p.value).join('');
+  const symbol = parts.find((p) => p.type === 'currency')?.value ?? currency;
+  return `${amount}\u00a0${symbol}`;
 }

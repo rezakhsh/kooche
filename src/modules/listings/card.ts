@@ -34,6 +34,7 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     ago: (l.rankedAt ?? l.publishedAt) ? formatAgo((l.rankedAt ?? l.publishedAt)!, timeZone) : null,
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
     photoCount: l.photoCount,
+    founding: l.founding,
     wanted: l.kind === 'wanted',
     facts: cardFacts(catalog, l.categoryId, l.attributes, amountCurrency),
     distance: l.distanceKm != null ? messages.browse.distance(l.distanceKm) : null,

@@ -14,7 +14,7 @@ export type Point = { day: string; value: number };
 
 /** "۲۵ مهر" from YYYY-MM-DD */
 export function shortDay(day: string): string {
-  return new Intl.DateTimeFormat('fa-IR-u-ca-persian', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
+  return new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
 }
 
 export function formatValue(v: number, money: boolean): string {
@@ -48,7 +48,7 @@ export function LineChart({ points, title, money = false }: { points: Point[]; t
             </rect>
           ))}
         </svg>
-        <div className="mt-1 flex justify-between text-[11px] text-neutral-500">
+        <div className="mt-1 flex justify-between text-xs text-neutral-500">
           <span>{points[0] ? shortDay(points[0].day) : ''}</span>
           <span>{points.some((p) => p.value !== 0) ? admin.charts.max(formatValue(max, money)) : admin.charts.empty}</span>
           <span>{points.at(-1) ? shortDay(points.at(-1)!.day) : ''}</span>

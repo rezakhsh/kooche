@@ -43,6 +43,12 @@
   --color-neutral-950: #0d1514;
 }
 
+/* Radio buttons and ticks in the brand colour, not the browser's blue */
+input[type='radio'],
+input[type='checkbox'] {
+  accent-color: var(--color-brand-700);
+}
+
 /* The photo viewer's backdrop (a native <dialog>, so no inline styles are needed) */
 dialog.photo-viewer::backdrop {
   background: rgb(13 21 20 / 0.92);
@@ -59,4 +65,11 @@ dialog.photo-viewer::backdrop {
 /* A conversation fills the screen like a messaging app: no footer below it (src/app/chat/[id]) */
 body:has([data-chat-thread]) > footer {
   display: none;
+}
+
+/* Room under the footer for the phone's bottom bar, only where the bar shows (src/components/bottom-nav.tsx) */
+@media (width < 40rem) {
+  body:has([data-bottom-nav]) > footer {
+    padding-bottom: 5rem;
+  }
 }

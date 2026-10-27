@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
+import { dateFromForm } from '../../lib/date-parts';
 import { hit } from '../../lib/rate-limit';
 import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
@@ -129,12 +130,12 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
     displayName: str(form, 'displayName'),
   });
   const eventInput = eventInputSchema.safeParse({
-    startDate: str(form, 'startDate'),
+    startDate: dateFromForm(form, 'startDate'),
     startTime: str(form, 'startTime'),
-    endDate: str(form, 'endDate'),
+    endDate: dateFromForm(form, 'endDate'),
     endTime: str(form, 'endTime'),
     repeat: str(form, 'repeat') || undefined,
-    repeatUntil: str(form, 'repeatUntil'),
+    repeatUntil: dateFromForm(form, 'repeatUntil'),
     attendance: str(form, 'attendance') || undefined,
     venueName: str(form, 'venueName'),
     streetAddress: str(form, 'streetAddress'),

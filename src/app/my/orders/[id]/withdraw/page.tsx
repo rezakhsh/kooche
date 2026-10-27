@@ -35,7 +35,7 @@ export default async function WithdrawPage({ params }: { params: Promise<{ id: s
             <dt className="text-neutral-500">{t.contract}</dt>
             <dd className="font-bold">
               {order.productName}
-              {order.listingTitle && <span className="font-normal text-neutral-600"> · {order.listingTitle}</span>}
+              {order.listingTitle && <span className="font-normal text-neutral-600"> ({order.listingTitle})</span>}
               <span className="ms-2 tabular-nums">{formatPrice(order.totalMinor, order.currency, 2)}</span>
             </dd>
             <dt className="text-neutral-500">{t.paidOn}</dt>

@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     state.kind === 'ok' ? SECTIONS.filter((s) => can(state.role, s.action)).map((s) => ({ href: adminHref(s.path), label: admin.nav[s.key] })) : [];
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:flex lg:gap-8">
-      {items.length > 0 && <AdminNav items={items} home={adminHref()} who={`${state.name} · ${admin.roles[state.role]}`} />}
+      {items.length > 0 && <AdminNav items={items} home={adminHref()} who={`${state.name}، ${admin.roles[state.role]}`} />}
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { DateInput } from '../../components/date-input';
 import { PlaceField, type PlaceFieldValue } from '../../components/place-field';
 import { TermsNotice } from '../../components/terms-notice';
 import { useTurnstile } from '../../components/turnstile';
@@ -84,7 +85,7 @@ function DayHint({ value }: { value: string }) {
 function DateField({ label, name, value, onChange, error, hint }: { label: string; name: string; value: string; onChange: (v: string) => void; error?: FieldError; hint?: ReactNode }) {
   return (
     <div>
-      <Field label={label} name={name} type="date" value={value} onChange={(ev) => onChange(ev.target.value)} min="2020-01-01" max="2100-12-31" dir="ltr" className="text-end" />
+      <DateInput label={label} name={name} defaultValue={value} onChange={onChange} years={{ before: 0, after: 3 }} />
       <DayHint value={value} />
       {hint}
       <ErrorText code={error} />

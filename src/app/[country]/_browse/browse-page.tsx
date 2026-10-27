@@ -322,11 +322,11 @@ export async function BrowsePage({ b }: { b: Browse }) {
             <div>
               <h1 className="text-xl font-extrabold sm:text-2xl">{state.q ? messages.search.title(state.q) : titleOf(b)}</h1>
               <p className="text-xs text-neutral-500">
-                {state.q && `${messages.search.within(titleOf(b))} · `}
+                {state.q && `${messages.search.within(titleOf(b))}، `}
                 {result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}
                 {widen && (
                   <>
-                    {' · '}
+                    {'، '}
                     <Link href={widen} className="text-brand-700 hover:underline">
                       {messages.search.widen(country.nameFa)}
                     </Link>

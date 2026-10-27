@@ -61,7 +61,7 @@ export default async function UserPage({ params, searchParams }: { params: Promi
                 <ul className="space-y-2 text-sm">
                   {sessions.map((s) => (
                     <li key={s.id} className="flex flex-wrap gap-x-3 gap-y-1">
-                      <span className="font-medium">{[s.device.browser, s.device.os].filter(Boolean).join(' · ') || admin.common.none}</span>
+                      <span className="font-medium">{[s.device.browser, s.device.os].filter(Boolean).join('، ') || admin.common.none}</span>
                       {s.ip && <bdi dir="ltr" className="text-neutral-500">{s.ip}</bdi>}
                       <span className="text-neutral-500">{t.lastUsed}: <Ago date={s.updatedAt} /></span>
                       {s.staffVerifiedAt && <Pill tone="brand">{t.staffChecked}</Pill>}

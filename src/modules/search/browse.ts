@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
-import { listingImages, listings, locations } from '../../db/schema';
+import { listingImages, listings, locations, organizations } from '../../db/schema';
 import type { Point } from '../../db/types';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { coverKeys } from '../listings/queries';
@@ -62,6 +62,8 @@ export type BrowseItem = {
   /** The listing's field values, for the card facts */
   attributes: Record<string, unknown>;
   photoCount: number;
+  /** Posted by a founding business while its badge runs (foundingBadge(), src/modules/payments/founding.ts) */
+  founding: boolean;
   coverKey: string | null;
   /** Whole kilometres to the listing's stored (rounded) point, when a radius is on */
   distanceKm: number | null;
@@ -228,6 +230,8 @@ export const cardColumns = {
   kind: listings.kind,
   attributes: sql<Record<string, unknown>>`${listings.attributes}`,
   photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
+  // The same year as foundingBadge(): from the page's creation
+  founding: sql<boolean>`EXISTS (SELECT 1 FROM ${organizations} WHERE ${organizations.id} = ${listings.organizationId} AND ${organizations.foundingOfferedAt} IS NOT NULL AND ${organizations.createdAt} + interval '1 year' > now())`,
 };
 
 /**

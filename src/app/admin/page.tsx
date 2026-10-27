@@ -47,11 +47,11 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             <p className="text-sm text-neutral-600">{t.metrics[m]}</p>
             <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatValue(totals[m].week, m === 'revenue')}</p>
             <p className="mt-1 text-xs text-neutral-500">
-              {t.week} · {t.today}: {formatValue(totals[m].today, m === 'revenue')} · {t.month}: {formatValue(totals[m].month, m === 'revenue')}
+              {t.week}، {t.today}: {formatValue(totals[m].today, m === 'revenue')}، {t.month}: {formatValue(totals[m].month, m === 'revenue')}
             </p>
             {Object.keys(totals[m].byCountry).length > 1 || !totals[m].byCountry['—'] ? (
               <p className="mt-1 text-xs text-neutral-500" title={t.byCountry}>
-                {Object.entries(totals[m].byCountry).map(([c, v]) => `${c} ${formatValue(v, m === 'revenue')}`).join(' · ')}
+                {Object.entries(totals[m].byCountry).map(([c, v]) => `${c} ${formatValue(v, m === 'revenue')}`).join('، ')}
               </p>
             ) : null}
           </div>
@@ -60,7 +60,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {METRICS.map((m) => (
-          <LineChart key={m} title={`${t.metrics[m]} · ${t.periods[String(days)]}`} points={series[m]} money={m === 'revenue'} />
+          <LineChart key={m} title={`${t.metrics[m]}، ${t.periods[String(days)]}`} points={series[m]} money={m === 'revenue'} />
         ))}
       </div>
 

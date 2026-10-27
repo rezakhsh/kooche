@@ -32,7 +32,7 @@ export default async function SystemPage() {
   const t = admin.system;
   const s = status.snapshot;
   const up = (ms: number | null | undefined) =>
-    ms === undefined ? <span key="u" className="text-neutral-500">{t.unknown}</span> : ms === null ? <Pill key="d" tone="danger">{t.down}</Pill> : <Pill key="o" tone="success">{`${t.ok} · ${ms.toLocaleString('fa-IR')} ms`}</Pill>;
+    ms === undefined ? <span key="u" className="text-neutral-500">{t.unknown}</span> : ms === null ? <Pill key="d" tone="danger">{t.down}</Pill> : <Pill key="o" tone="success">{`${t.ok}، ${ms.toLocaleString('fa-IR')} ms`}</Pill>;
   const fresh = s && Date.now() - new Date(s.at).getTime() < STATUS_TTL_SECONDS * 1_000;
   return (
     <>
@@ -47,7 +47,7 @@ export default async function SystemPage() {
               [t.worker, fresh ? <span key="w"><Pill tone="success">{t.ok}</Pill> <Ago date={new Date(s.at)} /></span> : <Pill key="w" tone="danger">{t.stale}</Pill>],
               [t.backup, status.backupAt ? <Ago key="b" date={new Date(status.backupAt)} /> : t.unknown],
               [t.sitemap, s?.sitemapAt ? <Ago key="s" date={new Date(s.sitemapAt)} /> : t.unknown],
-              [t.outbox, s ? <span key="o">{s.outbox.backlog.toLocaleString('fa-IR')}{s.outbox.oldest ? <> · {t.oldestOutbox} <Ago date={new Date(s.outbox.oldest)} /></> : null}</span> : t.unknown],
+              [t.outbox, s ? <span key="o">{s.outbox.backlog.toLocaleString('fa-IR')}{s.outbox.oldest ? <>، {t.oldestOutbox} <Ago date={new Date(s.outbox.oldest)} /></> : null}</span> : t.unknown],
               [t.webhooks, s ? s.webhooks.toLocaleString('fa-IR') : t.unknown],
               [t.meili, s?.meili ? (s.meili.documents !== null ? t.documents(s.meili.documents, s.activeListings) : <Pill key="m" tone="danger">{t.down}</Pill>) : t.unknown],
             ]}

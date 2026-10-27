@@ -330,7 +330,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   <span className="flex items-center gap-1">
                     <Icon name="pin" className="size-3.5" />
                     {place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city}
-                    {place.district && <span>· {place.district}</span>}
+                    {place.district && <span>، {place.district}</span>}
                   </span>
                 )}
                 {posted && (

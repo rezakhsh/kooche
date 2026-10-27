@@ -66,7 +66,7 @@ export default async function ProPage() {
             )}
             {p.year && (
               <p className="text-sm text-neutral-600">
-                {formatPrice(p.year.price.amountMinor, 'EUR', 2)} {t.perYear} · {t.yearlyNote}
+                {formatPrice(p.year.price.amountMinor, 'EUR', 2)} {t.perYear}، {t.yearlyNote}
               </p>
             )}
             <ul className="flex-1 space-y-1.5 text-sm">

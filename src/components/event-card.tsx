@@ -43,7 +43,7 @@ export function EventCard({ e }: { e: EventCardData }) {
           <span className="block text-xs text-neutral-600">{when.weekday}</span>
         </div>
         {e.featured && (
-          <span className="absolute start-2 bottom-2 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-[11px] font-bold leading-5 text-neutral-900">
+          <span className="absolute start-2 bottom-2 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">
             <Icon name="star" className="size-3" />
             {messages.featured.badge}
           </span>

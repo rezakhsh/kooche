@@ -59,7 +59,7 @@ export function ReportsList({ rows, showContact }: { rows: ReportRow[]; showCont
             {r.anonymous ? t.reporterAnon(r.reporterName ?? '') : t.reporterUser(r.reporterName ?? '')}
             {showContact && r.reporterEmail && (
               <>
-                {' · '}
+                {'، '}
                 <bdi dir="ltr">{r.reporterEmail}</bdi>
               </>
             )}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dateFromForm } from '../../lib/date-parts';
 import { normalizePersian } from '../../lib/normalize-persian';
 import type { AttributeDef } from './catalog';
 import { MAX_PRICE_MINOR, parseAmount } from './price';
@@ -177,11 +178,15 @@ export function attributesFromForm(defs: AttributeDef[], form: FormData): Record
       if (y || m) raw[def.key] = y && m ? `${y}-${m.padStart(2, '0')}` : `${y}-${m}`;
       continue;
     }
+    if (def.type === 'date') {
+      const day = dateFromForm(form, name);
+      if (day) raw[def.key] = day;
+      continue;
+    }
     const v = form.get(name);
     if (typeof v !== 'string' || v.trim() === '') continue;
     const s = v.trim();
     if (def.type === 'number') raw[def.key] = def.validation.money ? s : parseNumberInput(s);
-    else if (def.type === 'date') raw[def.key] = normalizePersian(s);
     else if (def.type === 'boolean') raw[def.key] = s === 'true' ? true : s === 'false' ? false : s;
     else raw[def.key] = def.type === 'text' ? s.normalize('NFC') : s;
   }

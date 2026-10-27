@@ -64,7 +64,7 @@ export default async function PaymentsPage() {
               <li key={s.id} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
                 <bdi className="font-medium">{s.business ?? s.person}</bdi>
                 <span>{s.plan}</span>
-                <span className="text-neutral-600">{t.subscriptionStatus[s.status] ?? s.status}{s.cancel_at_period_end ? ` · ${t.cancelAtEnd}` : ''}</span>
+                <span className="text-neutral-600">{t.subscriptionStatus[s.status] ?? s.status}{s.cancel_at_period_end ? `، ${t.cancelAtEnd}` : ''}</span>
                 <span className="text-xs text-neutral-500">{t.periodEnd}: <When date={new Date(s.current_period_end)} /></span>
                 <span className="text-xs">{link(s.provider_id)}</span>
               </li>

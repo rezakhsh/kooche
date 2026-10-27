@@ -27,11 +27,18 @@ export function FavoriteButton({ token, saved, back, variant = 'card' }: { token
         title={label}
         className={
           variant === 'card'
-            ? `flex size-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-neutral-900/5 backdrop-blur hover:bg-white ${on ? 'text-red-600' : 'text-neutral-700'}`
+            ? `group flex size-11 items-center justify-center rounded-full ${on ? 'text-red-600' : 'text-neutral-700'}`
             : `flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold ${on ? 'border-red-200 bg-red-50 text-red-700' : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'}`
         }
       >
-        <Icon name="heart" className={`${variant === 'card' ? 'size-5' : 'size-[18px]'} ${on ? 'fill-current' : ''}`} />
+        {/* On cards a 36px circle inside a 44px target */}
+        {variant === 'card' ? (
+          <span className="flex size-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-neutral-900/5 backdrop-blur group-hover:bg-white">
+            <Icon name="heart" className={`size-5 ${on ? 'fill-current' : ''}`} />
+          </span>
+        ) : (
+          <Icon name="heart" className={`size-[18px] ${on ? 'fill-current' : ''}`} />
+        )}
         {variant === 'page' && <span>{on ? t.saved : t.save}</span>}
       </button>
       {state.error && (

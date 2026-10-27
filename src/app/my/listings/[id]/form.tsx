@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { DateInput } from '../../../../components/date-input';
 import { TermsNotice } from '../../../../components/terms-notice';
 import { useTurnstile } from '../../../../components/turnstile';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
@@ -348,7 +349,8 @@ function AttributeField({
     case 'date': {
       const stored = typeof value === 'string' ? value : '';
       if (!def.validation.month) {
-        return wrap(<Field label={label} name={name} type="date" defaultValue={stored} min="1900-01-01" max="2100-12-31" dir="ltr" className="text-end" />);
+        // Move-in and start dates get «از همین حالا» and «اول ماه بعد»
+        return wrap(<DateInput label={label} name={name} defaultValue={stored} quick={def.key === 'available_from'} />);
       }
       // Month and year (TÜV): two selects, since Firefox and desktop Safari have no month input
       const [y = '', m = ''] = stored.split('-');

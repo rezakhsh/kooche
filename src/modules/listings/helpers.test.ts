@@ -31,7 +31,12 @@ describe('parseAmount (minor units, no floats)', () => {
     expect(amountInputValue(5, 2)).toBe('0.05');
   });
 
-  it('formats in Persian', () => expect(formatPrice(45_000, 'EUR', 2)).toContain('۴۵۰'));
+  it('formats in Persian, the amount before the symbol', () => {
+    expect(formatPrice(45_000, 'EUR', 2)).toBe('۴۵۰\u00a0€');
+    expect(formatPrice(125_000, 'EUR', 2)).toBe('۱٬۲۵۰\u00a0€');
+    expect(formatPrice(12_050, 'EUR', 2)).toBe('۱۲۰٫۵۰\u00a0€');
+    expect(formatPrice(87_000, 'USD', 2)).toBe('۸۷۰\u00a0$');
+  });
 });
 
 describe('snapToGrid (~500 m, never the exact point)', () => {

@@ -93,11 +93,11 @@ export function filtersHash(f: SavedFilters, minorUnitState: { state: BrowseStat
   return createHash('sha256').update(JSON.stringify([f.v, f.country, f.categoryId, f.locationId, query])).digest();
 }
 
-/** A short name from the keyword, the category and the place («پژو ۲۰۶ · خودرو · برلین») */
+/** A short name from the keyword, the category and the place («پژو ۲۰۶، خودرو، برلین») */
 export function autoName(t: SearchTarget): string {
   const place = t.city?.nameFa ?? (t.state.postal ? (t.state.postal.radiusKm ? `${t.state.postal.code} (${t.state.postal.radiusKm.toLocaleString('fa-IR')} km)` : t.state.postal.code) : null);
   const parts = [t.state.q, t.category?.nameFa, place].filter((x): x is string => !!x);
-  const name = (parts.length ? parts : [t.country.nameFa]).join(' · ');
+  const name = (parts.length ? parts : [t.country.nameFa]).join('، ');
   return name.length > NAME_MAX ? `${name.slice(0, NAME_MAX - 1)}…` : name;
 }
 

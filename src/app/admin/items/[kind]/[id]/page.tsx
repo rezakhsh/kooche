@@ -116,7 +116,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
             {dup && (
               <Panel title={t.duplicate} className="border-saffron-300">
                 <p className="mb-2 text-sm">
-                  {t.otherListing}: <bdi dir="auto">{dup.title}</bdi> · <bdi>{dup.seller}</bdi> <StatusPill status={dup.status} />{' '}
+                  {t.otherListing}: <bdi dir="auto">{dup.title}</bdi>، <bdi>{dup.seller}</bdi> <StatusPill status={dup.status} />{' '}
                   {typeof (escalation?.aiOutput as { detail?: { distance?: number } })?.detail?.distance === 'number' && t.distance((escalation!.aiOutput as { detail: { distance: number } }).detail.distance)}
                 </p>
                 <Photos keys={dup.images} />

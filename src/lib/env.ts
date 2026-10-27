@@ -69,7 +69,7 @@ const liveKeyRule = { message: 'a live Stripe key needs PAYMENTS_LIVE=on (produc
 const webSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_URL: z.url(),
-  // Jalali dates are shown in this zone. Only Germany is active, so Berlin for now.
+  // Dates are shown in this zone. Only Germany is active, so Berlin for now.
   APP_TIME_ZONE: z.string().default('Europe/Berlin'),
   DATABASE_URL: postgresUrl,
   REDIS_URL: redisUrl,

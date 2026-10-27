@@ -16,11 +16,12 @@ import {
 } from '../src/modules/payments/founding';
 import { checkoutParams } from '../src/modules/payments/gateway';
 import { businessPlan } from '../src/modules/payments/plans';
+import { cardsByIds } from '../src/modules/search/browse';
 import type { Mail } from '../src/modules/notifications/mailer';
 import { appDb, redis, workerDb } from './accounts';
 import { db, publicToken } from './db';
 import { city } from './listings-fixtures';
-import { business, entitlementsOf, event, FakeGateway, seedCatalog, storeEvent, stripeInvoice, stripePriceId, stripeSubscription, unix } from './payments-fixtures';
+import { business, entitlementsOf, event, FakeGateway, seedCatalog, sellerWithListing, storeEvent, stripeInvoice, stripePriceId, stripeSubscription, unix } from './payments-fixtures';
 
 // Founding Pro (wave 0, step 6): a trial without a card that ends by itself; the owner's offer in
 // admin within the city's places; reminders; the badge for a year from the page's creation.
@@ -197,5 +198,18 @@ describe('the badge', () => {
     expect(foundingBadge({ foundingOfferedAt: new Date('2026-12-01'), createdAt }, new Date('2027-10-31T00:00:00Z'))).toBe(true);
     expect(foundingBadge({ foundingOfferedAt: new Date('2026-12-01'), createdAt }, new Date('2027-11-02T00:00:00Z'))).toBe(false);
     expect(foundingBadge({ foundingOfferedAt: null, createdAt }, new Date('2026-12-01'))).toBe(false);
+  });
+
+  it('shows on the business’s listing cards for the same year (wave 1)', async () => {
+    const { org } = await business();
+    const { listing } = await sellerWithListing({ organizationId: org.id });
+    const { listing: privateOne } = await sellerWithListing();
+    const founding = async () => Object.fromEntries((await cardsByIds(appDb, [listing.id, privateOne.id], null)).map((c) => [c.id, c.founding]));
+    expect(await founding()).toEqual({ [listing.id]: false, [privateOne.id]: false });
+    await db.update(schema.organizations).set({ foundingOfferedAt: new Date() }).where(eq(schema.organizations.id, org.id));
+    expect(await founding()).toEqual({ [listing.id]: true, [privateOne.id]: false });
+    // A year after the page was created the badge ends, on cards as on the page
+    await db.update(schema.organizations).set({ createdAt: new Date(Date.now() - 366 * DAY) }).where(eq(schema.organizations.id, org.id));
+    expect(await founding()).toEqual({ [listing.id]: false, [privateOne.id]: false });
   });
 });

@@ -37,7 +37,7 @@ export default async function DevicesPage({
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold">
                     <span dir="ltr">
-                      {d.browser ?? t.unknownBrowser} · {d.os ?? t.unknownOs}
+                      {d.browser ?? t.unknownBrowser}، {d.os ?? t.unknownOs}
                     </span>
                   </p>
                   {d.current && (

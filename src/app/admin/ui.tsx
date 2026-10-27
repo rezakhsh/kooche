@@ -28,7 +28,7 @@ export function Panel({ title, children, className = '' }: { title?: string; chi
   );
 }
 
-/** "۲ ساعت پیش", with the full Jalali date and time on hover */
+/** "۲ ساعت پیش", with the full date and time on hover */
 export function Ago({ date }: { date: Date }) {
   const tz = webEnv().APP_TIME_ZONE;
   return (

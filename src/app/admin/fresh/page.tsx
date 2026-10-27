@@ -35,7 +35,7 @@ export default async function FreshPage() {
                   <p className="truncate font-bold"><bdi dir="auto">{r.title}</bdi></p>
                   {r.price_minor !== null && cur && <p>{formatPrice(Number(r.price_minor), cur.code, cur.minorUnit)}</p>}
                   <p className="text-xs text-neutral-500">
-                    <bdi>{r.seller}</bdi> · {t.sellerAge('')}<Ago date={new Date(r.seller_since)} /> · {admin.item.code} {faDigits(String(r.ref_number))}
+                    <bdi>{r.seller}</bdi>، {t.sellerAge('')}<Ago date={new Date(r.seller_since)} />، {admin.item.code} {faDigits(String(r.ref_number))}
                   </p>
                   <p className="text-xs text-neutral-500"><Ago date={new Date(r.published_at)} /></p>
                   <div className="mt-auto flex gap-2 pt-2">

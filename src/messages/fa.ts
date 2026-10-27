@@ -335,9 +335,13 @@ export const messages = {
     choose: 'انتخاب کنید',
     // Under a dependent select (model) before its parent (brand) is chosen; the list is grouped by parent
     chooseParentFirst: (parent: string) => `اول «${parent}» را انتخاب کنید تا فهرست کوتاه شود. فهرست کامل هم بر اساس ${parent} دسته‌بندی شده است.`,
+    day: 'روز',
     month: 'ماه',
     year: 'سال',
-    // Gregorian months: TÜV and similar dates in Germany and Austria are by Gregorian month
+    // The date field's shortcuts (src/components/date-input.tsx)
+    fromNow: 'از همین حالا',
+    nextMonth: 'اول ماه بعد',
+    // Gregorian months: dates in the interface are Gregorian (owner, Oct 2026), TÜV too
     months: ['ژانویه', 'فوریه', 'مارس', 'آوریل', 'مه', 'ژوئن', 'ژوئیه', 'اوت', 'سپتامبر', 'اکتبر', 'نوامبر', 'دسامبر'],
     yes: 'بله',
     no: 'خیر',

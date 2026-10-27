@@ -28,7 +28,7 @@ export function attributeText(def: AttributeDef, value: unknown, currency: Curre
     case 'date': {
       const [y, m, d] = String(value).split('-').map(Number);
       if (!y || !m) return null;
-      // A day in the Jalali calendar; a month (TÜV) as the Gregorian month it is
+      // A day as its date; a month (TÜV) as month and year
       return d
         ? formatDate(new Date(Date.UTC(y, m - 1, d)), 'UTC')
         : `${messages.form.months[m - 1] ?? m} ${y.toLocaleString('fa-IR', { useGrouping: false })}`;

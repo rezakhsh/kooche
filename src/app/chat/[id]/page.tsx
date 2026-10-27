@@ -91,7 +91,7 @@ export default async function ConversationPage({ params, searchParams }: { param
             <span className="block truncate text-sm font-bold">{l.title}</span>
             <span className="flex items-center gap-1.5 text-xs text-neutral-600">
               <span className="truncate">
-                {otherName} · {view.side === 'buyer' ? t.seller : t.buyer}
+                {otherName}، {view.side === 'buyer' ? t.seller : t.buyer}
               </span>
               {price && <span className="shrink-0 font-bold text-brand-700">{price}</span>}
               {listingState && <Pill tone="neutral">{listingState}</Pill>}
@@ -150,8 +150,8 @@ export default async function ConversationPage({ params, searchParams }: { param
         </div>
       )}
       <p className="sr-only">
-        {otherName} · {t.memberSince(formatMonth(view.other.memberSince, env.APP_TIME_ZONE))}
-        {view.other.phoneVerified ? ` · ${t.phoneVerified}` : ''}
+        {otherName}، {t.memberSince(formatMonth(view.other.memberSince, env.APP_TIME_ZONE))}
+        {view.other.phoneVerified ? `، ${t.phoneVerified}` : ''}
       </p>
       <Thread
         conversationId={view.id}

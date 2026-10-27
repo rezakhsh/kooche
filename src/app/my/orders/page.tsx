@@ -31,7 +31,7 @@ export default async function OrdersPage() {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold">{o.productName}</span>
                 <span className="block truncate text-xs text-neutral-500">
-                  {o.listingTitle} · {t.on(formatDate(o.createdAt, zone))}
+                  {o.listingTitle}، {t.on(formatDate(o.createdAt, zone))}
                 </span>
               </span>
               <span className="shrink-0 text-end">

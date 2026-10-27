@@ -31,7 +31,7 @@ export async function SiteHeader() {
             <LogoMark className="size-9" />
             <span className="flex flex-col">
               <span className="text-xl font-black leading-none">{messages.site.name}</span>
-              <span className="mt-1 hidden text-[11px] leading-none whitespace-nowrap text-neutral-500 lg:block">{messages.site.tagline}</span>
+              <span className="mt-1 hidden text-xs leading-none whitespace-nowrap text-neutral-500 lg:block">{messages.site.tagline}</span>
             </span>
           </Link>
           {country && (
@@ -121,7 +121,7 @@ function Label({ text }: { text: string }) {
 export function UnreadBadge({ count, className = '' }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
-    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron-500 px-1 text-[11px] font-bold text-neutral-900 ${className}`}>
+    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-neutral-900 ${className}`}>
       <span aria-hidden>{count > 99 ? '۹۹+' : count.toLocaleString('fa-IR')}</span>
       <span className="sr-only">{messages.nav.unread(count)}</span>
     </span>
@@ -140,7 +140,7 @@ const FOOTER_LINKS = [
 export async function SiteFooter() {
   const countries = await activeCountries(appDb());
   return (
-    <footer className="mt-12 border-t border-neutral-200 bg-neutral-50 pb-20 sm:pb-0">
+    <footer className="mt-12 border-t border-neutral-200 bg-neutral-50">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-neutral-600 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="flex items-center gap-3">
           <LogoMark className="size-8" />

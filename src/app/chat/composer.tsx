@@ -118,7 +118,7 @@ export function Composer({
         </button>
       </form>
       {text.length > MAX - 500 && (
-        <p className="mt-1 text-end text-[11px] text-neutral-500" aria-live="polite">
+        <p className="mt-1 text-end text-xs text-neutral-500" aria-live="polite">
           {t.counter(text.length, MAX)}
         </p>
       )}

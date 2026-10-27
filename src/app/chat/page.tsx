@@ -77,8 +77,8 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className={`truncate text-sm ${c.unread ? 'font-extrabold' : 'font-bold'}`}>{c.other.name}</span>
-                      <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-600">{c.side === 'buyer' ? t.seller : t.buyer}</span>
-                      <span className="ms-auto shrink-0 text-[11px] text-neutral-500">{formatAgo(c.last.createdAt, tz)}</span>
+                      <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 text-xs text-neutral-600">{c.side === 'buyer' ? t.seller : t.buyer}</span>
+                      <span className="ms-auto shrink-0 text-xs text-neutral-500">{formatAgo(c.last.createdAt, tz)}</span>
                     </span>
                     <span className="block truncate text-xs text-neutral-600">{c.listing.title}</span>
                     <span className="mt-0.5 flex items-center gap-1">
@@ -88,7 +88,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                         {preview}
                       </span>
                       {c.unread > 0 && (
-                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-700 px-1.5 text-[11px] font-bold text-white" title={t.unreadBadge(c.unread)}>
+                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-700 px-1.5 text-xs font-bold text-white" title={t.unreadBadge(c.unread)}>
                           {c.unread.toLocaleString('fa-IR')}
                           <span className="sr-only">{t.unreadBadge(c.unread)}</span>
                         </span>

@@ -69,7 +69,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
     />
   );
 }
@@ -82,7 +82,7 @@ export function LinkButton({
   return (
     <a
       {...props}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors ${buttonStyles[variant]} ${className}`}
     />
   );
 }

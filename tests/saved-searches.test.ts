@@ -73,7 +73,7 @@ describe('saving', () => {
     expect(again).toEqual({ ok: true, id: a.ok && a.id, created: false });
     const [row] = await saved(u.id);
     expect(row).toMatchObject({
-      name: 'bmw · خودرو · 10115 (۲۵ km)',
+      name: 'bmw، خودرو، 10115 (۲۵ km)',
       countryCode: 'DE',
       categoryId: catalog.bySlug.get('cars')!.id,
       locationId: null,
@@ -123,10 +123,10 @@ describe('only your own', () => {
     expect(await deleteSavedSearch(appDb, other.id, r.id)).toBe(false);
     expect(await updateSavedSearch(appDb, other.id, 'not-a-uuid', { name: 'x' })).toBe(false);
     const [row] = await saved(owner.id);
-    expect(row).toMatchObject({ name: 'sofa · برلین', notifyFrequency: 'instant' });
+    expect(row).toMatchObject({ name: 'sofa، برلین', notifyFrequency: 'instant' });
 
     const mine = await listSavedSearches(appDb, catalog, owner.id);
-    expect(mine).toEqual([expect.objectContaining({ id: r.id, name: 'sofa · برلین', href: '/germany/berlin?q=sofa', frequency: 'instant' })]);
+    expect(mine).toEqual([expect.objectContaining({ id: r.id, name: 'sofa، برلین', href: '/germany/berlin?q=sofa', frequency: 'instant' })]);
     expect(await updateSavedSearch(appDb, owner.id, r.id, { name: '  مبل   ارزان ' })).toBe(true);
     expect(await updateSavedSearch(appDb, owner.id, r.id, { frequency: 'daily' })).toBe(true);
     expect((await saved(owner.id))[0]).toMatchObject({ name: 'مبل ارزان', notifyFrequency: 'daily' });
@@ -155,11 +155,11 @@ describe('turning an alert off from its email', () => {
     if (!a.ok || !b.ok) throw new Error('not saved');
     const rows = await saved(u.id);
     const tokenA = rows.find((r) => r.id === a.id)!.unsubscribeToken;
-    expect(await searchByUnsubscribeToken(appDb, tokenA)).toEqual({ id: a.id, name: 'golf · خودرو' });
+    expect(await searchByUnsubscribeToken(appDb, tokenA)).toEqual({ id: a.id, name: 'golf، خودرو' });
     expect(await unsubscribeByToken(appDb, 'f'.repeat(32))).toBeNull();
     expect(await unsubscribeByToken(appDb, `${tokenA}' OR 1=1`)).toBeNull();
     expect(await unsubscribeByToken(appDb, a.id)).toBeNull();
-    expect(await unsubscribeByToken(appDb, tokenA)).toEqual({ name: 'golf · خودرو' });
+    expect(await unsubscribeByToken(appDb, tokenA)).toEqual({ name: 'golf، خودرو' });
     const after = await saved(u.id);
     expect(after.find((r) => r.id === a.id)!.notifyFrequency).toBe('off');
     expect(after.find((r) => r.id === b.id)!.notifyFrequency).toBe('instant');
