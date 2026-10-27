@@ -40,7 +40,7 @@ import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession } from '../../../../modules/users/server';
 import { Contact } from './contact';
 import { Gallery, type GalleryImage } from './gallery';
-import { BackButton, ShareButton } from './photo-bar';
+import { BackButton, CopyLink, ShareButton } from './photo-bar';
 
 // The public listing page, /v/{persian-title}/{token}, rendered on the server. The token finds the
 // listing; the title part is not checked, and the canonical link carries the current one.
@@ -330,12 +330,63 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:gap-8">
         <div className="min-w-0 space-y-5">
-          {(published || !PUBLIC.has(l.status) || l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && (
+          {((published && !isOwner) || !PUBLIC.has(l.status) || l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && (
             <div className="space-y-2 px-4 pt-4 sm:px-0 sm:pt-0">
-              {published && <Alert tone="success">{messages.form.published}</Alert>}
+              {published && !isOwner && <Alert tone="success">{messages.form.published}</Alert>}
               {!PUBLIC.has(l.status) && <Alert tone="info">{t.ownerPreview}</Alert>}
               {(l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && <Alert tone="info">{t.unavailable[l.status]}</Alert>}
             </div>
+          )}
+
+          {/* Right after publishing (wave 1, mockup final/posted): share where people already are, then the boost */}
+          {published && isOwner && l.status === 'active' && (
+            <section className="mx-4 rounded-2xl border border-brand-200 bg-brand-50/40 p-4 text-center sm:mx-0">
+              <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                <Icon name="check" className="size-8" />
+              </span>
+              <h2 className="mt-3 text-2xl font-extrabold">{t.posted.title}</h2>
+              <p className="mt-1 text-base text-neutral-700">{t.posted.body(placeText ?? cityFa ?? countryName)}</p>
+              <h3 className="mt-5 text-start font-extrabold">{t.posted.share}</h3>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <a
+                  href={`https://t.me/share/url?url=${encodeURIComponent(`${env.APP_URL}${path}`)}&text=${encodeURIComponent(l.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-16 flex-col items-center justify-center gap-1 rounded-2xl border border-neutral-200 bg-white text-sm font-bold hover:bg-neutral-50"
+                >
+                  <Icon name="send" className="size-5 text-brand-700" />
+                  {t.posted.telegram}
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`${l.title}\n${env.APP_URL}${path}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-16 flex-col items-center justify-center gap-1 rounded-2xl border border-neutral-200 bg-white text-sm font-bold hover:bg-neutral-50"
+                >
+                  <Icon name="chat" className="size-5 text-brand-700" />
+                  {t.posted.whatsapp}
+                </a>
+                <CopyLink label={t.posted.copy} />
+              </div>
+              <Link href={`/my/listings/${l.id}/promote`} className="mt-5 flex items-center gap-3 rounded-2xl bg-saffron-50 p-4 text-start">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-500 text-neutral-900">
+                  <Icon name="arrowUp" className="size-5" />
+                </span>
+                <span className="flex-1">
+                  <b className="block">{t.posted.promote}</b>
+                  <span className="text-sm text-saffron-800">{t.posted.promoteText}</span>
+                </span>
+                <Icon name="chevronEnd" className="size-5 text-saffron-800" />
+              </Link>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link href="/my/listings" className="flex h-12 items-center justify-center rounded-xl border border-neutral-300 bg-white font-bold">
+                  {t.posted.mine}
+                </Link>
+                <Link href="/new" className="flex h-12 items-center justify-center rounded-xl border border-neutral-300 bg-white font-bold">
+                  {t.posted.another}
+                </Link>
+              </div>
+            </section>
           )}
 
           <div className="relative">

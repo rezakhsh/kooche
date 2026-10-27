@@ -5,6 +5,7 @@ import { startTransition, useActionState, useEffect, useRef, useState, type Form
 import { DateInput } from '../../../../components/date-input';
 import { TermsNotice } from '../../../../components/terms-notice';
 import { useTurnstile } from '../../../../components/turnstile';
+import { Icon } from '../../../../components/icons';
 import { Alert, Button, Card, Field } from '../../../../components/ui';
 import { PlaceField, type PlaceFieldValue } from '../../../../components/place-field';
 import { messages } from '../../../../messages/fa';
@@ -12,10 +13,18 @@ import type { AttributeDef } from '../../../../modules/listings/catalog';
 import { dependentOptions, parentOf } from '../../../../modules/listings/dependent-options';
 import type { FieldError } from '../../../../modules/listings/listings';
 import { saveListingAction, type SaveState } from '../actions';
+import { firstStepWithErrors, stepOf, type Step } from './steps';
 
 // The posting form (mobile first). Plain fields, so it also posts without JavaScript; with
 // JavaScript the submit is intercepted so React doesn't clear what was typed when the server
 // sends errors back.
+// Wave 1 (mockups final/post2–post4): a draft is filled in steps, 2 photos and text, 3 details and
+// price, 4 place and publishing (step 1, the category, is /new). Every field stays in the form, so
+// each «ادامه» saves the whole draft; the server answers with what publishing would still refuse
+// (`missing`), and the step goes on when its own fields are done. Choices are buttons, optional
+// fields say «(اختیاری)», and step 4 ends with a check of everything with «تغییر» links. Without
+// JavaScript the page's <noscript> style shows all steps at once with the plain buttons. A listing
+// that is out keeps one page.
 
 type PriceType = 'fixed' | 'negotiable' | 'free' | 'exchange' | 'on_request';
 
@@ -57,6 +66,35 @@ export type FormProps = {
 
 const t = messages.form;
 
+/** The posting steps' state, from ListingEditor (null for a listing that is out: one page) */
+export type Wizard = { step: Step; setStep: (s: Step) => void; photoCount: number };
+
+/** Choice lists up to this long are buttons; longer ones stay a select */
+const SHORT_CHOICE = 6;
+
+/** A radio or checkbox drawn as a button */
+const pillClass =
+  'flex min-h-11 items-center rounded-xl border border-neutral-300 px-4 text-sm text-neutral-800 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700';
+
+function Pill({ type, name, value, checked, onChange, children }: { type: 'radio' | 'checkbox'; name: string; value: string; checked?: boolean; onChange?: () => void; children: ReactNode }) {
+  return (
+    <label className="cursor-pointer">
+      <input type={type} name={name} value={value} defaultChecked={onChange ? undefined : checked} checked={onChange ? checked : undefined} onChange={onChange} className="peer sr-only" />
+      <span className={pillClass}>{children}</span>
+    </label>
+  );
+}
+
+/** «عنوان» or «ودیعه (اختیاری)»: required fields are plain, optional ones say so */
+function labelText(text: string, required: boolean): ReactNode {
+  return (
+    <>
+      {text}
+      {!required && <span className="ms-1 font-normal text-neutral-600">{t.optional}</span>}
+    </>
+  );
+}
+
 function ErrorText({ code }: { code?: FieldError }) {
   if (!code) return null;
   return <span className="mt-1 block text-xs text-red-700">{t.errors[code] ?? t.errors.invalid}</span>;
@@ -65,14 +103,53 @@ function ErrorText({ code }: { code?: FieldError }) {
 const selectClass =
   'block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20';
 
-export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: string) => void }) {
+export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: string) => void; wizard?: Wizard | null }) {
   const [state, dispatch, pending] = useActionState<SaveState, FormData>(saveListingAction, undefined);
-  const { onDraftCreated } = props;
+  const { onDraftCreated, wizard = null } = props;
   useEffect(() => {
     if (state?.listingId) onDraftCreated?.(state.listingId);
   }, [state?.listingId, onDraftCreated]);
   const v = props.values;
-  const errors = state?.errors ?? {};
+  // The step «ادامه» was pressed on; its answer decides where to go
+  const leaving = useRef<Step | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [summary, setSummary] = useState<Record<string, string>>({});
+  const [titleLength, setTitleLength] = useState(v.title.length);
+  useEffect(() => {
+    if (!wizard || !state?.at) return;
+    const from = leaving.current;
+    leaving.current = null;
+    // A refused publish: back to the first step with something to fix
+    const target = state.errors ? firstStepWithErrors(state.errors, 4) : from && state.missing ? (firstStepWithErrors(state.missing, from) ?? ((from + 1) as Step)) : null;
+    if (target && target !== wizard.step) {
+      wizard.setStep(target);
+      window.scrollTo({ top: 0 });
+    }
+    // Only state changes move the steps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.at]);
+  // What the check at step 4 lists, read from the form as it is
+  useEffect(() => {
+    if (wizard?.step !== 4 || !formRef.current) return;
+    const data = new FormData(formRef.current);
+    const filled = props.defs.filter((d) => {
+      const x = data.getAll(`attr.${d.key}`).concat(data.getAll(`attr.${d.key}.day`), data.getAll(`attr.${d.key}.month`));
+      return x.some((y) => typeof y === 'string' && y !== '');
+    }).length;
+    const type = String(data.get('priceType') ?? '');
+    const amount = String(data.get('amount') ?? '').trim();
+    setSummary({
+      title: String(data.get('title') ?? '').trim(),
+      price: type === 'fixed' || type === 'negotiable' ? (amount ? `${amount} ${props.country?.currencySymbol ?? ''}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
+      details: filled ? t.detailsCount(filled) : '',
+      postAs: props.postAs.options.find((o) => o.id === String(data.get('organizationId') ?? v.organizationId))?.name ?? t.myself,
+    });
+  }, [wizard?.step, props.defs, props.postAs.options, props.country, v.organizationId]);
+  // While stepping, only the steps already left show their missing fields
+  const missingShown = wizard && state?.missing ? Object.fromEntries(Object.entries(state.missing).filter(([k]) => stepOf(k) < wizard.step)) : {};
+  const errors = state?.errors ?? missingShown;
+  const shown = (n: Step) => !wizard || wizard.step === n;
+  const section = (n: Step) => ({ 'data-step': wizard ? n : undefined, className: shown(n) ? 'space-y-6' : 'hidden' });
   const [priceType, setPriceType] = useState<PriceType>(props.priceTypes.includes(v.priceType) ? v.priceType : (props.priceTypes[0] ?? 'on_request'));
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
@@ -96,54 +173,72 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const data = new FormData(e.currentTarget, submitter);
     sentPublish.current = submitter?.value === 'publish';
+    if (submitter?.value === 'next' && wizard) leaving.current = wizard.step;
     startTransition(() => dispatch(data));
   }
 
+  const stepNames: readonly string[] = t.steps;
+
   return (
-    <form action={dispatch} onSubmit={onSubmit} className="space-y-6" noValidate>
+    <form ref={formRef} action={dispatch} onSubmit={onSubmit} className={`space-y-6 ${wizard ? 'pb-24 lg:pb-0' : ''}`} noValidate>
       {props.listingId && <input type="hidden" name="listingId" value={props.listingId} />}
       <input type="hidden" name="categoryId" value={props.categoryId} />
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <span className="block text-sm font-medium text-neutral-700">{t.category}</span>
-            <span className="text-sm text-neutral-600">{props.categoryPath.join(' › ')}</span>
+
+      <div {...section(2)}>
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
+          <div className="min-w-0">
+            <span className="block text-xs text-neutral-600">{t.category}</span>
+            <span className="block truncate text-sm font-bold">{props.categoryPath.join('، ')}</span>
           </div>
           {draft && (
-            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="text-sm text-brand-800 hover:underline">
-              {t.changeCategory}
+            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="flex min-h-11 shrink-0 items-center text-sm font-bold text-brand-800 hover:underline">
+              {t.change}
             </Link>
           )}
         </div>
         <fieldset>
-          <legend className="mb-1 block text-sm font-medium text-neutral-700">{t.kind}</legend>
-          <div className="flex flex-wrap gap-4">
+          <legend className="sr-only">{t.kind}</legend>
+          <div className="grid grid-cols-2 gap-2">
             {(['offer', 'wanted'] as const).map((k) => (
-              <label key={k} className="flex items-center gap-2 text-sm">
-                <input type="radio" name="kind" value={k} defaultChecked={v.kind === k} />
-                {messages.kind[k]}
-              </label>
+              <Pill key={k} type="radio" name="kind" value={k} checked={v.kind === k}>
+                <span className="w-full text-center">{messages.kind[k]}</span>
+              </Pill>
             ))}
           </div>
         </fieldset>
         <div>
-          <Field label={t.titleLabel} hint={t.titleHint} name="title" defaultValue={v.title} maxLength={90} required />
+          <label className="block">
+            <span className="mb-1.5 flex justify-between text-sm font-bold">
+              <span>{t.titleLabel}</span>
+              <span className="font-normal text-neutral-600">{t.titleCount(titleLength, 90)}</span>
+            </span>
+            <input
+              name="title"
+              defaultValue={v.title}
+              maxLength={90}
+              required
+              onChange={(e) => setTitleLength(e.target.value.length)}
+              className="block h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
+            />
+            <span className="mt-1 block text-xs text-neutral-600">{t.titleHint}</span>
+          </label>
           <ErrorText code={errors.title} />
         </div>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-neutral-700">{t.descriptionLabel}</span>
+          <span className="mb-1.5 block text-sm font-bold">{t.descriptionLabel}</span>
           <textarea
             name="description"
             defaultValue={v.description}
             rows={6}
             maxLength={5000}
-            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
+            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base leading-8 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
           />
-          <span className="mt-1 block text-xs text-neutral-500">{t.descriptionHint}</span>
+          <span className="mt-1 block text-xs text-neutral-600">{t.descriptionHint}</span>
           <ErrorText code={errors.description} />
         </label>
-      </Card>
+      </div>
 
+      <div {...section(3)}>
       {props.defs.length > 0 && (
         <Card className="space-y-4">
           <h2 className="font-semibold">{t.details}</h2>
@@ -153,6 +248,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               def={d}
               value={v.attributes[d.key]}
               parent={d.dependsOn ? props.defs.find((p) => p.key === d.dependsOn) : undefined}
+              hasChildren={props.defs.some((c) => c.dependsOn === d.key)}
               selects={selects}
               onSelect={(val) => setSelects((s) => chooseSelect(props.defs, s, d, val))}
               error={errors[`attr.${d.key}`]}
@@ -165,27 +261,40 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       {props.priceTypes.length > 0 && (
         <Card className="space-y-4">
           <h2 className="font-semibold">{t.price}</h2>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">{t.priceType}</span>
-            <select name="priceType" value={priceType} onChange={(e) => setPriceType(e.target.value as PriceType)} className={selectClass}>
+          <fieldset>
+            <legend className="mb-1.5 block text-sm font-bold">{t.priceType}</legend>
+            <div className="flex flex-wrap gap-2">
               {props.priceTypes.map((p) => (
-                <option key={p} value={p}>
+                <Pill key={p} type="radio" name="priceType" value={p} checked={priceType === p} onChange={() => setPriceType(p)}>
                   {messages.priceType[p]}
-                </option>
+                </Pill>
               ))}
-            </select>
+            </div>
             <ErrorText code={errors.priceType} />
-          </label>
+          </fieldset>
           {(priceType === 'fixed' || priceType === 'negotiable') && (
             <div>
-              <Field label={t.amount} hint={t.amountHint} name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="text-end" />
-              {currencySymbol && <span className="mt-1 block text-xs text-neutral-500">{t.currencyOf(currencySymbol)}</span>}
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold">{t.amount}</span>
+                <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/20">
+                  <input name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="min-w-0 flex-1 bg-transparent text-end text-base outline-none" />
+                  {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
+                </span>
+                <span className="mt-1 block text-xs text-neutral-600">{t.amountHint}</span>
+              </label>
               <ErrorText code={errors.amount} />
             </div>
           )}
         </Card>
       )}
+      <div className="flex flex-wrap gap-2">
+        <Pill type="checkbox" name="shippingOffered" value="on" checked={v.shippingOffered}>
+          {t.shipping}
+        </Pill>
+      </div>
+      </div>
 
+      <div {...section(4)}>
       <Card className="space-y-4">
         <h2 className="font-semibold">{t.location}</h2>
         {props.country ? (
@@ -211,9 +320,24 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             </Link>
           </Alert>
         )}
-        <label className="flex items-center gap-3 text-sm">
+        <label className="flex min-h-11 items-center gap-3 text-sm">
           <input type="checkbox" name="rememberPlace" defaultChecked={v.rememberPlace} className="size-5" />
           {t.rememberPlace}
+        </label>
+      </Card>
+
+      <Card className="space-y-3">
+        <h2 className="font-semibold">{t.contact}</h2>
+        <p className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-2 text-sm">
+          <span>
+            {t.chatAlways}
+            <span className="block text-xs text-neutral-600">{t.chatAlwaysHint}</span>
+          </span>
+          <Icon name="check" className="size-5 text-brand-700" />
+        </p>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="allowPhoneContact" defaultChecked={v.allowPhoneContact} className="size-5" />
+          {t.allowPhone}
         </label>
       </Card>
 
@@ -237,21 +361,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               </select>
             )}
           </label>
-          <span className="block text-xs text-neutral-500">{props.postAs.locked ? t.postAsLocked : t.postAsHint}</span>
+          <span className="block text-xs text-neutral-600">{props.postAs.locked ? t.postAsLocked : t.postAsHint}</span>
         </Card>
       )}
-
-      <Card className="space-y-3">
-        <h2 className="font-semibold">{t.options}</h2>
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" name="allowPhoneContact" defaultChecked={v.allowPhoneContact} className="size-5" />
-          {t.allowPhone}
-        </label>
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" name="shippingOffered" defaultChecked={v.shippingOffered} className="size-5" />
-          {t.shipping}
-        </label>
-      </Card>
 
       {props.needsName && (
         <Card>
@@ -260,13 +372,45 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
         </Card>
       )}
 
+      {wizard && (
+        <section>
+          <h2 className="text-lg font-extrabold">{t.check}</h2>
+          <dl className="mt-1 divide-y divide-neutral-200 rounded-2xl border border-neutral-200 px-4">
+            {(
+              [
+                ['photos', t.photoCount(wizard.photoCount), 2],
+                ['title', summary.title, 2],
+                ['price', props.priceTypes.length > 0 ? summary.price : null, 3],
+                ['details', props.defs.length > 0 ? summary.details : null, 3],
+                ['postAs', props.postAs.options.length > 0 ? summary.postAs : null, 4],
+              ] as const
+            )
+              .filter(([, value]) => value !== null)
+              .map(([key, value, step]) => (
+                <div key={key} className="flex items-start gap-3 py-3">
+                  <dt className="w-24 shrink-0 text-sm text-neutral-600">{t.checkRows[key]}</dt>
+                  <dd className={`min-w-0 flex-1 text-sm leading-6 ${value ? 'font-bold' : 'text-neutral-600'}`}>{value || t.notEntered}</dd>
+                  {step !== 4 && (
+                    <button type="button" onClick={() => wizard.setStep(step)} className="flex min-h-11 items-center text-sm font-bold text-brand-800 hover:underline">
+                      {t.change}
+                    </button>
+                  )}
+                </div>
+              ))}
+          </dl>
+          <p className="mt-3 text-xs leading-6 text-neutral-600">{t.reviewNote}</p>
+        </section>
+      )}
+
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.notice && <Alert tone="success">{state.notice}</Alert>}
 
       {(draft || rejected) && turnstile.widget}
       {(draft || rejected) && <TermsNotice />}
+      </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row-reverse">
+      {/* The plain buttons: a listing that is out, and the steps without JavaScript (<noscript> shows them) */}
+      <div data-noscript-actions className={wizard ? 'hidden' : 'flex flex-col gap-3 sm:flex-row-reverse'}>
         {draft || rejected ? (
           <>
             <Button type="submit" name="intent" value="publish" disabled={pending || !turnstile.ready} className="sm:flex-1">
@@ -282,6 +426,41 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
           </Button>
         )}
       </div>
+
+      {/* The steps' bar: back and continue within thumb reach; publish at the last step */}
+      {wizard && (
+        <div data-step-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:px-0">
+          <div className="mx-auto flex max-w-2xl gap-2">
+            {wizard.step > 2 && (
+              <button
+                type="button"
+                onClick={() => {
+                  wizard.setStep((wizard.step - 1) as Step);
+                  window.scrollTo({ top: 0 });
+                }}
+                className="flex h-12 items-center justify-center rounded-xl border border-neutral-300 px-5 font-bold text-neutral-800"
+              >
+                {t.previous}
+              </button>
+            )}
+            {wizard.step < 4 ? (
+              <button type="submit" name="intent" value="next" disabled={pending} className="flex h-12 flex-1 items-center justify-center rounded-xl bg-brand-700 font-bold text-white hover:bg-brand-800 disabled:opacity-60">
+                {t.continueTo(stepNames[wizard.step]!)}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                name="intent"
+                value="publish"
+                disabled={pending || !turnstile.ready}
+                className="flex h-12 flex-1 items-center justify-center rounded-xl bg-brand-700 font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+              >
+                {!turnstile.ready ? messages.turnstile.checking : t.publish}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -309,11 +488,14 @@ function AttributeField({
   onSelect,
   error,
   currencySymbol,
+  hasChildren,
 }: {
   def: AttributeDef;
   value: unknown;
   /** The select this one depends on (brand for model) */
   parent?: AttributeDef;
+  /** Another field depends on this one (brand): it stays a select */
+  hasChildren: boolean;
   /** The chosen value of every select (the selects are controlled) */
   selects: Record<string, string>;
   onSelect: (value: string) => void;
@@ -323,7 +505,9 @@ function AttributeField({
 }) {
   const name = `attr.${def.key}`;
   const unit = def.validation.money ? currencySymbol : def.unitFa;
-  const label = `${def.labelFa}${unit ? ` (${unit})` : ''}${def.isRequired ? ' *' : ''}`;
+  // Optional fields say so; required ones are plain (wave 1)
+  const label = `${def.labelFa}${unit ? ` (${unit})` : ''}${def.isRequired ? '' : ` ${t.optional}`}`;
+  const legend = <legend className="mb-1.5 block text-sm font-bold">{labelText(`${def.labelFa}${unit ? ` (${unit})` : ''}`, def.isRequired)}</legend>;
   const wrap = (control: ReactNode) => (
     <div>
       {control}
@@ -383,14 +567,17 @@ function AttributeField({
     }
     case 'boolean':
       return wrap(
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
-          <select name={name} defaultValue={value === true ? 'true' : value === false ? 'false' : ''} className={selectClass}>
-            <option value="">{t.choose}</option>
-            <option value="true">{t.yes}</option>
-            <option value="false">{t.no}</option>
-          </select>
-        </label>,
+        <fieldset>
+          {legend}
+          <div className="flex flex-wrap gap-2">
+            <Pill type="radio" name={name} value="true" checked={value === true}>
+              {t.yes}
+            </Pill>
+            <Pill type="radio" name={name} value="false" checked={value === false}>
+              {t.no}
+            </Pill>
+          </div>
+        </fieldset>,
       );
     case 'select': {
       // A dependent select (model): the chosen brand's models; before a brand, all of them under
@@ -399,6 +586,21 @@ function AttributeField({
       const choice = dependentOptions(def, parent, parentValue);
       // Nothing to choose for this parent (karat when the material isn't gold): no field
       if (choice.kind === 'flat' && def.dependsOn && parentValue && choice.options.length === 0) return null;
+      // A short list nobody depends on: buttons instead of a select (wave 1)
+      if (!def.dependsOn && !hasChildren && def.options.length <= SHORT_CHOICE) {
+        return wrap(
+          <fieldset>
+            {legend}
+            <div className="flex flex-wrap gap-2">
+              {def.options.map((o) => (
+                <Pill key={o.value} type="radio" name={name} value={o.value} checked={value === o.value}>
+                  {o.labelFa}
+                </Pill>
+              ))}
+            </div>
+          </fieldset>,
+        );
+      }
       const option = (o: { value: string; labelFa: string }) => (
         <option key={o.value} value={o.value}>
           {o.labelFa}
@@ -433,13 +635,12 @@ function AttributeField({
       const chosen = new Set(Array.isArray(value) ? (value as string[]) : []);
       return wrap(
         <fieldset>
-          <legend className="mb-1 block text-sm font-medium text-neutral-700">{label}</legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {legend}
+          <div className="flex flex-wrap gap-2">
             {def.options.map((o) => (
-              <label key={o.value} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name={name} value={o.value} defaultChecked={chosen.has(o.value)} />
+              <Pill key={o.value} type="checkbox" name={name} value={o.value} checked={chosen.has(o.value)}>
                 {o.labelFa}
-              </label>
+              </Pill>
             ))}
           </div>
         </fieldset>,

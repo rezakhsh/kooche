@@ -495,7 +495,8 @@ export async function changeDraftCategory(
 }
 
 export type SaveResult =
-  | { ok: true; status: Listing['status']; publicToken: string }
+  /** `missing`: with `check`, what publishing would still refuse (wave 1, the posting steps) */
+  | { ok: true; status: Listing['status']; publicToken: string; missing?: FieldErrors }
   | Refused
   | { ok: false; reason: 'invalid'; errors: FieldErrors };
 
@@ -553,6 +554,11 @@ export async function saveListing(
     now?: Date;
     /** The events module's fields; required for listings in the events section */
     extension?: ListingExtension;
+    /**
+     * A draft's "continue" between posting steps (wave 1): saved as a draft, and the result also
+     * says what publishing would still refuse, so each step knows whether its fields are done.
+     */
+    check?: boolean;
   },
 ): Promise<SaveResult> {
   const catalog = await cachedCatalog(db);
@@ -680,6 +686,10 @@ export async function saveListing(
     }
     // The event's own rows and outbox events, after the listing's history
     if (extra?.ok) await extra.write(tx, { listing: saved!, status, goingOut, revision });
+    if (opts.check && !goingOut) {
+      const strict = await prepare(tx, catalog, category, listing, opts.input, 'publish', needsName);
+      return { ok: true, status, publicToken: listing.publicToken, missing: strict.ok ? {} : strict.errors };
+    }
     return { ok: true, status, publicToken: listing.publicToken };
   });
 }

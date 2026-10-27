@@ -305,6 +305,13 @@ export const messages = {
   post: {
     title: 'ثبت آگهی',
     pickCategory: 'دسته‌بندی آگهی را انتخاب کنید',
+    // Step 1 (wave 1, src/app/new/category-search.tsx)
+    whatHeading: 'چه چیزی آگهی می‌کنید؟',
+    searchCategory: 'جستجوی دسته',
+    searchCategoryPlaceholder: 'مثلاً «اتاق»، «دوچرخه» یا «ترجمه»',
+    noCategoryFound: 'دسته‌ای با این نام پیدا نشد. از فهرست پایین انتخاب کنید.',
+    inParent: (parent: string) => `در ${parent}`,
+    allCategories: 'همه دسته‌ها',
     inCountry: (name: string) => `آگهی در ${name} ثبت می‌شود.`,
     back: 'بازگشت',
     all: 'همه دسته‌ها',
@@ -364,6 +371,29 @@ export const messages = {
     day: 'روز',
     month: 'ماه',
     year: 'سال',
+    // The posting steps (wave 1, src/app/my/listings/[id]/steps.ts)
+    steps: ['دسته', 'عکس و متن', 'جزئیات و قیمت', 'محل و انتشار'],
+    stepOf: (n: number, total: number, name: string) => `مرحلهٔ ${n.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}: ${name}`,
+    draftSaved: 'پیش‌نویس ذخیره شد',
+    photoActions: 'کارهای این عکس',
+    photoMenuHint: 'برای جابه‌جایی یا اصلی کردن، روی ⋯ هر عکس بزنید.',
+    previous: 'قبلی',
+    continueTo: (name: string) => `ادامه: ${name}`,
+    stepHeadings: { 2: 'عکس و توضیح', 3: 'جزئیات و قیمت', 4: 'محل و انتشار' } as Record<number, string>,
+    photosLead: 'آگهی با عکس خیلی بیشتر دیده می‌شود.',
+    titleCount: (n: number, max: number) => `${n.toLocaleString('fa-IR')} از ${max.toLocaleString('fa-IR')}`,
+    optional: '(اختیاری)',
+    contact: 'راه تماس',
+    chatAlways: 'گفتگو در پیدو',
+    chatAlwaysHint: 'همیشه روشن است؛ شماره‌تان نشان داده نمی‌شود.',
+    check: 'پیش از انتشار بررسی کنید',
+    change: 'تغییر',
+    notEntered: 'وارد نشده',
+    checkRows: { photos: 'عکس‌ها', title: 'عنوان', price: 'قیمت', details: 'جزئیات', place: 'محل', postAs: 'انتشار به نام' },
+    photoCount: (n: number) => (n === 0 ? 'بدون عکس' : `${n.toLocaleString('fa-IR')} عکس`),
+    detailsCount: (n: number) => `${n.toLocaleString('fa-IR')} مورد پر شده`,
+    myself: 'خودم',
+    reviewNote: 'بیشتر آگهی‌ها همان لحظه منتشر می‌شوند؛ اگر بررسی لازم باشد، معمولاً کمتر از چند ساعت طول می‌کشد.',
     // The date field's shortcuts (src/components/date-input.tsx)
     fromNow: 'از همین حالا',
     nextMonth: 'اول ماه بعد',
@@ -540,6 +570,19 @@ export const messages = {
     },
     otherListings: (n: number) => `${n.toLocaleString('fa-IR')} آگهی دیگر`,
     similar: 'آگهی‌های مشابه',
+    // Right after publishing (wave 1, mockup final/posted)
+    posted: {
+      title: 'آگهی شما منتشر شد',
+      body: (place: string) => `از همین حالا در ${place} دیده می‌شود. پیام‌ها را در «پیام‌ها» می‌بینید.`,
+      share: 'به دیگران بگویید',
+      telegram: 'تلگرام',
+      whatsapp: 'واتس‌اپ',
+      copy: 'کپی پیوند',
+      promote: 'ارتقای آگهی',
+      promoteText: 'بالای فهرست ببرید یا یک هفته ویژه کنید.',
+      another: 'آگهی دیگر',
+      mine: 'آگهی‌های من',
+    },
     // The safety box, by category (src/modules/listings/safety-kind.ts)
     safetyBox: {
       rent: {

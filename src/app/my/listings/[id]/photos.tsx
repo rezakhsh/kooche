@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../../../../components/icons';
 import { Alert, Card } from '../../../../components/ui';
 import { messages } from '../../../../messages/fa';
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from '../../../../modules/media/limits';
@@ -18,6 +19,8 @@ import type { PhotoView } from '../photo-view';
 // is when that fails, see modules/media/shrink.ts), then goes straight to R2 through a presigned
 // PUT; the server only hands out the URL and then learns that the upload is done. While the worker processes a
 // photo, the list asks the server again every two seconds.
+// Wave 1 (mockup final/post2): a big «افزودن عکس» tile in the grid, and each photo's actions
+// (main photo, earlier, later, remove) in a ⋯ menu instead of four links under it.
 
 const t = messages.form;
 const POLL_MS = 2_000;
@@ -30,6 +33,7 @@ export function PhotoEditor({
   max,
   initial,
   enabled,
+  onCount,
 }: {
   /** null until the listing is saved or gets its first photo */
   listingId: string | null;
@@ -38,8 +42,11 @@ export function PhotoEditor({
   max: number;
   initial: PhotoView[];
   enabled: boolean;
+  /** How many photos the listing has, for the check before publishing */
+  onCount?: (n: number) => void;
 }) {
   const [photos, setPhotos] = useState(initial);
+  useEffect(() => onCount?.(photos.length), [photos.length, onCount]);
   const [uploading, setUploading] = useState<Local[]>([]);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -117,81 +124,78 @@ export function PhotoEditor({
 
   const full = photos.length + uploading.filter((u) => !u.error).length >= max;
 
+  const menuItem = 'flex min-h-11 w-full items-center px-3 text-start text-sm hover:bg-neutral-50';
   return (
     <Card className="space-y-3">
       <h2 className="font-semibold">{t.photos}</h2>
-      <p className="text-xs leading-relaxed text-neutral-500">{t.photosHint(max)}</p>
+      <p className="text-xs leading-relaxed text-neutral-600">{t.photosHint(max)}</p>
       {!enabled && <Alert tone="info">{t.photosUnavailable}</Alert>}
-      <ul className="grid grid-cols-3 gap-3">
+      <ul className="grid grid-cols-3 gap-2">
         {photos.map((p, i) => (
-          <li key={p.id} className="space-y-1">
-            <div className="relative aspect-square overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100">
-              {p.thumb ? (
-                <img src={p.thumb} alt="" width={160} height={160} className="size-full object-cover" />
-              ) : (
-                <span className="flex size-full items-center justify-center p-2 text-center text-xs text-neutral-600">
-                  {p.status === 'rejected' ? t.photoRejected : p.status === 'failed' ? t.photoFailed : t.processing}
+          <li key={p.id} className="relative aspect-square overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+            {p.thumb ? (
+              <img src={p.thumb} alt="" width={160} height={160} className="size-full object-cover" />
+            ) : (
+              <span className="flex size-full items-center justify-center p-2 text-center text-xs text-neutral-600">
+                {p.status === 'rejected' ? t.photoRejected : p.status === 'failed' ? t.photoFailed : t.processing}
+              </span>
+            )}
+            {i === 0 && p.status === 'ready' && (
+              <span className="absolute start-1.5 top-1.5 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">{t.cover}</span>
+            )}
+            <details className="absolute end-1 bottom-1">
+              <summary aria-label={t.photoActions} className="flex size-11 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden">
+                <span className="flex size-8 items-center justify-center rounded-full bg-white/95 text-neutral-800 shadow-sm">
+                  <Icon name="more" className="size-4" />
                 </span>
-              )}
-              {i === 0 && p.status === 'ready' && (
-                <span className="absolute start-1 top-1 rounded-md bg-brand-700 px-1.5 py-0.5 text-xs text-white">{t.cover}</span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-x-2 text-xs">
-              {i > 0 && (
-                <button type="button" className="text-brand-800 underline" onClick={() => act(() => moveImageAction(p.id, 'first'))}>
-                  {t.makeCover}
+              </summary>
+              <div className="absolute end-0 bottom-full z-20 mb-1 w-44 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                {i > 0 && (
+                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'first'))}>
+                    {t.makeCover}
+                  </button>
+                )}
+                {i > 0 && (
+                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'earlier'))}>
+                    {t.moveEarlier}
+                  </button>
+                )}
+                {i < photos.length - 1 && (
+                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'later'))}>
+                    {t.moveLater}
+                  </button>
+                )}
+                <button type="button" className={`${menuItem} text-red-700`} onClick={() => act(() => removeImageAction(p.id))}>
+                  {t.removePhoto}
                 </button>
-              )}
-              {i > 0 && (
-                <button type="button" className="text-neutral-600 underline" onClick={() => act(() => moveImageAction(p.id, 'earlier'))}>
-                  {t.moveEarlier}
-                </button>
-              )}
-              {i < photos.length - 1 && (
-                <button type="button" className="text-neutral-600 underline" onClick={() => act(() => moveImageAction(p.id, 'later'))}>
-                  {t.moveLater}
-                </button>
-              )}
-              <button type="button" className="text-red-700 underline" onClick={() => act(() => removeImageAction(p.id))}>
-                {t.removePhoto}
-              </button>
-            </div>
+              </div>
+            </details>
           </li>
         ))}
         {uploading.map((u) => (
-          <li key={u.tempId} className="space-y-1">
-            <div className="relative aspect-square overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100">
-              <img src={u.preview} alt="" className="size-full object-cover opacity-50" />
-              <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs">
-                {u.error ?? t.uploading}
-              </span>
-            </div>
-            {u.error && (
-              <button
-                type="button"
-                className="text-xs text-neutral-600 underline"
-                onClick={() => setUploading((x) => x.filter((y) => y.tempId !== u.tempId))}
-              >
-                {messages.my.cancel}
-              </button>
-            )}
+          <li key={u.tempId} className="relative aspect-square overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+            <img src={u.preview} alt="" className="size-full object-cover opacity-50" />
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2 text-center text-xs">
+              {u.error ?? t.uploading}
+              {u.error && (
+                <button type="button" className="min-h-11 text-xs font-bold text-neutral-700 underline" onClick={() => setUploading((x) => x.filter((y) => y.tempId !== u.tempId))}>
+                  {messages.my.cancel}
+                </button>
+              )}
+            </span>
           </li>
         ))}
+        {enabled && !full && (
+          <li>
+            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 text-brand-800 hover:bg-brand-50">
+              <Icon name="camera" className="size-7" />
+              <b className="text-sm">{t.addPhotos}</b>
+              <input ref={input} type="file" accept={ACCEPTED_TYPES.join(',')} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
+            </label>
+          </li>
+        )}
       </ul>
-      {enabled && !full && (
-        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-brand-600 px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50">
-          {t.addPhotos}
-          <input
-            ref={input}
-            type="file"
-            accept={ACCEPTED_TYPES.join(',')}
-            multiple
-            className="sr-only"
-            onChange={(e) => onFiles(e.target.files)}
-          />
-        </label>
-      )}
+      {photos.length > 1 && <p className="text-xs text-neutral-600">{t.photoMenuHint}</p>}
       {error && <Alert tone="error">{error}</Alert>}
     </Card>
   );

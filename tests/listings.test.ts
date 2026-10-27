@@ -13,6 +13,9 @@ import {
   type ListingInput,
 } from '../src/modules/listings/listings';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from '../src/modules/listings/limits';
+import { normalizePersian } from '../src/lib/normalize-persian';
+import { firstStepWithErrors, stepOf } from '../src/app/my/listings/[id]/steps';
+import { matchCategories } from '../src/app/new/category-search';
 import { appDb, workerDb } from './accounts';
 import { db } from './db';
 import { categoryBySlug, city, events, listing, outbox, user } from './listings-fixtures';
@@ -537,5 +540,53 @@ describe('attribute validation (against category_attributes)', () => {
     expect(validateAttributes(defs, { extras: ['a', 'b', 'c'] }, 'draft')).toEqual({ ok: false, errors: { extras: 'too_many' } });
     expect(validateAttributes(defs, { extras: 'a' }, 'draft')).toEqual({ ok: false, errors: { extras: 'invalid' } });
     expect(validateAttributes(defs, { extras: ['a', 'c'] }, 'draft')).toEqual({ ok: true, value: { extras: ['a', 'c'] } });
+  });
+});
+
+describe('posting in steps (wave 1)', () => {
+  it('saves a draft at each «ادامه» and says what publishing would still refuse', async () => {
+    const u = await user();
+    const id = await draftFor(u.id);
+    // Step 2 left with a title only: the description is missing, and so is the step 3 price
+    const first = await saveListing(appDb, { userId: u.id, listingId: id, input: await input({ description: '', amount: '' }), intent: 'save', check: true });
+    expect(first).toMatchObject({ ok: true, status: 'draft' });
+    const missing = first.ok ? first.missing : undefined;
+    expect(missing).toMatchObject({ description: 'required' });
+    expect(firstStepWithErrors(missing, 2)).toBe(2);
+    expect((await listing(id)).title).toBe('آیفون ۱۳ در حد نو');
+    // Text filled in: step 2 is done; what is left belongs to later steps
+    const second = await saveListing(appDb, { userId: u.id, listingId: id, input: await input({ amount: '' }), intent: 'save', check: true });
+    const left = second.ok ? second.missing : undefined;
+    expect(firstStepWithErrors(left, 2)).toBeNull();
+    expect(firstStepWithErrors(left, 3)).toBe(3);
+    // Everything there: nothing is missing, and it is still a draft until «انتشار»
+    const third = await saveListing(appDb, { userId: u.id, listingId: id, input: await input(), intent: 'save', check: true });
+    expect(third).toMatchObject({ ok: true, status: 'draft', missing: {} });
+  });
+
+  it('puts every field and error in its step', () => {
+    expect(stepOf('title')).toBe(2);
+    expect(stepOf('kind')).toBe(2);
+    expect(stepOf('attr.storage_gb')).toBe(3);
+    expect(stepOf('amount')).toBe(3);
+    expect(stepOf('place')).toBe(4);
+    expect(stepOf('displayName')).toBe(4);
+    expect(firstStepWithErrors({ place: 'required', amount: 'required' }, 4)).toBe(3);
+    expect(firstStepWithErrors({}, 4)).toBeNull();
+  });
+
+  it('finds categories by name for step 1', async () => {
+    const all = [
+      { slug: 'shared-rooms', nameFa: 'اتاق و خانه اشتراکی (WG)', parentFa: 'املاک', search: normalizePersian('اتاق و خانه اشتراکی (WG) املاک') },
+      { slug: 'bedroom', nameFa: 'اتاق خواب، تخت و کمد', parentFa: 'خانه و آشپزخانه', search: normalizePersian('اتاق خواب، تخت و کمد خانه و آشپزخانه') },
+      { slug: 'bicycles', nameFa: 'دوچرخه', parentFa: 'ورزش', search: normalizePersian('دوچرخه ورزش') },
+    ];
+    expect(matchCategories(all, 'اتاق').map((c) => c.slug)).toEqual(['shared-rooms', 'bedroom']);
+    expect(matchCategories(all, 'اتاق املاک').map((c) => c.slug)).toEqual(['shared-rooms']);
+    expect(matchCategories(all, 'اتاق خواب').map((c) => c.slug)).toEqual(['bedroom']);
+    // Arabic kaf (U+0643) and yeh (U+064A), as some keyboards type them
+    expect(matchCategories(all, '\u0643مد').map((c) => c.slug)).toEqual(['bedroom']);
+    expect(matchCategories(all, 'اشترا\u0643\u064A').map((c) => c.slug)).toEqual(['shared-rooms']);
+    expect(matchCategories(all, '  ')).toEqual([]);
   });
 });

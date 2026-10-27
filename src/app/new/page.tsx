@@ -4,7 +4,9 @@ import { categoryIcon, Icon } from '../../components/icons';
 import { Alert, Card, LinkButton, PageShell } from '../../components/ui';
 import { appDb } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
-import { EVENT_ROOT_SLUG, cachedCatalog, type CategoryNode } from '../../modules/listings/catalog';
+import { EVENT_ROOT_SLUG, ancestry, cachedCatalog, isEventCategory, isPostable, type CategoryNode } from '../../modules/listings/catalog';
+import { normalizePersian } from '../../lib/normalize-persian';
+import { CategorySearch, type Pickable } from './category-search';
 import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { postingCountry } from '../../modules/listings/posting-country';
@@ -16,12 +18,13 @@ import { pickCategory } from './actions';
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
 // Step 1 of posting: the category, over the seeded tree. Works without JavaScript: parents are
-// links one level down, a leaf is a button that starts the draft.
+// links one level down, a leaf is a button that starts the draft. Wave 1 (mockup final/post1):
+// the steps' header and a search over the category names with suggestions above the tree.
 
 export default async function NewListingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; listing?: string; error?: string }>;
+  searchParams: Promise<{ c?: string; listing?: string; error?: string; q?: string }>;
 }) {
   const { user } = await requireSession('/new');
   const t = messages.post;
@@ -65,9 +68,30 @@ export default async function NewListingPage({
           ? t.categoryNotPostable
           : null;
 
+  // Every leaf one can post in, for the search (events have their own form)
+  const pickable: Pickable[] = [...catalog.byId.values()]
+    .filter((c) => c.childIds.length === 0 && isPostable(catalog, c.id) && !isEventCategory(catalog, c.id) && (!c.businessOnly || member))
+    .map((c) => {
+      const chain = ancestry(catalog, c.id);
+      const parentFa = chain.slice(0, -1).map((p) => p.nameFa).join('، ');
+      return { slug: c.slug, nameFa: c.nameFa, parentFa, search: normalizePersian(`${c.nameFa} ${parentFa}`) };
+    });
+  const steps: readonly string[] = messages.form.steps;
+
   return (
-    <PageShell title={t.title} wide>
+    <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6">
       <div className="space-y-4">
+        {!params.listing && (
+          <div>
+            <ol className="grid grid-cols-4 gap-1.5" aria-hidden>
+              {steps.map((n, i) => (
+                <li key={n} className={`h-1.5 rounded-full ${i < 1 ? 'bg-brand-700' : 'bg-neutral-200'}`} />
+              ))}
+            </ol>
+            <p className="mt-2 text-xs font-bold text-brand-800">{messages.form.stepOf(1, steps.length, steps[0]!)}</p>
+          </div>
+        )}
+        <h1 className="text-2xl font-extrabold">{params.listing ? t.title : t.whatHeading}</h1>
         {!params.listing &&
           (country ? (
             <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
@@ -85,8 +109,9 @@ export default async function NewListingPage({
               </Link>
             </Alert>
           ))}
-        <p className="text-neutral-600">{t.pickCategory}</p>
         {error && <Alert tone="error">{error}</Alert>}
+        {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} />}
+        <p className="pt-2 text-sm font-bold text-neutral-700">{parent ? t.pickCategory : t.allCategories}</p>
         {parent && (
           <div className="flex items-center gap-2 text-sm">
             <Link href={up ? `/new?c=${up.slug}${keep}` : `/new?${keep.slice(1)}`} className="flex items-center gap-1 text-brand-800 hover:underline">
@@ -105,13 +130,13 @@ export default async function NewListingPage({
           ))}
         </ul>
       </div>
-    </PageShell>
+    </main>
   );
 }
 
 function CategoryRow({ category, keep, listingId, root, member }: { category: CategoryNode; keep: string; listingId?: string; root: boolean; member: boolean }) {
   const closed = category.businessOnly && !member;
-  const row = 'flex w-full items-center gap-3 px-4 py-4 text-start hover:bg-neutral-50';
+  const row = 'flex min-h-14 w-full items-center gap-3 px-4 py-3 text-start text-[15px] hover:bg-neutral-50';
   const icon = root && (
     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
       <Icon name={categoryIcon(category.slug)} className="size-5" />

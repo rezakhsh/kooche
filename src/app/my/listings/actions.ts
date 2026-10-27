@@ -28,8 +28,12 @@ import { checkTurnstile } from '../../../modules/security/server';
 import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 
-/** `listingId`: the draft this save created, so the editor uses it from now on */
-export type SaveState = { errors?: FieldErrors; error?: string; notice?: string; listingId?: string } | undefined;
+/**
+ * `listingId`: the draft this save created, so the editor uses it from now on. `missing`: after a
+ * step's «ادامه» (intent `next`), what publishing would still refuse; the steps go on when none of
+ * it belongs to the step just left (src/app/my/listings/[id]/steps.ts). `at` tells saves apart.
+ */
+export type SaveState = { errors?: FieldErrors; error?: string; notice?: string; listingId?: string; missing?: FieldErrors; at?: number } | undefined;
 
 const uuid = z.uuid();
 
@@ -148,11 +152,13 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   if (!parsed.success) return { error: messages.form.fixErrors, listingId: created };
 
   const intent = publishing ? 'publish' : 'save';
-  const r = await saveListing(appDb(), { userId: user.id, listingId, input: parsed.data, intent });
+  const next = form.get('intent') === 'next';
+  const r = await saveListing(appDb(), { userId: user.id, listingId, input: parsed.data, intent, check: next });
   if (!r.ok) {
-    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created };
-    return { error: refusal(r.reason), listingId: created };
+    if (r.reason === 'invalid') return { errors: r.errors, error: messages.form.fixErrors, listingId: created, at: Date.now() };
+    return { error: refusal(r.reason), listingId: created, at: Date.now() };
   }
+  if (next) return { missing: r.missing ?? {}, listingId: created, at: Date.now() };
   if (intent === 'publish' && r.status === 'active' && own.listing.status === 'draft') {
     redirect(`${listingPath(parsed.data.title, r.publicToken)}?published=1`);
   }

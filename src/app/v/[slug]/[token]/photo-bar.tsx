@@ -58,3 +58,23 @@ export function ShareButton({ title }: { title: string }) {
     </button>
   );
 }
+
+/** «کپی پیوند» on the page shown right after publishing */
+export function CopyLink({ label }: { label: string }) {
+  const t = messages.listing;
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await navigator.clipboard?.writeText(location.href.split('?')[0]!).catch(() => undefined);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="flex h-16 flex-col items-center justify-center gap-1 rounded-2xl border border-neutral-200 text-sm font-bold hover:bg-neutral-50"
+    >
+      <Icon name={copied ? 'check' : 'doc'} className="size-5 text-brand-700" />
+      <span role="status">{copied ? t.copied : label}</span>
+    </button>
+  );
+}
