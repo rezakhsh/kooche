@@ -3,17 +3,19 @@ import type { Redis } from 'ioredis';
 import type { Queryable } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
 import { isViewing } from '../chat/presence';
-import { chatNoticesOn } from '../users/notification-prefs';
+import { DEFAULT_TIME_ZONE, noticeChannels, noticeSwitches, quietDelay, quietHoursOn, type NoticeKind } from '../users/notification-prefs';
 import type { ReplyMarkup } from '../users/telegram-bot';
 import { emailHtml, escapeHtml, type Mail } from './mailer';
 import { isUnreachableMarked } from './telegram-reach';
 
 // "New message from X about Y" (approved Oct 18, 2026; docs/setup.md, "Chat"). On `message.sent`
 // the worker checks at once and again after NOTICE_DELAY_MS whether the receiver still needs a
-// notice; someone who reads within that time gets none. Telegram first when the account is
-// linked to the bot and the bot can reach it, else email. At most one notice per conversation
-// per receiver per DEBOUNCE_SECONDS[channel]. The notice carries no message text: scam text and
-// personal data stay out of Telegram and email.
+// notice; someone who reads within that time gets none. Where it goes follows the receiver's
+// switches (wave 1, src/modules/users/notification-prefs.ts): the first message about one of
+// their listings is a `reply`, the rest `chat`; by default Telegram when the bot can reach them,
+// else email. During their quiet hours it waits for the morning (and is dropped if read by then).
+// At most one notice per conversation per receiver per channel per DEBOUNCE_SECONDS[channel].
+// The notice carries no message text: scam text and personal data stay out of Telegram and email.
 
 export const NOTICE_DELAY_MS = 20_000;
 export const DEBOUNCE_SECONDS = { telegram: 5 * 60, email: 15 * 60 } as const;
@@ -40,6 +42,8 @@ export type SkipReason =
   | 'viewing'
   | 'debounced';
 
+export type NoticeOptions = { now?: Date; /** Quiet hours for people without a saved place */ timeZone?: string };
+
 type Facts = {
   status: string;
   created_at: Date | string;
@@ -50,6 +54,10 @@ type Facts = {
   prefs: unknown;
   sender_name: string;
   title: string;
+  /** The first message of the conversation, to the seller: a `reply` to their listing */
+  first: boolean;
+  /** The time zone of the receiver's saved place */
+  tz: string | null;
 };
 
 async function facts(db: Queryable, job: NoticeJob): Promise<Facts | undefined> {
@@ -57,7 +65,10 @@ async function facts(db: Queryable, job: NoticeJob): Promise<Facts | undefined> 
     SELECT c.status, m.created_at,
            CASE WHEN c.buyer_user_id = ${job.recipientId} THEN c.buyer_last_read_at ELSE c.seller_last_read_at END AS read_at,
            u.status AS user_status, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
-           s.display_name AS sender_name, l.title
+           s.display_name AS sender_name, l.title,
+           (c.seller_user_id = ${job.recipientId} AND NOT EXISTS (
+             SELECT 1 FROM messages p WHERE p.conversation_id = c.id AND p.kind = 'text' AND (p.created_at, p.id) < (m.created_at, m.id))) AS first,
+           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     JOIN users u ON u.id = ${job.recipientId}
@@ -69,10 +80,13 @@ async function facts(db: Queryable, job: NoticeJob): Promise<Facts | undefined> 
   return row;
 }
 
+const kindOf = (f: Facts): NoticeKind => (f.first ? 'reply' : 'chat');
+
 function skipFor(f: Facts | undefined): SkipReason | null {
   if (!f) return 'gone';
   if (f.user_status !== 'active') return 'recipient_inactive';
-  if (!chatNoticesOn(f.prefs)) return 'turned_off';
+  const on = noticeSwitches(f.prefs, kindOf(f), true);
+  if (!on.telegram && !on.email) return 'turned_off';
   if (f.status !== 'open') return 'conversation_not_open';
   if (f.read_at && new Date(f.created_at) <= new Date(f.read_at)) return 'already_read';
   return null;
@@ -92,24 +106,35 @@ export function noticeUrls(appUrl: string, conversationId: string) {
 }
 
 /**
- * The check after the delay. When a notice is due it takes the debounce slot for its channel and
- * returns the channel; the send queues do the rest.
+ * The check after the delay. When a notice is due it takes the debounce slot of each channel it
+ * goes to and returns them; the send queues do the rest. During quiet hours it answers how long
+ * to wait instead.
  */
 export async function decideNotice(
   db: Queryable,
   redis: Redis,
   job: NoticeJob,
-): Promise<{ channel: Channel } | { skip: SkipReason }> {
+  opts: NoticeOptions = {},
+): Promise<{ channels: Channel[] } | { skip: SkipReason } | { later: number }> {
   const f = await facts(db, job);
   const skip = skipFor(f);
   if (skip) return { skip };
   if (await isViewing(redis, job.recipientId, job.conversationId)) return { skip: 'viewing' };
+  if (quietHoursOn(f!.prefs)) {
+    const wait = quietDelay(opts.now ?? new Date(), f!.tz ?? opts.timeZone ?? DEFAULT_TIME_ZONE);
+    if (wait > 0) return { later: wait };
+  }
 
   const tg = f!.telegram_user_id === null ? null : Number(f!.telegram_user_id);
-  const channel: Channel = tg !== null && !(await isUnreachableMarked(redis, tg)) ? 'telegram' : 'email';
-  const slot = await redis.set(`notice:${job.conversationId}:${job.recipientId}`, channel, 'EX', DEBOUNCE_SECONDS[channel], 'NX');
-  if (slot !== 'OK') return { skip: 'debounced' };
-  return { channel };
+  const telegramReady = tg !== null && !(await isUnreachableMarked(redis, tg));
+  const wanted = noticeChannels(f!.prefs, kindOf(f!), telegramReady);
+  if (wanted.length === 0) return { skip: 'turned_off' };
+  const channels: Channel[] = [];
+  for (const channel of wanted) {
+    const slot = await redis.set(`notice:${job.conversationId}:${job.recipientId}:${channel}`, '1', 'EX', DEBOUNCE_SECONDS[channel], 'NX');
+    if (slot === 'OK') channels.push(channel);
+  }
+  return channels.length ? { channels } : { skip: 'debounced' };
 }
 
 /** What a notice says, read when it is sent (the name or title may have changed) */

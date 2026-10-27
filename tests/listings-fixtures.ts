@@ -17,6 +17,8 @@ export async function user(opts: { verified?: boolean; name?: string; createdAt?
       email: `seller-${token}@example.test`,
       displayName: name,
       displayNameNormalized: normalizePersian(name),
+      // Quiet hours (wave 1) would make notice tests depend on the clock; tests/notification-settings.test.ts turns them on
+      notificationPrefs: { quiet: false },
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
       ...(opts.verified === false
         ? {}

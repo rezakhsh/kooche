@@ -5,7 +5,7 @@ import { hit, type Limit } from '../../lib/rate-limit';
 import { ancestry, type Catalog } from '../listings/catalog';
 import { activeCountries } from '../listings/queries';
 import { isUnreachableMarked } from '../notifications/telegram-reach';
-import { savedSearchAlertsOn } from '../users/notification-prefs';
+import { bundleOn, DEFAULT_TIME_ZONE, noticeChannels, quietDelay, quietHoursOn, savedSearchAlertsOn } from '../users/notification-prefs';
 import { searchesShowing, type SearchFilters } from './browse';
 import { keywordMatches } from './keyword';
 import type { Meili } from './meili';
@@ -112,7 +112,9 @@ export async function matchListing(db: Db, catalog: Catalog, listingId: string, 
   const byId = new Map(candidates.map((c) => [c.id, c]));
   return inserted.map((r) => {
     const c = byId.get(r.saved_search_id)!;
-    return { savedSearchId: c.id, frequency: c.notify_frequency === 'daily' ? 'daily' : 'instant', lastNotifiedAt: c.last_notified_at ? new Date(c.last_notified_at) : null };
+    // Bundling (wave 1 settings): every search of the person goes out with the daily run, together
+    const daily = c.notify_frequency === 'daily' || bundleOn(c.prefs);
+    return { savedSearchId: c.id, frequency: daily ? 'daily' : 'instant', lastNotifiedAt: c.last_notified_at ? new Date(c.last_notified_at) : null };
   });
 }
 
@@ -122,10 +124,12 @@ export function noticeDelay(lastNotifiedAt: Date | null, now: Date): number {
   return Math.max(GATHER_MS, debounced);
 }
 
-export type AlertJob = { savedSearchId: string; userId: string; listingIds: string[] };
+/** `more`: the person's other searches in the same message (bundling) */
+export type AlertJob = { savedSearchId: string; userId: string; listingIds: string[]; more?: AlertJob[] };
 export type Channel = 'telegram' | 'email';
 export type ClaimResult =
-  | { send: Channel; job: AlertJob }
+  /** `bundle`: the person wants one daily message for all their searches */
+  | { send: Channel[]; job: AlertJob; bundle: boolean }
   | { later: number }
   | { skip: 'gone' | 'user_inactive' | 'turned_off' | 'nothing' | 'capped' };
 
@@ -134,10 +138,18 @@ export type ClaimResult =
  * locked (two jobs never send the same matches): marks them sent, sets last_notified_at and
  * returns the channel. Matches whose listing went away are dropped. `daily` ignores the debounce.
  */
-export async function claimAlert(db: Db, redis: Redis, savedSearchId: string, now: Date, mode: 'instant' | 'daily' = 'instant'): Promise<ClaimResult> {
+export async function claimAlert(
+  db: Db,
+  redis: Redis,
+  savedSearchId: string,
+  now: Date,
+  mode: 'instant' | 'daily' = 'instant',
+  timeZone = DEFAULT_TIME_ZONE,
+): Promise<ClaimResult> {
   return db.transaction(async (tx) => {
-    const [s] = await tx.execute<{ user_id: string; notify_frequency: string; last_notified_at: Date | string | null; status: string; prefs: unknown; telegram_user_id: string | number | null }>(sql`
-      SELECT s.user_id, s.notify_frequency, s.last_notified_at, u.status, u.notification_prefs AS prefs, u.telegram_user_id
+    const [s] = await tx.execute<{ user_id: string; notify_frequency: string; last_notified_at: Date | string | null; status: string; prefs: unknown; telegram_user_id: string | number | null; tz: string | null }>(sql`
+      SELECT s.user_id, s.notify_frequency, s.last_notified_at, u.status, u.notification_prefs AS prefs, u.telegram_user_id,
+             (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
       FROM saved_searches s JOIN users u ON u.id = s.user_id
       WHERE s.id = ${savedSearchId}::uuid
       FOR UPDATE OF s`);
@@ -147,6 +159,11 @@ export async function claimAlert(db: Db, redis: Redis, savedSearchId: string, no
     if (s.notify_frequency === 'off' || !savedSearchAlertsOn(s.prefs)) {
       await drop();
       return { skip: 'turned_off' };
+    }
+    // Quiet hours: the matches wait for the morning
+    if (quietHoursOn(s.prefs)) {
+      const wait = quietDelay(now, s.tz ?? timeZone);
+      if (wait > 0) return { later: wait };
     }
     const last = s.last_notified_at ? new Date(s.last_notified_at) : null;
     if (mode === 'instant' && last && now.getTime() - last.getTime() < DEBOUNCE_MS) return { later: last.getTime() + DEBOUNCE_MS - now.getTime() };
@@ -162,23 +179,25 @@ export async function claimAlert(db: Db, redis: Redis, savedSearchId: string, no
     // The daily cap is counted per notice; over it, the matches stay pending for tomorrow
     if (!(await hit(redis, [[ALERTS_PER_USER, s.user_id]])).ok) return { skip: 'capped' };
 
-    await drop();
-    await tx.execute(sql`UPDATE saved_searches SET last_notified_at = ${now.toISOString()}::timestamptz WHERE id = ${savedSearchId}::uuid`);
     const tg = s.telegram_user_id === null ? null : Number(s.telegram_user_id);
-    const channel: Channel = tg !== null && !(await isUnreachableMarked(redis, tg)) ? 'telegram' : 'email';
-    return { send: channel, job: { savedSearchId, userId: s.user_id, listingIds: pending.map((p) => p.listing_id) } };
+    const channels = noticeChannels(s.prefs, 'searches', tg !== null && !(await isUnreachableMarked(redis, tg)));
+    await drop();
+    if (channels.length === 0) return { skip: 'turned_off' };
+    await tx.execute(sql`UPDATE saved_searches SET last_notified_at = ${now.toISOString()}::timestamptz WHERE id = ${savedSearchId}::uuid`);
+    return { send: channels, job: { savedSearchId, userId: s.user_id, listingIds: pending.map((p) => p.listing_id) }, bundle: bundleOn(s.prefs) };
   });
 }
 
-/** Searches whose matches go out with the daily run: daily ones, and instant ones left waiting */
+/** Searches whose matches go out with the daily run: daily ones, all of a bundling person's, and instant ones left waiting */
 export async function dueForDaily(db: Queryable, now: Date): Promise<string[]> {
   const rows = await db.execute<{ id: string }>(sql`
-    SELECT s.id FROM saved_searches s
+    SELECT s.id FROM saved_searches s JOIN users u ON u.id = s.user_id
     WHERE s.notify_frequency <> 'off'
       AND EXISTS (
         SELECT 1 FROM saved_search_hits h WHERE h.saved_search_id = s.id AND h.notified_at IS NULL
-          AND (s.notify_frequency = 'daily' OR h.created_at < ${new Date(now.getTime() - STUCK_MS).toISOString()}::timestamptz))
-    ORDER BY s.id`);
+          AND (s.notify_frequency = 'daily' OR u.notification_prefs @> '{"bundle": true}'::jsonb
+            OR h.created_at < ${new Date(now.getTime() - STUCK_MS).toISOString()}::timestamptz))
+    ORDER BY s.user_id, s.id`);
   return rows.map((r) => r.id);
 }
 

@@ -46,7 +46,7 @@ describe('who gets a notice', () => {
     const c = await chat();
     const s = await c.send();
     expect(await planNotice(workerDb, redis, jobOf(s))).toBe('later');
-    expect(await decideNotice(workerDb, redis, jobOf(s))).toEqual({ channel: 'telegram' });
+    expect(await decideNotice(workerDb, redis, jobOf(s))).toEqual({ channels: ['telegram'] });
   });
 
   it('sends none while the receiver has the conversation or the inbox open', async () => {
@@ -80,7 +80,7 @@ describe('who gets a notice', () => {
     const c = await chat();
     const a = await c.send('یک');
     const b = await c.send('دو');
-    expect(await decideNotice(workerDb, redis, jobOf(a))).toEqual({ channel: 'telegram' });
+    expect(await decideNotice(workerDb, redis, jobOf(a))).toEqual({ channels: ['telegram'] });
     expect(await decideNotice(workerDb, redis, jobOf(b))).toEqual({ skip: 'debounced' });
     // Telegram's window is 5 minutes, email's 15
     expect(await redis.ttl(`notice:${a.conversationId}:${c.seller.id}`)).toBeLessThanOrEqual(300);
@@ -88,12 +88,12 @@ describe('who gets a notice', () => {
 
   it('uses email when the account has no Telegram, or the bot can’t reach it', async () => {
     const c = await chat({ telegram: false });
-    expect(await decideNotice(workerDb, redis, jobOf(await c.send()))).toEqual({ channel: 'email' });
-    expect(await redis.ttl(`notice:${(await c.send()).conversationId}:${c.seller.id}`)).toBeGreaterThan(300);
+    expect(await decideNotice(workerDb, redis, jobOf(await c.send()))).toEqual({ channels: ['email'] });
+    expect(await redis.ttl(`notice:${(await c.send()).conversationId}:${c.seller.id}:email`)).toBeGreaterThan(300);
 
     const d = await chat();
     await markUnreachable(redis, d.tg);
-    expect(await decideNotice(workerDb, redis, jobOf(await d.send()))).toEqual({ channel: 'email' });
+    expect(await decideNotice(workerDb, redis, jobOf(await d.send()))).toEqual({ channels: ['email'] });
   });
 });
 

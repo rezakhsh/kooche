@@ -16,7 +16,8 @@ import { searchListings } from '../src/modules/search';
 import { ALERTS_PER_USER, claimAlert, DEBOUNCE_MS, dueForDaily, GATHER_MS, matchListing, noticeDelay, purgeHits } from '../src/modules/search/alerts';
 import { resolveTarget, saveSearch, searchFiltersOf } from '../src/modules/search/saved';
 import { syncListings } from '../src/modules/search/sync';
-import { setSavedSearchAlerts } from '../src/modules/users/notification-prefs';
+import { alertContent, emailAlert, telegramAlert } from '../src/modules/notifications/search-alert';
+import { saveNotificationPrefs, setSavedSearchAlerts } from '../src/modules/users/notification-prefs';
 import { startChatJobs } from '../src/worker/chat';
 import { startSearchAlertJobs } from '../src/worker/search-alerts';
 import { appDb, redis, workerDb } from './accounts';
@@ -172,7 +173,7 @@ describe('when a notice goes out', () => {
 
     const t0 = new Date();
     const sent = await claimAlert(workerDb, redis, s, t0);
-    expect(sent).toMatchObject({ send: 'email', job: { savedSearchId: s, userId: searcher.id } });
+    expect(sent).toMatchObject({ send: ['email'], job: { savedSearchId: s, userId: searcher.id } });
     // One notice for all three, newest first
     expect('job' in sent && sent.job.listingIds).toEqual([c, b, a]);
     expect(await pendingOf(s)).toEqual([]);
@@ -205,8 +206,53 @@ describe('when a notice goes out', () => {
     expect(await dueForDaily(workerDb, now)).toContain(daily);
     expect(await dueForDaily(workerDb, now)).not.toContain(instant);
     expect(await dueForDaily(workerDb, new Date(now.getTime() + 61 * 60_000))).toContain(instant);
-    expect(await claimAlert(workerDb, redis, daily, now, 'daily')).toMatchObject({ send: 'email', job: { listingIds: [id] } });
+    expect(await claimAlert(workerDb, redis, daily, now, 'daily')).toMatchObject({ send: ['email'], job: { listingIds: [id] } });
     expect(await dueForDaily(workerDb, now)).not.toContain(daily);
+  });
+
+  it('bundling sends every search of the person with the daily run, in one message; the switches pick the channels; quiet hours wait', async () => {
+    const seller = await old();
+    const searcher = await old();
+    const word = `بوخوم${randomUUID().slice(0, 4).replace(/[0-9]/g, 'ب')}`;
+    const a = await save(searcher.id, '/germany', `?q=${encodeURIComponent(word)}`);
+    const b = await save(searcher.id, '/germany/mobile-phones', `?q=${encodeURIComponent(word)}`);
+    await saveNotificationPrefs(appDb, searcher.id, {
+      channels: { chat: { telegram: true, email: true }, reply: { telegram: true, email: true }, searches: { telegram: false, email: true } },
+      quiet: false,
+      bundle: true,
+    });
+    const id = await publish(seller.id, { title: `آیفون ${word}` });
+    const hits = (await match(id)).filter((h) => h.savedSearchId === a || h.savedSearchId === b);
+    // Both instant searches wait for the daily run
+    expect(hits.map((h) => h.frequency)).toEqual(['daily', 'daily']);
+    const now = new Date();
+    const due = await dueForDaily(workerDb, now);
+    expect(due).toContain(a);
+    expect(due).toContain(b);
+    const claimA = await claimAlert(workerDb, redis, a, now, 'daily');
+    expect(claimA).toMatchObject({ send: ['email'], bundle: true });
+
+    // One message: the first search with the other as `more`
+    const claimB = await claimAlert(workerDb, redis, b, now, 'daily');
+    if (!('job' in claimA) || !('job' in claimB)) throw new Error('not claimed');
+    const content = await alertContent(workerDb, { ...claimA.job, more: [claimB.job] }, 'https://app.example.test');
+    expect(content!.others).toHaveLength(1);
+    const mail = emailAlert(content!);
+    expect(mail.subject).toContain('۲ جستجوی شما');
+    expect(mail.html.match(/آیفون/g)!.length).toBeGreaterThanOrEqual(2);
+    expect((telegramAlert(content!).replyMarkup as { inline_keyboard: unknown[] }).inline_keyboard).toHaveLength(3);
+
+    // Quiet hours on, at 23:00 in Berlin: the matches wait 9 hours, until 8:00
+    await saveNotificationPrefs(appDb, searcher.id, {
+      channels: { chat: { telegram: true, email: true }, reply: { telegram: true, email: true }, searches: { telegram: false, email: true } },
+      quiet: true,
+      bundle: false,
+    });
+    const id2 = await publish(seller.id, { title: `آیفون دوم ${word}` });
+    await match(id2);
+    const night = new Date('2026-11-10T22:00:00Z');
+    expect(await claimAlert(workerDb, redis, a, night, 'daily', 'Europe/Berlin')).toEqual({ later: 9 * 3_600_000 });
+    expect(await pendingOf(a)).toHaveLength(1);
   });
 
   it('at most 10 notices a day per user; the rest wait', async () => {
@@ -253,9 +299,9 @@ describe('when a notice goes out', () => {
     const a = await save(searcher.id, '/germany', `?q=${encodeURIComponent(word)}`);
     const b = await save(searcher.id, '/germany/mobile-phones', `?q=${encodeURIComponent(word)}`);
     await match(await publish(seller.id, { title: `آیفون ${word}` }));
-    expect(await claimAlert(workerDb, redis, a, new Date())).toMatchObject({ send: 'telegram' });
+    expect(await claimAlert(workerDb, redis, a, new Date())).toMatchObject({ send: ['telegram'] });
     await markUnreachable(redis, tg);
-    expect(await claimAlert(workerDb, redis, b, new Date())).toMatchObject({ send: 'email' });
+    expect(await claimAlert(workerDb, redis, b, new Date())).toMatchObject({ send: ['email'] });
   });
 
   it('old matches are purged after 30 days', async () => {

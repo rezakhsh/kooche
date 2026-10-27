@@ -52,7 +52,8 @@ type DeliverJob = NoticeJob;
 /** A message written in full by another feature (moderation notices): `plain_email`, `plain_telegram` */
 export type PlainEmailJob = { mail: Mail };
 export type PlainTelegramJob = { telegramUserId: number; text: string; replyMarkup?: ReplyMarkup };
-type SendJob = ((NoticeJob | AlertJob) & { fallbackFrom?: 'telegram' }) | PlainEmailJob | PlainTelegramJob;
+/** `emailToo`: the notice also goes by email, so a Telegram send that fails needs no email instead */
+type SendJob = ((NoticeJob | AlertJob) & { fallbackFrom?: 'telegram'; emailToo?: boolean }) | PlainEmailJob | PlainTelegramJob;
 const isAlert = (job: Job<SendJob>): job is Job<AlertJob & { fallbackFrom?: 'telegram' }> => job.name.startsWith('search_');
 const isPlain = (job: Job<SendJob>) => job.name.startsWith('plain_');
 
@@ -65,6 +66,10 @@ export type ChatJobOptions = {
   prefix?: string;
   delayMs?: number;
   telegramBackoffMs?: number;
+  /** Quiet hours for people without a saved place (APP_TIME_ZONE) */
+  timeZone?: string;
+  /** Tests: the clock for quiet hours */
+  now?: () => Date;
 };
 
 export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOptions) {
@@ -85,7 +90,10 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   const sendAlertEmail = (job: AlertJob & { fallbackFrom?: 'telegram' }, key: string) => emailQueue.add('search_email', job, { jobId: `mail_${key}` });
   /** The email instead of a Telegram send job that couldn't deliver */
   const emailInstead = (job: Job<SendJob>) =>
-    isAlert(job) ? sendAlertEmail({ ...job.data, fallbackFrom: 'telegram' }, String(job.id).replace(/^tg_/, '')) : sendEmail(job.data as NoticeJob, true);
+    (job.data as { emailToo?: boolean }).emailToo
+      ? Promise.resolve()
+      : isAlert(job)
+        ? sendAlertEmail({ ...job.data, fallbackFrom: 'telegram' }, String(job.id).replace(/^tg_/, '')) : sendEmail(job.data as NoticeJob, true);
 
   const publishChanges = async (changes: StatusChange[]) => {
     for (const c of changes) {
@@ -131,12 +139,19 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
       }
       if (job.name === 'notice_deliver') {
         const n = job.data as DeliverJob;
-        const decision = await decideNotice(db, connection, n);
+        const decision = await decideNotice(db, connection, n, { now: opts.now?.(), timeZone: opts.timeZone });
         if ('skip' in decision) return decision.skip;
-        if (decision.channel === 'telegram' && opts.telegram) {
-          await telegramQueue.add('chat_telegram', n, { jobId: `tg_${n.messageId}` });
+        if ('later' in decision) {
+          // Quiet hours: checked again in the morning (read by then, nothing goes out)
+          await notify.add('notice_deliver', n, { delay: decision.later, jobId: `deliver_${n.messageId}_morning` });
+          return 'morning';
+        }
+        const email = decision.channels.includes('email');
+        if (decision.channels.includes('telegram') && opts.telegram) {
+          await telegramQueue.add('chat_telegram', { ...n, emailToo: email }, { jobId: `tg_${n.messageId}` });
+          if (email) await sendEmail(n);
         } else await sendEmail(n);
-        return decision.channel;
+        return decision.channels.join('+');
       }
       throw new Error(`chat-notify: unknown job ${job.name}`);
     },

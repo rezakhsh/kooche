@@ -94,11 +94,12 @@ async function main(): Promise<void> {
     telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal) : null,
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
     appUrl: env.APP_URL,
+    timeZone: env.APP_TIME_ZONE,
   });
   const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
   const accountJobs = await startAccountJobs(db, connection);
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
-  const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN });
+  const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN, timeZone: env.APP_TIME_ZONE });
   const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });
   // Applies payment webhooks; reads subscriptions and invoices back from Stripe
   const paymentJobs = await startPaymentJobs(db, connection, {

@@ -1278,9 +1278,22 @@ export const messages = {
     savedSearches: 'وقتی آگهی تازه‌ای با جستجوهای ذخیره‌شده‌ام آمد، خبرم کن',
     savedSearchesRule: 'حداکثر ۱۰ پیام در روز. برای هر جستجو جداگانه می‌توانید فوری، روزانه یا خاموش را انتخاب کنید.',
     manageSearches: 'جستجوهای ذخیره‌شده',
-    // Wave 1 (mockup final/notifications): short rows with a switch
-    chatShort: 'پیام تازه در گفت‌وگو',
-    savedSearchesShort: 'آگهی تازه در جستجوی ذخیره‌شده',
+    // Wave 1 (mockup final/notifications): a Telegram and an email switch per kind
+    kindHeading: 'نوع اعلان',
+    kinds: { chat: 'پیام تازه در گفت‌وگو', reply: 'جواب به آگهی شما', searches: 'آگهی تازه در جستجوی ذخیره‌شده' },
+    telegram: 'تلگرام',
+    email: 'ایمیل',
+    switchLabel: (kind: string, channel: string) => `${kind}، ${channel}`,
+    quiet: 'ساعت آرام',
+    quietHint: (city: string) => `از ۲۲ تا ۸ به وقت ${city} چیزی نمی‌فرستیم؛ صبح یک‌جا می‌رسد.`,
+    defaultCity: 'برلین',
+    bundle: 'یک‌جا بفرست',
+    bundleHint: 'آگهی‌های تازهٔ جستجوهای شما، روزی یک بار در یک پیام.',
+    botConnected: 'ربات تلگرام پیدو: متصل.',
+    botNotConnected: 'ربات تلگرام پیدو: وصل نیست.',
+    botBlocked: 'ربات تلگرام پیدو را بسته‌اید؛ تا دوباره به آن پیام ندهید، فقط ایمیل می‌رسد.',
+    connectBot: 'وصل کردن با «تأیید با تلگرام»',
+    emailTo: (email: string) => `ایمیل‌ها به ${email} می‌رسند.`,
   },
   // Choosing a city (src/app/cities, mockup final/city-chooser)
   cities: {
@@ -1965,6 +1978,12 @@ export const messages = {
     manage: 'جستجوهای ذخیره‌شده',
     unsubscribe: 'خاموش کردن اعلان این جستجو',
     footer: 'این ایمیل را چون این جستجو را در پیدو ذخیره کرده‌اید دریافت کرده‌اید.',
+    // Bundling (wave 1 settings): one message a day for all of a person's searches
+    digestTelegram: (n: number, searches: number) => `🔔 ${n.toLocaleString('fa-IR')} آگهی تازه در ${searches.toLocaleString('fa-IR')} جستجوی ذخیره‌شدهٔ شما`,
+    digestSubject: (n: number, searches: number) => `${n.toLocaleString('fa-IR')} آگهی تازه در ${searches.toLocaleString('fa-IR')} جستجوی شما`,
+    digestIntro: (n: number, searches: number) => `آگهی‌های تازهٔ امروز: ${n.toLocaleString('fa-IR')} آگهی در ${searches.toLocaleString('fa-IR')} جستجوی ذخیره‌شدهٔ شما.`,
+    digestLine: (name: string, n: number) => `«${name}»: ${n.toLocaleString('fa-IR')} آگهی`,
+    digestFooter: 'این ایمیل روزانه است، چون «یک‌جا بفرست» را در تنظیم اعلان‌ها روشن کرده‌اید.',
     text: (intro: string, lines: string[], url: string, manageUrl: string, unsubscribeUrl: string) =>
       `${intro}\n\n${lines.join('\n')}\n\nدیدن همه نتایج:\n${url}\n\nجستجوهای ذخیره‌شده: ${manageUrl}\nخاموش کردن اعلان این جستجو: ${unsubscribeUrl}`,
   },

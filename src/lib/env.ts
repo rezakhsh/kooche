@@ -153,6 +153,8 @@ const workerSchema = z.object({
   // Expiry reminders: the links in the email, and the same SES SMTP as the login codes. Without
   // SMTP_URL the reminder is printed to the log (development).
   APP_URL: z.url(),
+  /** Quiet hours for people without a saved place (wave 1 notification settings) */
+  APP_TIME_ZONE: z.string().default('Europe/Berlin'),
   SMTP_URL: optional(z.url({ protocol: /^smtps?$/ })),
   EMAIL_FROM: optional(z.string().min(3)),
   // Keeps the Meilisearch index in line with PostgreSQL, with a key that may write the listings
