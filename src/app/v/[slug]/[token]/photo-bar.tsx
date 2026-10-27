@@ -26,7 +26,7 @@ export function BackButton({ fallback }: { fallback: string }) {
         }
       }}
     >
-      <Icon name="chevronStart" className="size-5" />
+      <Icon name="back" className="size-5" />
     </a>
   );
 }
@@ -51,7 +51,7 @@ export function ShareButton({ title }: { title: string }) {
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      <Icon name={copied ? 'check' : 'send'} className="size-5" />
+      <Icon name={copied ? 'check' : 'share'} className="size-5" />
       <span role="status" className="sr-only">
         {copied ? t.copied : ''}
       </span>

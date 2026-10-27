@@ -31,3 +31,14 @@ export async function nearMeToken(raw: { country: string; lat: number; lng: numb
   if (!(await nearestCity(db, country.code, cell, IN_COUNTRY_M))) return { error: 'outside' };
   return { token: createNearToken(webEnv().AUTH_SECRET, cell) };
 }
+
+/** «نزدیک‌ترین شهر» on the first page (wave 1): the city page nearest to the browser's position */
+export async function nearestCityPath(raw: { country: string; lat: number; lng: number }): Promise<{ path: string } | { error: 'invalid' | 'outside' }> {
+  const parsed = input.safeParse(raw);
+  if (!parsed.success) return { error: 'invalid' };
+  const db = appDb();
+  const country = (await activeCountries(db)).find((c) => c.slug === parsed.data.country);
+  if (!country) return { error: 'invalid' };
+  const city = await nearestCity(db, country.code, snapToGrid(parsed.data), IN_COUNTRY_M);
+  return city ? { path: `/${country.slug}/${city.slug}` } : { error: 'outside' };
+}

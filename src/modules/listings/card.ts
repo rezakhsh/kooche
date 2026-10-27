@@ -4,7 +4,8 @@ import { messages } from '../../messages/fa';
 import { imageUrl } from '../media/server';
 import type { BrowseItem } from '../search/browse';
 import { cardFacts } from './attribute-text';
-import { listingCurrency, type Catalog } from './catalog';
+import { ancestry, listingCurrency, type Catalog } from './catalog';
+import { RENT_SLUGS } from './safety-kind';
 import { placeParts } from './place-text';
 import { formatPrice } from './price';
 import { listingPath } from './slug';
@@ -36,6 +37,9 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
     photoCount: l.photoCount,
     founding: l.founding,
+    verified: l.verified,
+    // Rent is the cold rent a month (mockup final/browse: «۵۹۰ € سرد، ماهانه»)
+    unit: l.categoryId && l.priceMinor !== null && ancestry(catalog, l.categoryId).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate') ? messages.country.rentUnit : null,
     wanted: l.kind === 'wanted',
     facts: cardFacts(catalog, l.categoryId, l.attributes, amountCurrency),
     distance: l.distanceKm != null ? messages.browse.distance(l.distanceKm) : null,

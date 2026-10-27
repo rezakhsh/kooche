@@ -53,6 +53,10 @@ describe('which country a listing is posted in', () => {
     expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, open })).toBeNull();
     expect(postingCountry({ listingCountry: null, chosen: null, saved: null, open })).toBeNull();
   });
+  it('with one open country and nothing chosen, that one (wave 1)', () => {
+    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, open: ['DE'] })).toBe('DE');
+    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, open: ['DE'] })).toBe('DE');
+  });
 });
 
 describe('the server refuses another country', () => {

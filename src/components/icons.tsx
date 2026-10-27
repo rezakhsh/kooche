@@ -64,6 +64,11 @@ const PATHS = {
   chevronStart: <path d="m9 6 6 6-6 6" />,
   /** Points left: "next" or "forward" in a right-to-left page */
   chevronDown: <path d="m6 9 6 6 6-6" />,
+  back: <path d="M5 12h14M13 6l6 6-6 6" />,
+  share: <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />,
+  ruler: <path d="M3 17 17 3l4 4L7 21Z M7 13l2 2M10 10l2 2M13 7l2 2" />,
+  door: <path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M15 12v.01" />,
+  stamp: <path d="M5 21h14M6 17h12v-3a2 2 0 0 0-2-2h-2V9a2 2 0 1 0-4 0v3H8a2 2 0 0 0-2 2Z" />,
   chevronEnd: <path d="m15 6-6 6 6 6" />,
   expand: <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />,
   clock: (

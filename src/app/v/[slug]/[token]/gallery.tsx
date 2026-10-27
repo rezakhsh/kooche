@@ -94,15 +94,13 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
         href={cover.full?.webp ?? '#'}
         onClick={show(0)}
         aria-label={`${t.openViewer}: ${t.photo(1, total)}`}
-        className="group relative block aspect-[4/3] cursor-zoom-in overflow-hidden bg-neutral-100 sm:rounded-2xl"
+        className="group relative block aspect-[4/3] cursor-zoom-in overflow-hidden bg-neutral-100 sm:rounded-2xl lg:aspect-[16/10] lg:max-h-[440px]"
       >
-        <Picture image={cover} alt={title} priority className="object-contain" />
+        {/* The photo fills its frame (mockup final/listing); the viewer shows it whole */}
+        <Picture image={cover} alt={title} priority className="object-cover" />
         <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-lg bg-neutral-900/70 px-2 py-0.5 text-xs text-white">
           <Icon name="camera" className="size-3.5" />
           {t.counter(1, total)}
-        </span>
-        <span className="absolute end-3 bottom-3 flex size-9 items-center justify-center rounded-full bg-white/90 text-neutral-900 shadow-sm transition-transform group-hover:scale-110">
-          <Icon name="expand" className="size-4" />
         </span>
       </a>
       {total > 1 && (

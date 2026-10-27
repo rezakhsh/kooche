@@ -119,7 +119,7 @@ export function SearchSuggest({
         aria-expanded={open}
         aria-controls={listId}
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        className={`block w-full border border-neutral-300 bg-white ps-3 pe-11 text-base placeholder:text-neutral-500 focus:border-brand-700 focus:outline-none ${large ? 'h-14 rounded-2xl shadow-sm' : 'h-12 rounded-xl lg:h-10 lg:text-sm'}`}
+        className={`block w-full border border-neutral-300 bg-white ps-11 pe-3 text-base placeholder:text-neutral-500 focus:border-brand-700 focus:outline-none ${large ? 'h-14 rounded-2xl shadow-sm' : 'h-12 rounded-xl lg:h-10 lg:text-sm'}`}
       />
       <ul
         id={listId}

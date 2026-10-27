@@ -7,7 +7,7 @@ import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
 import { ListingFooter } from '../../../../components/report-link';
 import { FavoriteButton } from '../../../../components/favorite-button';
-import { Icon } from '../../../../components/icons';
+import { Icon, type IconName } from '../../../../components/icons';
 import { clientIp } from '../../../../lib/client-ip';
 import { valkey } from '../../../../lib/valkey';
 import { countView } from '../../../../modules/listings/views';
@@ -53,6 +53,19 @@ import { BackButton, CopyLink, ShareButton } from './photo-bar';
 // with how fast they usually answer, and similar listings.
 
 type Params = { slug: string; token: string };
+
+/** Icons of the fact tiles by field (mockup final/listing); others get a tick */
+const FACT_ICONS: Record<string, IconName> = {
+  area_m2: 'ruler',
+  room_m2: 'ruler',
+  living_m2: 'ruler',
+  rooms: 'door',
+  available_from: 'calendar',
+  event_date: 'calendar',
+  start_date: 'calendar',
+  year: 'calendar',
+  mileage_km: 'car',
+};
 
 const load = cache(async (token: string) => (/^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? publicListing(appDb(), token) : null));
 
@@ -144,7 +157,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const safety = t.safetyBox[safetyKind(crumbs)];
   // Back from a shared link: the listing's category in its city
   const backHref = countrySlug ? browsePath(countrySlug, city?.slug ?? null, crumbs.at(-1)?.slug ?? null) : '/';
-  const placeText = neighbourhood && cityFa ? `${neighbourhood}، ${cityFa}` : null;
+  // «ودینگ، 13351 Berlin» (mockup final/listing); without a postal code «ودینگ، برلین»
+  const placeText = neighbourhood ? (place.local ? null : cityFa ? `${neighbourhood}، ${cityFa}` : neighbourhood) : null;
+  const factIcon = (key?: string): IconName => (key && FACT_ICONS[key]) || 'check';
   const canContact = !!chat && l.status === 'active';
 
   // schema.org Product with an Offer. Price in major units as a decimal string, never a float.
@@ -289,8 +304,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       {hasPlace && (
         <>
           <Icon name="pin" className="size-4" />
-          {/* «ودینگ، برلین» where the city has neighbourhoods; the seller's own words after it */}
-          {placeText ?? (place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city)}
+          {/* The neighbourhood where the city has them, then the postal code; the seller's own words after it */}
+          {neighbourhood && place.local ? (
+            <>
+              {neighbourhood}، <bdi dir="ltr">{place.local}</bdi>
+            </>
+          ) : (
+            (placeText ?? (place.local ? <bdi dir="ltr">{place.local}</bdi> : place.city))
+          )}
           {place.district && <span>، {place.district}</span>}
           {posted && '،'}
         </>
@@ -316,10 +337,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         {price && (
           <p className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-2xl font-black text-brand-800 lg:text-3xl">{price}</span>
-            {warmRent && <span className="text-sm text-neutral-700">{t.coldRent}</span>}
+            {/* «اجارهٔ سرد، با هزینه‌ها ۱٬۰۲۰ €» (mockup final/listing) */}
+            {warmRent && <span className="text-sm text-neutral-700">{t.coldWithCosts(warmRent)}</span>}
           </p>
         )}
-        {warmRent && <p className="text-sm text-neutral-700">{t.warmRentShort(warmRent)}</p>}
         {placeLine}
       </div>
     );
@@ -410,7 +431,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
           <div className="space-y-5 px-4 sm:px-0">
             <nav aria-label="breadcrumb" className="flex flex-wrap items-center gap-1 text-xs text-neutral-600">
-              {countrySlug ? (
+              {/* From the city when there is one (mockup final/listing: «برلین › املاک › …») */}
+              {countrySlug && city ? (
+                <Link href={browsePath(countrySlug, city.slug, null)} className="hover:underline">
+                  {city.nameFa}
+                </Link>
+              ) : countrySlug ? (
                 <Link href={`/${countrySlug}`} className="hover:underline">
                   {countryName}
                 </Link>
@@ -418,14 +444,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <Link href="/" className="hover:underline">
                   {t.breadcrumbHome}
                 </Link>
-              )}
-              {countrySlug && city && (
-                <>
-                  <Icon name="chevronEnd" className="size-3" />
-                  <Link href={browsePath(countrySlug, city.slug, null)} className="hover:underline">
-                    {city.nameFa}
-                  </Link>
-                </>
               )}
               {crumbs.map((c) => (
                 <span key={c.id} className="flex items-center gap-1">
@@ -447,7 +465,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {facts.length > 0 && (
               <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                 {facts.map((f) => (
-                  <li key={f.label} className="flex min-h-12 items-center rounded-xl bg-neutral-50 px-3 text-sm font-bold">
+                  <li key={f.label} className="flex min-h-12 items-center gap-2 rounded-xl bg-neutral-50 px-3 text-sm font-bold">
+                    <Icon name={factIcon(f.key)} className="size-5 shrink-0 text-brand-700" />
                     {!f.text.startsWith(f.label) && <span className="sr-only">{f.label}: </span>}
                     <bdi>{f.text}</bdi>
                   </li>
@@ -464,11 +483,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <p className="text-base leading-8 whitespace-pre-line text-neutral-800">{l.description}</p>
               </section>
             )}
-            {(details.length > 0 || l.shippingOffered || (place.local && place.city)) && (
+            {(details.length > 0 || l.shippingOffered || (place.local && place.city && !neighbourhood)) && (
               <section>
                 <h2 className="mb-1 text-lg font-extrabold">{t.details}</h2>
                 <dl className="divide-y divide-neutral-200">
-                  {place.local && place.city && <Row label={t.location} value={placeText ? <bdi dir="ltr">{place.local}</bdi> : place.city} />}
+                  {place.local && place.city && !neighbourhood && <Row label={t.location} value={place.city} />}
                   {details.map((d) => (
                     <Row key={d.label} label={d.label} value={d.text} />
                   ))}
@@ -485,12 +504,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   )}
                 </dl>
               </section>
-            )}
-            {l.point && l.countryCode && (
-              <figure className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4">
-                <OutlineMap countryCode={l.countryCode} point={l.point} label={mapLabel} />
-                <figcaption className="text-xs text-neutral-600">{mapLabel}</figcaption>
-              </figure>
             )}
             {similar.length > 0 && (
               <section>

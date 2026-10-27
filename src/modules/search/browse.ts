@@ -67,6 +67,8 @@ export type BrowseItem = {
   neighbourhood: string | null;
   /** Posted by a founding business while its badge runs (foundingBadge(), src/modules/payments/founding.ts) */
   founding: boolean;
+  /** Posted by an active, verified business («تأییدشده» on the card) */
+  verified: boolean;
   coverKey: string | null;
   /** Whole kilometres to the listing's stored (rounded) point, when a radius is on */
   distanceKm: number | null;
@@ -234,6 +236,7 @@ export const cardColumns = {
   attributes: sql<Record<string, unknown>>`${listings.attributes}`,
   photoCount: sql<number>`(SELECT count(*)::int FROM ${listingImages} WHERE ${listingImages.listingId} = ${listings.id} AND ${listingImages.status} = 'ready')`,
   neighbourhood: listingNeighbourhood,
+  verified: sql<boolean>`EXISTS (SELECT 1 FROM ${organizations} WHERE ${organizations.id} = ${listings.organizationId} AND ${organizations.status} = 'active' AND ${organizations.verificationStatus} = 'verified')`,
   // The same year as foundingBadge(): from the page's creation
   founding: sql<boolean>`EXISTS (SELECT 1 FROM ${organizations} WHERE ${organizations.id} = ${listings.organizationId} AND ${organizations.foundingOfferedAt} IS NOT NULL AND ${organizations.createdAt} + interval '1 year' > now())`,
 };

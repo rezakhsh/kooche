@@ -1,4 +1,7 @@
+import { headers } from 'next/headers';
 import Link from 'next/link';
+import { visitorCountry } from '../lib/client-ip';
+import { cityOf } from '../modules/search/places';
 import { chosenCountry } from '../app/country-choice';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -18,7 +21,14 @@ import { SearchBox } from './search-box';
 // their names as tooltips and for screen readers).
 
 export async function SiteHeader() {
-  const [session, country] = await Promise.all([currentSession(), chosenCountry(appDb())]);
+  const requestHeaders = await headers();
+  const [session, chosen, open] = await Promise.all([currentSession(), chosenCountry(appDb()), activeCountries(appDb())]);
+  // Before a country is chosen, the visitor's own (Cloudflare's header) when it is open (wave 1, mockup final/home)
+  const here = visitorCountry(requestHeaders);
+  const country = chosen ?? open.find((c) => c.code === here) ?? null;
+  // The place chip says the city on a city's pages («برلین ▾»), else the country
+  const segment = country ? new RegExp(`^/${country.slug}/([^/]+)`).exec(requestHeaders.get('x-pathname') ?? '')?.[1] : undefined;
+  const city = country && segment ? await cityOf(appDb(), country.code, decodeURIComponent(segment)).catch(() => null) : null;
   const t = messages.nav;
   const home = country ? `/${country.slug}` : '/';
   // Conversations with unread messages, for the badge (one small query on the inbox indexes)
@@ -37,11 +47,12 @@ export async function SiteHeader() {
           {country && (
             <Link
               href="/?choose"
-              className="flex shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-1 ps-2 pe-3 text-xs font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 ps-3 pe-2.5 text-sm font-medium whitespace-nowrap text-neutral-800 hover:border-brand-300"
               title={messages.country.change}
             >
-              <Icon name="pin" className="size-3.5 text-brand-700" />
-              {country.nameFa}
+              <Icon name="pin" className="size-4 text-brand-700" />
+              {city?.nameFa ?? country.nameFa}
+              <Icon name="chevronDown" className="size-3.5 text-neutral-600" />
             </Link>
           )}
           {country && (
@@ -86,18 +97,14 @@ export async function SiteHeader() {
               {t.post}
             </Link>
           </nav>
-          {country && (
-            <Link
-              href={`/${country.slug}#q`}
-              aria-label={messages.search.label}
-              title={messages.search.label}
-              className="ms-auto flex items-center rounded-xl p-2 text-neutral-700 hover:bg-neutral-50 lg:hidden"
-            >
-              <Icon name="search" className="size-5" />
+          {/* Phones (wave 1, mockups final/home, final/browse): the saved listings; the search is on the pages */}
+          {session && (
+            <Link href="/my/favorites" aria-label={messages.favorites.title} title={messages.favorites.title} className="ms-auto flex size-11 items-center justify-center rounded-xl text-neutral-800 hover:bg-neutral-50 sm:hidden">
+              <Icon name="heart" className="size-6" />
             </Link>
           )}
           {!session && (
-            <Link href="/login" className={`${country ? '' : 'ms-auto'} rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium sm:hidden`}>
+            <Link href="/login" className="ms-auto flex min-h-10 items-center rounded-xl border border-neutral-200 px-3 text-sm font-medium sm:hidden">
               {t.signIn}
             </Link>
           )}

@@ -38,7 +38,7 @@ export function attributeText(def: AttributeDef, value: unknown, currency: Curre
   }
 }
 
-export type CardFact = { label: string; text: string };
+export type CardFact = { label: string; text: string; /** The field's key, for its icon on the listing page */ key?: string };
 
 export const MAX_CARD_FACTS = 3;
 
@@ -68,7 +68,7 @@ export function cardFacts(
       // A bare count says nothing on its own ("۲"): with its label ("تعداد اتاق ۲"). Years and amounts read fine.
       if (text && def.type === 'number' && !def.unitFa && !def.validation.money && (def.validation.min ?? 0) < 1900) text = `${def.labelFa} ${text}`;
     }
-    if (text) facts.push({ label: def.labelFa, text });
+    if (text) facts.push({ label: def.labelFa, text, key: def.key });
   }
   return facts;
 }

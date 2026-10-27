@@ -7,6 +7,9 @@ export type SafetyKind = 'rent' | 'vehicle' | 'tickets' | 'jobs' | 'pets' | 'gen
 /** Rooms and flats to rent, and the real-estate root above them */
 export const RENT_SLUGS = new Set(['real-estate', 'apartments-rent', 'houses-rent', 'shared-rooms', 'short-term-rent']);
 
+/** Top categories whose things aren't sent by post: no «ارسال پستی» in their form or filters */
+export const NOT_SHIPPED = new Set(['real-estate', 'services', 'jobs', 'lessons-courses', 'community']);
+
 /** `path`: the category and its ancestors, root first */
 export function safetyKind(path: { slug: string }[]): SafetyKind {
   const slugs = path.map((c) => c.slug);

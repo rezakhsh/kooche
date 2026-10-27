@@ -13,6 +13,8 @@ import { activeCountries, countryCounts } from '../modules/listings/queries';
 import { cachedCityCounts } from '../modules/search/browse';
 import { browsePath, eventsPath } from '../modules/search/paths';
 import { chosenCountry } from './country-choice';
+import { NearestCity } from './nearest-city';
+import { cityFoundingPlaces } from '../modules/payments/founding';
 
 // The first page (wave 1, mockup final/home). It never redirects by IP (Google advises against it):
 // it suggests the visitor's country from Cloudflare's header («به نظر می‌رسد در آلمان هستید»), or
@@ -37,8 +39,17 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const detected = countries.find((c) => c.code === here) ?? null;
   const country = detected ?? countries[0]!;
   const [cities, perCity, catalog] = await Promise.all([keyCitiesOf(db, country.code), cachedCityCounts(db, country.code), cachedCatalog(db)]);
-  const roots = catalog.rootIds.map((id) => catalog.byId.get(id)!).filter((c) => c.isActive && c.slug !== EVENT_ROOT_SLUG);
   const t = messages.home;
+  // The mockup's order and short names («دیجیتال», «خانه»), the rest after them
+  const order = Object.keys(t.categoryShort);
+  const rank = (slug: string) => (order.includes(slug) ? order.indexOf(slug) : order.length);
+  const roots = catalog.rootIds
+    .map((id) => catalog.byId.get(id)!)
+    .filter((c) => c.isActive && c.slug !== EVENT_ROOT_SLUG)
+    .sort((a, b) => rank(a.slug) - rank(b.slug));
+  // The founding offer of the first open city, with its places left
+  const firstOpen = cities.find((c) => c.status === 'open') ?? null;
+  const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
 
   return (
     <main>
@@ -74,7 +85,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   className={`flex min-h-14 items-center justify-between gap-2 rounded-2xl border p-3.5 hover:shadow-sm ${open ? 'border-brand-300 bg-brand-50' : 'border-neutral-200'}`}
                 >
                   <b className="text-[15px]">{c.nameFa}</b>
-                  <span className={`text-xs ${open ? 'text-neutral-700' : 'text-saffron-800'}`}>
+                  <span className={`text-xs whitespace-nowrap ${open ? 'text-neutral-600' : 'text-saffron-800'}`}>
                     {open ? t.listingCount(perCity.get(c.id) ?? 0) : c.goal ? t.businesses(c.businesses, c.goal) : t.waitlist}
                   </span>
                 </Link>
@@ -82,9 +93,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             );
           })}
         </ul>
-        <Link href={browsePath(country.slug, null, null)} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-bold text-neutral-700 hover:bg-neutral-50">
-          {t.wholeCountry(country.nameFa)}
-        </Link>
+        <div className="mt-2 grid grid-cols-2 gap-2.5">
+          <NearestCity country={country.slug} countryName={country.nameFa} />
+          <Link href={browsePath(country.slug, null, null)} className="col-start-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-bold text-neutral-700 hover:bg-neutral-50">
+            {t.wholeCountry(country.nameFa)}
+          </Link>
+        </div>
 
         <h2 className="mt-7 text-lg font-extrabold">{t.popular}</h2>
         <ul className="mt-3 grid grid-cols-4 gap-2 lg:grid-cols-8">
@@ -94,7 +108,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                   <Icon name={categoryIcon(c.slug)} className="size-6" />
                 </span>
-                {c.nameFa}
+                {t.categoryShort[c.slug] ?? c.nameFa}
               </Link>
             </li>
           ))}
@@ -126,7 +140,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <Icon name="store" className="size-5" />
           </span>
           <span className="flex-1 text-sm leading-6">
-            <b>{t.business}</b> {t.businessText}
+            <b>{t.business}</b>{' '}
+            {founding && firstOpen ? (
+              <>
+                {t.foundingText(founding.places, firstOpen.nameFa)} <span className="text-saffron-800">{t.placesLeft(Math.max(0, founding.places - founding.used))}</span>
+              </>
+            ) : (
+              t.businessText
+            )}
           </span>
           <Icon name="chevronEnd" className="size-4 text-neutral-400" />
         </Link>

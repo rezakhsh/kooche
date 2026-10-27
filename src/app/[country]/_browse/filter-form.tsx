@@ -7,6 +7,9 @@ import { attrFacet } from '../../../modules/search/keyword';
 import { browseQuery, defaultSort, RADII_KM, without, type AttributeFilter, type BrowseState } from '../../../modules/search/filters';
 import type { City } from '../../../modules/search/places';
 import { messages } from '../../../messages/fa';
+import { Icon } from '../../../components/icons';
+import { ancestry } from '../../../modules/listings/catalog';
+import { NOT_SHIPPED, RENT_SLUGS } from '../../../modules/listings/safety-kind';
 import { FilterSubmit } from './filter-submit';
 import { NearMe } from './near-me';
 import type { Browse } from './resolve';
@@ -19,6 +22,11 @@ import type { Browse } from './resolve';
 
 /** Choices with at most this many options are checkboxes; longer lists are a select */
 const CHECKBOX_LIMIT = 10;
+/** Up to this many options: one segmented choice with «فرقی نمی‌کند» (mockup final/filters) */
+const SEGMENT_LIMIT = 3;
+/** The radius buttons (mockup final/filters); 50 km stays valid in addresses */
+const SHOWN_RADII = [5, 10, 25] as const;
+
 
 const inputClass = 'block w-full min-w-0 rounded-xl border border-neutral-300 bg-white px-3 py-2.5 text-base focus:border-brand-700 focus:outline-none sm:text-sm';
 const legendClass = 'mb-1.5 text-sm font-bold text-neutral-800';
@@ -60,6 +68,9 @@ export function FilterForm({
   const byKey = new Map(state.attributes.map((f) => [f.key, f]));
   const currency = country.currency;
   const nearOn = !!state.near;
+  const root = b.category ? ancestry(b.catalog, b.category.id)[0]?.slug : undefined;
+  const rent = !!b.category && ancestry(b.catalog, b.category.id).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate');
+  const shippable = !root || !NOT_SHIPPED.has(root);
 
   return (
     <form method="get" action={b.path} className="flex flex-col gap-5">
@@ -68,72 +79,20 @@ export function FilterForm({
       {state.view && <input type="hidden" name="view" value={state.view} />}
       {state.near && <input type="hidden" name="near" value={state.near.token} />}
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className={legendClass}>{t.place}</legend>
-        <label htmlFor={`${id}-city`} className="sr-only">
-          {t.city}
-        </label>
-        <select id={`${id}-city`} name="city" defaultValue={b.city?.slug ?? ''} className={inputClass}>
-          <option value="">{t.allCities}</option>
-          {cities.map((c) => (
-            <option key={c.id} value={c.slug}>
-              {c.nameFa}
-            </option>
-          ))}
-        </select>
-        {!b.city && (
-          <div>
-            {!nearOn && (
-              <>
-                <label htmlFor={`${id}-postal`} className="sr-only">
-                  {t.postal}
-                </label>
-                <input
-                  id={`${id}-postal`}
-                  name="postal"
-                  defaultValue={state.postal?.code ?? ''}
-                  placeholder={`${t.postal}، ${t.postalPlaceholder}`}
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  dir="ltr"
-                  className={`${inputClass} text-end`}
-                />
-              </>
-            )}
-          </div>
-        )}
-        {!b.city && (
-          <div role="radiogroup" aria-label={t.radius} className="flex flex-wrap gap-1.5">
-            {!nearOn && (
-              <Pill type="radio" name="r" value="" checked={!state.postal?.radiusKm}>
-                {t.radiusOnly}
-              </Pill>
-            )}
-            {RADII_KM.map((km) => (
-              <Pill key={km} type="radio" name="r" value={String(km)} checked={(state.near?.radiusKm ?? state.postal?.radiusKm ?? (nearOn ? 10 : null)) === km}>
-                {t.radiusKm(km)}
-              </Pill>
-            ))}
-          </div>
-        )}
-        {!b.city && <NearMe country={country.slug} countryName={country.nameFa} active={nearOn} />}
-      </fieldset>
-
       {ctx.priceAllowed && (
         <fieldset>
-          <legend className={legendClass}>
-            {t.priceRange} ({currency.symbol})
-          </legend>
-          <Range id={`${id}-price`} name="price" kind="number" min={state.price?.min != null ? amountInputValue(state.price.min, currency.minorUnit) : ''} max={state.price?.max != null ? amountInputValue(state.price.max, currency.minorUnit) : ''} />
+          <legend className={legendClass}>{rent ? t.rentPrice : t.price}</legend>
+          <Range
+            id={`${id}-price`}
+            name="price"
+            kind="number"
+            unit={currency.symbol}
+            min={state.price?.min != null ? amountInputValue(state.price.min, currency.minorUnit) : ''}
+            max={state.price?.max != null ? amountInputValue(state.price.max, currency.minorUnit) : ''}
+          />
           {typical && <p className="mt-1.5 text-xs text-neutral-600">{typical}</p>}
         </fieldset>
       )}
-
-      <div className="flex flex-wrap gap-1.5">
-        <Pill type="checkbox" name="ship" value="1" checked={state.ship}>
-          {t.shipping}
-        </Pill>
-      </div>
 
       {ctx.defs.map((def) => (
         <AttributeField
@@ -148,6 +107,44 @@ export function FilterForm({
         />
       ))}
 
+      {/* Shipping only where things are sent: not for homes, services, jobs or lessons */}
+      {shippable && (
+        <div className="flex flex-wrap gap-1.5">
+          <Pill type="checkbox" name="ship" value="1" checked={state.ship}>
+            {t.shipping}
+          </Pill>
+        </div>
+      )}
+
+      {/* The place last (mockup final/filters): a postal code with a radius; the city is chosen on the first page */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className={legendClass}>{t.place}</legend>
+        {b.city && <input type="hidden" name="city" value={b.city.slug} />}
+        {!nearOn && (
+          <label className="flex h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 focus-within:border-brand-700">
+            <Icon name="pin" className="size-4 shrink-0 text-neutral-500" />
+            <span className="sr-only">{t.postal}</span>
+            <input
+              id={`${id}-postal`}
+              name="postal"
+              defaultValue={state.postal?.code ?? ''}
+              placeholder={t.postalOrArea}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              className="min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm"
+            />
+          </label>
+        )}
+        <div role="radiogroup" aria-label={t.radius} className="flex flex-wrap gap-1.5">
+          {SHOWN_RADII.map((km) => (
+            <Pill key={km} type="radio" name="r" value={String(km)} checked={(state.near?.radiusKm ?? state.postal?.radiusKm ?? 10) === km}>
+              {t.radiusKmShort(km)}
+            </Pill>
+          ))}
+        </div>
+        <NearMe country={country.slug} countryName={country.nameFa} active={nearOn} />
+      </fieldset>
+
       {/* The shadow covers the sheet's bottom padding, so nothing shows through under the bar */}
       <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-neutral-100 bg-white px-1 pt-3 pb-1 shadow-[0_1.25rem_0_0_#fff]">
         <Link href={`${b.path}${browseQuery(without(state, 'all'), ctx.minorUnit)}`} className="flex min-h-11 items-center px-1 text-sm font-medium text-neutral-700 hover:underline">
@@ -159,7 +156,7 @@ export function FilterForm({
   );
 }
 
-function Range({ id, name, kind, min, max, month }: { id: string; name: string; kind: 'number' | 'date'; min: string; max: string; month?: boolean }) {
+function Range({ id, name, kind, min, max, month, unit }: { id: string; name: string; kind: 'number' | 'date'; min: string; max: string; month?: boolean; unit?: string }) {
   const t = messages.browse;
   // A day as day / month name / year (src/components/date-input.tsx); joined by joinDateParts()
   if (kind === 'date' && !month) {
@@ -172,6 +169,22 @@ function Range({ id, name, kind, min, max, month }: { id: string; name: string; 
   }
   const [lo, hi] = kind === 'date' ? ['from', 'to'] : ['min', 'max'];
   const type = kind === 'date' ? (month ? 'month' : 'date') : 'text';
+  if (kind === 'number' && unit) {
+    // The currency inside the fields (mockup final/filters)
+    const box = (which: 'min' | 'max', value: string, placeholder: string) => (
+      <label className="flex h-11 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 focus-within:border-brand-700">
+        <span className="sr-only">{which === 'min' ? t.min : t.max}</span>
+        <input id={`${id}-${which}`} name={`${name}_${which}`} defaultValue={value} placeholder={placeholder} inputMode="decimal" className="min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm" />
+        <span className="text-neutral-600">{unit}</span>
+      </label>
+    );
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {box('min', min, t.min)}
+        {box('max', max, t.max)}
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-2 gap-2">
       <label htmlFor={`${id}-${lo}`} className="sr-only">
@@ -235,12 +248,10 @@ function AttributeField({
     }
     case 'boolean':
       return (
-        <div className="flex flex-wrap gap-1.5">
-          <Pill type="checkbox" name={def.key} value="1" checked={!!value}>
-            {def.labelFa}
-            {counts && <span className="ms-1 text-xs font-normal text-neutral-500">{count('true')}</span>}
-          </Pill>
-        </div>
+        <fieldset>
+          {legend}
+          <Segmented name={def.key} options={[{ value: '', label: t.anyChoice }, { value: '1', label: t.yes }]} chosen={value ? '1' : ''} />
+        </fieldset>
       );
     case 'select':
     case 'multi_select': {
@@ -252,6 +263,15 @@ function AttributeField({
         if (!parent || !('values' in parent)) return null;
         const parents = new Set(parent.values);
         options = options.filter((o) => !o.parentValue || parents.has(o.parentValue));
+      }
+      // A short list: one choice with «فرقی نمی‌کند», unless several are already chosen
+      if (options.length <= SEGMENT_LIMIT && chosen.size <= 1 && !counts) {
+        return (
+          <fieldset>
+            {legend}
+            <Segmented name={def.key} options={[{ value: '', label: t.anyChoice }, ...options.map((o) => ({ value: o.value, label: o.labelFa }))]} chosen={[...chosen][0] ?? ''} />
+          </fieldset>
+        );
       }
       if (options.length <= CHECKBOX_LIMIT) {
         return (
@@ -293,4 +313,20 @@ function AttributeField({
     case 'text':
       return null;
   }
+}
+
+/** Choices side by side in one bar, the chosen one raised (mockup final/filters) */
+function Segmented({ name, options, chosen }: { name: string; options: { value: string; label: string }[]; chosen: string }) {
+  return (
+    <div role="radiogroup" className="flex gap-1 rounded-xl bg-neutral-100 p-1">
+      {options.map((o) => (
+        <label key={o.value} className="flex-1 cursor-pointer">
+          <input type="radio" name={name} value={o.value} defaultChecked={chosen === o.value} className="peer sr-only" />
+          <span className="flex h-10 items-center justify-center rounded-lg px-2 text-center text-sm text-neutral-700 peer-checked:bg-white peer-checked:font-bold peer-checked:text-neutral-900 peer-checked:shadow-sm peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700">
+            {o.label}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
 }

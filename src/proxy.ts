@@ -106,6 +106,8 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  // The header names the page's city in its place chip (src/components/site-header.tsx)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
   requestHeaders.set('Content-Security-Policy', csp);
   // Only this proxy marks a request as coming through the admin page's secret address
   requestHeaders.delete(ADMIN_GATE_HEADER);

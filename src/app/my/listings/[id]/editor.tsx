@@ -5,7 +5,7 @@ import { Icon } from '../../../../components/icons';
 import { messages } from '../../../../messages/fa';
 import { startDraftAction } from '../actions';
 import type { PhotoView } from '../photo-view';
-import { ListingForm, type FormProps } from './form';
+import { ListingForm, type FormProps, type Summary } from './form';
 import { PhotoEditor } from './photos';
 import type { Step } from './steps';
 
@@ -29,7 +29,8 @@ export function ListingEditor({
   const pending = useRef<Promise<string> | null>(null);
   const stepping = form.status === 'draft';
   const [step, setStepState] = useState<Step>(initialStep);
-  const [photoCount, setPhotoCount] = useState(photos.initial.length);
+  const [photoThumbs, setPhotoThumbs] = useState<(string | null)[]>(() => photos.initial.map((p) => p.thumb ?? null));
+  const [summary, setSummary] = useState<Summary>({});
 
   const address = (id: string | null, s: Step) => `${id ? `/my/listings/${id}` : window.location.pathname}${stepping ? `?step=${s}` : ''}`;
 
@@ -68,7 +69,8 @@ export function ListingEditor({
   const t = messages.form;
   const names: readonly string[] = t.steps;
   return (
-    <>
+    <div className={stepping ? 'lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-10' : 'space-y-6'}>
+    <div className="min-w-0 space-y-6">
       {stepping && (
         <div data-step-bar>
           <ol className="grid grid-cols-4 gap-1.5" aria-hidden>
@@ -86,13 +88,37 @@ export function ListingEditor({
             )}
           </p>
           <h1 className="mt-4 text-2xl font-extrabold">{t.stepHeadings[step]}</h1>
-          {step === 2 && <p className="mt-1 text-sm text-neutral-600">{t.photosLead}</p>}
+          {step === 2 && <p className="mt-1 text-sm text-neutral-600">{t.photosLead(photos.max)}</p>}
         </div>
       )}
       <div data-step={stepping ? 2 : undefined} className={stepping && step !== 2 ? 'hidden' : undefined}>
-        <PhotoEditor listingId={listingId} ensureListing={ensureListing} onCount={setPhotoCount} {...photos} />
+        <PhotoEditor listingId={listingId} ensureListing={ensureListing} onPhotos={setPhotoThumbs} bare={stepping} {...photos} />
       </div>
-      <ListingForm {...form} listingId={listingId} onDraftCreated={adopt} wizard={stepping ? { step, setStep, photoCount } : null} />
-    </>
+      <ListingForm {...form} listingId={listingId} onDraftCreated={adopt} wizard={stepping ? { step, setStep, photos: photoThumbs, onSummary: setSummary } : null} />
+    </div>
+      {/* Computers: how the card will look, beside steps 3 and 4 (mockup final/post3) */}
+      {stepping && step >= 3 && (
+        <aside data-step-bar className="sticky top-20 hidden space-y-3 lg:block">
+          <div className="rounded-2xl border border-neutral-200 p-3">
+            <p className="mb-2 text-xs font-bold text-neutral-600">{t.preview}</p>
+            <div className="flex gap-3">
+              {photoThumbs[0] ? (
+                <img src={photoThumbs[0]} alt="" className="aspect-[4/3] w-28 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <span className="flex aspect-[4/3] w-28 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-400">
+                  <Icon name="image" className="size-6" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-bold leading-6">{summary.title || t.notEntered}</p>
+                {summary.price && <p className="font-extrabold text-brand-800">{summary.price}</p>}
+                {summary.details && <p className="text-xs text-neutral-600">{summary.details}</p>}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs leading-6 text-neutral-600">{t.previewNote}</p>
+        </aside>
+      )}
+    </div>
   );
 }

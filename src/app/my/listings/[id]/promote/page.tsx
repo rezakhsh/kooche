@@ -123,7 +123,14 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
               <legend className="mb-2 text-sm text-neutral-700">{t.intro}</legend>
               {offers.map(({ product, price }) => (
                 <label key={product.code} className="flex cursor-pointer gap-3 rounded-2xl border border-neutral-200 bg-white p-4 has-[:checked]:border-brand-600 has-[:checked]:ring-2 has-[:checked]:ring-brand-600/20">
-                  <input type="radio" name="product" value={product.code} defaultChecked={product.code === chosen} className="mt-1 size-4 accent-brand-700" />
+                  {/* A card to tap, with a tick instead of the browser's radio dot (wave 1) */}
+                  <input type="radio" name="product" value={product.code} defaultChecked={product.code === chosen} className="peer sr-only" />
+                  <span
+                    aria-hidden
+                    className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-neutral-300 text-transparent peer-checked:border-brand-700 peer-checked:bg-brand-700 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700"
+                  >
+                    <Icon name="check" className="size-4" />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-bold">{product.nameFa}</span>

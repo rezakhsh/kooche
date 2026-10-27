@@ -41,7 +41,7 @@ export function SearchBox({
         {t.label}
       </label>
       <SearchSuggest id={id} defaultValue={q ?? ''} placeholder={placeholder} country={country} city={city} large={large} />
-      <button type="submit" aria-label={t.submit} title={t.submit} className="absolute inset-y-0 end-0 flex w-11 items-center justify-center text-neutral-600 hover:text-brand-700">
+      <button type="submit" aria-label={t.submit} title={t.submit} className="absolute inset-y-0 start-0 flex w-11 items-center justify-center text-neutral-600 hover:text-brand-700">
         <Icon name="search" className="size-5" />
       </button>
     </form>

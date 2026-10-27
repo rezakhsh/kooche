@@ -149,7 +149,8 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const saveable = !!(state.q || isFiltered(state) || city || category);
   const searchSaved = saveable && session && !state.near ? await isSaved(appDb(), session.user.id, { country, city, category, ctx, state }) : false;
   const here = `${b.path}${browseQuery(state, ctx.minorUnit)}`;
-  const view: View = state.view ?? (remembered === 'list' ? 'list' : 'grid');
+  // Category pages are rows by default (mockup final/category); the rest a grid unless switched
+  const view: View = state.view ?? (b.category ? 'list' : remembered === 'list' ? 'list' : 'grid');
 
   // A listing counts for its category and every category above it. With a keyword, the counts are
   // the keyword's matches (from the same search), else all active listings (cached for a minute).
@@ -222,11 +223,38 @@ export async function BrowsePage({ b }: { b: Browse }) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   const categoryLinks = <CategoryLinks roots={roots} counts={counts} total={total} root={root} selected={category} childrenOfRoot={children} link={link} />;
-  const scope = city && category ? `${category.nameFa}، ${city.nameFa}` : city ? city.nameFa : category ? category.nameFa : country.nameFa;
+  // «جستجو در اتاق و WG…» (mockup final/category): the narrowest of category, city, country
+  const scope = category ? category.nameFa : city ? city.nameFa : country.nameFa;
   const money = (n: number) => formatPrice(n, country.currency.code, country.currency.minorUnit);
   const typicalText = typical && category ? tb.typicalPrice(city ? `${category.nameFa} در ${city.nameFa}` : category.nameFa, money(typical.low), money(typical.high)) : null;
   const filterForm = (id: string) => (
     <FilterForm b={b} cities={cities} id={id} facets={result.facets} count={{ n: Math.min(result.total, COUNT_CAP), capped: result.total > COUNT_CAP }} typical={typicalText} />
+  );
+  // Where the page sits, from the city (or the country) down: «برلین › املاک › اتاق و WG»
+  const breadcrumb = (className: string) => (
+    <nav aria-label={tb.breadcrumb} className={`flex flex-wrap items-center gap-1 text-xs text-neutral-600 ${className}`}>
+      {city ? (
+        <Link href={browsePath(country.slug, city.slug, null)} className="hover:underline">
+          {city.nameFa}
+        </Link>
+      ) : (
+        <Link href={browsePath(country.slug, null, null)} className="hover:underline">
+          {country.nameFa}
+        </Link>
+      )}
+      {path.map((c, i) => (
+        <span key={c.id} className="flex items-center gap-1">
+          <Icon name="chevronEnd" className="size-3" />
+          {i === path.length - 1 ? (
+            <b className="text-neutral-900">{c.nameFa}</b>
+          ) : (
+            <Link href={browsePath(country.slug, city?.slug ?? null, c.slug)} className="hover:underline">
+              {c.nameFa}
+            </Link>
+          )}
+        </span>
+      ))}
+    </nav>
   );
   const searchBox = (id: string, className: string) => (
     <SearchBox
@@ -250,7 +278,8 @@ export async function BrowsePage({ b }: { b: Browse }) {
 
       {/* Phones: one sticky block under the header, the search and one row of chips. The sheets
           are <details>, so they open without JavaScript. */}
-      <div className="sticky top-[57px] z-20 border-b border-neutral-200 bg-white px-4 pt-2.5 pb-2.5 lg:hidden">
+      <div data-browse-bar className="sticky top-[57px] z-20 border-b border-neutral-200 bg-white px-4 pt-2.5 pb-2.5 lg:hidden">
+        {category && breadcrumb('mb-2')}
         {searchBox('q', '')}
         <div className="no-scrollbar -mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4">
           <CategorySheet label={filterCount ? tb.filtersCount(filterCount) : tb.filters} title={tb.filters} closeLabel={t.close} icon="sliders" tone={filterCount ? 'on' : 'brand'}>
@@ -314,72 +343,58 @@ export async function BrowsePage({ b }: { b: Browse }) {
         <div className="min-w-0 px-4 sm:px-0">
           {/* The page's own box searches within its city and category; from 1024 px the header's box covers the plain country page */}
           {(state.q || city || category) && searchBox('q-d', 'mb-4 hidden lg:block')}
-          {(city || path.length > 0) && (
-            <nav aria-label={tb.breadcrumb} className="mt-4 flex flex-wrap gap-1 text-xs text-neutral-500 lg:mt-0">
-              <Link href={browsePath(country.slug, null, null)} className="hover:underline">
-                {country.nameFa}
-              </Link>
-              {city && (
-                <span>
-                  ›{' '}
-                  <Link href={browsePath(country.slug, city.slug, null)} className="hover:underline">
-                    {city.nameFa}
-                  </Link>
-                </span>
+          {category && breadcrumb('mb-2 hidden lg:flex')}
+          {/* The result line (mockups final/browse, final/category): what and how many, the sort, then
+              «خبرم کن» where a search can be saved, else the layout switch */}
+          <div className="mt-3 mb-3 flex items-center gap-2 lg:mt-1">
+            <h1 className="min-w-0 flex-1 truncate text-base lg:text-2xl">
+              {state.q ? (
+                <b className="font-extrabold">{messages.search.title(state.q)}</b>
+              ) : category ? (
+                <>
+                  <b className="font-extrabold">{result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}</b>{' '}
+                  <span className="text-neutral-700 lg:hidden">{category.nameFa}</span>
+                  <span className="hidden font-extrabold lg:inline">{titleOf(b)}</span>
+                </>
+              ) : (
+                <>
+                  <b className="font-extrabold">{titleOf(b)}</b>{' '}
+                  <span className="text-sm text-neutral-600">{result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}</span>
+                </>
               )}
-              {path.map((c) => (
-                <span key={c.id}>
-                  ›{' '}
-                  <Link href={browsePath(country.slug, city?.slug ?? null, c.slug)} className="hover:underline">
-                    {c.nameFa}
-                  </Link>
-                </span>
-              ))}
-            </nav>
-          )}
-          {/* The result line: what and how many, then sort, layout and «خبرم کن» */}
-          <div className="mt-3 lg:mt-1">
-            <h1 className="text-lg font-extrabold sm:text-2xl">
-              {state.q ? messages.search.title(state.q) : titleOf(b)}
-              <span className="ms-2 text-sm font-normal text-neutral-600">{result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}</span>
             </h1>
-            {(state.q || widen) && (
-              <p className="text-xs text-neutral-600">
-                {state.q && messages.search.within(titleOf(b))}
-                {widen && (
-                  <>
-                    {'، '}
-                    <Link href={widen} className="text-brand-700 hover:underline">
-                      {messages.search.widen(country.nameFa)}
-                    </Link>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="mt-2 mb-3 flex items-center gap-2">
             <SortMenu sorts={sorts} current={state.sort} href={(s2) => withState({ sort: s2 })} />
-            <div role="group" aria-label={t.view} className="flex shrink-0 overflow-hidden rounded-xl border border-neutral-200">
-              <ViewLink href={withState({ view: 'grid', after: state.after })} on={view === 'grid'} label={t.viewGrid} icon="grid" />
-              <ViewLink href={withState({ view: 'list', after: state.after })} on={view === 'list'} label={t.viewList} icon="list" />
-            </div>
-            {saveable && (
-              <div className="ms-auto">
-                {state.near ? (
-                  <p className="text-xs text-neutral-600">{messages.savedSearches.nearNotSaveable}</p>
-                ) : (
-                  <SaveSearchButton path={b.path} query={browseQuery({ ...state, after: null, view: null }, ctx.minorUnit)} saved={searchSaved} compact />
-                )}
-              </div>
+            {saveable && !state.near ? (
+              <SaveSearchButton path={b.path} query={browseQuery({ ...state, after: null, view: null }, ctx.minorUnit)} saved={searchSaved} compact />
+            ) : (
+              <ViewLink
+                href={withState({ view: view === 'grid' ? 'list' : 'grid', after: state.after })}
+                on={false}
+                label={view === 'grid' ? t.viewList : t.viewGrid}
+                icon={view === 'grid' ? 'list' : 'grid'}
+              />
             )}
           </div>
+          {(state.q || widen) && (
+            <p className="-mt-2 mb-3 text-xs text-neutral-600">
+              {state.q && `${messages.search.within(titleOf(b))}، ${result.total > COUNT_CAP ? tb.countAtLeast(COUNT_CAP) : t.count(result.total)}`}
+              {widen && (
+                <>
+                  {'، '}
+                  <Link href={widen} className="text-brand-700 hover:underline">
+                    {messages.search.widen(country.nameFa)}
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
 
           {rent && (
             <p className="mb-3 flex gap-2 rounded-xl bg-saffron-50 p-3 text-sm leading-6 text-saffron-800">
               <Icon name="alert" className="mt-1 size-4 shrink-0" />
               <span>
                 {tb.rentWarning}{' '}
-                <Link href="/safety#rent" className="font-bold underline underline-offset-2">
+                <Link href="/safety#rent" className="font-bold hover:underline">
                   {tb.rentWarningLink}
                 </Link>
               </span>
@@ -504,7 +519,6 @@ function SortMenu({ sorts, current, href }: { sorts: Sort[]; current: Sort; href
         <Icon name="sort" className="size-4" />
         <span className="sr-only">{tb.sort}: </span>
         {tb.sorts[current]}
-        <Icon name="chevronDown" className="size-3.5" />
       </summary>
       <ul className="absolute start-0 top-full z-20 mt-1 min-w-40 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
         {sorts.map((s) => (
@@ -530,7 +544,7 @@ function ViewLink({ href, on, label, icon }: { href: string; on: boolean; label:
       aria-label={label}
       title={label}
       aria-current={on ? 'true' : undefined}
-      className={`flex size-10 items-center justify-center ${on ? 'bg-brand-50 text-brand-700' : 'bg-white text-neutral-600 hover:text-neutral-800'}`}
+      className={`flex size-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 ${on ? 'bg-brand-50 text-brand-700' : 'bg-white text-neutral-700 hover:text-neutral-900'}`}
     >
       <Icon name={icon} className="size-5" />
     </Link>

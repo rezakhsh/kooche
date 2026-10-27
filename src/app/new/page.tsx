@@ -7,6 +7,8 @@ import { messages } from '../../messages/fa';
 import { EVENT_ROOT_SLUG, ancestry, cachedCatalog, isEventCategory, isPostable, type CategoryNode } from '../../modules/listings/catalog';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { CategorySearch, type Pickable } from './category-search';
+import { PostingBar } from './posting-bar';
+import { cachedCategoryCounts } from '../../modules/search/browse';
 import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { postingCountry } from '../../modules/listings/posting-country';
@@ -69,16 +71,22 @@ export default async function NewListingPage({
           : null;
 
   // Every leaf one can post in, for the search (events have their own form)
+  // With how many listings each has in the country, the busiest first (mockup final/post1)
+  const counts = country ? await cachedCategoryCounts(db, country.code, null) : new Map<string, number>();
   const pickable: Pickable[] = [...catalog.byId.values()]
     .filter((c) => c.childIds.length === 0 && isPostable(catalog, c.id) && !isEventCategory(catalog, c.id) && (!c.businessOnly || member))
     .map((c) => {
       const chain = ancestry(catalog, c.id);
       const parentFa = chain.slice(0, -1).map((p) => p.nameFa).join('، ');
-      return { slug: c.slug, nameFa: c.nameFa, parentFa, search: normalizePersian(`${c.nameFa} ${parentFa}`) };
-    });
+      const n = counts.get(c.id) ?? 0;
+      return { slug: c.slug, nameFa: c.nameFa, parentFa, where: country ? t.countIn(parentFa, n, country.nameFa) : t.inParent(parentFa), n, search: normalizePersian(`${c.nameFa} ${parentFa}`) };
+    })
+    .sort((a, b) => b.n - a.n);
   const steps: readonly string[] = messages.form.steps;
 
   return (
+    <>
+    <PostingBar closeHref={params.listing ? `/my/listings/${params.listing}` : '/my/listings'} />
     <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6">
       <div className="space-y-4">
         {!params.listing && (
@@ -91,24 +99,26 @@ export default async function NewListingPage({
             <p className="mt-2 text-xs font-bold text-brand-800">{messages.form.stepOf(1, steps.length, steps[0]!)}</p>
           </div>
         )}
-        <h1 className="text-2xl font-extrabold">{params.listing ? t.title : t.whatHeading}</h1>
-        {!params.listing &&
-          (country ? (
-            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
-              <Flag code={country.code} />
-              <span>{t.inCountry(country.nameFa)}</span>
-              <Link href="/?choose" className="ms-auto font-medium text-brand-800 hover:underline">
-                {messages.form.changeCountry}
+        <div>
+          <h1 className="text-2xl font-extrabold">{params.listing ? t.title : t.whatHeading}</h1>
+          {!params.listing && country && (
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-600">
+              <Flag code={country.code} className="h-3.5 w-5" />
+              {t.publishedIn(country.nameFa)}{' '}
+              <Link href="/?choose" className="font-bold text-brand-800 hover:underline">
+                {messages.form.change}
               </Link>
-            </div>
-          ) : (
-            <Alert tone="info">
-              {messages.form.chooseCountryFirst}{' '}
-              <Link href="/?choose" className="font-bold underline">
-                {messages.form.changeCountry}
-              </Link>
-            </Alert>
-          ))}
+            </p>
+          )}
+        </div>
+        {!params.listing && !country && (
+          <Alert tone="info">
+            {messages.form.chooseCountryFirst}{' '}
+            <Link href="/?choose" className="font-bold underline">
+              {messages.form.changeCountry}
+            </Link>
+          </Alert>
+        )}
         {error && <Alert tone="error">{error}</Alert>}
         {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} />}
         <p className="pt-2 text-sm font-bold text-neutral-700">{parent ? t.pickCategory : t.allCategories}</p>
@@ -131,6 +141,7 @@ export default async function NewListingPage({
         </ul>
       </div>
     </main>
+    </>
   );
 }
 

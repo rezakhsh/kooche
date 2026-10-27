@@ -33,7 +33,8 @@ export function PhotoEditor({
   max,
   initial,
   enabled,
-  onCount,
+  onPhotos,
+  bare = false,
 }: {
   /** null until the listing is saved or gets its first photo */
   listingId: string | null;
@@ -42,11 +43,13 @@ export function PhotoEditor({
   max: number;
   initial: PhotoView[];
   enabled: boolean;
-  /** How many photos the listing has, for the check before publishing */
-  onCount?: (n: number) => void;
+  /** The listing's photos (thumbnails, null while processing), for the check before publishing */
+  onPhotos?: (thumbs: (string | null)[]) => void;
+  /** In the posting steps the photos sit on the page, under the step's lead (mockup final/post2) */
+  bare?: boolean;
 }) {
   const [photos, setPhotos] = useState(initial);
-  useEffect(() => onCount?.(photos.length), [photos.length, onCount]);
+  useEffect(() => onPhotos?.(photos.map((p) => p.thumb ?? null)), [photos, onPhotos]);
   const [uploading, setUploading] = useState<Local[]>([]);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -125,10 +128,11 @@ export function PhotoEditor({
   const full = photos.length + uploading.filter((u) => !u.error).length >= max;
 
   const menuItem = 'flex min-h-11 w-full items-center px-3 text-start text-sm hover:bg-neutral-50';
+  const Box = bare ? 'div' : Card;
   return (
-    <Card className="space-y-3">
-      <h2 className="font-semibold">{t.photos}</h2>
-      <p className="text-xs leading-relaxed text-neutral-600">{t.photosHint(max)}</p>
+    <Box className="space-y-3">
+      {!bare && <h2 className="font-semibold">{t.photos}</h2>}
+      {!bare && <p className="text-xs leading-relaxed text-neutral-600">{t.photosHint(max)}</p>}
       {!enabled && <Alert tone="info">{t.photosUnavailable}</Alert>}
       <ul className="grid grid-cols-3 gap-2">
         {photos.map((p, i) => (
@@ -197,6 +201,6 @@ export function PhotoEditor({
       </ul>
       {photos.length > 1 && <p className="text-xs text-neutral-600">{t.photoMenuHint}</p>}
       {error && <Alert tone="error">{error}</Alert>}
-    </Card>
+    </Box>
   );
 }

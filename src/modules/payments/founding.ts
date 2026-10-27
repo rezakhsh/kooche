@@ -37,6 +37,19 @@ export function foundingBadge(org: { foundingOfferedAt: Date | null; createdAt: 
   return now < until;
 }
 
+/** A city's founding places and how many are taken (with its launch group), for the first page */
+export async function cityFoundingPlaces(db: Queryable, cityId: string): Promise<{ places: number; used: number }> {
+  const [row] = await db.execute<{ places: number; used: number }>(sql`
+    SELECT coalesce(a.business_goal, ${DEFAULT_FOUNDING_PLACES})::int AS places,
+      (SELECT count(*)::int FROM organizations o
+        WHERE o.founding_offered_at IS NOT NULL
+          AND o.location_id IN (SELECT g.id FROM locations g WHERE g.id = a.id OR g.launch_with_id = a.id)) AS used
+    FROM locations c
+    JOIN locations a ON a.id = coalesce(c.launch_with_id, c.id)
+    WHERE c.id = ${cityId}`);
+  return row ?? { places: DEFAULT_FOUNDING_PLACES, used: 0 };
+}
+
 /** The founding places of the business's city (counted with its launch group: Bonn with Cologne) */
 export async function foundingPlaces(db: Queryable, organizationId: string): Promise<{ city: string; places: number; used: number } | null> {
   const [row] = await db.execute<{ city: string; places: number; used: number }>(sql`

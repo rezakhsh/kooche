@@ -10,7 +10,7 @@ import { messages } from '../../messages/fa';
 // suggestions; one tap on a suggestion opens its form. A plain GET form (?q=) without JavaScript,
 // where the page lists the same matches.
 
-export type Pickable = { slug: string; nameFa: string; parentFa: string; search: string };
+export type Pickable = { slug: string; nameFa: string; parentFa: string; search: string; /** «در املاک، ۴۱ آگهی در آلمان» */ where?: string; n?: number };
 
 export const MAX_SUGGESTIONS = 6;
 
@@ -50,7 +50,7 @@ export function CategorySearch({ all, initial }: { all: Pickable[]; initial: str
               <Link href={`/new/${c.slug}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-brand-50">
                 <span className="flex-1">
                   <b className="block text-[15px]">{c.nameFa}</b>
-                  <span className="text-xs text-neutral-600">{t.inParent(c.parentFa)}</span>
+                  <span className="text-xs text-neutral-600">{c.where ?? t.inParent(c.parentFa)}</span>
                 </span>
                 <Icon name="chevronEnd" className="size-5 text-neutral-500" />
               </Link>

@@ -14,6 +14,7 @@ import { chosenCountry } from '../../../country-choice';
 import { editorData } from '../editor-data';
 import { ListingEditor } from './editor';
 import { NoScriptSteps } from './no-script-steps';
+import { PostingBar } from '../../../new/posting-bar';
 
 export const metadata = { title: messages.form.editTitle, robots: { index: false } };
 
@@ -38,12 +39,15 @@ export default async function EditListingPage({ params, searchParams }: { params
   if (listing.status === 'draft' && editor) {
     const initial = step === '3' ? 3 : step === '4' ? 4 : 2;
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6">
-        <NoScriptSteps />
-        <div className="space-y-6">
-          <ListingEditor {...editor} initialStep={initial} />
-        </div>
-      </main>
+      <>
+        <PostingBar category={editor.form.categoryPath.join('، ')} changeHref={`/new?listing=${listing.id}`} />
+        <main className="mx-auto w-full max-w-2xl px-4 pt-4 pb-10 sm:px-6 lg:max-w-5xl">
+          <NoScriptSteps />
+          <div className="space-y-6">
+            <ListingEditor {...editor} initialStep={initial} />
+          </div>
+        </main>
+      </>
     );
   }
 

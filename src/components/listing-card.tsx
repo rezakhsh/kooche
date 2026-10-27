@@ -25,6 +25,10 @@ export type CardData = {
   featured?: boolean;
   /** Posted by a founding business while its badge runs */
   founding?: boolean;
+  /** Posted by a verified business */
+  verified?: boolean;
+  /** After the price: «سرد، ماهانه» for rent */
+  unit?: string | null;
 };
 
 /** `favorite`: the ♡ button, laid over the card next to the link (a button can't sit inside a link) */
@@ -39,8 +43,14 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
           <Icon name="image" className="size-8" />
         </div>
       )}
-      {(card.featured || card.founding) && (
+      {(card.featured || card.founding || card.verified) && (
         <span className="absolute top-2 start-2 flex flex-col items-start gap-1">
+          {card.verified && (
+            <span className="flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 text-xs font-bold leading-5 text-brand-800">
+              <Icon name="verified" className="size-3.5" />
+              {t.verifiedBadge}
+            </span>
+          )}
           {card.featured && (
             <span className="flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">
               <Icon name="star" className="size-3" />
@@ -70,7 +80,12 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
       {card.title}
     </p>
   );
-  const price = card.price && <p className="text-[15px] font-extrabold text-brand-800">{card.price}</p>;
+  const price = card.price && (
+    <p className="text-[15px] font-extrabold text-brand-800">
+      {card.price}
+      {card.unit && <span className="ms-1 text-xs font-medium text-neutral-600">{card.unit}</span>}
+    </p>
+  );
   // Grid cards: price first, the title without an empty band, then place and time (mockup final/browse)
   const body = (
     <div className={`flex min-w-0 flex-1 flex-col ${view === 'grid' ? 'gap-1 p-3' : 'gap-0.5 py-0.5'}`}>

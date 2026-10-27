@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { NOT_SHIPPED, RENT_SLUGS } from '../../../modules/listings/safety-kind';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
@@ -73,12 +74,17 @@ export async function editorData(
       categoryId,
       status: listing?.status ?? 'draft',
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
+      rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
+      rent: ancestry(catalog, category.id).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate'),
+      shippable: !NOT_SHIPPED.has(ancestry(catalog, category.id)[0]?.slug ?? ''),
       defs,
       priceTypes: [...priceTypesFor(category.priceMode)],
       country: country ? { code: country.code, nameFa: country.nameFa, currencySymbol: country.currency.symbol, currencyName: country.currency.nameFa } : null,
       // Only a listing that has no country yet may still take another one
       countryChangeable: !listing?.countryCode,
       needsName: me?.displayName === messages.account.defaultDisplayName,
+      /** «خودم (…)» in the check before publishing */
+      userName: me?.displayName ?? '',
       turnstileSiteKey: turnstileSiteKey(),
       // "Post as" (roadmap step 6): the businesses the user belongs to, chosen while it is a draft
       postAs: {

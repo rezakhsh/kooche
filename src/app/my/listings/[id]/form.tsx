@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { DateInput } from '../../../../components/date-input';
 import { TermsNotice } from '../../../../components/terms-notice';
 import { useTurnstile } from '../../../../components/turnstile';
@@ -34,6 +34,12 @@ export type FormProps = {
   categoryId: string;
   status: string;
   categoryPath: string[];
+  /** The top category's slug: the description's prompts depend on it */
+  rootSlug: string;
+  /** A room or flat to rent: the price is the cold rent a month */
+  rent: boolean;
+  /** Things that can be sent by post (not homes, services, jobs, lessons) */
+  shippable: boolean;
   defs: AttributeDef[];
   priceTypes: PriceType[];
   /**
@@ -44,6 +50,8 @@ export type FormProps = {
   /** False once the listing has a country: then "change country" isn't offered */
   countryChangeable: boolean;
   needsName: boolean;
+  /** The seller's name, for «انتشار به نام: خودم (…)» */
+  userName: string;
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
   /** "Post as": the user's businesses; fixed once the listing is out; some categories need one */
@@ -67,7 +75,20 @@ export type FormProps = {
 const t = messages.form;
 
 /** The posting steps' state, from ListingEditor (null for a listing that is out: one page) */
-export type Wizard = { step: Step; setStep: (s: Step) => void; photoCount: number };
+export type Wizard = {
+  step: Step;
+  setStep: (s: Step) => void;
+  /** Thumbnails in order (null while processing) */
+  photos: (string | null)[];
+  /** The form as text, for the preview beside the steps on computers */
+  onSummary?: (s: Summary) => void;
+};
+
+/** What the check before publishing and the preview show */
+export type Summary = { title?: string; price?: string; details?: string; postAs?: string };
+
+/** How many photo thumbnails the check before publishing shows; the rest as «+۳» */
+const CHECK_THUMBS = 4;
 
 /** Choice lists up to this long are buttons; longer ones stay a select */
 const SHORT_CHOICE = 6;
@@ -82,6 +103,36 @@ function Pill({ type, name, value, checked, onChange, children }: { type: 'radio
       <input type={type} name={name} value={value} defaultChecked={onChange ? undefined : checked} checked={onChange ? checked : undefined} onChange={onChange} className="peer sr-only" />
       <span className={pillClass}>{children}</span>
     </label>
+  );
+}
+
+/** An on/off choice as a switch (mockup final/post4); a checkbox underneath, so it posts as before */
+function Toggle({ name, checked, hint, children }: { name: string; checked: boolean; hint?: string; children: ReactNode }) {
+  return (
+    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border border-neutral-300 px-4 py-2 text-sm">
+      <span>
+        {children}
+        {hint && <span className="block text-xs text-neutral-600">{hint}</span>}
+      </span>
+      <input type="checkbox" name={name} defaultChecked={checked} role="switch" className="peer sr-only" />
+      <span
+        aria-hidden
+        className="flex h-6 w-11 shrink-0 items-center justify-start rounded-full bg-neutral-300 p-0.5 peer-checked:justify-end peer-checked:bg-brand-700 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700"
+      >
+        <i className="size-5 rounded-full bg-white shadow-sm" />
+      </span>
+    </label>
+  );
+}
+
+/** A group of fields: a card with its heading on the one-page form, plain in the steps */
+function Section({ titled, title, children }: { titled: boolean; title: string; children: ReactNode }) {
+  if (!titled) return <div className="space-y-5">{children}</div>;
+  return (
+    <Card className="space-y-4">
+      <h2 className="font-semibold">{title}</h2>
+      {children}
+    </Card>
   );
 }
 
@@ -113,8 +164,17 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   // The step «ادامه» was pressed on; its answer decides where to go
   const leaving = useRef<Step | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [summary, setSummary] = useState<Record<string, string>>({});
+  const [summary, setSummaryState] = useState<Summary>({});
+  const onSummary = wizard?.onSummary;
+  const setSummary = useCallback(
+    (x: Summary) => {
+      setSummaryState(x);
+      onSummary?.(x);
+    },
+    [onSummary],
+  );
   const [titleLength, setTitleLength] = useState(v.title.length);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!wizard || !state?.at) return;
     const from = leaving.current;
@@ -128,23 +188,35 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     // Only state changes move the steps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.at]);
-  // What the check at step 4 lists, read from the form as it is
-  useEffect(() => {
-    if (wizard?.step !== 4 || !formRef.current) return;
+  // What the check at step 4 and the preview beside steps 3–4 show, read from the form as it is
+  const readSummary = useCallback(() => {
+    if (!formRef.current) return;
     const data = new FormData(formRef.current);
-    const filled = props.defs.filter((d) => {
-      const x = data.getAll(`attr.${d.key}`).concat(data.getAll(`attr.${d.key}.day`), data.getAll(`attr.${d.key}.month`));
-      return x.some((y) => typeof y === 'string' && y !== '');
-    }).length;
-    const type = String(data.get('priceType') ?? '');
+    const details = props.defs.flatMap((d) => {
+      const text = fieldText(d, data);
+      return text ? [text] : [];
+    });
+    const type = String(data.get('priceType') ?? props.priceTypes[0] ?? '');
     const amount = String(data.get('amount') ?? '').trim();
+    const unit = props.rent ? ` ${messages.country.rentUnit}` : '';
     setSummary({
       title: String(data.get('title') ?? '').trim(),
-      price: type === 'fixed' || type === 'negotiable' ? (amount ? `${amount} ${props.country?.currencySymbol ?? ''}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
-      details: filled ? t.detailsCount(filled) : '',
-      postAs: props.postAs.options.find((o) => o.id === String(data.get('organizationId') ?? v.organizationId))?.name ?? t.myself,
+      price: type === 'fixed' || type === 'negotiable' ? (amount ? `${amount} ${props.country?.currencySymbol ?? ''}${unit}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
+      details: details.join('، '),
+      postAs: props.postAs.options.find((o) => o.id === String(data.get('organizationId') ?? v.organizationId))?.name ?? `${t.myself}${props.userName ? ` (${props.userName})` : ''}`,
     });
-  }, [wizard?.step, props.defs, props.postAs.options, props.country, v.organizationId]);
+  }, [props.defs, props.priceTypes, props.rent, props.postAs.options, props.country, props.userName, v.organizationId, setSummary]);
+  useEffect(() => {
+    if (!wizard || wizard.step < 3) return;
+    readSummary();
+    const form = formRef.current;
+    form?.addEventListener('input', readSummary);
+    form?.addEventListener('change', readSummary);
+    return () => {
+      form?.removeEventListener('input', readSummary);
+      form?.removeEventListener('change', readSummary);
+    };
+  }, [wizard, readSummary]);
   // While stepping, only the steps already left show their missing fields
   const missingShown = wizard && state?.missing ? Object.fromEntries(Object.entries(state.missing).filter(([k]) => stepOf(k) < wizard.step)) : {};
   const errors = state?.errors ?? missingShown;
@@ -185,31 +257,19 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       <input type="hidden" name="categoryId" value={props.categoryId} />
 
       <div {...section(2)}>
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
-          <div className="min-w-0">
-            <span className="block text-xs text-neutral-600">{t.category}</span>
-            <span className="block truncate text-sm font-bold">{props.categoryPath.join('، ')}</span>
+        {/* A listing that is out shows its category here; the steps have it in the top bar */}
+        {!wizard && (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
+            <div className="min-w-0">
+              <span className="block text-xs text-neutral-600">{t.category}</span>
+              <span className="block truncate text-sm font-bold">{props.categoryPath.join('، ')}</span>
+            </div>
           </div>
-          {draft && (
-            <Link href={props.listingId ? `/new?listing=${props.listingId}` : '/new'} className="flex min-h-11 shrink-0 items-center text-sm font-bold text-brand-800 hover:underline">
-              {t.change}
-            </Link>
-          )}
-        </div>
-        <fieldset>
-          <legend className="sr-only">{t.kind}</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(['offer', 'wanted'] as const).map((k) => (
-              <Pill key={k} type="radio" name="kind" value={k} checked={v.kind === k}>
-                <span className="w-full text-center">{messages.kind[k]}</span>
-              </Pill>
-            ))}
-          </div>
-        </fieldset>
+        )}
         <div>
           <label className="block">
             <span className="mb-1.5 flex justify-between text-sm font-bold">
-              <span>{t.titleLabel}</span>
+              <span>{wizard ? t.titleShort : t.titleLabel}</span>
               <span className="font-normal text-neutral-600">{t.titleCount(titleLength, 90)}</span>
             </span>
             <input
@@ -218,30 +278,99 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               maxLength={90}
               required
               onChange={(e) => setTitleLength(e.target.value.length)}
-              className="block h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
+              className="block h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-2 focus:border-brand-600"
             />
-            <span className="mt-1 block text-xs text-neutral-600">{t.titleHint}</span>
+            {!wizard && <span className="mt-1 block text-xs text-neutral-600">{t.titleHint}</span>}
           </label>
           <ErrorText code={errors.title} />
         </div>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-bold">{t.descriptionLabel}</span>
-          <textarea
-            name="description"
-            defaultValue={v.description}
-            rows={6}
-            maxLength={5000}
-            className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base leading-8 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
-          />
-          <span className="mt-1 block text-xs text-neutral-600">{t.descriptionHint}</span>
+        <div>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-bold">{t.descriptionLabel}</span>
+            <textarea
+              ref={descriptionRef}
+              name="description"
+              defaultValue={v.description}
+              rows={4}
+              maxLength={5000}
+              className="block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base leading-8 outline-none focus:border-2 focus:border-brand-600"
+            />
+          </label>
+          {/* What to write (mockup final/post2): a tap adds the topic to the text */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-neutral-600">{t.promptsLead}</span>
+            {(t.prompts[props.rootSlug] ?? t.prompts.default ?? []).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => {
+                  const area = descriptionRef.current;
+                  if (!area) return;
+                  area.value = `${area.value.trimEnd()}${area.value.trim() ? '\n' : ''}${p}: `;
+                  area.focus();
+                }}
+                className="min-h-8 rounded-full bg-neutral-100 px-2.5 text-xs text-neutral-700 hover:bg-neutral-200"
+              >
+                + {p}
+              </button>
+            ))}
+          </div>
+          {!wizard && <span className="mt-1 block text-xs text-neutral-600">{t.descriptionHint}</span>}
           <ErrorText code={errors.description} />
-        </label>
+        </div>
+        <fieldset>
+          <legend className="sr-only">{t.kind}</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {(['offer', 'wanted'] as const).map((k) => (
+              <label key={k} className="cursor-pointer">
+                <input type="radio" name="kind" value={k} defaultChecked={v.kind === k} className="peer sr-only" />
+                <span className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-neutral-300 px-3 text-sm text-neutral-700 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700 [&>svg]:hidden peer-checked:[&>svg]:block">
+                  <Icon name="check" className="size-4" />
+                  {t.kindShort[k]}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       <div {...section(3)}>
+      {/* The price first, then the category's fields (mockup final/post3); cards only on one page */}
+      {props.priceTypes.length > 0 && (
+        <Section titled={!wizard} title={t.price}>
+          {(priceType === 'fixed' || priceType === 'negotiable') && (
+            <div>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold">{props.rent ? t.rentAmount : t.amount}</span>
+                <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
+                  <input name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="min-w-0 flex-1 bg-transparent text-end text-base outline-none" />
+                  {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
+                </span>
+              </label>
+              <ErrorText code={errors.amount} />
+            </div>
+          )}
+          {/* The kind of price only where there is a choice */}
+          {props.priceTypes.length > 1 ? (
+            <fieldset>
+              <legend className="mb-1.5 block text-sm font-bold">{t.priceType}</legend>
+              <div className="flex flex-wrap gap-2">
+                {props.priceTypes.map((p) => (
+                  <Pill key={p} type="radio" name="priceType" value={p} checked={priceType === p} onChange={() => setPriceType(p)}>
+                    {messages.priceType[p]}
+                  </Pill>
+                ))}
+              </div>
+              <ErrorText code={errors.priceType} />
+            </fieldset>
+          ) : (
+            <input type="hidden" name="priceType" value={priceType} />
+          )}
+        </Section>
+      )}
+
       {props.defs.length > 0 && (
-        <Card className="space-y-4">
-          <h2 className="font-semibold">{t.details}</h2>
+        <Section titled={!wizard} title={t.details}>
           {props.defs.map((d) => (
             <AttributeField
               key={d.key}
@@ -255,48 +384,19 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               currencySymbol={currencySymbol}
             />
           ))}
-        </Card>
+        </Section>
       )}
-
-      {props.priceTypes.length > 0 && (
-        <Card className="space-y-4">
-          <h2 className="font-semibold">{t.price}</h2>
-          <fieldset>
-            <legend className="mb-1.5 block text-sm font-bold">{t.priceType}</legend>
-            <div className="flex flex-wrap gap-2">
-              {props.priceTypes.map((p) => (
-                <Pill key={p} type="radio" name="priceType" value={p} checked={priceType === p} onChange={() => setPriceType(p)}>
-                  {messages.priceType[p]}
-                </Pill>
-              ))}
-            </div>
-            <ErrorText code={errors.priceType} />
-          </fieldset>
-          {(priceType === 'fixed' || priceType === 'negotiable') && (
-            <div>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-bold">{t.amount}</span>
-                <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/20">
-                  <input name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="min-w-0 flex-1 bg-transparent text-end text-base outline-none" />
-                  {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
-                </span>
-                <span className="mt-1 block text-xs text-neutral-600">{t.amountHint}</span>
-              </label>
-              <ErrorText code={errors.amount} />
-            </div>
-          )}
-        </Card>
+      {props.shippable && (
+        <div className="flex flex-wrap gap-2">
+          <Pill type="checkbox" name="shippingOffered" value="on" checked={v.shippingOffered}>
+            {t.shipping}
+          </Pill>
+        </div>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Pill type="checkbox" name="shippingOffered" value="on" checked={v.shippingOffered}>
-          {t.shipping}
-        </Pill>
-      </div>
       </div>
 
       <div {...section(4)}>
-      <Card className="space-y-4">
-        <h2 className="font-semibold">{t.location}</h2>
+      <Section titled={!wizard} title={t.location}>
         {props.country ? (
           <PlaceField
             countries={[props.country]}
@@ -320,26 +420,30 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             </Link>
           </Alert>
         )}
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" name="rememberPlace" defaultChecked={v.rememberPlace} className="size-5" />
-          {t.rememberPlace}
-        </label>
-      </Card>
+        {/* In the steps the place is always kept for the next listing (mockup final/post4 has no switch) */}
+        {wizard ? (
+          <input type="hidden" name="rememberPlace" value="on" />
+        ) : (
+          <Toggle name="rememberPlace" checked={v.rememberPlace}>
+            {t.rememberPlace}
+          </Toggle>
+        )}
+      </Section>
 
-      <Card className="space-y-3">
-        <h2 className="font-semibold">{t.contact}</h2>
-        <p className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-2 text-sm">
-          <span>
-            {t.chatAlways}
-            <span className="block text-xs text-neutral-600">{t.chatAlwaysHint}</span>
+      <section className="space-y-2">
+        <h2 className="text-sm font-bold">{t.contact}</h2>
+        {/* Chat is always on: a switch that can't be turned off */}
+        <p className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-neutral-300 px-4 py-2 text-sm">
+          <span>{t.chatAlways}</span>
+          <span aria-hidden className="flex h-6 w-11 shrink-0 items-center justify-end rounded-full bg-brand-700 p-0.5">
+            <i className="size-5 rounded-full bg-white shadow-sm" />
           </span>
-          <Icon name="check" className="size-5 text-brand-700" />
+          <span className="sr-only">{t.chatAlwaysHint}</span>
         </p>
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" name="allowPhoneContact" defaultChecked={v.allowPhoneContact} className="size-5" />
-          {t.allowPhone}
-        </label>
-      </Card>
+        <Toggle name="allowPhoneContact" checked={v.allowPhoneContact} hint={t.allowPhoneHint}>
+          {t.allowPhoneShort}
+        </Toggle>
+      </section>
 
       {props.postAs.options.length > 0 && (
         <Card className="space-y-2">
@@ -378,18 +482,34 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
           <dl className="mt-1 divide-y divide-neutral-200 rounded-2xl border border-neutral-200 px-4">
             {(
               [
-                ['photos', t.photoCount(wizard.photoCount), 2],
+                ['photos', t.photoCount(wizard.photos.length), 2],
                 ['title', summary.title, 2],
                 ['price', props.priceTypes.length > 0 ? summary.price : null, 3],
                 ['details', props.defs.length > 0 ? summary.details : null, 3],
-                ['postAs', props.postAs.options.length > 0 ? summary.postAs : null, 4],
+                ['postAs', summary.postAs ?? null, 4],
               ] as const
             )
               .filter(([, value]) => value !== null)
               .map(([key, value, step]) => (
                 <div key={key} className="flex items-start gap-3 py-3">
                   <dt className="w-24 shrink-0 text-sm text-neutral-600">{t.checkRows[key]}</dt>
-                  <dd className={`min-w-0 flex-1 text-sm leading-6 ${value ? 'font-bold' : 'text-neutral-600'}`}>{value || t.notEntered}</dd>
+                  <dd className={`min-w-0 flex-1 text-sm leading-6 ${value ? 'font-bold' : 'text-neutral-600'}`}>
+                    {key === 'photos' && wizard.photos.length > 0 ? (
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="sr-only">{value}</span>
+                        {wizard.photos.slice(0, CHECK_THUMBS).map((src, i) =>
+                          src ? (
+                            <img key={i} src={src} alt="" width={44} height={44} className="size-11 rounded-lg object-cover" />
+                          ) : (
+                            <span key={i} className="size-11 rounded-lg bg-neutral-100" />
+                          ),
+                        )}
+                        {wizard.photos.length > CHECK_THUMBS && <span className="text-xs text-neutral-600">+{(wizard.photos.length - CHECK_THUMBS).toLocaleString('fa-IR')}</span>}
+                      </span>
+                    ) : (
+                      value || t.notEntered
+                    )}
+                  </dd>
                   {step !== 4 && (
                     <button type="button" onClick={() => wizard.setStep(step)} className="flex min-h-11 items-center text-sm font-bold text-brand-800 hover:underline">
                       {t.change}
@@ -431,6 +551,14 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       {wizard && (
         <div data-step-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:px-0">
           <div className="mx-auto flex max-w-2xl gap-2">
+            {wizard.step === 2 && (
+              <Link
+                href={props.listingId ? `/new?listing=${props.listingId}` : '/new'}
+                className="flex h-12 items-center justify-center rounded-xl border border-neutral-300 px-5 font-bold text-neutral-800"
+              >
+                {t.previous}
+              </Link>
+            )}
             {wizard.step > 2 && (
               <button
                 type="button"
@@ -518,23 +646,31 @@ function AttributeField({
 
   switch (def.type) {
     case 'number':
+      // The unit or currency inside the field (mockup final/post3: «۱۴ متر مربع»)
       return wrap(
-        <Field
-          label={label}
-          name={name}
-          defaultValue={value === undefined ? '' : String(value)}
-          inputMode={def.validation.integer && !def.validation.money ? 'numeric' : 'decimal'}
-          dir="ltr"
-          className="text-end"
-        />,
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold">{labelText(def.labelFa, def.isRequired)}</span>
+          <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
+            <input
+              name={name}
+              defaultValue={value === undefined ? '' : String(value)}
+              inputMode={def.validation.integer && !def.validation.money ? 'numeric' : 'decimal'}
+              dir="ltr"
+              className="min-w-0 flex-1 bg-transparent text-end text-base outline-none"
+            />
+            {unit && <span className="ms-2 shrink-0 text-neutral-600">{unit}</span>}
+          </span>
+        </label>,
       );
     case 'text':
       return wrap(<Field label={label} name={name} defaultValue={typeof value === 'string' ? value : ''} maxLength={def.validation.max_length ?? 200} />);
     case 'date': {
       const stored = typeof value === 'string' ? value : '';
       if (!def.validation.month) {
+        // An optional end date (until when): «نامحدود» or «تاریخ مشخص» first (mockup final/post3)
+        if (!def.isRequired && def.key.endsWith('_until')) return wrap(<UntilField label={labelText(def.labelFa, false)} name={name} stored={stored} />);
         // Move-in and start dates get «از همین حالا» and «اول ماه بعد»
-        return wrap(<DateInput label={label} name={name} defaultValue={stored} quick={def.key === 'available_from'} />);
+        return wrap(<DateInput label={label} name={name} defaultValue={stored} quick={def.key === 'available_from'} showDay />);
       }
       // Month and year (TÜV): two selects, since Firefox and desktop Safari have no month input
       const [y = '', m = ''] = stored.split('-');
@@ -646,5 +782,57 @@ function AttributeField({
         </fieldset>,
       );
     }
+  }
+}
+
+/** «تا تاریخ»: open-ended, or a day (mockup final/post3) */
+function UntilField({ label, name, stored }: { label: ReactNode; name: string; stored: string }) {
+  const [dated, setDated] = useState(!!stored);
+  return (
+    <fieldset>
+      <legend className="mb-1.5 block text-sm font-bold">{label}</legend>
+      <div className="mb-2 flex flex-wrap gap-2">
+        <Pill type="radio" name={`${name}.until`} value="open" checked={!dated} onChange={() => setDated(false)}>
+          {t.untilOpen}
+        </Pill>
+        <Pill type="radio" name={`${name}.until`} value="dated" checked={dated} onChange={() => setDated(true)}>
+          {t.untilDated}
+        </Pill>
+      </div>
+      {dated && <DateInput label={t.untilDated} name={name} defaultValue={stored} showDay />}
+    </fieldset>
+  );
+}
+
+/** One filled field as the check and the preview show it («۱۴ متر مربع», «مبله», «از ۱ دسامبر ۲۰۲۶»), or null */
+function fieldText(def: AttributeDef, data: FormData): string | null {
+  const name = `attr.${def.key}`;
+  const one = (k: string) => {
+    const v = data.get(k);
+    return typeof v === 'string' ? v.trim() : '';
+  };
+  const fa = (n: string) => (/^\d+(\.\d+)?$/.test(n) ? Number(n).toLocaleString('fa-IR') : n);
+  const option = (v: string) => def.options.find((o) => o.value === v)?.labelFa ?? v;
+  switch (def.type) {
+    case 'number': {
+      const v = one(name);
+      return v ? `${fa(v)}${def.unitFa ? ` ${def.unitFa}` : ''}` : null;
+    }
+    case 'boolean':
+      return one(name) === 'true' ? def.labelFa : null;
+    case 'select':
+      return one(name) ? option(one(name)) : null;
+    case 'multi_select': {
+      const all = data.getAll(name).filter((x): x is string => typeof x === 'string' && x !== '');
+      return all.length ? all.map(option).join('، ') : null;
+    }
+    case 'date': {
+      const [d, m, y] = [one(`${name}.day`), one(`${name}.month`), one(`${name}.year`)];
+      if (!m || !y) return null;
+      const month = t.months[Number(m) - 1] ?? m;
+      return `${def.labelFa} ${d ? `${fa(d)} ` : ''}${month} ${Number(y).toLocaleString('fa-IR', { useGrouping: false })}`;
+    }
+    case 'text':
+      return one(name) || null;
   }
 }

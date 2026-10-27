@@ -81,3 +81,18 @@ body:has([data-chat-thread]) > footer {
     display: none;
   }
 }
+
+/* An open sheet on a browse page (filters, all categories) covers the header and the bottom bar
+   too: the sticky block holding it rises above them while it is open */
+[data-browse-bar]:has(details[open]) {
+  z-index: 50;
+}
+body:has([data-browse-bar] details[open]) [data-bottom-nav] {
+  display: none;
+}
+
+/* The posting pages have their own bar (src/app/new/posting-bar.tsx): no site header or footer */
+body:has([data-app-bar]) > header,
+body:has([data-app-bar]) > footer {
+  display: none;
+}
