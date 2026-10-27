@@ -1,0 +1,324 @@
+<title>برنامهٔ ساخت موج ۱ پیدو</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: one reading column; summary first, then one section per item; technical details folded. Peydoo's own turquoise and saffron. */
+:root {
+  --bg: #ffffff;
+  --surface: #f3f8f8;
+  --fg: #12282a;
+  --muted: #4c6466;
+  --line: #d5e4e4;
+  --brand: #0b6e77;
+  --brand-soft: #e6f2f1;
+  --saffron: #f2a516;
+  --saffron-soft: #fff4dc;
+  --saffron-ink: #7a4b00;
+  --danger-soft: #fdecea;
+  --danger-ink: #8a2a1d;
+  --font: "Vazirmatn", "Vazir", Tahoma, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1a1b; --surface: #142628; --fg: #e3eeee; --muted: #9fb6b7; --line: #24393b;
+    --brand: #5fc3c9; --brand-soft: #16343a; --saffron: #f2b64a; --saffron-soft: #2e2512; --saffron-ink: #f5cf86;
+    --danger-soft: #3a1d18; --danger-ink: #f4b2a6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1a1b; --surface: #142628; --fg: #e3eeee; --muted: #9fb6b7; --line: #24393b;
+  --brand: #5fc3c9; --brand-soft: #16343a; --saffron: #f2b64a; --saffron-soft: #2e2512; --saffron-ink: #f5cf86;
+  --danger-soft: #3a1d18; --danger-ink: #f4b2a6; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.95;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 760px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.5; margin: 0; }
+h1 { font-size: 30px; font-weight: 900; }
+h2 { font-size: 22px; font-weight: 900; }
+h3 { font-size: 16px; font-weight: 700; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-inline-start: 1.3em; display: grid; gap: 6px; }
+code, .ltr { font-family: var(--mono); font-size: 13px; direction: ltr; unicode-bidi: isolate; }
+a { color: var(--brand); }
+
+header.top { padding-block: 32px 20px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 13px; font-weight: 700; color: var(--brand); letter-spacing: .02em; }
+.lead { color: var(--muted); font-size: 17px; }
+.status { display: inline-flex; align-items: center; gap: 8px; width: fit-content; background: var(--saffron-soft); color: var(--saffron-ink); font-weight: 700; font-size: 14px; padding: 4px 12px; border-radius: 999px; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 16px; }
+nav.toc a { text-decoration: none; font-size: 14px; color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--brand); color: var(--brand); outline: none; }
+
+section { padding-block: 28px; border-bottom: 1px solid var(--line); display: grid; gap: 14px; }
+section:last-of-type { border-bottom: 0; }
+
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border-radius: 16px; padding: 14px 16px; display: grid; gap: 2px; }
+.stat b { font-size: 26px; font-weight: 900; color: var(--brand); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--muted); }
+@media (max-width: 560px) { .summary { grid-template-columns: 1fr; } }
+
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: start; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--surface); font-size: 13px; color: var(--muted); font-weight: 700; }
+td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+tr.total td { font-weight: 900; background: var(--brand-soft); }
+
+.decided { display: grid; gap: 8px; list-style: none; padding: 0; }
+.decided li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.decided li::before { content: "✓"; color: var(--brand); font-weight: 900; }
+
+.item-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.days { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.num { color: var(--brand); }
+.block { display: grid; gap: 8px; }
+.you { background: var(--saffron-soft); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.you h3 { color: var(--saffron-ink); }
+.risk { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.quote { border-inline-start: 3px solid var(--brand); padding-inline-start: 12px; color: var(--fg); }
+.warn { background: var(--danger-soft); color: var(--danger-ink); border-radius: 14px; padding: 12px 16px; }
+
+details { border: 1px solid var(--line); border-radius: 14px; }
+summary { cursor: pointer; padding: 10px 16px; font-weight: 700; font-size: 14px; color: var(--muted); list-style-position: inside; }
+summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 14px; }
+details[open] summary { border-bottom: 1px solid var(--line); }
+details .inner { padding: 12px 16px; display: grid; gap: 10px; font-size: 14px; min-width: 0; }
+details .inner h4 { margin: 0; font-size: 14px; }
+
+ol.steps { counter-reset: s; list-style: none; padding: 0; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 10px; }
+ol.steps > li::before { content: counter(s, persian); width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: var(--bg); display: grid; place-items: center; font-weight: 700; font-size: 13px; margin-top: 3px; }
+
+.next { background: var(--brand); color: var(--bg); border-radius: 18px; padding: 18px 20px; display: grid; gap: 6px; }
+.next h2 { color: var(--bg); }
+footer { padding-top: 20px; font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap" dir="rtl" lang="fa">
+
+<header class="top">
+  <p class="eyebrow">پیدو · موج ۱ · ۲۷ اکتبر ۲۰۲۶</p>
+  <h1>برنامهٔ ساخت موج ۱: طراحی تازهٔ «صیقل‌خورده»</h1>
+  <p class="lead">ظاهر امروز می‌ماند: فیروزه‌ای، زعفرانی، فونت وزیرمتن، کارت‌های گرد، همین لوگو. چیزی که عوض می‌شود این است که هر صفحه ساده‌تر و راحت‌تر شود. هنوز هیچ کدی عوض نشده.</p>
+  <p class="status">منتظر «شروع» شما</p>
+</header>
+
+<nav class="toc" aria-label="بخش‌ها">
+  <a href="#summary">خلاصه</a>
+  <a href="#p1">۱. همه‌جا</a>
+  <a href="#p2">۲. پیدا کردن</a>
+  <a href="#p3">۳. صفحهٔ آگهی</a>
+  <a href="#p4">۴. ثبت آگهی</a>
+  <a href="#p5">۵. بخش من</a>
+  <a href="#p6">۶. رویدادها</a>
+  <a href="#p7">۷. پرو و کسب‌وکار</a>
+  <a href="#p8">۸. پانویس</a>
+  <a href="#p9">۹. مدیریت</a>
+  <a href="#p10">۱۰. حالت تاریک</a>
+  <a href="#p11">۱۱. بررسی نهایی</a>
+  <a href="#decide">تصمیم‌های شما</a>
+</nav>
+
+<section id="summary">
+  <h2>خلاصه</h2>
+  <div class="summary">
+    <div class="stat"><b>۱۱</b><span>بخش، هر کدام جدا روی سایت آزمایشی</span></div>
+    <div class="stat"><b>۲۰٫۵ تا ۲۲</b><span>روز کاری (برآورد)</span></div>
+    <div class="stat"><b>۰</b><span>تغییر در سایت اصلی، تا خودتان بخواهید</span></div>
+  </div>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>بخش</th><th>روز</th></tr></thead>
+      <tbody>
+        <tr><td>۱. همه‌جا: تاریخ میلادی، قیمت، اندازه‌ها، نوار پایین، نشان بنیان‌گذار روی کارت آگهی</td><td class="n">۱٫۵</td></tr>
+        <tr><td>۲. پیدا کردن: صفحهٔ اول، انتخاب کشور، صفحه‌های فهرست، فیلترها، «خبرم کن»</td><td class="n">۲٫۵ تا ۳</td></tr>
+        <tr><td>۳. صفحهٔ آگهی</td><td class="n">۱٫۵</td></tr>
+        <tr><td>۴. ثبت آگهی در ۴ مرحله، صفحهٔ بررسی، صفحهٔ «منتشر شد»</td><td class="n">۳</td></tr>
+        <tr><td>۵. بخش من: آگهی‌های من، گفت‌وگو، حساب و تنظیمات</td><td class="n">۲</td></tr>
+        <tr><td>۶. رویدادها: فهرست، صفحهٔ رویداد، ثبت؛ یادآوری رویداد ذخیره‌شده؛ دنبال کردن کسب‌وکار</td><td class="n">۳ تا ۳٫۵</td></tr>
+        <tr><td>۷. پرو، ساخت کسب‌وکار در ۳ مرحله، صفحهٔ کسب‌وکار</td><td class="n">۲</td></tr>
+        <tr><td>۸. پانویس و پیوندهای قانونی</td><td class="n">۰٫۵</td></tr>
+        <tr><td>۹. پنل مدیریت</td><td class="n">۲</td></tr>
+        <tr><td>۱۰. حالت تاریک (خودکار، روشن، تیره)</td><td class="n">۱٫۵</td></tr>
+        <tr><td>۱۱. بررسی همهٔ صفحه‌ها در اندازهٔ گوشی، آزمایش Stripe، مستندات</td><td class="n">۱٫۵</td></tr>
+        <tr class="total"><td>جمع</td><td class="n">۲۰٫۵ تا ۲۲</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>برنامهٔ راه‌اندازی ۱۵ تا ۱۸ روز گفته بود. سه چیز آن را بزرگ‌تر کرد: یادآوری رویداد و دنبال کردن کسب‌وکار (در دور ۴ گفتید با طراحی تازه ساخته شوند)، نشان بنیان‌گذار روی کارت آگهی (از موج ۰ آمد)، و بررسی نهایی در اندازهٔ گوشی (از موج ۰ به اینجا آمد).</p>
+  <div class="block">
+    <h3>چطور ساخته می‌شود</h3>
+    <ul>
+      <li>بخش‌ها به ترتیب همین جدول ساخته می‌شوند. هر بخش آزمون می‌گیرد و روی سایت آزمایشی می‌رود.</li>
+      <li>بعد از هر بخش فهرست کوتاهی برایتان می‌فرستم: دقیقاً کدام صفحه و چه چیزی را ببینید.</li>
+      <li>نشانی صفحه‌ها عوض نمی‌شود و هیچ داده‌ای از بین نمی‌رود.</li>
+      <li>سایت اصلی چیزی نمی‌گیرد تا خودتان بخواهید. بعد موج ۰ و موج ۱ با هم روی سایت اصلی می‌روند.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="p1">
+  <div class="item-head"><h2><span class="num">۱.</span> همه‌جا</h2><span class="days">۱٫۵ روز</span></div>
+  <ul>
+    <li><b>تاریخ‌ها میلادی</b> با نام ماه و رقم فارسی: «۸ نوامبر ۲۰۲۶». هفت روز اول نسبی است: «۲ ساعت پیش». تاریخ شمسی فقط کنار نوروز، یلدا و چهارشنبه‌سوری. (امروز همهٔ سایت شمسی است.)</li>
+    <li><b>فیلد تاریخ</b> با روز، نام ماه و سال. امروز مرورگر «mm/dd/yyyy» نشان می‌دهد. با دکمه‌های «از همین حالا» و «اول ماه بعد».</li>
+    <li><b>قیمت</b> به شکل «۸۷۰ €»، و «،» به جای «·».</li>
+    <li>هیچ نوشته‌ای کوچک‌تر از ۱۲ پیکسل نیست، و هر دکمه دست‌کم ۴۴ پیکسل است تا با انگشت راحت زده شود.</li>
+    <li><b>نوار پایین</b> فقط در صفحه‌های گشتن. در گفت‌وگو، ثبت آگهی و مدیریت دیده نمی‌شود.</li>
+    <li><b>نشان «بنیان‌گذار» روی کارت آگهی‌های کسب‌وکار</b>، تا وقتی نشانش اعتبار دارد.</li>
+  </ul>
+</section>
+
+<section id="p2">
+  <div class="item-head"><h2><span class="num">۲.</span> پیدا کردن</h2><span class="days">۲٫۵ تا ۳ روز</span></div>
+  <ul>
+    <li><b>صفحهٔ اول</b> می‌پرسد: «به نظر می‌رسد در آلمان هستید». برلین اول، با تعداد آگهی‌ها. جست‌وجو همان بالا. یک جمله که پیدو چیست. کسی که از کشوری می‌آید که هنوز باز نیست، کارت فهرست انتظار را می‌بیند (در موج ۰ ساخته شد).</li>
+    <li><b>انتخاب کشور:</b> با زدن نام شهر در بالای صفحه، کشورهای باز با تعداد آگهی، و بعد «به‌زودی» با «خبرم کن».</li>
+    <li><b>صفحه‌های فهرست:</b> یک جای جست‌وجو و یک ردیف دکمهٔ دسته. آگهی‌ها روی گوشی زودتر دیده می‌شوند. فیلترهای انتخاب‌شده دکمه‌های کوچکی با × می‌شوند.</li>
+    <li><b>صفحهٔ فیلتر:</b> دکمه به جای فهرست کشویی، قیمت معمول به‌عنوان راهنما، و روی دکمه: «نمایش ۲۳ آگهی».</li>
+    <li><b>«خبرم کن»</b> بالای نتیجه‌ها، برای ذخیرهٔ جست‌وجو.</li>
+    <li><b>خانه و اتاق:</b> هشدار کلاهبرداری اجاره.</li>
+  </ul>
+</section>
+
+<section id="p3">
+  <div class="item-head"><h2><span class="num">۳.</span> صفحهٔ آگهی</h2><span class="days">۱٫۵ روز</span></div>
+  <ul>
+    <li><b>روی گوشی:</b> نوار ثابت پایین با گفت‌وگو، تلفن و ذخیره. دکمه‌های برگشت، اشتراک و ذخیره روی عکس.</li>
+    <li><b>روی کامپیوتر:</b> عنوان، قیمت و تماس کنار عکس.</li>
+    <li>اجاره کامل: اجارهٔ سرد، هزینه‌ها، ودیعه.</li>
+    <li>جعبهٔ نکته‌های امنیتی برای هر دسته، فروشنده با زمان معمول جواب دادن، و آگهی‌های مشابه.</li>
+  </ul>
+</section>
+
+<section id="p4">
+  <div class="item-head"><h2><span class="num">۴.</span> ثبت آگهی در ۴ مرحله</h2><span class="days">۳ روز</span></div>
+  <p>امروز فرم اتاق حدود ۹ صفحهٔ گوشی است. به جایش ۴ مرحله:</p>
+  <ol class="steps">
+    <li>دسته (با جست‌وجو و پیشنهاد)</li>
+    <li>عکس و متن</li>
+    <li>جزئیات و قیمت</li>
+    <li>محل و بررسی</li>
+  </ol>
+  <ul>
+    <li>بعد از هر مرحله خودکار ذخیره می‌شود. اگر کسی نیمه‌کاره رفت، بعداً از همان‌جا ادامه می‌دهد.</li>
+    <li>فیلدهای اختیاری با «(اختیاری)» مشخص‌اند. گزینه‌ها دکمه‌اند و هیچ‌کدام از پیش انتخاب نشده.</li>
+    <li>ترتیب عکس‌ها با دکمهٔ ⋯ عوض می‌شود، بدون کشیدن.</li>
+    <li><b>صفحهٔ بررسی</b> با «تغییر» کنار هر بخش. تأیید «ربات نیستم» فقط همین‌جا.</li>
+    <li><b>صفحهٔ «منتشر شد»:</b> اول اشتراک در تلگرام و واتس‌اپ، بعد نردبان.</li>
+    <li>ویرایش آگهی منتشرشده همان یک صفحه با بخش‌ها می‌ماند. مرحله‌ها برای آگهی تازه‌اند.</li>
+  </ul>
+</section>
+
+<section id="p5">
+  <div class="item-head"><h2><span class="num">۵.</span> بخش من</h2><span class="days">۲ روز</span></div>
+  <ul>
+    <li><b>آگهی‌های من:</b> امروز هر آگهی ۵ دکمه دارد. به جایش یک دکمه که به وضعیت آگهی می‌خورد («فروخته شد»، «تمدید»، «ادامه»)، «ویرایش»، و «بیشتر ⋯». بازدید، ذخیره و گفت‌وگو برای هر آگهی، و زبانه برای هر وضعیت.</li>
+    <li><b>گفت‌وگو:</b> تمام‌صفحه با نوار آگهی در بالا. گزارش و مسدود کردن در منوی ⋯، نه پرچم کنار هر پیام. یک نکتهٔ امنیتی در هر گفت‌وگو، و جواب‌های آماده.</li>
+    <li><b>حساب من:</b> کارت پروفایل، کاشی‌های «فعالیت من» با تعداد، کسب‌وکار فقط اگر دارید، و یک ردیف «تنظیمات» (حساب، اعلان‌ها، امنیت و دستگاه‌ها، حریم خصوصی و داده‌ها، ظاهر). بعد راهنما، پیوندهای قانونی و خروج. امروز ۱۳ ردیف پشت سر هم است.</li>
+  </ul>
+</section>
+
+<section id="p6">
+  <div class="item-head"><h2><span class="num">۶.</span> رویدادها</h2><span class="days">۳ تا ۳٫۵ روز</span></div>
+  <ul>
+    <li><b>فهرست:</b> نوار مناسبت وقتی هست (یلدا با هر دو تاریخ)، ۱۴ روز آینده با نقطه روی روزهای دارای رویداد، دکمهٔ نوع رویداد (کنسرت، مهمانی، ادبی و فرهنگی، دورهمی، کارگاه، یادبود و همبستگی، کودکان)، رایگان و آنلاین. جای «ویژه» با برچسب. رویدادها هفته به هفته با پوستر.</li>
+    <li><b>صفحهٔ رویداد:</b> پوستر کامل، سه ردیف تاریخ، محل و بلیت با دکمه‌هایشان (تقویم، مسیر، بلیت) و «۱۴ روز دیگر». برگزارکننده با «دنبال کردن»، هشدار کلاهبرداری بلیت، رویدادهای مشابه، و «خرید بلیت» ثابت پایین صفحهٔ گوشی.</li>
+    <li><b>ثبت رویداد:</b> اول پوستر، نوع با دکمه، فیلد تاریخ تازه، ساعت، تکرار با دکمه، و پیشنهاد محل از رویدادهای قبلی.</li>
+    <li><b>تازه:</b> یادآوری رویداد ذخیره‌شده (یک روز قبل، با تلگرام یا ایمیل). و دنبال کردن کسب‌وکار: رویداد تازه‌اش به دنبال‌کننده‌ها خبر داده می‌شود، روزی حداکثر ۲ پیام.</li>
+  </ul>
+</section>
+
+<section id="p7">
+  <div class="item-head"><h2><span class="num">۷.</span> پرو و کسب‌وکار</h2><span class="days">۲ روز</span></div>
+  <ul>
+    <li><b>صفحهٔ پرو:</b> اول پیشنهاد بنیان‌گذار، بعد انتخاب ماهانه یا سالانه، سه طرح با «پیشنهاد ما»، و چند پرسش و پاسخ کوتاه. دکمهٔ پرداخت از ایران همچنان پنهان است.</li>
+    <li><b>ساخت کسب‌وکار در ۳ مرحله:</b> نام، دسته، شهر و لوگو؛ تماس و ساعت کار؛ و در آخر اطلاعات قانونی همان کشور. اطلاعات قانونی می‌تواند تا نشان «تأییدشده» یا اولین پرداخت صبر کند. امروز یک فرم بلند است.</li>
+    <li><b>صفحهٔ کسب‌وکار:</b> عکس سربرگ، لوگو، «تأییدشده»، «بنیان‌گذار»، «الان باز است». دکمهٔ پیام، تماس و مسیر. زبانه‌های آگهی‌ها، رویدادها و درباره. دکمهٔ «دنبال کردن». اطلاعات Impressum پایین صفحه، جمع‌شده.</li>
+  </ul>
+</section>
+
+<section id="p8">
+  <div class="item-head"><h2><span class="num">۸.</span> پانویس و پیوندهای قانونی</h2><span class="days">۰٫۵ روز</span></div>
+  <p>چهار گروه: راهنما، قانونی (Impressum، شرایط استفاده، حریم خصوصی، نقطهٔ تماس DSA)، پیدو (دربارهٔ ما، پرو، رویدادها، تلگرام)، کشورها. روی گوشی هم باز و دیده می‌شود. از گفت‌وگو و ثبت آگهی، Impressum با دو بار زدن از «حساب من» در دسترس است.</p>
+</section>
+
+<section id="p9">
+  <div class="item-head"><h2><span class="num">۹.</span> پنل مدیریت</h2><span class="days">۲ روز</span></div>
+  <ul>
+    <li>نوار تیرهٔ خودش با «پنل مدیریت» و نام محیط (آزمایشی یا اصلی). بالا و پایین صفحه‌های عمومی دیگر در مدیریت نیست.</li>
+    <li><b>بررسی آگهی‌ها یکی‌یکی:</b> عکس بزرگ با دکمهٔ سیاه‌وسفید، جمله‌های مشکوک پررنگ، گزارش‌ها، و سابقهٔ فروشنده.</li>
+    <li><b>هیچ گزینه‌ای از پیش انتخاب نشده.</b> امروز «برداشتن آگهی» از پیش انتخاب شده است. گزینه‌ها از ملایم به شدید مرتب می‌شوند.</li>
+    <li><b>میان‌برهای صفحه‌کلید:</b> ۱ تا ۵ برای گزینه‌ها، J و K برای قبلی و بعدی، Enter برای «ثبت و بعدی».</li>
+    <li><b>نمای کلی:</b> اول «نیاز به توجه»، بعد هفته و تغییرش، و برلین در برابر هدف‌هایش. روی گوشی کارت‌ها کوچک‌اند.</li>
+    <li><b>وضعیت سیستم:</b> مشکل‌ها اول و قرمز، با اینکه چه باید کرد.</li>
+  </ul>
+</section>
+
+<section id="p10">
+  <div class="item-head"><h2><span class="num">۱۰.</span> حالت تاریک</h2><span class="days">۱٫۵ روز</span></div>
+  <ul>
+    <li>پیش‌فرض «خودکار» است: مثل گوشی خود کاربر. در «تنظیمات › ظاهر» و پانویس، انتخاب «خودکار / روشن / تیره» هست، حتی بدون حساب.</li>
+    <li>همان فیروزه‌ای و زعفرانی، روشن‌تر روی زمینهٔ تیره. عکس‌ها هرگز تیره نمی‌شوند.</li>
+    <li>همهٔ صفحه‌ها در هر دو حالت با معیار خوانایی (WCAG AA) سنجیده می‌شوند. ایمیل‌ها روشن می‌مانند.</li>
+  </ul>
+</section>
+
+<section id="p11">
+  <div class="item-head"><h2><span class="num">۱۱.</span> بررسی نهایی</h2><span class="days">۱٫۵ روز</span></div>
+  <ul>
+    <li>همهٔ صفحه‌های سایت آزمایشی در اندازهٔ گوشی، روشن و تیره. یک مرورگر در هر زمان، و بدون اطلاعات کاربران واقعی در عکس‌ها.</li>
+    <li>آزمایش پروی بنیان‌گذار با «ساعت آزمایشی» Stripe: ۶ ماه در چند دقیقه، تا ببینیم بعد از ۶ ماه بدون کارت چیزی گرفته نمی‌شود. این کار از موج ۰ مانده است.</li>
+    <li>به‌روز کردن مستندات و پاک کردن ظرف‌های آزمایشی موقت.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>چه چیزی عوض نمی‌شود، و چه چیزی در این موج نیست</h2>
+  <div class="risk">
+    <h3>عوض نمی‌شود</h3>
+    <p>نشانی صفحه‌ها، داده‌ها، قیمت‌ها و پرداخت، قاعدهٔ ایران (همان که امروز گفتید)، تأیید شماره با ربات، و فهرست انتظار شهرها. همهٔ آزمون‌ها (امروز ۷۴۳) بعد از هر بخش سبز می‌مانند.</p>
+  </div>
+  <div class="risk">
+    <h3>در موج‌های بعد</h3>
+    <ul>
+      <li>اعلام «شخصی یا کسب‌وکار» و سقف هر دسته، «دیدن سایت مثل یک کشور» و «ورود به جای کاربر» در مدیریت، صفحه‌های آغاز ترکیه و آمریکا: موج ۲.</li>
+      <li>واتس‌اپ: به خواست شما فعلاً عقب افتاد.</li>
+      <li>بررسی خودکار با هوش مصنوعی: موج ۴.</li>
+    </ul>
+    <p>طرح قدیمی «ایران» (فقط خواندنی) دیگر درست نیست. نوار ایران همان قاعدهٔ امروز را نشان می‌دهد.</p>
+  </div>
+</section>
+
+<section id="decide">
+  <h2>تصمیم‌های شما</h2>
+  <p>برای هر کدام پیشنهادم را نوشته‌ام. اگر با همه موافقید، فقط بگویید «شروع».</p>
+  <ol class="steps">
+    <li><b>تورهای رویداد (یک برنامه در چند شهر):</b> فعلاً مثل امروز، یعنی یک محل با چند تاریخ، و «شهر و تاریخ دیگر» بعداً <b>(پیشنهاد من)</b>. یا همین حالا، با ۱ روز بیشتر.</li>
+    <li><b>«متن پست اینستاگرام را بچسبانید» برای پر شدن خودکار فرم رویداد:</b> بعداً، همراه بررسی هوش مصنوعی در موج ۴ <b>(پیشنهاد من)</b>. یا همین حالا، با ۱٫۵ روز بیشتر و هزینهٔ کم هوش مصنوعی برای هر پست.</li>
+    <li><b>پرسش «کجا فروختید؟» هنگام «فروخته شد»:</b> نه <b>(پیشنهاد من)</b>، یا بله با نیم روز بیشتر.</li>
+    <li><b>اگر بخواهید موج ۱ کوتاه‌تر شود:</b> حالت تاریک می‌تواند تا ۶۰ روز بعد از افتتاح بیاید (۱٫۵ روز کمتر). پیشنهاد من: بماند، چون خودتان هر دو حالت را خواستید.</li>
+  </ol>
+</section>
+
+<section>
+  <div class="next">
+    <h2>قدم بعد</h2>
+    <p>بگویید «شروع». با بخش ۱ (تاریخ میلادی و چیزهای همه‌جا) شروع می‌کنم. بعد از هر بخش روی سایت آزمایشی می‌برم و می‌گویم دقیقاً چه چیزی را ببینید.</p>
+  </div>
+  <footer>نسخهٔ متنی همین برنامه: <span class="ltr">docs/wave1-plan.md</span> در شاخهٔ <span class="ltr">wave0</span>. طرح‌ها در <span class="ltr">docs/design-options/mockups/final/</span>. همهٔ روزها برآوردند.</footer>
+</section>
+
+</div>
