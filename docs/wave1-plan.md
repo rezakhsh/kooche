@@ -113,6 +113,8 @@ Private vs business declaration and limits, "view as country" and "sign in as us
 
 ## Decisions for the owner
 
+**Decided (Oct 27, 2026):** the owner took all four recommendations and said go. Tours, the Instagram paste and "where did you sell it?" are kept in `docs/roadmap.md`; dark mode stays in wave 1.
+
 1. **Event tours:** keep today's series (same place, more dates) now and add «شهر و تاریخ دیگر» (one page per city) later (recommended), or build tours now (+1 day)?
 2. **"Paste your Instagram post" for events:** later with AI screening in wave 4 (recommended), or now (+1.5 days, uses an AI model per post)?
 3. **"Where did you sell it?"** when marking sold: skip (recommended), or add (+0.5 day)?
