@@ -17,6 +17,7 @@ import { currentSession } from '../modules/users/server';
 import { BottomNav } from './bottom-nav';
 import { Flag } from './flag';
 import { Icon } from './icons';
+import { LEGAL_LINKS } from './legal-nav';
 import { LogoMark } from './logo';
 import { SearchBox } from './search-box';
 
@@ -203,7 +204,7 @@ export async function SiteFooter() {
   const channelUrl = channel ? `https://t.me/${channel}` : null;
   return (
     <footer className="mt-12 border-t border-neutral-200 bg-neutral-50">
-      <div className="mx-auto max-w-6xl px-4 py-8 lg:px-6">
+      <div data-footer-full className="mx-auto max-w-6xl px-4 py-8 lg:px-6">
         <div className="flex items-center gap-3">
           <LogoMark className="size-10" />
           <div>
@@ -262,6 +263,14 @@ export async function SiteFooter() {
         </div>
         <p className="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-600">{t.legalLine(new Date().getFullYear())}</p>
       </div>
+      {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
+      <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">
+        {LEGAL_LINKS.map(([key, href]) => (
+          <Link key={key} href={href} className="flex min-h-9 items-center text-neutral-600 hover:text-brand-800 hover:underline">
+            <bdi>{t.legalLinks[key]}</bdi>
+          </Link>
+        ))}
+      </nav>
     </footer>
   );
 }

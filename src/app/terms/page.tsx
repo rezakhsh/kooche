@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
-  return <LegalDocPage doc={pages.terms} lang="fa" other="/terms/de" />;
+  return <LegalDocPage doc={pages.terms} lang="fa" other="/terms/de" nav="terms" />;
 }

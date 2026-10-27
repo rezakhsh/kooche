@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  return <LegalDocPage doc={pages.privacy} lang="fa" other="/privacy/de" />;
+  return <LegalDocPage doc={pages.privacy} lang="fa" other="/privacy/de" nav="privacy" />;
 }

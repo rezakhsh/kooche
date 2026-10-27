@@ -4,6 +4,7 @@ import { pages } from '../messages/fa';
 import { legalDe } from '../messages/legal-de';
 import { type LegalBlock, type LegalDoc, sectionAnchor } from '../messages/legal-types';
 import { operator } from '../messages/operator';
+import { LegalNav } from './legal-nav';
 
 // The terms of use and the privacy policy, in Persian (right to left) or the binding German
 // version (left to right inside the RTL page). Plain HTML: anchors per section, no JavaScript.
@@ -53,10 +54,11 @@ export function DraftBanner({ text }: { text: string }) {
 }
 
 /**
- * A whole legal page. `other` links to the other language's version. The German version sets
- * lang and dir itself, so screen readers and the browser treat it as German, left to right.
+ * A whole legal page. `other` links to the other language's version; `nav` (Persian pages only)
+ * shows the row of legal pages above it. The German version sets lang and dir itself, so screen
+ * readers and the browser treat it as German, left to right.
  */
-export function LegalDocPage({ doc, lang, other }: { doc: LegalDoc; lang: Lang; other: string }) {
+export function LegalDocPage({ doc, lang, other, nav }: { doc: LegalDoc; lang: Lang; other: string; nav?: 'terms' | 'privacy' }) {
   const de = lang === 'de';
   const labels = de
     ? { draft: legalDe.draft, other: legalDe.persianVersion, note: legalDe.binding, contents: legalDe.contents }
@@ -64,6 +66,7 @@ export function LegalDocPage({ doc, lang, other }: { doc: LegalDoc; lang: Lang; 
   const main = doc.sections.filter((s) => !s.id.includes('.'));
   return (
     <main lang={lang} dir={de ? 'ltr' : 'rtl'} className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+      {nav && <LegalNav current={nav} />}
       <h1 className="mb-2 text-2xl font-extrabold">{doc.title}</h1>
       <p className="mb-4 text-sm text-neutral-500">{doc.updated}</p>
       {doc.draft && <DraftBanner text={labels.draft} />}

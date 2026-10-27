@@ -277,7 +277,6 @@ export const messages = {
     countHint: 'این عدد را فقط شما می‌بینید.',
   },
   footer: {
-    rights: (year: number) => `© ${year.toLocaleString('fa-IR', { useGrouping: false })} پیدو`,
     // Wave 1 (mockup ui.js footer(), approved; built Oct 27, 2026 at the owner's request)
     legalLine: (year: number) => `© ${year.toLocaleString('fa-IR', { useGrouping: false })} پیدو، برلین. آگهی برای اشخاص رایگان است.`,
     countries: 'کشورها',
@@ -287,14 +286,9 @@ export const messages = {
     channel: 'کانال تلگرام پیدو',
     soon: (names: string) => `به‌زودی: ${names} و بیشتر.`,
     notifyMe: 'خبرم کن',
-    links: {
-      help: 'راهنما',
-      safety: 'نکات ایمنی',
-      contact: 'تماس با ما',
-      terms: 'شرایط استفاده',
-      privacy: 'حریم خصوصی',
-      impressum: 'اطلاعات حقوقی (Impressum)',
-    },
+    // The legal pages' own row and the one line under the posting pages (wave 1, part 8)
+    legalNav: 'صفحه‌های حقوقی',
+    legalLinks: { impressum: 'Impressum', terms: 'شرایط (AGB)', privacy: 'حریم خصوصی (Datenschutz)', dsa: 'تماس DSA' },
     columns: {
       help: 'راهنما و پرسش‌ها',
       safety: 'معاملهٔ امن',
@@ -2250,6 +2244,7 @@ export const messages = {
     unreadBadge: (n: number) => `${n.toLocaleString('fa-IR')} پیام تازه`,
     back: 'بازگشت به پیام‌ها',
     menu: 'گزینه‌های گفتگو',
+    legal: 'Impressum، شرایط و حریم خصوصی',
     viewListing: 'دیدن آگهی',
     archive: 'بایگانی',
     unarchive: 'بازگرداندن از بایگانی',
@@ -3240,6 +3235,8 @@ export const pages = {
         text: 'اگر در ورود، ثبت آگهی یا پیام‌ها مشکلی دارید، بنویسید چه کردید و چه دیدید. اگر درباره آگهی خاصی است، لینکش را بفرستید.',
       },
       {
+        // The footer's «تماس طبق DSA» lands here (/contact#dsa)
+        id: 'dsa',
         heading: 'گزارش محتوای غیرقانونی',
         text: 'اگر آگهی، رویداد یا محتوایی را غیرقانونی می‌دانید، این‌ها را بنویسید (ماده ۱۶ DSA):',
         points: [

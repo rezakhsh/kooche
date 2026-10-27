@@ -21,7 +21,7 @@ export default function ContactPage() {
         </a>
       </p>
       {t.sections.map((s) => (
-        <section key={s.heading}>
+        <section key={s.heading} id={'id' in s ? s.id : undefined} className="scroll-mt-20">
           <h2 className="mt-8 text-lg font-extrabold">{s.heading}</h2>
           <p className="mt-2 leading-7 text-neutral-700">{s.text}</p>
           {'points' in s && (

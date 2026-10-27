@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DraftBanner, OperatorBlock } from '../../components/legal-doc';
+import { LegalNav } from '../../components/legal-nav';
 import { PageShell } from '../../components/ui';
 import { pages } from '../../messages/fa';
 import { legalDe } from '../../messages/legal-de';
@@ -14,6 +15,7 @@ export default function ImpressumPage() {
   const t = pages.impressum;
   return (
     <PageShell title={t.title} wide>
+      <LegalNav current="impressum" />
       <DraftBanner text={pages.legal.draft} />
       <p className="mb-6 leading-7 text-neutral-700">{t.intro}</p>
       <section lang="de" dir="ltr" className="rounded-2xl border border-neutral-200 p-5">

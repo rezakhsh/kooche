@@ -86,7 +86,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   const menuRow = 'flex h-14 w-full items-center gap-3 text-start text-base';
 
   // Wave 1 (mockup final/chat): the conversation fills the screen (no site header), with back,
-  // the listing (photo, title, the other person, price) and ⋯ for report, block and archive
+  // the listing (photo, title, the other person, price) and ⋯ for report, block, archive and the legal pages
   return (
     <main data-chat-thread className="mx-auto flex h-dvh w-full max-w-3xl flex-col bg-white lg:border-x lg:border-neutral-200">
       <header className="flex items-center gap-2 border-b border-neutral-200 px-2 py-2">
@@ -170,6 +170,13 @@ export default async function ConversationPage({ params, searchParams }: { param
                   </form>
                 </details>
               )}
+            </li>
+            {/* Wave 1, part 8: no site footer here, so the Impressum is two taps away through ⋯ */}
+            <li>
+              <Link href="/impressum" className={`${menuRow} text-neutral-700`}>
+                <Icon name="shield" className="size-5" />
+                {t.legal}
+              </Link>
             </li>
           </ul>
         </Sheet>
