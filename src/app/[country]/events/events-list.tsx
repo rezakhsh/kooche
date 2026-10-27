@@ -244,7 +244,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
             </h2>
             <span className="text-xs text-neutral-600">{t.featuredLabel}</span>
           </div>
-          <div className="mt-2 grid gap-3 lg:grid-cols-2">
+          <div className={`mt-2 grid gap-3 ${featuredRows.length > 1 ? 'lg:grid-cols-2' : ''}`}>
             {featuredRows.map((e) => (
               <FeaturedEvent key={e.id} e={row(e)} />
             ))}
@@ -444,7 +444,8 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
             ['online', t.attendanceOptions.online],
           ]}
         />
-        <div className="sticky bottom-0 -mx-4 mt-5 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3">
+        {/* Down to the sheet's own edge, so nothing shows under the buttons */}
+        <div className="sticky -bottom-4 -mx-4 mt-5 -mb-4 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-4">
           <Link href={s.season ? `${path}?season=${s.season.key}` : path} className="px-2 text-sm font-medium text-neutral-700 hover:underline">
             {t.clear}
           </Link>

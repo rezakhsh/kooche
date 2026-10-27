@@ -364,6 +364,8 @@ export type VenueSuggestion = {
   street: string | null;
   /** The place field's value and label (src/components/place-field.tsx) */
   place: { value: string; label: string; center: { lat: number; lng: number } } | null;
+  /** «نویکلن», when the city has neighbourhoods */
+  neighbourhood: string | null;
   events: number;
 };
 
@@ -375,9 +377,13 @@ export type VenueSuggestion = {
 export async function venueSuggestions(db: Queryable, countryCode: string, text: string, limit = 5): Promise<VenueSuggestion[]> {
   const needle = normalizePersian(text).toLowerCase();
   if (needle.length < 2) return [];
-  const rows = await db.execute<{ venue_name: string; street_address: string | null; country_code: string; location_id: string; postal_code: string | null; place_name: string | null; n: number }>(sql`
+  const rows = await db.execute<{ venue_name: string; street_address: string | null; country_code: string; location_id: string; postal_code: string | null; place_name: string | null; neighbourhood: string | null; n: number }>(sql`
     SELECT DISTINCT ON (lower(e.venue_name_normalized), coalesce(e.street_address, ''))
            e.venue_name, e.street_address, l.country_code, l.location_id, l.postal_code, l.place_name,
+           (SELECT n.name_fa FROM neighbourhoods n
+            WHERE l.location_precision IN ('postal_code', 'area') AND n.location_id = l.location_id AND n.is_active
+              AND ST_Covers(n.boundary, l.point)
+            ORDER BY n.key LIMIT 1) AS neighbourhood,
            count(*) OVER (PARTITION BY lower(e.venue_name_normalized), coalesce(e.street_address, ''))::int AS n
     FROM event_details e
     JOIN listings l ON l.id = e.listing_id AND l.status IN ('active', 'expired') AND l.country_code = ${countryCode}
@@ -389,7 +395,7 @@ export async function venueSuggestions(db: Queryable, countryCode: string, text:
   return Promise.all(
     top.map(async (r) => {
       const p = await placeOfListing(db, { countryCode: r.country_code, locationId: r.location_id, postalCode: r.postal_code, placeName: r.place_name });
-      return { name: r.venue_name, street: r.street_address, place: p ? { value: placeValue(p), label: placeLabel(p), center: p.center } : null, events: r.n };
+      return { name: r.venue_name, street: r.street_address, place: p ? { value: placeValue(p), label: placeLabel(p), center: p.center } : null, neighbourhood: r.neighbourhood, events: r.n };
     }),
   );
 }

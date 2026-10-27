@@ -172,7 +172,7 @@ function DayLine({ iso }: { iso: string }) {
   return <p className="mt-1 text-xs text-neutral-600">{days >= 0 ? st.dayLine(day, messages.events.view.inDays(days)) : day}</p>;
 }
 
-type Venue = { name: string; street: string | null; place: { value: string; label: string; center: { lat: number; lng: number } } | null; events: number };
+type Venue = { name: string; street: string | null; place: { value: string; label: string; center: { lat: number; lng: number } } | null; neighbourhood: string | null; events: number };
 
 /** The venue's name with suggestions from venues already on Peydoo (mockup final/post-event2) */
 function VenueField({ country, initial, onPick, error }: { country: string; initial: string; onPick: (v: Venue) => void; error?: FieldError }) {
@@ -242,7 +242,7 @@ function VenueField({ country, initial, onPick, error }: { country: string; init
                 <Icon name="pin" className="size-4 shrink-0 text-brand-700" />
                 <span className="min-w-0">
                   <bdi className="block text-sm font-bold">{v.name}</bdi>
-                  <span className="block truncate text-xs text-neutral-600">{[v.street, v.place?.label, st.venueOnPeydoo(v.events)].filter(Boolean).join('، ')}</span>
+                  <span className="block truncate text-xs text-neutral-600">{[v.street, v.neighbourhood ?? v.place?.label, st.venueOnPeydoo(v.events)].filter(Boolean).join('، ')}</span>
                 </span>
               </button>
             </li>
