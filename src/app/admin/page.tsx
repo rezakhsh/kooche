@@ -12,7 +12,7 @@ import { adminHref, requireStaff } from '../../modules/admin/server';
 import { businessesAdmin } from '../../modules/admin/users';
 import { Bar, formatValue, LineChart } from './charts';
 import { problemText, systemState } from './system/checks';
-import { AdminTitle, Chips, Panel } from './ui';
+import { AdminTitle, Panel, Progress } from './ui';
 
 // The overview (wave 1, mockup admin-overview): what needs attention first (the queue, the
 // system's problems, businesses waiting for verification), then the period's numbers with their
@@ -38,16 +38,8 @@ function data(days: number) {
 /** The next-city gates (docs/strategy.md, "Gates") */
 const GATES = { active: 100, chat: 50, posters: 30 };
 
-function GateBar({ value, goal }: { value: number; goal: number }) {
-  const pct = Math.min(100, Math.round((value / goal) * 100));
-  return (
-    // SVG, not a style attribute: the CSP allows no inline styles. Drawn from the start side.
-    <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="mt-1 block h-2 w-full -scale-x-100 overflow-hidden rounded-full" aria-hidden="true">
-      <rect width={100} height={8} className="fill-neutral-100" />
-      {pct > 0 && <rect width={pct} height={8} rx={4} className={value >= goal ? 'fill-green-600' : 'fill-brand-600'} />}
-    </svg>
-  );
-}
+/** The stat cards in the mockup's order; events after users */
+const STATS = ['listings', 'users', 'events', 'chats', 'reports', 'revenue'] as const;
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const staff = await requireStaff('overview.view');
@@ -76,7 +68,19 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   return (
     <>
       <AdminTitle title={t.title}>
-        <Chips items={PERIODS.map((d) => ({ href: adminHref(d === '7' ? '' : `?days=${d}`), label: t.periods[d]!, active: String(days) === d }))} />
+        <nav aria-label={t.title} className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-neutral-200">
+          {PERIODS.map((d) => (
+            <Link
+              key={d}
+              href={adminHref(d === '7' ? '' : `?days=${d}`)}
+              prefetch={false}
+              aria-current={String(days) === d ? 'page' : undefined}
+              className={`rounded-lg px-3 text-sm leading-9 ${String(days) === d ? 'bg-brand-700 font-bold text-white' : 'text-neutral-700 hover:bg-neutral-50'}`}
+            >
+              {t.periods[d]}
+            </Link>
+          ))}
+        </nav>
       </AdminTitle>
 
       {attention.length > 0 ? (
@@ -102,7 +106,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       )}
 
       <section className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
-        {METRICS.map((m) => {
+        {STATS.map((m) => {
           const v = totals[m];
           const d = change(v.period, v.previous);
           return (
@@ -132,7 +136,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   <span>{label}</span>
                   <b className="shrink-0 tabular-nums">{t.of(`${(v as number).toLocaleString('fa-IR')}${unit}`, `${(goal as number).toLocaleString('fa-IR')}${unit}`)}</b>
                 </p>
-                <GateBar value={v as number} goal={goal as number} />
+                <Progress value={v as number} goal={goal as number} className="mt-1" />
               </li>
             ))}
           </ul>

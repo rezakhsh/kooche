@@ -63,7 +63,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           {items.length > 0 && (
             <form method="get" action={adminHref('/find')} role="search" className="ms-auto hidden h-10 w-80 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm focus-within:ring-2 focus-within:ring-white/40 lg:flex">
               <Icon name="search" className="size-4 shrink-0 text-brand-100" />
-              <input name="q" data-admin-search aria-label={t.searchLabel} placeholder={t.search} dir="auto" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-brand-100" />
+              <input name="q" data-admin-search aria-label={t.searchLabel} placeholder={t.search} dir="rtl" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-brand-100" />
               <kbd className="rounded border border-white/30 px-1.5 text-xs text-brand-100">/</kbd>
             </form>
           )}

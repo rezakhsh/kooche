@@ -185,6 +185,8 @@ export type AdminCity = {
   openedAt: Date | null;
   businesses: number;
   waiting: number;
+  /** Free bumps for the first confirmed signups (rewardPlaces) */
+  rewardPlaces: number;
 };
 
 /** The country's cities that are open, waiting, or have businesses or people waiting */
@@ -198,6 +200,7 @@ export async function adminCities(db: Queryable, countryCode: string): Promise<A
     radius: number | null;
     with_name: string | null;
     opened_at: Date | null;
+    population: number | null;
     businesses: number;
     waiting: number;
   }>(sql`
@@ -221,6 +224,7 @@ export async function adminCities(db: Queryable, countryCode: string): Promise<A
     openedAt: r.opened_at ? new Date(r.opened_at) : null,
     businesses: r.businesses,
     waiting: r.waiting,
+    rewardPlaces: rewardPlaces(r.population),
   }));
 }
 

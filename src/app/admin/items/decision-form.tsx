@@ -159,10 +159,10 @@ export function DecisionForm(props: {
             </label>
           </details>
           {preview && (
-            <div className="rounded-xl bg-neutral-50 p-3 text-sm leading-relaxed text-neutral-700">
-              <p className="mb-1 text-xs font-bold text-neutral-600">{t.preview}</p>
-              {preview}
-            </div>
+            <details className="rounded-xl bg-neutral-50 p-3 text-sm leading-relaxed text-neutral-700">
+              <summary className="cursor-pointer text-xs font-bold text-neutral-600">{t.preview}</summary>
+              <p className="mt-1">{preview}</p>
+            </details>
           )}
         </>
       )}

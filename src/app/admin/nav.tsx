@@ -13,7 +13,8 @@ export type NavItem = { href: string; label: string; icon: IconName; badge?: { t
 
 export function AdminNav({ items, home, site }: { items: NavItem[]; home: string; site: string }) {
   const path = usePathname();
-  const active = (href: string) => (href === home ? path === home : path === href || path.startsWith(`${href}/`));
+  // An item page belongs to the queue
+  const active = (href: string) => (href === home ? path === home : path === href || path.startsWith(`${href}/`) || (href.endsWith('/queue') && path.includes('/items/')));
   return (
     <nav
       aria-label={admin.nav.menu}

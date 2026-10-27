@@ -111,3 +111,16 @@ export function SearchForm({ label, name = 'q', value, children }: { label: stri
 }
 
 export const selectClass = 'rounded-xl border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-brand-600';
+
+/** Widths in steps of 5%: classes, not a style attribute (the CSP allows no inline styles) */
+const WIDTH = ['w-0', 'w-[5%]', 'w-[10%]', 'w-[15%]', 'w-[20%]', 'w-[25%]', 'w-[30%]', 'w-[35%]', 'w-[40%]', 'w-[45%]', 'w-[50%]', 'w-[55%]', 'w-[60%]', 'w-[65%]', 'w-[70%]', 'w-[75%]', 'w-[80%]', 'w-[85%]', 'w-[90%]', 'w-[95%]', 'w-full'];
+
+/** A thin bar towards a goal, green once it is reached (wave 1: the gates, the cities) */
+export function Progress({ value, goal, className = '' }: { value: number; goal: number; className?: string }) {
+  const step = goal > 0 ? Math.min(20, Math.round((value / goal) * 20)) : 0;
+  return (
+    <span className={`block h-2 overflow-hidden rounded-full bg-neutral-100 ${className}`} aria-hidden="true">
+      <i className={`block h-full rounded-full ${value >= goal ? 'bg-green-600' : 'bg-brand-600'} ${WIDTH[value > 0 ? Math.max(1, step) : 0]}`} />
+    </span>
+  );
+}

@@ -3276,6 +3276,15 @@ export const admin = {
     with: (city: string) => `همراه با ${city}`,
     radius: (km: number) => `تا ${km.toLocaleString('fa-IR')} کیلومتر`,
     since: 'از',
+    // Wave 1 (mockup admin-cities)
+    keyOpen: (open: number, all: number) => `${open.toLocaleString('fa-IR')} از ${all.toLocaleString('fa-IR')} شهر کلیدی باز`,
+    of: 'از',
+    openedOn: (date: string) => `از ${date}`,
+    reward: {
+      title: 'پاداش ثبت‌نام زودهنگام',
+      body: 'نخستین ثبت‌نام‌های تأییدشدهٔ هر شهر یک نردبان رایگان می‌گیرند، روز باز شدن شهر روی اولین آگهی‌شان. تعدادش با جمعیت شهر است (۲۰۰، ۱۰۰ یا ۵۰).',
+      city: (city: string, n: number) => `${city}: ${n.toLocaleString('fa-IR')} نفر اول`,
+    },
     ready: (city: string, n: number, goal: number) => `آمادهٔ تصمیم: ${city} ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار دارد.`,
     saveGoal: 'ذخیرهٔ هدف',
     open: (city: string) => `باز کردن ${city}…`,
@@ -3518,7 +3527,7 @@ export const admin = {
     submitNext: (label: string) => `${label} و بعدی`,
     sectionAuto: (label: string) => `بند شرایط: ${label} (خودکار از دلیل)`,
     legalToggle: 'خلاف قانون هم هست؟',
-    previewNote: 'متن کامل پیامِ کاربر پیش از ثبت اینجا دیده می‌شود.',
+    previewNote: 'متن کامل پیامِ کاربر را پیش از ثبت در «متنی که کاربر می‌گیرد» ببینید.',
     reasonChips: {
       scam: 'کلاهبرداری',
       prohibited: 'ممنوع',
@@ -3676,7 +3685,7 @@ export const admin = {
     outbox: 'رویدادهای در صف (outbox)',
     oldestOutbox: 'قدیمی‌ترین',
     webhooks: 'وب‌هوک‌های اعمال‌نشده',
-    queues: 'صف‌های BullMQ',
+    queues: 'صف‌ها',
     queue: 'صف',
     counts: { waiting: 'منتظر', active: 'در حال اجرا', delayed: 'زمان‌بندی‌شده', failed: 'ناموفق' } as Record<string, string>,
     ok: 'سالم',
