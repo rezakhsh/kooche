@@ -1,8 +1,10 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -10,7 +12,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { bytea, geographyPoint } from '../types';
-import { PATTERNS, createdAt, isIn, matches, standardColumns, tstz, updatedAt } from './_columns';
+import { PATTERNS, createdAt, isIn, matches, standardColumns, textArrayWithin, tstz, updatedAt } from './_columns';
 import { ORGANIZATION_ROLES } from './_values';
 import { countries, locations } from './listings';
 import { users } from './users';
@@ -20,6 +22,15 @@ import { users } from './users';
 
 export const VERIFICATION_STATUSES = ['unverified', 'pending', 'verified', 'rejected'] as const;
 export const ORGANIZATION_STATUSES = ['active', 'suspended', 'deleted'] as const;
+/** «چه کاری می‌کنید؟» on the new-business form (wave 1, mockup final/business-new) */
+export const BUSINESS_TYPES = ['translation', 'repairs', 'beauty', 'education', 'real_estate', 'auto', 'food', 'legal_finance', 'health', 'moving', 'shop', 'other'] as const;
+/** The languages a business serves in, in this order on its page */
+export const BUSINESS_LANGUAGES = ['fa', 'de', 'en', 'tr', 'ar', 'fr', 'other'] as const;
+/**
+ * Opening hours by ISO weekday ("1" Monday … "7" Sunday), at most two ranges a day as "HH:MM",
+ * in the business's city's time zone; a day that isn't there is closed.
+ */
+export type OpeningHours = Partial<Record<'1' | '2' | '3' | '4' | '5' | '6' | '7', [string, string][]>>;
 
 export const organizations = pgTable(
   'organizations',
@@ -55,6 +66,18 @@ export const organizations = pgTable(
     website: text('website'),
     description: text('description').notNull().default(''),
     descriptionNormalized: text('description_normalized').notNull().default(''),
+    /** Wave 1 (migration 0026): what the business does, one line under its name, languages, hours */
+    businessType: text('business_type', { enum: BUSINESS_TYPES }),
+    tagline: text('tagline'),
+    languages: text('languages', { enum: BUSINESS_LANGUAGES })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    servesOnline: boolean('serves_online').notNull().default(false),
+    /** Handles without @ (instagram.com/<handle>, t.me/<handle>) */
+    instagram: text('instagram'),
+    telegram: text('telegram'),
+    openingHours: jsonb('opening_hours').$type<OpeningHours>(),
     logoKey: text('logo_key'),
     coverKey: text('cover_key'),
     verificationStatus: text('verification_status', { enum: VERIFICATION_STATUSES })
@@ -85,6 +108,12 @@ export const organizations = pgTable(
     check('organizations_representative_name_check', sql`char_length(${t.representativeName}) BETWEEN 2 AND 120`),
     check('organizations_register_court_check', sql`char_length(${t.registerCourt}) BETWEEN 2 AND 120`),
     check('organizations_imprint_extra_check', sql`char_length(${t.imprintExtra}) BETWEEN 1 AND 2000`),
+    check('organizations_business_type_check', isIn(t.businessType, BUSINESS_TYPES)),
+    check('organizations_tagline_check', sql`char_length(${t.tagline}) BETWEEN 2 AND 100`),
+    check('organizations_languages_check', textArrayWithin(t.languages, BUSINESS_LANGUAGES)),
+    check('organizations_instagram_check', matches(t.instagram, '^[A-Za-z0-9._]{1,30}$')),
+    check('organizations_telegram_check', matches(t.telegram, '^[A-Za-z][A-Za-z0-9_]{4,31}$')),
+    check('organizations_opening_hours_check', sql`jsonb_typeof(${t.openingHours}) = 'object'`),
     check(
       'organizations_verification_status_check',
       isIn(t.verificationStatus, VERIFICATION_STATUSES),

@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, billingCustomers, eventDates, listings, orders, organizationMembers, organizations, productPrices, products, users } from '../../db/schema';
 import { manageableBy } from '../organizations/limits';
+import { legalComplete } from '../organizations/organizations';
 import { activeSubscription } from './plans';
 import type { InvoiceSummary, PaymentGateway } from './gateway';
 
@@ -12,6 +13,8 @@ import type { InvoiceSummary, PaymentGateway } from './gateway';
 
 export type CheckoutRefusal =
   | 'payments_off'
+  /** A business's legal details (the Impressum) aren't complete yet (wave 1: they can wait until now) */
+  | 'legal_missing'
   | 'sign_in_required'
   | 'account_disabled'
   | 'not_found'
@@ -199,11 +202,12 @@ export async function startPlanCheckout(
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };
 
   const [org] = await db
-    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, email: organizations.email })
+    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
   const found = await activePrice(db, opts.plan, 'EUR', opts.interval);
   if (!org || !found) return { ok: false, reason: 'not_allowed' };
+  if (!legalComplete(org)) return { ok: false, reason: 'legal_missing' };
   if (!(await confirmBusinessBuyer(db, user.id, org.id, opts, opts.plan))) return { ok: false, reason: 'business_required' };
 
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? user.email, name: org.legalName ?? org.name });

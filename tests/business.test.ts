@@ -28,6 +28,10 @@ function details(over: Partial<BusinessInput> = {}): BusinessInput {
   return {
     name: 'نان‌وایی بربری',
     slug: `barbari-${publicToken()}`,
+    businessType: 'food',
+    tagline: '',
+    instagram: '',
+    telegram: '',
     legalName: 'Barbari Bäckerei',
     legalForm: 'Einzelunternehmen',
     representativeName: '',

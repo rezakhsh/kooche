@@ -8,13 +8,15 @@ import { cleanupAbandonedUploads } from '../modules/media/cleanup';
 import { storageFromEnv } from '../modules/media/config';
 import { markImageFailed, processImage } from '../modules/media/process';
 import { runListingChecks } from '../modules/moderation/checks';
+import { LOGO_OUTBOX, processLogo } from '../modules/organizations/logo';
 import { sendExpiryReminders } from '../modules/notifications/expiry-reminder';
 import { notificationMailer } from '../modules/notifications/mailer';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
 
 // Worker jobs of the posting feature:
-// - queue `media` (from the outbox): process an uploaded photo, delete a removed photo's file.
+// - queue `media` (from the outbox): process an uploaded photo or business logo, delete a removed
+//   photo's or logo's file.
 //   Concurrency 1: one image in memory at a time (4 GB server).
 // - queue `listing-checks` (from the outbox): the post-checks after publish, edit, photo change
 //   and resubmission (src/modules/moderation/checks.ts).
@@ -61,6 +63,11 @@ export async function startListingJobs(
         if (job.name === 'media_process') {
           const outcome = await processImage(db, needStorage(), job.data.aggregateId);
           console.log(`media: ${job.data.aggregateId}: ${outcome.status}${'reason' in outcome ? ` (${outcome.reason})` : ''}`);
+        } else if (job.name === 'logo_process') {
+          const key = job.data.payload.uploadKey;
+          if (typeof key !== 'string') return;
+          const outcome = await processLogo(db, needStorage(), job.data.aggregateId, key);
+          console.log(`media: logo of ${job.data.aggregateId}: ${outcome.status}${'reason' in outcome ? ` (${outcome.reason})` : ''}`);
         } else if (job.name === 'media_delete') {
           const key = job.data.payload.storageKey;
           if (typeof key === 'string') await needStorage().delete(key);
@@ -110,6 +117,8 @@ export async function startListingJobs(
   const handlers: OutboxHandlers = {
     'listing_image.uploaded': [{ name: 'media_process', queue: media }],
     'listing_image.deleted': [{ name: 'media_delete', queue: media }],
+    [LOGO_OUTBOX.uploaded]: [{ name: 'logo_process', queue: media }],
+    [LOGO_OUTBOX.deleted]: [{ name: 'media_delete', queue: media }],
     'listing.published': toChecks,
     'listing.updated': toChecks,
     'listing.submitted': toChecks,

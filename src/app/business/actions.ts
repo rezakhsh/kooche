@@ -13,7 +13,10 @@ import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, notificationMailer } from '../../modules/notifications/mailer';
 import { acceptInvitation, changeMember, invite, revokeInvitation } from '../../modules/organizations/members';
+import { hoursFromForm, WEEKDAYS } from '../../modules/organizations/hours';
+import { requestLogoUpload } from '../../modules/organizations/logo';
 import { createBusiness, updateBusiness, type BusinessInput } from '../../modules/organizations/organizations';
+import { storage } from '../../modules/media/server';
 import { openBillingPortal, startPlanCheckout, type PlanCode } from '../../modules/payments/checkout';
 import { startFoundingCheckout } from '../../modules/payments/founding';
 import { PAYMENT_LIMITS } from '../../modules/payments/features';
@@ -29,10 +32,36 @@ const t = messages.business;
 const uuid = z.uuid();
 const INVITES = { name: 'org-invite:user:1d', max: 20, windowSeconds: 86_400 };
 
-const FIELDS = ['name', 'slug', 'legalName', 'legalForm', 'representativeName', 'addressLine1', 'addressLine2', 'place', 'phone', 'email', 'website', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra', 'description'] as const;
+const TEXT_FIELDS = ['name', 'slug', 'businessType', 'tagline', 'place', 'placeValue', 'description', 'phone', 'email', 'website', 'instagram', 'telegram', 'legalName', 'legalForm', 'legalFormOther', 'representativeName', 'addressLine1', 'addressLine2', 'legalPostal', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra', 'logoUpload', 'logoPreview'] as const;
+const FLAGS = ['servesOnline', 'removeLogo'] as const;
+const HOUR_FIELDS = WEEKDAYS.flatMap((d) => [`hours.${d}.open`, `hours.${d}.from`, `hours.${d}.to`]);
 
+/** What was typed, to fill the form again when the server refuses something */
 function formValues(form: FormData): Record<string, string> {
-  return Object.fromEntries(FIELDS.map((k) => [k, String(form.get(k) ?? '').slice(0, 6000)]));
+  const get = (k: string) => String(form.get(k) ?? '').slice(0, 6000);
+  return {
+    ...Object.fromEntries([...TEXT_FIELDS, ...FLAGS, ...HOUR_FIELDS].map((k) => [k, get(k)])),
+    languages: form.getAll('languages').map(String).join(','),
+  };
+}
+
+/** The module's input from the form: «دیگر» takes the typed legal form, hours become one object */
+function formInput(form: FormData, values: Record<string, string>): { input: BusinessInput; hoursDay?: string } {
+  const hours = hoursFromForm((k) => values[k] ?? '');
+  const legalForm = values.legalForm === 'other' ? values.legalFormOther : values.legalForm;
+  return {
+    input: {
+      ...(values as Record<string, string>),
+      businessType: values.businessType as BusinessInput['businessType'],
+      legalForm: legalForm ?? '',
+      languages: form.getAll('languages').map(String) as BusinessInput['languages'],
+      servesOnline: values.servesOnline === 'on',
+      removeLogo: values.removeLogo === 'on',
+      legalLater: form.get('intent') === 'later',
+      hours: hours.ok ? hours.hours : null,
+    } as BusinessInput,
+    hoursDay: hours.ok ? undefined : hours.day,
+  };
 }
 
 function businessError(reason: string): string {
@@ -50,6 +79,9 @@ function businessError(reason: string): string {
       return t.errors.phone_invalid;
     case 'register_incomplete':
       return t.errors.register_incomplete;
+    case 'legal_incomplete':
+    case 'postal_required':
+      return t.wizard.legalMissing;
     default:
       return t.fixErrors;
   }
@@ -57,11 +89,15 @@ function businessError(reason: string): string {
 
 const FIELD_OF: Record<string, string> = { place_not_found: 'place', phone_invalid: 'phone', register_incomplete: 'registrationNumber' };
 
+const hoursRefusal = (values: Record<string, string>, day: string): BusinessFormState => ({ error: t.fixErrors, fields: { [`hours.${day}`]: 'hours' }, values });
+
 export async function createBusinessAction(_: BusinessFormState, form: FormData): Promise<BusinessFormState> {
   const { user } = await requireSession('/business/new');
   const values = formValues(form);
+  const { input, hoursDay } = formInput(form, values);
+  if (hoursDay) return hoursRefusal(values, hoursDay);
   const country = await chosenCountry(appDb());
-  const r = await createBusiness(appDb(), { userId: user.id, countryCode: country?.code ?? 'DE', input: values as BusinessInput });
+  const r = await createBusiness(appDb(), { userId: user.id, countryCode: country?.code ?? 'DE', input });
   if (!r.ok) return { error: businessError(r.reason), fields: r.fields ?? (FIELD_OF[r.reason] ? { [FIELD_OF[r.reason]!]: r.reason } : undefined), values };
   redirect(`/b/${r.slug}/manage?created=1`);
 }
@@ -70,9 +106,23 @@ export async function updateBusinessAction(organizationId: string, slug: string,
   const { user } = await requireSession(`/b/${slug}/edit`);
   if (!uuid.safeParse(organizationId).success) return { error: t.fixErrors };
   const values = formValues(form);
-  const r = await updateBusiness(appDb(), { userId: user.id, organizationId, input: { ...values, slug } as BusinessInput });
+  const { input, hoursDay } = formInput(form, values);
+  if (hoursDay) return hoursRefusal(values, hoursDay);
+  const r = await updateBusiness(appDb(), { userId: user.id, organizationId, input: { ...input, slug } });
   if (!r.ok) return { error: businessError(r.reason), fields: r.fields ?? (FIELD_OF[r.reason] ? { [FIELD_OF[r.reason]!]: r.reason } : undefined), values };
   redirect(`/b/${slug}/manage?saved=1`);
+}
+
+const LOGO_UPLOADS = { name: 'org-logo:user:1h', max: 20, windowSeconds: 3600 };
+
+/** A one-time URL for the logo (src/modules/organizations/logo.ts); the form sends the key back */
+export async function logoUploadAction(contentType: string, size: number): Promise<{ ok: true; key: string; url: string; headers: Record<string, string> } | { ok: false }> {
+  const { user } = await requireSession('/business/new');
+  const store = storage();
+  if (!store || typeof contentType !== 'string' || typeof size !== 'number') return { ok: false };
+  if (!(await hit(valkey(), [[LOGO_UPLOADS, user.id]])).ok) return { ok: false };
+  const r = await requestLogoUpload(store, { userId: user.id, contentType, size });
+  return r.ok ? { ok: true, key: r.key, url: r.upload.url, headers: r.upload.headers } : { ok: false };
 }
 
 const inviteSchema = z.object({ organizationId: z.uuid(), slug: z.string().max(40), email: z.string().max(200), role: z.enum(['manager', 'staff']) });

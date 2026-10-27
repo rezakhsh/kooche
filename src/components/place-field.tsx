@@ -45,6 +45,7 @@ export function PlaceField({
   fixed,
   onCountryChange,
   compact = false,
+  label,
 }: {
   countries: { code: string; nameFa: string }[];
   initial: PlaceFieldValue;
@@ -66,6 +67,8 @@ export function PlaceField({
    * postal code by itself (a district typed before is kept).
    */
   compact?: boolean;
+  /** The compact field's label instead of «کد پستی» (the new-business form asks «کجا») */
+  label?: string;
 }) {
   const [country, setCountry] = useState(initial.countryCode || countries[0]?.code || '');
   const [text, setText] = useState(initial.place);
@@ -192,7 +195,7 @@ export function PlaceField({
       <div className="relative">
         {compact ? (
           <label className="block">
-            <span className="mb-1.5 block text-sm font-bold">{t.postalShort}</span>
+            <span className="mb-1.5 block text-sm font-bold">{label ?? t.postalShort}</span>
             <span className="flex h-12 items-center gap-2 rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
               <input
                 name="place"

@@ -177,7 +177,7 @@ export async function business(ownerId?: string) {
   const slug = `biz-${publicToken()}`;
   const [org] = await db
     .insert(schema.organizations)
-    .values({ slug, name: 'فروشگاه آزمایشی', nameNormalized: normalizePersian('فروشگاه آزمایشی'), countryCode: 'DE', createdByUserId: o.id, email: `${slug}@example.test` })
+    .values({ slug, name: 'فروشگاه آزمایشی', nameNormalized: normalizePersian('فروشگاه آزمایشی'), countryCode: 'DE', createdByUserId: o.id, email: `${slug}@example.test`, legalName: 'Testladen', legalForm: 'Einzelunternehmen', addressLine1: 'Teststraße 1', postalCode: '10115', placeName: 'Berlin' })
     .returning();
   await db.insert(schema.organizationMembers).values({ organizationId: org!.id, userId: o.id, role: 'owner' });
   return { org: org!, ownerId: o.id };

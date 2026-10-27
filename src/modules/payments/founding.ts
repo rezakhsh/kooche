@@ -8,6 +8,7 @@ import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
 import { queueBusinessNotice } from '../organizations/notices';
+import { legalComplete } from '../organizations/organizations';
 import type { PaymentGateway } from './gateway';
 import { activeSubscription } from './plans';
 
@@ -111,11 +112,12 @@ export async function startFoundingCheckout(
   if ((await foundingState(db, opts.organizationId)) !== 'offered') return { ok: false, reason: 'not_allowed' };
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };
   const [org] = await db
-    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, email: organizations.email })
+    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
   const price = await activePrice(db, 'pro', 'EUR', 'month');
   if (!org || !price) return { ok: false, reason: 'not_allowed' };
+  if (!legalComplete(org)) return { ok: false, reason: 'legal_missing' };
   if (!(await confirmBusinessBuyer(db, opts.userId, org.id, opts, 'pro-founding'))) return { ok: false, reason: 'business_required' };
   const [owner] = await db.execute<{ email: string }>(sql`SELECT email FROM users WHERE id = ${opts.userId}`);
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? owner!.email, name: org.legalName ?? org.name });

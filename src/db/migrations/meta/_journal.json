@@ -183,6 +183,13 @@
       "when": 1793127237782,
       "tag": "0025_event_types",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793135373414,
+      "tag": "0026_business_profile",
+      "breakpoints": true
     }
   ]
 }

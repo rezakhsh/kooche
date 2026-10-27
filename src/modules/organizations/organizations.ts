@@ -3,11 +3,14 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, countries, organizationMembers, organizations } from '../../db/schema';
+import { BUSINESS_LANGUAGES, BUSINESS_TYPES, type OpeningHours } from '../../db/schema/organizations';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { placeByValue, resolvePlace } from '../listings/places';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
+import { validHours } from './hours';
+import { ownLogoUpload, queueLogo, removeLogo } from './logo';
 import { queueBusinessNotice } from './notices';
 
 // Businesses (docs/schema.md, section 7; roadmap step 6). A business has a public page /b/{slug}
@@ -26,25 +29,52 @@ const text = (max: number) => z.string().max(max * 4).transform((s) => s.normali
 const optionalText = (min: number, max: number) =>
   text(max).pipe(z.union([z.literal('').transform(() => null), z.string().min(min).max(max)]));
 
-/** What the business form sends (create and edit) */
+/** An Instagram or Telegram handle, typed as @name, name or a link to the profile */
+const handle = (site: RegExp, valid: RegExp) =>
+  z
+    .string()
+    .max(200)
+    .transform((s) => s.trim().replace(site, '').replace(/^@/, '').replace(/[/?#].*$/, ''))
+    .pipe(z.union([z.literal('').transform(() => null), z.string().regex(valid)]));
+
+/**
+ * What the business form sends (create and edit; wave 1, mockups final/business-new and
+ * business-legal). Step 1: name, address of the page, what it does, where, logo. Step 2: contact,
+ * hours, languages, about. Step 3: the legal details, which can wait: all of them or none, and
+ * the full set is needed for the «تأییدشده» badge and for payments (legalComplete).
+ */
 export const businessInputSchema = z.object({
   name: text(80).pipe(z.string().min(2).max(80)),
   slug: z.string().max(60).transform((s) => s.trim().toLowerCase()).pipe(z.string().min(3).max(40).regex(SLUG)),
-  legalName: text(120).pipe(z.string().min(2).max(120)),
-  legalForm: text(80).pipe(z.string().min(1).max(80)),
-  representativeName: optionalText(2, 120),
-  addressLine1: text(120).pipe(z.string().min(3).max(120)),
-  addressLine2: optionalText(1, 120),
+  businessType: z.enum(BUSINESS_TYPES),
+  tagline: optionalText(2, 100),
   /** A postal code or place, resolved in the business's country like a listing's place */
   place: text(120).pipe(z.string().min(2)),
   placeValue: z.string().max(40).default(''),
+  servesOnline: z.boolean().default(false),
+  languages: z.array(z.enum(BUSINESS_LANGUAGES)).max(BUSINESS_LANGUAGES.length).default([]),
+  description: z.string().max(20_000).transform((s) => s.normalize('NFC').replace(/\r\n?/g, '\n').trim()).pipe(z.string().max(5000)),
   phone: z.string().max(40).transform((s) => s.trim()).default(''),
-  email: z.string().max(200).transform((s) => s.trim().toLowerCase()).pipe(z.email()),
+  email: z
+    .string()
+    .max(200)
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(z.union([z.literal('').transform(() => null), z.email()])),
   website: z
     .string()
     .max(300)
     .transform((s) => s.trim())
     .pipe(z.union([z.literal('').transform(() => null), z.url({ protocol: /^https$/ })])),
+  instagram: handle(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\//i, /^[A-Za-z0-9._]{1,30}$/),
+  telegram: handle(/^(?:https?:\/\/)?(?:t\.me|telegram\.me)\//i, /^[A-Za-z][A-Za-z0-9_]{4,31}$/),
+  hours: z.custom<OpeningHours | null>((v) => v === null || validHours(v)).default(null),
+  legalName: optionalText(2, 120),
+  legalForm: optionalText(1, 80),
+  representativeName: optionalText(2, 120),
+  addressLine1: optionalText(3, 120),
+  addressLine2: optionalText(1, 120),
+  /** Step 3's postal code: when given, it is the business's place (more exact than step 1's town) */
+  legalPostal: z.string().max(20).transform((s) => s.trim()).default(''),
   registerCourt: optionalText(2, 120),
   registrationNumber: optionalText(2, 60),
   vatId: z
@@ -53,7 +83,11 @@ export const businessInputSchema = z.object({
     .transform((s) => s.replace(/\s+/g, '').toUpperCase())
     .pipe(z.union([z.literal('').transform(() => null), z.string().regex(/^[A-Z]{2}[0-9A-Z]{2,13}$/)])),
   imprintExtra: optionalText(1, 2000),
-  description: z.string().max(20_000).transform((s) => s.normalize('NFC').replace(/\r\n?/g, '\n').trim()).pipe(z.string().max(5000)),
+  /** «بعداً تکمیل می‌کنم» while creating: the legal fields are left empty */
+  legalLater: z.boolean().default(false),
+  /** A logo the browser uploaded (./logo.ts), or removing the logo */
+  logoUpload: z.string().max(200).default(''),
+  removeLogo: z.boolean().default(false),
 });
 export type BusinessInput = z.input<typeof businessInputSchema>;
 
@@ -67,7 +101,16 @@ export type BusinessError =
   | 'not_found'
   | 'place_not_found'
   | 'phone_invalid'
-  | 'register_incomplete';
+  | 'register_incomplete'
+  | 'legal_incomplete'
+  | 'postal_required';
+
+const LEGAL_FIELDS = ['legalName', 'legalForm', 'representativeName', 'addressLine1', 'addressLine2', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra'] as const;
+
+/** Everything the Impressum, the «تأییدشده» badge and a payment need */
+export function legalComplete(org: { legalName: string | null; legalForm: string | null; addressLine1: string | null; postalCode: string | null; email: string | null }): boolean {
+  return !!(org.legalName && org.legalForm && org.addressLine1 && org.postalCode && org.email);
+}
 
 /** Field → what is wrong with it, from Zod's issues */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
@@ -76,21 +119,38 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   return out;
 }
 
-async function columns(db: Queryable, countryCode: string, input: z.output<typeof businessInputSchema>) {
-  const place = (input.placeValue && (await placeByValue(db, countryCode, input.placeValue))) || (await resolvePlace(db, countryCode, input.place));
-  if (!place || typeof place === 'string') return { error: 'place_not_found' as const };
+type ColumnsResult = { error: BusinessError; fields?: Record<string, string> } | { values: Omit<typeof organizations.$inferInsert, 'slug' | 'countryCode' | 'createdByUserId'> };
+
+async function columns(db: Queryable, countryCode: string, raw: z.output<typeof businessInputSchema>): Promise<ColumnsResult> {
+  const input = raw.legalLater ? { ...raw, ...Object.fromEntries(LEGAL_FIELDS.map((k) => [k, null])), legalPostal: '' } : raw;
+  const place = input.legalPostal
+    ? await resolvePlace(db, countryCode, input.legalPostal)
+    : (input.placeValue && (await placeByValue(db, countryCode, input.placeValue))) || (await resolvePlace(db, countryCode, input.place));
+  if (!place || typeof place === 'string') return { error: 'place_not_found', fields: { [input.legalPostal ? 'legalPostal' : 'place']: 'place_not_found' } };
   let phone: string | null = null;
   if (input.phone) {
     const parsed = parsePhoneNumberFromString(input.phone, countryCode as 'DE');
-    if (!parsed?.isValid()) return { error: 'phone_invalid' as const };
+    if (!parsed?.isValid()) return { error: 'phone_invalid' };
     phone = parsed.number;
   }
   // A registration number means nothing without its court, and the other way round
-  if (!input.registerCourt !== !input.registrationNumber) return { error: 'register_incomplete' as const };
+  if (!input.registerCourt !== !input.registrationNumber) return { error: 'register_incomplete' };
+  // The legal details are all there or not at all: half an Impressum helps nobody
+  if (LEGAL_FIELDS.some((k) => input[k])) {
+    const missing = Object.fromEntries((['legalForm', 'legalName', 'addressLine1'] as const).filter((k) => !input[k]).map((k) => [k, 'required']));
+    if (Object.keys(missing).length) return { error: 'legal_incomplete', fields: missing };
+    if (place.kind !== 'postal') return { error: 'postal_required', fields: { legalPostal: 'required' } };
+    if (!input.email) return { error: 'legal_incomplete', fields: { email: 'required' } };
+  }
   return {
     values: {
       name: input.name,
       nameNormalized: normalizePersian(input.name),
+      businessType: input.businessType,
+      tagline: input.tagline,
+      servesOnline: input.servesOnline,
+      languages: [...new Set(input.languages)].sort((a, b) => BUSINESS_LANGUAGES.indexOf(a) - BUSINESS_LANGUAGES.indexOf(b)),
+      openingHours: input.hours,
       legalName: input.legalName,
       legalForm: input.legalForm,
       representativeName: input.representativeName,
@@ -103,6 +163,8 @@ async function columns(db: Queryable, countryCode: string, input: z.output<typeo
       phoneE164: phone,
       email: input.email,
       website: input.website,
+      instagram: input.instagram,
+      telegram: input.telegram,
       registerCourt: input.registerCourt,
       registrationNumber: input.registrationNumber,
       vatId: input.vatId,
@@ -140,12 +202,13 @@ export async function createBusiness(
         .where(and(eq(organizationMembers.userId, opts.userId), eq(organizationMembers.role, 'owner'), ne(organizations.status, 'deleted')));
       if ((owned?.n ?? 0) >= MAX_BUSINESSES_PER_USER) return { ok: false, reason: 'too_many' };
       const built = await columns(tx, country.code, parsed.data);
-      if ('error' in built) return { ok: false, reason: built.error! };
+      if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       const [org] = await tx
         .insert(organizations)
         .values({ ...built.values, slug: parsed.data.slug, countryCode: country.code, createdByUserId: opts.userId })
         .returning({ id: organizations.id, slug: organizations.slug });
       await tx.insert(organizationMembers).values({ organizationId: org!.id, userId: opts.userId, role: 'owner' });
+      if (parsed.data.logoUpload && ownLogoUpload(opts.userId, parsed.data.logoUpload)) await queueLogo(tx, org!.id, parsed.data.logoUpload);
       await tx.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.created', targetType: 'organization', targetId: org!.id });
       return { ok: true, slug: org!.slug, id: org!.id };
     });
@@ -168,14 +231,16 @@ export async function updateBusiness(
     return await db.transaction(async (tx) => {
       const org = await lockAs(tx, opts.userId, opts.organizationId, ['owner']);
       if (!org) return { ok: false, reason: 'not_found' };
-      const built = await columns(tx, org.countryCode, parsed.data);
-      if ('error' in built) return { ok: false, reason: built.error! };
+      const built = await columns(tx, org.countryCode, { ...parsed.data, legalLater: false });
+      if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       // Changing the legal details sends a verified business back to unverified
       const legalChanged = org.legalName !== built.values.legalName || org.registrationNumber !== built.values.registrationNumber || org.vatId !== built.values.vatId;
       await tx
         .update(organizations)
         .set({ ...built.values, ...(legalChanged && org.verificationStatus === 'verified' ? { verificationStatus: 'unverified' as const, verifiedAt: null, verifiedByUserId: null } : {}) })
         .where(eq(organizations.id, org.id));
+      if (parsed.data.logoUpload && ownLogoUpload(opts.userId, parsed.data.logoUpload)) await queueLogo(tx, org.id, parsed.data.logoUpload);
+      else if (parsed.data.removeLogo) await removeLogo(tx, org);
       return { ok: true };
     });
   } catch (e) {
