@@ -110,7 +110,7 @@ export function Composer({
         <button
           type="submit"
           disabled={hydrated && (pending || !text.trim())}
-          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/40"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-800 disabled:cursor-default disabled:hover:bg-brand-700"
           title={t.send}
         >
           <Icon name="send" className="size-5" />

@@ -149,15 +149,17 @@ export function Thread(props: Props) {
           </div>
         )}
         <ol className="space-y-2">
-          {list.map((m) => {
+          {list.map((m, i) => {
             const day = dayKey(m.createdAt, timeZone);
-            const divider = day !== lastDay;
+            // A line on each new day; above the first messages only when they are older than yesterday
+            // (mockup final/chat starts with yesterday's messages and no line)
+            const divider = day !== lastDay && (i > 0 || hasOlder || !([t.today, t.yesterday] as string[]).includes(dayLabel(m.createdAt, timeZone)));
             lastDay = day;
             return (
               <li key={m.id}>
                 {divider && (
-                  <p className="py-1 pb-3 text-center">
-                    <span className="rounded-full bg-white px-3 py-1 text-xs leading-7 text-neutral-600 ring-1 ring-neutral-200">{dayLabel(m.createdAt, timeZone)}</span>
+                  <p className="mb-2 py-1 text-center">
+                    <span className="rounded-full bg-white px-3 text-xs leading-7 text-neutral-600 ring-1 ring-neutral-200">{dayLabel(m.createdAt, timeZone)}</span>
                   </p>
                 )}
                 <Bubble m={m} mine={m.senderId === meId} seen={!!otherReadAt && m.createdAt <= otherReadAt} timeZone={timeZone} />

@@ -85,7 +85,7 @@ export default async function AccountPage() {
       </section>
 
       <h2 className="mt-6 mb-2 px-1 text-sm font-bold text-neutral-600">{t.activity}</h2>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2">
         {tiles.map(([icon, label, value, href]) => (
           <Link key={href} href={href} className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3.5 hover:bg-neutral-50">
             <span className="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
@@ -143,7 +143,7 @@ function Row({ href, icon, label, value }: { href: string; icon: IconName; label
       <Link href={href} className="flex min-h-14 items-center gap-3 px-4 py-2 hover:bg-neutral-50">
         <Icon name={icon} className="size-5 text-neutral-600" />
         <span className="flex-1 text-[15px]">{label}</span>
-        {value && <span className="min-w-0 truncate text-sm text-neutral-600">{value}</span>}
+        {value && <span className="text-sm leading-6 text-neutral-600">{value}</span>}
         <Icon name="chevronEnd" className="size-4 text-neutral-400" />
       </Link>
     </li>

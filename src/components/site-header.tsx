@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { visitorCountry } from '../lib/client-ip';
+import { homeArea } from '../modules/listings/neighbourhood';
 import { cityOf } from '../modules/search/places';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
 import { browsePath } from '../modules/search/paths';
@@ -27,7 +28,9 @@ export async function SiteHeader() {
   const [session, chosen, open] = await Promise.all([currentSession(), chosenCountry(appDb()), activeCountries(appDb())]);
   // Before a country is chosen, the visitor's own (Cloudflare's header) when it is open (wave 1, mockup final/home)
   const here = visitorCountry(requestHeaders);
-  const country = chosen ?? open.find((c) => c.code === here) ?? null;
+  // A signed-in user's saved place comes before the guess from their connection
+  const home = session ? await homeArea(appDb(), session.user.id).catch(() => null) : null;
+  const country = chosen ?? open.find((c) => c.code === home?.countryCode) ?? open.find((c) => c.code === here) ?? null;
   // The place chip says the city on a city's pages («برلین ▾»), else the country; on a browse page
   // the header's search searches that page (mockups final/browse, final/category: «جستجو در برلین…»)
   const segments = country ? (new RegExp(`^/${country.slug}/([^/]+)(?:/([^/]+))?`).exec(requestHeaders.get('x-pathname') ?? '') ?? []) : [];
@@ -39,19 +42,24 @@ export async function SiteHeader() {
     }
   };
   const city = country && segments[1] ? await cityOf(appDb(), country.code, decode(segments[1])).catch(() => null) : null;
+  // Away from the country's pages (my listings, the account) a signed-in user's own city takes its
+  // place: the chip names it and the search searches it (mockup header(): «برلین ▾», «جستجو در برلین…»)
+  const path = requestHeaders.get('x-pathname') ?? '';
+  const onCountryPages = !!country && (path === `/${country.slug}` || path.startsWith(`/${country.slug}/`));
+  const place = city ?? (country && !onCountryPages && home?.countryCode === country.code ? { slug: home.citySlug, nameFa: home.city } : null);
   const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
-  const searchIn = country ? browsePath(country.slug, city?.slug ?? null, category?.slug ?? null) : '/';
-  const searchScope = category?.nameFa ?? city?.nameFa ?? country?.nameFa ?? '';
+  const searchIn = country ? browsePath(country.slug, place?.slug ?? null, category?.slug ?? null) : '/';
+  const searchScope = category?.nameFa ?? place?.nameFa ?? country?.nameFa ?? '';
   const t = messages.nav;
-  const home = country ? `/${country.slug}` : '/';
+  const start = country ? `/${country.slug}` : '/';
   // Conversations with unread messages, for the badge (one small query on the inbox indexes)
   const unread = session ? await unreadConversations(appDb(), session.user.id) : 0;
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
-          <Link href={home} className="flex shrink-0 items-center gap-2.5" aria-label={messages.site.logoAlt}>
+          <Link href={start} className="flex shrink-0 items-center gap-2.5" aria-label={messages.site.logoAlt}>
             <LogoMark className="size-9" />
             <span className="flex flex-col">
               <span className="text-xl font-black leading-none">{messages.site.name}</span>
@@ -61,12 +69,12 @@ export async function SiteHeader() {
           {country && (
             <Link
               href="/?choose"
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 ps-3 pe-2.5 text-sm font-medium whitespace-nowrap text-neutral-800 hover:border-brand-300"
+              className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 ps-2.5 pe-3 text-[13px] font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
               title={messages.country.change}
             >
               <Icon name="pin" className="size-4 text-brand-700" />
-              {city?.nameFa ?? country.nameFa}
-              <Icon name="chevronDown" className="size-3.5 text-neutral-600" />
+              {place?.nameFa ?? country.nameFa}
+              <Icon name="chevronDown" className="size-3.5" />
             </Link>
           )}
           {country && (
@@ -75,39 +83,42 @@ export async function SiteHeader() {
               id="header-q"
               action={searchIn}
               country={country.slug}
-              city={city?.slug ?? null}
+              city={place?.slug ?? null}
               placeholder={messages.search.placeholderIn(searchScope)}
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
           <nav aria-label={t.label} className={`${country ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
             {session && (
-              <Link href="/chat" title={t.chat} className="relative flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3">
-                <Icon name="chat" className="size-[18px] xl:size-4" />
+              <Link href="/chat" title={t.chat} className="relative flex h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium hover:bg-neutral-50 xl:px-3">
+                <Icon name="chat" className="size-[18px]" />
                 <Label text={t.chat} />
                 <UnreadBadge count={unread} />
               </Link>
             )}
             {session && (
-              <Link href="/my/favorites" aria-label={messages.favorites.title} title={messages.favorites.title} className="flex items-center rounded-xl px-2.5 py-2 hover:bg-neutral-50">
-                <Icon name="heart" className="size-[18px]" />
-              </Link>
-            )}
-            {session && (
-              <Link href="/my/listings" title={t.myListings} className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3">
-                <Icon name="doc" className="size-[18px] xl:size-4" />
+              <Link href="/my/listings" title={t.myListings} className="flex h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium hover:bg-neutral-50 xl:px-3">
+                <Icon name="doc" className="size-[18px]" />
                 <Label text={t.myListings} />
               </Link>
             )}
-            <Link
-              href={session ? '/account' : '/login'}
-              title={session ? t.account : undefined}
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 px-2.5 py-2 text-sm font-medium hover:bg-neutral-50 xl:px-3"
-            >
-              <Icon name="user" className="size-4" />
-              {session ? <Label text={t.account} /> : t.signIn}
-            </Link>
-            <Link href="/new" className="flex items-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800">
+            {session && (
+              <Link href="/my/favorites" aria-label={messages.favorites.title} title={messages.favorites.title} className="flex size-11 items-center justify-center rounded-xl hover:bg-neutral-50">
+                <Icon name="heart" className="size-5" />
+              </Link>
+            )}
+            {session ? (
+              // The account as a round initial (mockup header())
+              <Link href="/account" aria-label={t.account} title={t.account} className="flex size-11 items-center justify-center rounded-full bg-brand-50 font-bold text-brand-800 hover:bg-brand-100">
+                <span aria-hidden>{[...(session.user.name?.trim() || messages.account.defaultDisplayName)][0]}</span>
+              </Link>
+            ) : (
+              <Link href="/login" className="flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 px-3 text-sm font-medium hover:bg-neutral-50">
+                <Icon name="user" className="size-4" />
+                {t.signIn}
+              </Link>
+            )}
+            <Link href="/new" className="ms-1 flex h-11 items-center gap-1.5 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800">
               <Icon name="plus" className="size-4" />
               {t.post}
             </Link>
@@ -125,7 +136,7 @@ export async function SiteHeader() {
           )}
         </div>
       </header>
-      <BottomNav home={home} signedIn={!!session} unread={unread} />
+      <BottomNav home={start} signedIn={!!session} unread={unread} />
     </>
   );
 }

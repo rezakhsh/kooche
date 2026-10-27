@@ -544,6 +544,7 @@ export const messages = {
     // Wave 1 (mockup final/mylistings): a tab with its count, the numbers under each listing, one
     // action that fits the moment and ⋯ for the rest
     tab: (label: string, n: number) => (n > 0 ? `${label} ${n.toLocaleString('fa-IR')}` : label),
+    tabNames: { active: 'منتشر شده', draft: 'پیش‌نویس', paused: 'متوقف', sold: 'فروخته شده', expired: 'منقضی شده', rejected: 'رد شده' },
     views: 'بازدید',
     saves: 'نشان',
     chats: 'گفتگو',

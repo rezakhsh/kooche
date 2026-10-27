@@ -107,7 +107,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
           </Link>
           {TABS.filter((x) => ALWAYS.has(x) || count(x) > 0 || tab === x).map((x) => (
             <Link key={x} href={`/my/listings?tab=${x}`} className={chip(tab === x)} aria-current={tab === x ? 'page' : undefined}>
-              {t.tab(messages.status[x], count(x))}
+              {t.tab(t.tabNames[x], count(x))}
             </Link>
           ))}
         </nav>
@@ -169,7 +169,8 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                     ))}
                   </p>
                 )}
-                <div className="mt-2 flex flex-wrap gap-2">
+                {/* One line, as in the mockup; on the narrowest phones «بیشتر» keeps only its ⋯ */}
+                <div className="mt-2 flex gap-2">
                   {main === 'continue' ? (
                     <Link href={`/my/listings/${l.id}`} className={primary}>
                       {t.continueDraft}
@@ -193,7 +194,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                     summaryClassName={`${button} gap-1 border border-neutral-300 px-3 hover:bg-neutral-50`}
                     summary={
                       <>
-                        {t.more}
+                        <span className="max-[379px]:sr-only">{t.more}</span>
                         <Icon name="more" className="size-4" />
                       </>
                     }

@@ -67,11 +67,11 @@ describe('the account’s home area', () => {
     const nobody = await makeUser(db as never);
     expect(await homeArea(appDb, nobody.id)).toBeNull();
     const byCity = await makeUser(db as never, { homeLocationId: berlin.id });
-    expect(await homeArea(appDb, byCity.id)).toEqual({ city: 'برلین', neighbourhood: null });
+    expect(await homeArea(appDb, byCity.id)).toEqual({ city: 'برلین', citySlug: 'berlin', countryCode: 'DE', neighbourhood: null });
     const [pc] = await db.execute<{ postal_code: string; place_name: string }>(sql`
       SELECT postal_code, place_name FROM postal_places
       WHERE country_code = 'DE' AND is_active AND location_id = ${berlin.id} AND postal_code = '13353' LIMIT 1`);
     const byPostal = await makeUser(db as never, { homeLocationId: berlin.id, homePostalCode: pc!.postal_code, homePlaceName: pc!.place_name });
-    expect(await homeArea(appDb, byPostal.id)).toEqual({ city: 'برلین', neighbourhood: 'ودینگ' });
+    expect(await homeArea(appDb, byPostal.id)).toEqual({ city: 'برلین', citySlug: 'berlin', countryCode: 'DE', neighbourhood: 'ودینگ' });
   });
 });

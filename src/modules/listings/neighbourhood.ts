@@ -18,12 +18,12 @@ export const listingNeighbourhood = sql<string | null>`(
   LIMIT 1)`;
 
 /**
- * Where the user lives, for the account's profile card («ودینگ، برلین»): the saved place's city in
- * Persian and, for a saved postal code, the neighbourhood covering its centre.
+ * Where the user lives, for the account's profile card («ودینگ، برلین») and the header's place
+ * chip: the saved place's city and, for a saved postal code, the neighbourhood covering its centre.
  */
-export async function homeArea(db: Queryable, userId: string): Promise<{ city: string; neighbourhood: string | null } | null> {
-  const [r] = await db.execute<{ city: string; neighbourhood: string | null }>(sql`
-    SELECT l.name_fa AS city,
+export async function homeArea(db: Queryable, userId: string): Promise<{ city: string; citySlug: string; countryCode: string; neighbourhood: string | null } | null> {
+  const [r] = await db.execute<{ city: string; slug: string; country_code: string; neighbourhood: string | null }>(sql`
+    SELECT l.name_fa AS city, l.slug, l.country_code,
       (SELECT n.name_fa FROM neighbourhoods n
        WHERE n.location_id = l.id AND n.is_active AND ST_Covers(n.boundary, pp.center)
        ORDER BY n.key LIMIT 1) AS neighbourhood
@@ -34,5 +34,5 @@ export async function homeArea(db: Queryable, userId: string): Promise<{ city: s
     WHERE u.id = ${userId}
     LIMIT 1
   `);
-  return r ? { city: r.city, neighbourhood: r.neighbourhood } : null;
+  return r ? { city: r.city, citySlug: r.slug, countryCode: r.country_code, neighbourhood: r.neighbourhood } : null;
 }
