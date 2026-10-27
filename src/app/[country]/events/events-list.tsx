@@ -346,7 +346,7 @@ function Segments({ name, options, value }: { name: string; options: [string, st
 }
 
 // Tight enough that the whole sheet is one phone screen (owner, Oct 27, 2026: "it should be one page")
-const H = ({ children }: { children: ReactNode }) => <p className="mt-3.5 mb-1.5 text-sm font-bold first:mt-0">{children}</p>;
+const H = ({ children }: { children: ReactNode }) => <p className="mt-3.5 mb-1.5 text-sm font-bold lg:first:mt-0">{children}</p>;
 const pillClass =
   'flex h-9 items-center rounded-full border border-neutral-300 px-3 text-sm peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40';
 
