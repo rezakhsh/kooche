@@ -86,7 +86,7 @@ export async function savedPlace(db: Queryable, userId: string): Promise<{ place
 }
 
 /** Events have their own section, pages and "my events" (src/modules/events/) */
-const notAnEvent = sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`;
+export const notAnEvent = sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`;
 
 /** Active listings per open country, for the home page */
 export async function countryCounts(db: Queryable): Promise<Map<string, number>> {

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { Queryable } from '../../db/drizzle';
 import { listings } from '../../db/schema';
 
 // A listing's neighbourhood (wave 1): the Persian name of its city's neighbourhood that covers its
@@ -15,3 +16,23 @@ export const listingNeighbourhood = sql<string | null>`(
     AND ST_Covers(n.boundary, ${listings.point})
   ORDER BY n.key
   LIMIT 1)`;
+
+/**
+ * Where the user lives, for the account's profile card («ودینگ، برلین»): the saved place's city in
+ * Persian and, for a saved postal code, the neighbourhood covering its centre.
+ */
+export async function homeArea(db: Queryable, userId: string): Promise<{ city: string; neighbourhood: string | null } | null> {
+  const [r] = await db.execute<{ city: string; neighbourhood: string | null }>(sql`
+    SELECT l.name_fa AS city,
+      (SELECT n.name_fa FROM neighbourhoods n
+       WHERE n.location_id = l.id AND n.is_active AND ST_Covers(n.boundary, pp.center)
+       ORDER BY n.key LIMIT 1) AS neighbourhood
+    FROM users u
+    LEFT JOIN postal_places pp ON pp.is_active AND pp.postal_code = u.home_postal_code AND pp.place_name = u.home_place_name
+      AND pp.country_code = (SELECT country_code FROM locations WHERE id = u.home_location_id)
+    JOIN locations l ON l.id = coalesce(pp.location_id, u.home_location_id) AND l.is_active
+    WHERE u.id = ${userId}
+    LIMIT 1
+  `);
+  return r ? { city: r.city, neighbourhood: r.neighbourhood } : null;
+}

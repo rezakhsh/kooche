@@ -11,7 +11,7 @@ import {
 } from '../src/modules/chat/conversations';
 import { exportChatData } from '../src/modules/chat/export';
 import { CHAT_LIMITS } from '../src/modules/chat/limits';
-import { conversationFor, inbox, messagesAfter, messagesPage, unreadConversations } from '../src/modules/chat/queries';
+import { conversationCounts, conversationFor, inbox, messagesAfter, messagesPage, unreadConversations } from '../src/modules/chat/queries';
 import { purgeChatsOfDeletedUsers } from '../src/modules/chat/retention';
 import { revealPhone } from '../src/modules/listings/phone-reveal';
 import { reportMessage } from '../src/modules/moderation/reports';
@@ -49,6 +49,21 @@ async function conv(id: string) {
 }
 
 describe('starting and sending', () => {
+  it('counts the buyers who wrote about each listing, for its seller only («۴ گفتگو» in my listings)', async () => {
+    const { seller, buyer, listing } = await pair();
+    const other = await user({ name: 'خریدار دوم', createdAt: new Date(Date.now() - 30 * DAY) });
+    await first(buyer.id, listing.publicToken);
+    await first(buyer.id, listing.publicToken, 'قیمت آخر؟');
+    await first(other.id, listing.publicToken);
+    const quiet = await makeListing(owner, seller.id);
+    const counts = await conversationCounts(appDb, seller.id, [listing.id, quiet.id]);
+    expect(counts.get(listing.id)).toBe(2);
+    expect(counts.has(quiet.id)).toBe(false);
+    // Someone else asking about the seller's listings learns nothing
+    expect((await conversationCounts(appDb, buyer.id, [listing.id])).size).toBe(0);
+    expect((await conversationCounts(appDb, seller.id, [])).size).toBe(0);
+  });
+
   it('creates the conversation with its first message and reuses it afterwards', async () => {
     const { seller, buyer, listing } = await pair();
     const a = await first(buyer.id, listing.publicToken);

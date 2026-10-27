@@ -1,4 +1,5 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { conversations } from '../../db/schema';
 import type { Queryable } from '../../db/drizzle';
 import { coverKeys } from '../listings/queries';
 import { blockState, type BlockState } from '../users/blocks';
@@ -137,6 +138,17 @@ export async function unreadConversations(db: Queryable, userId: string): Promis
   return Number(row?.n ?? 0);
 }
 
+/** How many buyers wrote about each of the seller's listings («۴ گفتگو» in "my listings") */
+export async function conversationCounts(db: Queryable, sellerId: string, listingIds: string[]): Promise<Map<string, number>> {
+  if (listingIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: conversations.listingId, n: sql<number>`count(*)::int` })
+    .from(conversations)
+    .where(and(eq(conversations.sellerUserId, sellerId), inArray(conversations.listingId, listingIds)))
+    .groupBy(conversations.listingId);
+  return new Map(rows.map((r) => [r.id, Number(r.n)]));
+}
+
 export type ConversationView = {
   id: string;
   side: Side;
@@ -150,6 +162,7 @@ export type ConversationView = {
     token: string;
     status: string;
     isEvent: boolean;
+    categoryId: string | null;
     coverKey: string | null;
     price: { type: string; minor: number | null; currency: string | null; minorUnit: number | null };
   };
@@ -174,6 +187,7 @@ export async function conversationFor(db: Queryable, userId: string, conversatio
     token: string;
     listing_status: string;
     is_event: boolean;
+    category_id: string | null;
     price_type: string;
     price_minor: string | number | null;
     currency: string | null;
@@ -183,7 +197,7 @@ export async function conversationFor(db: Queryable, userId: string, conversatio
            c.buyer_last_read_at, c.seller_last_read_at,
            l.id AS listing_id, l.title, l.public_token AS token, l.status AS listing_status,
            EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
-           l.price_type, l.price_minor, l.currency, cur.minor_unit
+           l.category_id, l.price_type, l.price_minor, l.currency, cur.minor_unit
     FROM conversations c
     JOIN listings l ON l.id = c.listing_id
     LEFT JOIN currencies cur ON cur.code = l.currency
@@ -211,6 +225,7 @@ export async function conversationFor(db: Queryable, userId: string, conversatio
       token: r.token,
       status: r.listing_status,
       isEvent: r.is_event,
+      categoryId: r.category_id,
       coverKey: covers.get(r.listing_id) ?? null,
       price: { type: r.price_type, minor: r.price_minor === null ? null : Number(r.price_minor), currency: r.currency, minorUnit: r.minor_unit },
     },

@@ -72,11 +72,11 @@ export function Composer({
   };
 
   return (
-    <div className="border-t border-neutral-200 bg-white px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6">
+    <div className="border-t border-neutral-200 bg-white px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {quickReplies && !text && (
-        <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto">
           {quickReplies.map((q) => (
-            <button key={q} type="button" onClick={() => setText(q)} className="shrink-0 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100">
+            <button key={q} type="button" onClick={() => setText(q)} className="flex h-9 shrink-0 items-center rounded-full border border-brand-200 bg-brand-50 px-3 text-sm text-brand-800 hover:bg-brand-100">
               {q}
             </button>
           ))}
@@ -104,16 +104,16 @@ export function Composer({
             onKeyDown={onKeyDown}
             placeholder={t.placeholder}
             autoFocus={autoFocus}
-            className="block max-h-42 w-full resize-none rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-base leading-6 outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-600/20"
+            className="block max-h-42 min-h-12 w-full resize-none rounded-2xl border border-neutral-300 bg-white px-4 py-[11px] text-[15px] leading-6 outline-none placeholder:text-neutral-500 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
           />
         </label>
         <button
           type="submit"
           disabled={hydrated && (pending || !text.trim())}
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/40"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/40"
           title={t.send}
         >
-          <Icon name="send" className="size-5 -scale-x-100" />
+          <Icon name="send" className="size-5" />
           <span className="sr-only">{pending ? t.sending : t.send}</span>
         </button>
       </form>

@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { cardOf } from '../src/modules/listings/card';
+import { homeArea } from '../src/modules/listings/neighbourhood';
 import { publicListing } from '../src/modules/listings/queries';
 import { cardsByIds } from '../src/modules/search/browse';
 import { loadCatalog } from '../src/modules/listings/catalog';
@@ -57,5 +58,20 @@ describe('a listing’s neighbourhood', () => {
     } finally {
       await db.update(schema.neighbourhoods).set({ isActive: true }).where(eq(schema.neighbourhoods.nameLocal, 'Wedding'));
     }
+  });
+});
+
+describe('the account’s home area', () => {
+  it('names the neighbourhood of a saved postal code and the city, or the city alone', async () => {
+    const berlin = await city('berlin');
+    const nobody = await makeUser(db as never);
+    expect(await homeArea(appDb, nobody.id)).toBeNull();
+    const byCity = await makeUser(db as never, { homeLocationId: berlin.id });
+    expect(await homeArea(appDb, byCity.id)).toEqual({ city: 'برلین', neighbourhood: null });
+    const [pc] = await db.execute<{ postal_code: string; place_name: string }>(sql`
+      SELECT postal_code, place_name FROM postal_places
+      WHERE country_code = 'DE' AND is_active AND location_id = ${berlin.id} AND postal_code = '13353' LIMIT 1`);
+    const byPostal = await makeUser(db as never, { homeLocationId: berlin.id, homePostalCode: pc!.postal_code, homePlaceName: pc!.place_name });
+    expect(await homeArea(appDb, byPostal.id)).toEqual({ city: 'برلین', neighbourhood: 'ودینگ' });
   });
 });

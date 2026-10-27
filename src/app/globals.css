@@ -62,7 +62,8 @@ dialog.photo-viewer::backdrop {
   display: none;
 }
 
-/* A conversation fills the screen like a messaging app: no footer below it (src/app/chat/[id]) */
+/* A conversation fills the screen like a messaging app: no site header or footer (src/app/chat/[id], mockup final/chat) */
+body:has([data-chat-thread]) > header,
 body:has([data-chat-thread]) > footer {
   display: none;
 }
@@ -87,7 +88,8 @@ body:has([data-chat-thread]) > footer {
 [data-browse-bar]:has(details[open]) {
   z-index: 50;
 }
-body:has([data-browse-bar] details[open]) [data-bottom-nav] {
+body:has([data-browse-bar] details[open]) [data-bottom-nav],
+body:has(details[data-sheet][open]) [data-bottom-nav] {
   display: none;
 }
 

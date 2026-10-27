@@ -17,6 +17,7 @@ import { useChatStream } from '../use-chat-stream';
 //
 // My messages sit at the end side (left in RTL), the other person's at the start side, as in
 // Telegram and WhatsApp in Persian. Links are shown as text, never as links (scam guard).
+// Reporting is in the ⋯ sheet (wave 1), not a flag beside every message.
 
 type Props = {
   conversationId: string;
@@ -29,6 +30,9 @@ type Props = {
   timeZone: string;
   /** The page just read unread messages: the header, rendered alongside, still counts them */
   refreshBadge?: boolean;
+  /** The one safety note at the top, by the listing's kind */
+  safety: string;
+  quickReplies: readonly string[];
 };
 
 const t = messages.chat;
@@ -62,7 +66,6 @@ export function Thread(props: Props) {
   const [hasOlder, setHasOlder] = useState(props.hasOlder);
   const [otherReadAt, setOtherReadAt] = useState(props.otherReadAt);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [reporting, setReporting] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const lastId = list.at(-1)?.id ?? null;
@@ -131,15 +134,12 @@ export function Thread(props: Props) {
   let lastDay = '';
   return (
     <>
-      <div ref={scroller} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6" aria-live="polite" aria-relevant="additions">
-        <p className="mx-auto mb-4 flex max-w-md items-start gap-2 rounded-xl bg-saffron-50 px-3 py-2 text-xs leading-relaxed text-saffron-800">
-          <Icon name="shield" className="mt-0.5 size-4 shrink-0" />
-          <span>
-            {t.tip}{' '}
-            <Link href="/safety" className="font-semibold underline">
-              {t.tipMore}
-            </Link>
-          </span>
+      <div ref={scroller} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain bg-neutral-50 px-3 py-3" aria-live="polite" aria-relevant="additions">
+        <p className="mx-auto mb-2 flex max-w-sm gap-2 rounded-xl bg-saffron-50 p-2.5 text-xs leading-6 text-saffron-800">
+          <Icon name="shield" className="mt-1 size-4 shrink-0" />
+          <Link href="/safety" className="hover:underline">
+            {props.safety}
+          </Link>
         </p>
         {hasOlder && list[0] && (
           <div className="mb-3 text-center">
@@ -148,7 +148,7 @@ export function Thread(props: Props) {
             </a>
           </div>
         )}
-        <ol className="space-y-1.5">
+        <ol className="space-y-2">
           {list.map((m) => {
             const day = dayKey(m.createdAt, timeZone);
             const divider = day !== lastDay;
@@ -156,11 +156,11 @@ export function Thread(props: Props) {
             return (
               <li key={m.id}>
                 {divider && (
-                  <p className="my-3 text-center">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">{dayLabel(m.createdAt, timeZone)}</span>
+                  <p className="py-1 pb-3 text-center">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs leading-7 text-neutral-600 ring-1 ring-neutral-200">{dayLabel(m.createdAt, timeZone)}</span>
                   </p>
                 )}
-                <Bubble m={m} mine={m.senderId === meId} seen={!!otherReadAt && m.createdAt <= otherReadAt} timeZone={timeZone} onReport={() => setReporting(m.id)} />
+                <Bubble m={m} mine={m.senderId === meId} seen={!!otherReadAt && m.createdAt <= otherReadAt} timeZone={timeZone} />
               </li>
             );
           })}
@@ -174,6 +174,7 @@ export function Thread(props: Props) {
       {props.canWrite ? (
         <Composer
           hidden={{ conversationId }}
+          quickReplies={props.quickReplies}
           onSent={(m) => {
             stickToBottom.current = true;
             setList((l) => merge(l, [m]));
@@ -182,12 +183,11 @@ export function Thread(props: Props) {
       ) : (
         <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center text-sm text-neutral-700">{props.readOnly}</div>
       )}
-      {reporting && <ReportDialog messageId={reporting} onClose={() => setReporting(null)} />}
     </>
   );
 }
 
-function Bubble({ m, mine, seen, timeZone, onReport }: { m: WireMessage; mine: boolean; seen: boolean; timeZone: string; onReport: () => void }) {
+function Bubble({ m, mine, seen, timeZone }: { m: WireMessage; mine: boolean; seen: boolean; timeZone: string }) {
   if (m.kind === 'system') {
     const text = t.system[m.body as keyof typeof t.system] ?? m.body;
     return (
@@ -197,40 +197,27 @@ function Bubble({ m, mine, seen, timeZone, onReport }: { m: WireMessage; mine: b
     );
   }
   const warnings = mine ? [] : m.riskFlags;
+  // The time sits at the end of the text's last line (mockup final/chat)
   return (
     <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-      <div className={`group flex max-w-[85%] items-end gap-1 sm:max-w-[70%] ${mine ? 'flex-row-reverse' : ''}`}>
-        <div
-          className={`min-w-0 rounded-2xl px-3.5 py-2 text-[15px] leading-7 ${
-            mine ? 'rounded-ee-md bg-brand-700 text-white' : 'rounded-es-md bg-neutral-100 text-neutral-900'
-          }`}
-        >
-          {m.hidden ? (
-            <p className="text-sm italic opacity-80">{t.hidden}</p>
-          ) : (
-            <p dir="auto" className="whitespace-pre-wrap break-words">
-              {m.body}
-            </p>
+      <div
+        className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[15px] leading-7 ${
+          mine ? 'rounded-ee-md bg-brand-700 text-white' : 'rounded-es-md bg-white text-neutral-900 ring-1 ring-neutral-200'
+        }`}
+      >
+        {m.hidden ? <span className="text-sm italic opacity-80">{t.hidden}</span> : <bdi className="whitespace-pre-wrap break-words">{m.body}</bdi>}
+        <span className={`ms-2 inline-flex items-center gap-0.5 align-bottom text-xs ${mine ? 'text-brand-100' : 'text-neutral-500'}`}>
+          <time dateTime={m.createdAt}>{timeLabel(m.createdAt, timeZone)}</time>
+          {mine && (
+            <span className="flex items-center" title={seen ? t.seen : t.sent}>
+              <Icon name={seen ? 'checks' : 'check'} className={`size-3.5 ${seen ? 'text-saffron-300' : ''}`} />
+              <span className="sr-only">{seen ? t.seen : t.sent}</span>
+            </span>
           )}
-          <p className={`mt-0.5 flex items-center justify-end gap-1 text-xs ${mine ? 'text-brand-100' : 'text-neutral-500'}`}>
-            <time dateTime={m.createdAt}>{timeLabel(m.createdAt, timeZone)}</time>
-            {mine && (
-              <span className="flex items-center" title={seen ? t.seen : t.sent}>
-                <Icon name={seen ? 'checks' : 'check'} className={`size-3.5 ${seen ? 'text-saffron-300' : ''}`} />
-                <span className="sr-only">{seen ? t.seen : t.sent}</span>
-              </span>
-            )}
-          </p>
-        </div>
-        {!mine && !m.hidden && (
-          <button type="button" onClick={onReport} className="mb-1 shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-brand-700" title={t.report}>
-            <Icon name="flag" className="size-4" />
-            <span className="sr-only">{t.report}</span>
-          </button>
-        )}
+        </span>
       </div>
       {warnings.length > 0 && (
-        <div role="note" className="mt-1 max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 sm:max-w-[70%]">
+        <div role="note" className="mt-1 max-w-[78%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
           <p className="mb-0.5 flex items-center gap-1 font-bold">
             <Icon name="alert" className="size-4" />
             {t.risk.title}
@@ -243,6 +230,20 @@ function Bubble({ m, mine, seen, timeZone, onReport }: { m: WireMessage; mine: b
         </div>
       )}
     </div>
+  );
+}
+
+/** «گزارش گفتگو» in the ⋯ sheet: reports the other person's newest message */
+export function ReportButton({ messageId, className }: { messageId: string; className: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={className}>
+        <Icon name="flag" className="size-5" />
+        {t.reportChat}
+      </button>
+      {open && <ReportDialog messageId={messageId} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
