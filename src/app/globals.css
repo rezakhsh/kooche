@@ -81,6 +81,10 @@ body:has([data-chat-thread]) > footer {
   body:has([data-listing-page]) > header {
     display: none;
   }
+  /* An event page ends with its own code and report line on phones (mockup final/event) */
+  body:has([data-event-page]) > footer {
+    display: none;
+  }
 }
 
 /* An open sheet on a browse page (filters, all categories) covers the header and the bottom bar

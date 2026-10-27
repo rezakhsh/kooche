@@ -15,7 +15,7 @@ import { valkey } from '../../../../lib/valkey';
 import { messages } from '../../../../messages/fa';
 import { eventRowOf } from '../../../../modules/events/card';
 import { isFollowing, organizerFacts } from '../../../../modules/events/follows';
-import { eventPriceText } from '../../../../modules/events/format';
+import { eventPriceShort, eventPriceText } from '../../../../modules/events/format';
 import { publicEvent, upcomingEvents } from '../../../../modules/events/queries';
 import { currentSeason } from '../../../../modules/events/seasons';
 import { eventPath } from '../../../../modules/events/slug';
@@ -95,6 +95,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const type = l.categoryId ? ancestry(catalog, l.categoryId).at(-1) : undefined;
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;
   const price = eventPriceText(l.priceType, l.priceMinor !== null && currency ? { minor: l.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null);
+  // «از ۳۵ €» in the ticket box and the bottom bar; the row says «بلیت از ۳۵ €» (mockup final/event)
+  const priceShort = eventPriceShort(l.priceType, l.priceMinor !== null && currency ? { minor: l.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null);
   const upcoming = dates.filter((x) => x.endsAt > now);
   const next = upcoming[0] ?? dates.at(-1);
   const ended = l.status === 'expired' || upcoming.length === 0;
@@ -283,7 +285,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const ticketBox = (
     <div className="rounded-2xl border border-neutral-200 p-4">
       <p className="text-sm text-neutral-600">{t.tickets}</p>
-      <p className="text-2xl font-black">{price}</p>
+      <p className="text-2xl font-black">{priceShort}</p>
       {isOwner ? (
         <OwnerTools listingId={l.id} active={l.status === 'active'} saved={going} />
       ) : (
@@ -335,17 +337,11 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         </p>
       )}
       {sp.follow === 'limit' && <p className="mt-3 text-xs text-red-700">{messages.events.follow.limit}</p>}
-      {!isOwner && chat && ticketLink && (
-        <Link href={chat.href} className="mt-3 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-neutral-300 text-sm font-bold hover:bg-neutral-50">
-          <Icon name="chat" className="size-4" />
-          {v.message}
-        </Link>
-      )}
     </section>
   );
 
   return (
-    <main data-listing-page className="mx-auto w-full max-w-6xl pb-28 lg:grid lg:grid-cols-[22rem_1fr] lg:gap-10 lg:px-6 lg:pt-8 lg:pb-10">
+    <main data-listing-page data-event-page className="mx-auto w-full max-w-6xl pb-28 lg:grid lg:grid-cols-[22rem_1fr] lg:gap-10 lg:px-6 lg:pt-8 lg:pb-10">
       {jsonLd && !ended && (
         <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       )}
@@ -503,7 +499,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 {dayMonth(next.startsAt)}، {time(next.startsAt)}
               </span>
             )}
-            <b className="block truncate text-lg">{price}</b>
+            <b className="block truncate text-lg">{priceShort}</b>
           </p>
           <FavoriteButton token={l.publicToken} saved={saved} back={path} variant="bar" />
           {main && <MainButton {...main} className="h-12 px-5" />}
@@ -541,7 +537,7 @@ function OwnerTools({ listingId, active, saved }: { listingId: string; active: b
       {active && (
         <Link href={`/my/listings/${listingId}/promote`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-saffron-500 text-sm font-bold text-neutral-900 hover:bg-saffron-400">
           <Icon name="arrow-up" className="size-4" />
-          {messages.promote.link}
+          {messages.promote.titleEvent}
         </Link>
       )}
       <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>

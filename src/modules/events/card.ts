@@ -3,7 +3,7 @@ import type { EventRowData } from '../../components/event-row';
 import { messages } from '../../messages/fa';
 import type { Catalog } from '../listings/catalog';
 import { imageUrl } from '../media/server';
-import { cardDate, eventPriceText } from './format';
+import { cardDate, eventPriceShort, eventPriceText } from './format';
 import type { EventCardRow } from './queries';
 import { inSeason, type ActiveSeason } from './seasons';
 
@@ -47,7 +47,7 @@ export function eventRowOf(catalog: Catalog, e: EventCardRow, ctx: { saved: Set<
     badge: { day: part({ day: 'numeric' }), month: part({ month: 'short' }) },
     where: where || null,
     online,
-    price: eventPriceText(e.priceType, e.priceMinor !== null && currency ? { minor: e.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null),
+    price: eventPriceShort(e.priceType, e.priceMinor !== null && currency ? { minor: e.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null),
     free: e.priceType === 'free',
     dates: e.dateCount,
     going: e.going,

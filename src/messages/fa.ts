@@ -1729,6 +1729,9 @@ export const messages = {
       free: 'ورود رایگان',
       from: (amount: string) => `بلیت از ${amount}`,
       at_door: 'قیمت در محل یا متغیر',
+      freeShort: 'رایگان',
+      fromShort: (amount: string) => `از ${amount}`,
+      atDoorShort: 'قیمت در محل',
     },
     attendance: {
       in_person: 'حضوری',
@@ -1932,6 +1935,7 @@ export const messages = {
         'بلیت را فقط از لینک رسمی برگزارکننده بخرید. هرگز با PayPal «دوستان و خانواده» یا کارت‌به‌کارت پول ندهید؛ بلیت دست‌دوم و «عکس بلیت» بیشترین کلاهبرداری را دارد.',
       similar: 'رویدادهای مشابه',
       code: 'کد رویداد',
+      report: 'گزارش',
       back: 'بازگشت',
       reminderNote: 'روز قبل یادتان می‌اندازیم.',
     },

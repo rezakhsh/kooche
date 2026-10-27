@@ -111,8 +111,12 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   const sent = (str(form, 'countryCode') ?? '').toUpperCase();
   if (sent && sent !== countryCode) return { errors: { countryCode: 'locked' }, error: messages.form.fixErrors, listingId: created };
 
-  // A draft may still change its type
+  // A draft may still change its type. In the steps the poster may come first (the draft then
+  // starts in the first type): the type must still be chosen before going on.
   const categoryId = String(form.get('categoryId') ?? '');
+  if (own.listing.status === 'draft' && !categoryId && form.get('intent') !== 'save') {
+    return { errors: { categoryId: 'required' }, error: messages.form.fixErrors, listingId: created, at: Date.now() };
+  }
   if (own.listing.status === 'draft' && uuid.safeParse(categoryId).success && categoryId !== own.listing.categoryId) {
     const moved = await changeDraftCategory(db, { userId: user.id, listingId, categoryId });
     if (!moved.ok) return { error: refusal(moved.reason), listingId: created };

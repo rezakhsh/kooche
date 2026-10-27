@@ -176,6 +176,13 @@
       "when": 1793127177782,
       "tag": "0024_event_follows",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793127237782,
+      "tag": "0025_event_types",
+      "breakpoints": true
     }
   ]
 }

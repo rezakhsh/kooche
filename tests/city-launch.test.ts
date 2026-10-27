@@ -118,7 +118,7 @@ describe('city launch: posting', () => {
 
   it('publishes events everywhere in Germany', async () => {
     const u = await user();
-    const draft = await createEventDraft(appDb, { userId: u.id, categoryId: (await categoryBySlug('event-celebrations')).id });
+    const draft = await createEventDraft(appDb, { userId: u.id, categoryId: (await categoryBySlug('event-parties')).id });
     if (!draft.ok) throw new Error(draft.reason);
     const r = await saveEvent(appDb, {
       userId: u.id,

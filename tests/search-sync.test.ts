@@ -199,7 +199,7 @@ describe('the index follows every change', () => {
 
   it('events are indexed as events and stay until they end', async () => {
     const u = await seller();
-    const d = await createEventDraft(appDb, { userId: u.id, categoryId: (await categoryBySlug('event-celebrations')).id });
+    const d = await createEventDraft(appDb, { userId: u.id, categoryId: (await categoryBySlug('event-parties')).id });
     if (!d.ok) throw new Error(d.reason);
     const start = new Date(Date.now() + 20 * DAY).toISOString().slice(0, 10);
     const r = await saveEvent(appDb, {

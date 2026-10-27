@@ -221,7 +221,8 @@ export function PlaceField({
                 </span>
               )}
             </span>
-            <span className="mt-1 block text-xs text-neutral-600">{t.placeOnlyArea}</span>
+            {/* A listing shows only its area; an event's address is public (its form says so) */}
+            {showDistrict && <span className="mt-1 block text-xs text-neutral-600">{t.placeOnlyArea}</span>}
           </label>
         ) : (
         <Field

@@ -143,7 +143,7 @@ describe('which searches a new listing alerts', () => {
 
     // An event matches nothing (events have their own section)
     const evSearch = await save((await old()).id, '/germany', `?q=${encodeURIComponent(`یلدا ${word}`)}`);
-    const d = await createEventDraft(appDb, { userId: seller.id, categoryId: (await categoryBySlug('event-celebrations')).id });
+    const d = await createEventDraft(appDb, { userId: seller.id, categoryId: (await categoryBySlug('event-parties')).id });
     if (!d.ok) throw new Error(d.reason);
     await saveEvent(appDb, {
       userId: seller.id,

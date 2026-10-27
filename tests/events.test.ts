@@ -56,7 +56,7 @@ function eventIn(over: Partial<EventInput> = {}): EventInput {
   });
 }
 
-async function draftFor(userId: string, slug = 'event-celebrations') {
+async function draftFor(userId: string, slug = 'event-parties') {
   const r = await createEventDraft(appDb, { userId, categoryId: (await categoryBySlug(slug)).id });
   if (!r.ok) throw new Error(`createEventDraft refused: ${r.reason}`);
   return r.listingId;
@@ -321,7 +321,7 @@ describe('lists', () => {
     const base = new Date('2027-09-01T10:00:00Z');
     const later = await publishEvent(u.id, { now: base, event: { startDate: '2027-09-20' } });
     const sooner = await publishEvent(u.id, { now: base, slug: 'event-concerts', event: { startDate: '2027-09-10' }, listing: { priceType: 'free', amount: '' } });
-    const online = await publishEvent(u.id, { now: base, slug: 'event-talks', event: { startDate: '2027-09-15', attendance: 'online', onlineUrl: 'https://zoom.us/j/1' } });
+    const online = await publishEvent(u.id, { now: base, slug: 'event-readings', event: { startDate: '2027-09-15', attendance: 'online', onlineUrl: 'https://zoom.us/j/1' } });
     const vienna = await publishEvent(u.id, { now: base, event: { startDate: '2027-09-12' }, listing: { countryCode: 'AT', place: '1100' } });
 
     const from = new Date('2027-09-05T00:00:00Z');

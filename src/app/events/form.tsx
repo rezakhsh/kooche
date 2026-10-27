@@ -501,6 +501,7 @@ export function EventForm(
               countries={props.countries}
               initial={place.value}
               showDistrict={false}
+              allowArea={false}
               compact={!!wizard}
               fixed={{
                 hint: props.countryChangeable ? messages.form.countryFixedEvent : messages.form.countryFixedEdit,

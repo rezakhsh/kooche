@@ -40,6 +40,8 @@ export type EventsParams = { country: string; place?: string };
 export type EventsSearch = EventsQuery;
 
 const DAYS = 14;
+/** «سایر رویدادها» has no chip (mockup final/events); its events show under «همه» */
+const OTHER_TYPE = 'event-other';
 /** The sheet's «نمایش بیش از ۵۰۰ رویداد» */
 const COUNT_CAP = 500;
 
@@ -191,7 +193,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
               key={day}
               href={href({ day: on ? null : day, when: null })}
               aria-current={on ? 'date' : undefined}
-              className={`flex w-14 shrink-0 flex-col items-center rounded-2xl border py-2 ${on ? 'border-neutral-900 bg-neutral-900 text-white' : i === 0 && !s.day ? 'border-neutral-900' : 'border-neutral-200 hover:bg-neutral-50'}`}
+              className={`relative flex w-14 shrink-0 flex-col items-center rounded-2xl border py-2 ${on ? 'border-neutral-900 bg-neutral-900 text-white' : i === 0 && !s.day ? 'border-neutral-900' : 'border-neutral-200 hover:bg-neutral-50'}`}
             >
               <span className={`text-xs ${on ? '' : 'text-neutral-600'}`}>{i === 0 ? t.today : i === 1 ? t.tomorrow : gday(d, { weekday: 'long' })}</span>
               <b className="text-lg leading-7">{gday(d, { day: 'numeric' })}</b>
@@ -208,7 +210,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
         <Link href={href({ types: [] })} className={chipClass(s.types.length === 0)}>
           {t.all}
         </Link>
-        {types.map((c) => {
+        {types.filter((c) => c.slug !== OTHER_TYPE).map((c) => {
           const on = s.types.includes(c.slug);
           return (
             <Link key={c.id} href={href({ types: on ? s.types.filter((x) => x !== c.slug) : [c.slug] })} aria-pressed={on} className={chipClass(on)}>
@@ -308,7 +310,7 @@ function Pills({ name, options, checked, type = 'checkbox' }: { name: string; op
   return (
     <div className="flex flex-wrap gap-2">
       {options.map(([value, label]) => (
-        <label key={value} className="cursor-pointer">
+        <label key={value} className="relative cursor-pointer">
           <input type={type} name={name} value={value} defaultChecked={checked(value)} className="peer sr-only" />
           <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 text-sm peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
             {label}
@@ -323,7 +325,7 @@ function Segments({ name, options, value }: { name: string; options: [string, st
   return (
     <div className="flex gap-1 rounded-xl bg-neutral-100 p-1">
       {options.map(([v, label]) => (
-        <label key={v} className="flex-1 cursor-pointer">
+        <label key={v} className="relative flex-1 cursor-pointer">
           <input type="radio" name={name} value={v} defaultChecked={v === value} className="peer sr-only" />
           <span className="flex h-10 items-center justify-center rounded-lg px-1 text-center text-sm text-neutral-700 peer-checked:bg-white peer-checked:font-bold peer-checked:text-neutral-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
             {label}
@@ -373,14 +375,14 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
         <div className="group">
           <div className="flex flex-wrap gap-2">
             {QUICK_WHEN.map((v) => (
-              <label key={v} className="cursor-pointer">
+              <label key={v} className="relative cursor-pointer">
                 <input type="radio" name="when" value={v} defaultChecked={s.when === v} className="peer sr-only" />
                 <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
                   {w[v]}
                 </span>
               </label>
             ))}
-            <label className="cursor-pointer">
+            <label className="relative cursor-pointer">
               <input type="radio" name="when" value="date" data-pick-date defaultChecked={!!s.day} className="peer sr-only" />
               <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
                 {t.pickDate}
@@ -392,7 +394,7 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
           </div>
         </div>
         <H>{t.type}</H>
-        <Pills name="type" options={types.map((c) => [c.slug, c.nameFa])} checked={(v) => s.types.includes(v)} />
+        <Pills name="type" options={types.filter((c) => c.slug !== OTHER_TYPE).map((c) => [c.slug, c.nameFa])} checked={(v) => s.types.includes(v)} />
         <H>{t.price}</H>
         <Segments
           name="price"
@@ -414,7 +416,7 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
               ['stepfree', t.suitsOptions.stepFree, s.stepFree],
             ] as const
           ).map(([name, label, on]) => (
-            <label key={name} className="cursor-pointer">
+            <label key={name} className="relative cursor-pointer">
               <input type="checkbox" name={name} value="1" defaultChecked={on} className="peer sr-only" />
               <span className="flex h-10 items-center rounded-full border border-neutral-300 px-3.5 peer-checked:border-2 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:font-bold peer-checked:text-brand-800 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40">
                 {label}

@@ -54,7 +54,7 @@ describe('what can be saved', () => {
     expect(await no('/narnia')).toBeNull();
     expect(await no('/germany/atlantis')).toBeNull();
     expect(await no('/germany/cars/berlin')).toBeNull();
-    expect(await no('/germany/event-celebrations')).toBeNull();
+    expect(await no('/germany/event-parties')).toBeNull();
     expect(await no('/germany/a/b/c')).toBeNull();
     expect(await no('/germany/cars', '?brand=bmw&price=..5000')).toBeNull(); // not the canonical order
     expect(await no('/germany/cars', '?evil=1')).toBeNull();

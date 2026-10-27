@@ -19,10 +19,10 @@ export function ReportLink({ kind, id, label }: { kind: 'listing' | 'user' | 'bu
   );
 }
 
-export function ListingCode({ value }: { value: number }) {
+export function ListingCode({ value, label = messages.listingCode }: { value: number; label?: string }) {
   return (
     <span className="text-sm text-neutral-500">
-      {messages.listingCode}: <bdi className="font-medium text-neutral-700 tabular-nums select-all">{faDigits(String(value))}</bdi>
+      {label}: <bdi className="font-medium text-neutral-700 tabular-nums select-all">{faDigits(String(value))}</bdi>
     </span>
   );
 }
@@ -31,8 +31,9 @@ export function ListingCode({ value }: { value: number }) {
 export function ListingFooter({ refNumber, token, isOwner, isEvent }: { refNumber: number; token: string; isOwner: boolean; isEvent: boolean }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 pt-4">
-      <ListingCode value={refNumber} />
-      {!isOwner && <ReportLink kind="listing" id={token} label={messages.report.button[isEvent ? 'event' : 'listing']} />}
+      {/* An event's page says «کد رویداد» and a short «گزارش» (wave 1, mockup final/event) */}
+      <ListingCode value={refNumber} label={isEvent ? messages.events.view.code : undefined} />
+      {!isOwner && <ReportLink kind="listing" id={token} label={isEvent ? messages.events.view.report : messages.report.button.listing} />}
     </div>
   );
 }

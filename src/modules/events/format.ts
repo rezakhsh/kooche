@@ -73,3 +73,15 @@ export function eventPriceText(
   if (priceType === 'on_request') return t.at_door;
   return null;
 }
+
+/** The list's short form (mockup final/events): «از ۳۵ €», «رایگان», «قیمت در محل» */
+export function eventPriceShort(
+  priceType: string,
+  amount: { minor: number; currency: string; minorUnit: number } | null,
+): string | null {
+  const t = messages.events.price;
+  if (priceType === 'free') return t.freeShort;
+  if (priceType === 'fixed' && amount) return t.fromShort(formatPrice(amount.minor, amount.currency, amount.minorUnit));
+  if (priceType === 'on_request') return t.atDoorShort;
+  return null;
+}
