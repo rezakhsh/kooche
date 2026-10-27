@@ -19,6 +19,7 @@ import { upcomingEvents } from '../../../modules/events/queries';
 import { pathOfListingCode } from '../../../modules/listings/queries';
 import { ancestry, EVENT_ROOT_SLUG, type CategoryNode } from '../../../modules/listings/catalog';
 import { cardOf } from '../../../modules/listings/card';
+import { RENT_SLUGS } from '../../../modules/listings/safety-kind';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { currentSession } from '../../../modules/users/server';
 import { searchListings, type SearchResult } from '../../../modules/search';
@@ -48,9 +49,6 @@ import type { Browse } from './resolve';
 // Wave 1 (mockups final/browse, final/category): on phones one sticky block with the search and one
 // chip row (filters, all categories, then the applied filters or the categories), a result line
 // with the count, sort, layout and «خبرم کن», and a rent-scam warning on rooms and flats.
-
-/** Rooms and flats to rent: the rent-scam warning (src/messages/fa.ts, browse.rentWarning) */
-const RENT_SLUGS = new Set(['real-estate', 'apartments-rent', 'houses-rent', 'shared-rooms', 'short-term-rent']);
 
 type View = 'grid' | 'list';
 

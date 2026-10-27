@@ -351,6 +351,22 @@ export function roundKm(m: number): number {
   return Math.max(1, Math.round(m / 1000));
 }
 
+export const SIMILAR_COUNT = 6;
+
+/**
+ * «آگهی‌های مشابه» under a listing (wave 1): the newest active listings of the same category in the
+ * same city (or country when it has no city), without the listing itself.
+ */
+export async function similarListings(db: Queryable, l: { id: string; countryCode: string | null; categoryId: string | null; locationId: string | null }): Promise<BrowseItem[]> {
+  if (!l.countryCode || !l.categoryId) return [];
+  const { items } = await browseListings(
+    db,
+    { countryCode: l.countryCode, keyword: null, categoryIds: [l.categoryId], locationId: l.locationId, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+    null,
+  );
+  return items.filter((i) => i.id !== l.id).slice(0, SIMILAR_COUNT);
+}
+
 /** Typical prices need this many priced listings, so a hint never rests on two or three */
 export const TYPICAL_PRICE_MIN = 8;
 

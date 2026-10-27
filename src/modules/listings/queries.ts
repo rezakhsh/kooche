@@ -127,6 +127,15 @@ export async function takeDownStatement(db: Queryable, listingId: string): Promi
   return last ? { statement: last.statement, policyGround: last.policyGround } : null;
 }
 
+/** «۲ آگهی دیگر» in the seller box: the seller's (or business's) other active listings */
+export async function otherActiveListings(db: Queryable, l: { id: string; userId: string; organizationId: string | null }): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(listings)
+    .where(and(l.organizationId ? eq(listings.organizationId, l.organizationId) : eq(listings.userId, l.userId), eq(listings.status, 'active'), ne(listings.id, l.id)));
+  return row?.n ?? 0;
+}
+
 /** Everything the public listing page shows, by public token. Deleted listings are not found. */
 export async function publicListing(db: Queryable, token: string) {
   const [row] = await db

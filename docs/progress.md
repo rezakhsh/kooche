@@ -1083,3 +1083,8 @@ Asked by the owner after compacting: "plan wave 1". Done: `docs/wave1-plan.md` (
 - **Not built here:** the country chooser's «به‌زودی» list with «خبرم کن» per country needs country waitlists (wave 2, countries); the «این هفته در برلین» events strip comes with part 6 (events).
 - **Found by the tests and fixed before commit:** the new date-part joining dropped a `__proto__` parameter instead of refusing it.
 - **Tests:** 757 passing (new `tests/browse-filters.test.ts`: the live count with price and city, unknown addresses, the typical price and its rounding, date parts in filters).
+
+## Oct 27, 2026: wave 1, part 3: the listing page
+
+- **Built** (mockup `listing`): on phones back, share and ♡ over the photo with the site header and bottom bar out of the way, and a fixed bar with chat, phone and ♡; on computers a card beside the photo with title, price (cold rent and «با هزینه‌های جانبی …»), place and contact, then the seller box and the safety box. Fact tiles under the title; the safety box fits the category (rent, cars, tickets, jobs, pets, the rest); the seller box says how fast they usually answer and links «۲ آگهی دیگر»; «آگهی‌های مشابه» shows the newest 6 of the same category in the same city.
+- **Tests:** 762 passing (new `tests/listing-page.test.ts`).

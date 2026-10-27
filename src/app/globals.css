@@ -73,3 +73,11 @@ body:has([data-chat-thread]) > footer {
     padding-bottom: 5rem;
   }
 }
+
+/* The listing page on phones: back, share and save sit over the photo, so the site header steps
+   aside (src/app/v/[slug]/[token]/page.tsx, wave 1) */
+@media (width < 64rem) {
+  body:has([data-listing-page]) > header {
+    display: none;
+  }
+}
