@@ -44,6 +44,7 @@ export function PlaceField({
   showDistrict = true,
   fixed,
   onCountryChange,
+  compact = false,
 }: {
   countries: { code: string; nameFa: string }[];
   initial: PlaceFieldValue;
@@ -59,6 +60,12 @@ export function PlaceField({
    */
   fixed?: { hint: string; changeHref: string | null };
   onCountryChange?: (code: string) => void;
+  /**
+   * The posting steps (wave 1, mockup final/post4): only the postal code, with the chosen place
+   * shown in the field; the country was shown at step 1, and the neighbourhood comes from the
+   * postal code by itself (a district typed before is kept).
+   */
+  compact?: boolean;
 }) {
   const [country, setCountry] = useState(initial.countryCode || countries[0]?.code || '');
   const [text, setText] = useState(initial.place);
@@ -135,7 +142,9 @@ export function PlaceField({
 
   return (
     <div className="space-y-4">
-      {fixed ? (
+      {fixed && compact ? (
+        <input type="hidden" name="countryCode" value={country} />
+      ) : fixed ? (
         <div>
           <span className="mb-1 block text-sm font-medium text-neutral-700">{t.country}</span>
           <input type="hidden" name="countryCode" value={country} />
@@ -181,6 +190,40 @@ export function PlaceField({
       )}
 
       <div className="relative">
+        {compact ? (
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-bold">{t.postalShort}</span>
+            <span className="flex h-12 items-center gap-2 rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
+              <input
+                name="place"
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setValue('');
+                  setCenter(null);
+                }}
+                onKeyDown={onKeyDown}
+                onBlur={() => setTimeout(() => setSuggestions(null), 150)}
+                autoComplete="off"
+                dir={fieldDir(text)}
+                role="combobox"
+                aria-expanded={!!suggestions?.length}
+                aria-controls={listId}
+                aria-autocomplete="list"
+                maxLength={100}
+                className="min-w-0 flex-1 bg-transparent text-base outline-none"
+              />
+              {/* A postal code chosen from the list */}
+              {value && (
+                <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-green-800">
+                  <Icon name="check" className="size-4" />
+                  {t.placeChosen}
+                </span>
+              )}
+            </span>
+            <span className="mt-1 block text-xs text-neutral-600">{t.placeOnlyArea}</span>
+          </label>
+        ) : (
         <Field
           label={t.place}
           hint={t.placeHint}
@@ -202,6 +245,7 @@ export function PlaceField({
           aria-autocomplete="list"
           maxLength={100}
         />
+        )}
         <input type="hidden" name="placeValue" value={value} />
         {searching && !suggestions && <span className="mt-1 block text-xs text-neutral-500">{t.placeSearching}</span>}
         {suggestions && (
@@ -228,7 +272,8 @@ export function PlaceField({
         <ErrorLine text={errors.place} />
       </div>
 
-      {showDistrict && (
+      {showDistrict && compact && <input type="hidden" name="district" value={initial.district} />}
+      {showDistrict && !compact && (
         <div>
           <Field label={t.district} hint={t.districtHint} name="district" defaultValue={initial.district} maxLength={60} />
           <ErrorLine text={errors.district} />
@@ -262,7 +307,7 @@ export function PlaceField({
         </div>
       )}
 
-      {shown && (
+      {shown && !compact && (
         <div className="flex justify-center">
           <OutlineMap countryCode={country} point={shown} label={t.mapPreview} />
         </div>

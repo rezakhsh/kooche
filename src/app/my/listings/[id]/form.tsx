@@ -222,7 +222,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const errors = state?.errors ?? missingShown;
   const shown = (n: Step) => !wizard || wizard.step === n;
   const section = (n: Step) => ({ 'data-step': wizard ? n : undefined, className: shown(n) ? 'space-y-6' : 'hidden' });
-  const [priceType, setPriceType] = useState<PriceType>(props.priceTypes.includes(v.priceType) ? v.priceType : (props.priceTypes[0] ?? 'on_request'));
+  const [priceType, setPriceType] = useState<PriceType>(
+    props.rent && props.priceTypes.includes('fixed') ? 'fixed' : props.priceTypes.includes(v.priceType) ? v.priceType : (props.priceTypes[0] ?? 'on_request'),
+  );
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );
@@ -350,8 +352,8 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               <ErrorText code={errors.amount} />
             </div>
           )}
-          {/* The kind of price only where there is a choice */}
-          {props.priceTypes.length > 1 ? (
+          {/* The kind of price only where there is a choice; rent is always a fixed amount */}
+          {props.priceTypes.length > 1 && !props.rent ? (
             <fieldset>
               <legend className="mb-1.5 block text-sm font-bold">{t.priceType}</legend>
               <div className="flex flex-wrap gap-2">
@@ -364,14 +366,15 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               <ErrorText code={errors.priceType} />
             </fieldset>
           ) : (
-            <input type="hidden" name="priceType" value={priceType} />
+            <input type="hidden" name="priceType" value={props.rent && props.priceTypes.includes('fixed') ? 'fixed' : priceType} />
           )}
         </Section>
       )}
 
       {props.defs.length > 0 && (
         <Section titled={!wizard} title={t.details}>
-          {props.defs.map((d) => (
+          {/* Amounts (deposit, extra costs) right after the price (mockup final/post3) */}
+          {[...props.defs.filter((d) => d.validation.money), ...props.defs.filter((d) => !d.validation.money)].map((d) => (
             <AttributeField
               key={d.key}
               def={d}
@@ -399,6 +402,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       <Section titled={!wizard} title={t.location}>
         {props.country ? (
           <PlaceField
+            compact={!!wizard}
             countries={[props.country]}
             initial={v.place}
             fixed={{
