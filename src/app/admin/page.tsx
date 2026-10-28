@@ -159,7 +159,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             <p className="text-sm text-neutral-600">{t.funnelEmpty}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[28rem] text-sm">
+              <table className="w-full min-w-[18rem] text-sm">
                 <thead className="text-xs text-neutral-600">
                   <tr>
                     <th className="py-2 text-start font-medium">{t.funnelProduct}</th>

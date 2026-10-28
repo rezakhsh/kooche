@@ -99,6 +99,8 @@ Automatic by default (follows the device), with «خودکار / روشن / تی
 
 ## 11. Check, Stripe test clock, abandoned payments, docs (2 days)
 
+**Done Oct 28, 2026** (`docs/progress.md`).
+
 - Phone-size browser check of every page on staging (light and dark), one browser at a time, no real users' data in screenshots.
 - The Stripe test-clock run of founding Pro (left from wave 0).
 - **Abandoned payments** (added Oct 28, 2026: the owner asked for a strategy and left the choice to Claude, "what others do"):
