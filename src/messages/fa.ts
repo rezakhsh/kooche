@@ -1042,6 +1042,9 @@ export const messages = {
         payments_off: 'پرداخت فعلاً در دسترس نیست.',
         failed: 'اتصال به درگاه پرداخت نشد. کمی بعد دوباره امتحان کنید.',
         rate_limited: 'چند بار پشت هم امتحان کردید. چند دقیقه بعد دوباره امتحان کنید.',
+        // The founders rules (src/modules/payments/founding.ts, wave 2)
+        owner_number: 'جای بنیان‌گذار برای کسب‌وکاری است که صاحبش شمارهٔ تأییدشده‌ای از کشور همین کسب‌وکار دارد. اگر شماره‌تان عوض شده، به ما خبر بدهید.',
+        owner_has_founding: 'هر نفر فقط یک جای بنیان‌گذار دارد و شما آن را برای کسب‌وکار دیگری گرفته‌اید.',
       },
     },
     // What a business does, the languages it serves in, the days of its hours (wave 1, part 7)
@@ -3699,7 +3702,12 @@ export const admin = {
       no_city: 'این کسب‌وکار شهر ندارد.',
       already: 'این کسب‌وکار قبلاً بنیان‌گذار شده است.',
       full: 'جاهای بنیان‌گذار این شهر پر است (هدف شهر را در «کشورها و شهرها» ببینید).',
+      owner_number: 'صاحب این کسب‌وکار شمارهٔ تأییدشده‌ای از کشور کسب‌وکار ندارد.',
+      owner_has_founding: 'این شخص قبلاً برای کسب‌وکار دیگری جای بنیان‌گذار گرفته است (هر نفر یک جا).',
     } as Record<string, string>,
+    // The founders rules with the country's name, and on businesses offered before the rules (wave 2)
+    foundingNumber: (country: string) => `شمارهٔ صاحب کسب‌وکار از ${country} نیست.`,
+    foundingWarning: 'با قانون‌های بنیان‌گذار نمی‌خواند (جایش می‌ماند):',
   },
   payments: {
     title: 'پرداخت‌ها',

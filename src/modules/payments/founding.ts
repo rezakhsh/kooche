@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
-import { organizations, subscriptions } from '../../db/schema';
+import { auditLog, organizations, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { activePrice, confirmBusinessBuyer, customerFor, isOwner, openPlanCheckout, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
 import { formatDate } from '../../lib/format';
@@ -9,6 +9,7 @@ import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
 import { queueBusinessNotice } from '../organizations/notices';
 import { legalComplete } from '../organizations/organizations';
+import { checkVerifiedNumber } from '../users/phone-number';
 import type { PaymentGateway } from './gateway';
 import { activeSubscription } from './plans';
 
@@ -65,7 +66,38 @@ export async function foundingPlaces(db: Queryable, organizationId: string): Pro
   return row ?? null;
 }
 
-export type OfferResult = { ok: true } | { ok: false; reason: 'not_found' | 'not_verified' | 'no_city' | 'already' | 'full' };
+/** A founders rule a business breaks: no owner's number from its country, or an owner already holds a place */
+export type FoundingRuleBreak = 'owner_number' | 'owner_has_founding';
+
+/**
+ * The founders rules (wave 2 part 1, owner Oct 28, 2026), checked when admin offers the place and
+ * again when the free months start: an owner of the business has a verified number from the
+ * business's country, and no owner holds a founding place for another business of theirs (one per
+ * person; the earlier place wins, and a closed business's place still counts). Managers and staff
+ * don't count. Businesses offered before the rules keep their place; admin shows what they break.
+ */
+export async function foundingRuleBreaks(db: Queryable, organizationId: string): Promise<{ country: string; breaks: FoundingRuleBreak[] } | null> {
+  const owners = await db.execute<{ country: string; phone: string | null; elsewhere: boolean }>(sql`
+    SELECT o.country_code AS country, u.phone_e164 AS phone,
+      EXISTS (SELECT 1 FROM organization_members m2 JOIN organizations o2 ON o2.id = m2.organization_id
+        WHERE m2.user_id = m.user_id AND m2.role = 'owner' AND o2.id <> o.id
+          AND o2.founding_offered_at < coalesce(o.founding_offered_at, 'infinity')) AS elsewhere
+    FROM organizations o
+    LEFT JOIN organization_members m ON m.organization_id = o.id AND m.role = 'owner'
+    LEFT JOIN users u ON u.id = m.user_id AND u.status = 'active'
+    WHERE o.id = ${organizationId}`);
+  if (!owners.length) return null;
+  const country = owners[0]!.country;
+  const breaks: FoundingRuleBreak[] = [];
+  if (!owners.some((o) => o.phone && checkVerifiedNumber(o.phone).country === country)) breaks.push('owner_number');
+  if (owners.some((o) => o.elsewhere)) breaks.push('owner_has_founding');
+  return { country, breaks };
+}
+
+export type OfferResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'not_verified' | 'no_city' | 'already' | 'full' }
+  | { ok: false; reason: FoundingRuleBreak; country: string };
 
 /** Admin: marks a verified business as founding, within its city's places; in audit_log */
 export async function offerFounding(tx: Queryable, ctx: StaffContext, organizationId: string): Promise<OfferResult> {
@@ -78,6 +110,12 @@ export async function offerFounding(tx: Queryable, ctx: StaffContext, organizati
   if (org.verification !== 'verified') return { ok: false, reason: 'not_verified' };
   if (!org.locationId) return { ok: false, reason: 'no_city' };
   if (org.offered) return { ok: false, reason: 'already' };
+  const rules = await foundingRuleBreaks(tx, organizationId);
+  if (rules?.breaks.length) {
+    const reason = rules.breaks[0]!;
+    await staffAudit(tx, ctx, 'organization.founding_refused', { type: 'organization', id: organizationId }, { reason, country: rules.country });
+    return { ok: false, reason, country: rules.country };
+  }
   const places = await foundingPlaces(tx, organizationId);
   if (!places || places.used >= places.places) return { ok: false, reason: 'full' };
   await tx.update(organizations).set({ foundingOfferedAt: sql`now()`, foundingOfferedByUserId: ctx.userId }).where(eq(organizations.id, organizationId));
@@ -111,6 +149,22 @@ export async function startFoundingCheckout(
   if (!(await isOwner(db, opts.userId, opts.organizationId))) return { ok: false, reason: 'not_found' };
   if ((await foundingState(db, opts.organizationId)) !== 'offered') return { ok: false, reason: 'not_allowed' };
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };
+  // The founders rules again: the owner may have changed their number since the offer
+  const rules = await foundingRuleBreaks(db, opts.organizationId);
+  if (rules?.breaks.length) {
+    const reason = rules.breaks[0]!;
+    await db.insert(auditLog).values({
+      actorType: 'user',
+      actorUserId: opts.userId,
+      action: 'organization.founding_refused',
+      targetType: 'organization',
+      targetId: opts.organizationId,
+      ipAddress: opts.ip ?? null,
+      userAgent: opts.userAgent ?? null,
+      data: { reason, country: rules.country, at: 'free_months' },
+    });
+    return { ok: false, reason };
+  }
   const [org] = await db
     .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)

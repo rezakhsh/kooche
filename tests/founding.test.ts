@@ -8,6 +8,7 @@ import { startPlanCheckout } from '../src/modules/payments/checkout';
 import {
   dueFoundingReminders,
   foundingBadge,
+  foundingRuleBreaks,
   foundingState,
   foundingTrialEnd,
   offerFounding,
@@ -20,7 +21,7 @@ import { cardsByIds } from '../src/modules/search/browse';
 import type { Mail } from '../src/modules/notifications/mailer';
 import { appDb, redis, workerDb } from './accounts';
 import { db, publicToken } from './db';
-import { city } from './listings-fixtures';
+import { city, user } from './listings-fixtures';
 import { business, entitlementsOf, event, FakeGateway, seedCatalog, sellerWithListing, storeEvent, stripeInvoice, stripePriceId, stripeSubscription, unix } from './payments-fixtures';
 
 // Founding Pro (wave 0, step 6): a trial without a card that ends by itself; the owner's offer in
@@ -42,15 +43,15 @@ async function staff(): Promise<StaffContext> {
 }
 
 /** A verified business in a city (Berlin by default), offered or not */
-async function verifiedBusiness(citySlug = 'berlin') {
-  const b = await business();
+async function verifiedBusiness(citySlug = 'berlin', ownerId?: string) {
+  const b = await business(ownerId);
   const c = await city(citySlug);
   await db.update(schema.organizations).set({ verificationStatus: 'verified', locationId: c.id }).where(eq(schema.organizations.id, b.org.id));
   return b;
 }
 
-async function offered(citySlug = 'berlin') {
-  const b = await verifiedBusiness(citySlug);
+async function offered(citySlug = 'berlin', ownerId?: string) {
+  const b = await verifiedBusiness(citySlug, ownerId);
   const ctx = await staff();
   const r = await db.transaction((tx) => offerFounding(tx, ctx, b.org.id));
   expect(r).toEqual({ ok: true });
@@ -106,6 +107,66 @@ describe('the offer (admin)', () => {
     } finally {
       await db.update(schema.locations).set({ businessGoal: 25 }).where(eq(schema.locations.id, koeln.id));
     }
+  });
+});
+
+/** An Austrian mobile number, for an owner whose number isn't from the business's country (Germany) */
+const austrianNumber = () => `+43664${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
+
+const refusals = (organizationId: string) =>
+  db.select().from(schema.auditLog).where(and(eq(schema.auditLog.action, 'organization.founding_refused'), eq(schema.auditLog.targetId, organizationId)));
+
+describe('the founders rules (wave 2)', () => {
+  it('the owner’s verified number must be from the business’s country; refusals go to audit_log', async () => {
+    const ctx = await staff();
+    const austrian = await verifiedBusiness();
+    await db.update(schema.users).set({ phoneE164: austrianNumber() }).where(eq(schema.users.id, austrian.ownerId));
+    expect(await db.transaction((tx) => offerFounding(tx, ctx, austrian.org.id))).toEqual({ ok: false, reason: 'owner_number', country: 'DE' });
+    expect((await refusals(austrian.org.id))[0]).toMatchObject({ actorUserId: ctx.userId, data: { reason: 'owner_number', country: 'DE' } });
+
+    const noNumber = await verifiedBusiness('berlin', (await user({ verified: false })).id);
+    expect(await db.transaction((tx) => offerFounding(tx, ctx, noNumber.org.id))).toMatchObject({ ok: false, reason: 'owner_number' });
+    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, noNumber.org.id));
+    expect(org!.foundingOfferedAt).toBeNull();
+  });
+
+  it('only owners count: a manager’s German number doesn’t help', async () => {
+    const ctx = await staff();
+    const b = await verifiedBusiness();
+    await db.update(schema.users).set({ phoneE164: austrianNumber() }).where(eq(schema.users.id, b.ownerId));
+    await db.insert(schema.organizationMembers).values({ organizationId: b.org.id, userId: (await user()).id, role: 'manager' });
+    expect(await db.transaction((tx) => offerFounding(tx, ctx, b.org.id))).toMatchObject({ ok: false, reason: 'owner_number' });
+  });
+
+  it('one founding place per person', async () => {
+    const ctx = await staff();
+    const first = await offered();
+    const second = await verifiedBusiness('berlin', first.ownerId);
+    expect(await db.transaction((tx) => offerFounding(tx, ctx, second.org.id))).toEqual({ ok: false, reason: 'owner_has_founding', country: 'DE' });
+    // A closed business's place still counts
+    await db.update(schema.organizations).set({ status: 'deleted', deletedAt: new Date() }).where(eq(schema.organizations.id, first.org.id));
+    expect(await db.transaction((tx) => offerFounding(tx, ctx, second.org.id))).toMatchObject({ ok: false, reason: 'owner_has_founding' });
+  });
+
+  it('are checked again when the free months start (a changed number)', async () => {
+    const gateway = new FakeGateway();
+    const b = await offered();
+    await db.update(schema.users).set({ phoneE164: austrianNumber() }).where(eq(schema.users.id, b.ownerId));
+    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP, business: true })).toEqual({ ok: false, reason: 'owner_number' });
+    expect(gateway.checkouts).toHaveLength(0);
+    expect((await refusals(b.org.id))[0]).toMatchObject({ actorType: 'user', actorUserId: b.ownerId, data: { reason: 'owner_number', at: 'free_months' } });
+  });
+
+  it('businesses offered before the rules keep their place; the earlier one is fine, the later one is flagged', async () => {
+    const owner = await user();
+    const a = await verifiedBusiness('berlin', owner.id);
+    const b = await verifiedBusiness('berlin', owner.id);
+    await db.update(schema.organizations).set({ foundingOfferedAt: new Date(Date.now() - DAY) }).where(eq(schema.organizations.id, a.org.id));
+    await db.update(schema.organizations).set({ foundingOfferedAt: new Date() }).where(eq(schema.organizations.id, b.org.id));
+    expect(await foundingRuleBreaks(db, a.org.id)).toEqual({ country: 'DE', breaks: [] });
+    expect(await foundingRuleBreaks(db, b.org.id)).toEqual({ country: 'DE', breaks: ['owner_has_founding'] });
+    expect(await foundingState(appDb, b.org.id)).toBe('offered');
+    expect(await startFoundingCheckout(db, new FakeGateway(), { userId: owner.id, organizationId: b.org.id, appUrl: APP, business: true })).toEqual({ ok: false, reason: 'owner_has_founding' });
   });
 });
 

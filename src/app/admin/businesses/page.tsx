@@ -4,6 +4,8 @@ import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff, staffCan } from '../../../modules/admin/server';
 import { businessesAdmin } from '../../../modules/admin/users';
+import { foundingRuleBreaks } from '../../../modules/payments/founding';
+import { countries } from '../../../../seed/countries';
 import { foundingOfferAction, verificationAction } from '../admin-actions';
 import { formatDate } from '../../../lib/format';
 import { webEnv } from '../../../lib/env';
@@ -19,14 +21,21 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
   const q = (sp.q ?? '').slice(0, 100);
   const rows = await businessesAdmin(appDb(), { waiting: tab === 'waiting', q });
   const mayVerify = await staffCan('organization.verify');
+  // Founding businesses offered before the founders rules keep their place; admin sees what they break
+  const ruleBreaks = new Map(
+    await Promise.all(rows.filter((b) => b.foundingOfferedAt).map(async (b) => [b.id, (await foundingRuleBreaks(appDb(), b.id))?.breaks ?? []] as const)),
+  );
   const t = admin.businesses;
+  const countryName = (code: string | undefined) => countries.find((c) => c.code === code)?.nameFa;
+  const refusal =
+    sp.founding === 'owner_number' && countryName(sp.country) ? t.foundingNumber(countryName(sp.country)!) : sp.founding ? t.foundingErrors[sp.founding] : undefined;
   return (
     <>
       <AdminTitle title={t.title} intro={tab === 'waiting' ? t.waitingIntro : undefined}>
         <Chips items={(['waiting', 'all'] as const).map((k) => ({ href: adminHref(`/businesses${k === 'all' ? '?tab=all' : ''}`), label: t.tabs[k]!, active: tab === k }))} />
       </AdminTitle>
       {sp.done && <div className="mb-4"><Alert tone="success">{t.done}</Alert></div>}
-      {sp.founding && t.foundingErrors[sp.founding] && <div className="mb-4"><Alert tone="error">{t.foundingErrors[sp.founding]}</Alert></div>}
+      {refusal && <div className="mb-4"><Alert tone="error">{refusal}</Alert></div>}
       {tab === 'all' && <SearchForm label={admin.common.search} value={q}><input type="hidden" name="tab" value="all" /></SearchForm>}
       {rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-neutral-300 p-8 text-center text-neutral-600">{tab === 'waiting' ? t.empty : admin.common.noResults}</p>
@@ -66,7 +75,15 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
               {b.verification === 'verified' && (
                 <div className="mt-3 border-t border-neutral-100 pt-3">
                   {b.foundingOfferedAt ? (
-                    <span className="inline-flex rounded-full bg-saffron-50 px-2.5 py-0.5 text-xs font-bold text-saffron-800">{t.founded(formatDate(b.foundingOfferedAt, webEnv().APP_TIME_ZONE))}</span>
+                    <>
+                      <span className="inline-flex rounded-full bg-saffron-50 px-2.5 py-0.5 text-xs font-bold text-saffron-800">{t.founded(formatDate(b.foundingOfferedAt, webEnv().APP_TIME_ZONE))}</span>
+                      {!!ruleBreaks.get(b.id)?.length && (
+                        <p className="mt-2 text-xs leading-6 text-saffron-800">
+                          {t.foundingWarning}{' '}
+                          {ruleBreaks.get(b.id)!.map((r) => (r === 'owner_number' && countryName(b.countryCode) ? t.foundingNumber(countryName(b.countryCode)!) : t.foundingErrors[r])).join(' ')}
+                        </p>
+                      )}
+                    </>
                   ) : (
                     mayVerify && (
                       <form action={foundingOfferAction}>

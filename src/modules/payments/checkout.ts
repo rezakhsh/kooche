@@ -29,7 +29,10 @@ export type CheckoutRefusal =
   | 'from_iran'
   /** Pro is sold to businesses only: the "for my business" tick wasn't ticked */
   | 'business_required'
-  | 'already_subscribed';
+  | 'already_subscribed'
+  /** Founding Pro's founders rules (./founding.ts, foundingRuleBreaks) */
+  | 'owner_number'
+  | 'owner_has_founding';
 export type CheckoutResult = { ok: true; url: string; orderId?: string } | { ok: false; reason: CheckoutRefusal };
 
 /** Products a private seller can buy for a listing or an event */

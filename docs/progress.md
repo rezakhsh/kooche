@@ -1255,3 +1255,13 @@ The owner approved the wave 2 plan to be built step by step, each step discussed
 - **Admin:** «آزمایشی» badge, users filter «فقط حساب‌های آزمایشی».
 - **Tests:** 915 passing (new: the fixed code only for country accounts and only with the setting, the staging-only setting, who sees test content, browse/search/cards/counts, pages, events, chat, forwarding, numbers); typecheck and `check:rtl` clean.
 - **Staging** (`a26fdde`): `TEST_ACCOUNT_CODE=123456` on web, `TEST_INBOX_EMAIL` (the owner's account) on web and worker, set with `tinker` like `GEOCODER_URL`. `scripts/test-accounts.ts --domain=peydoo.com --personal=…` ran from a Node container on the `coolify` network with the migrate app's `MIGRATION_DATABASE_URL` (the app images carry no scripts): 11 country accounts, «حمید» marked. Checked logged out: «حمید»'s live listing and seller page answer 404. Its search document still says `is_test: false` until the nightly rebuild (the cards are filtered in PostgreSQL meanwhile, so it doesn't show). Signing in with 123456 needs Turnstile, so the owner tries it in a browser.
+
+## Oct 28, 2026: wave 2 part 1, step 1b: founders rules
+
+Approved by the owner as proposed ("go 1b"). `docs/setup.md`, "Founding Pro", founders rules.
+
+- **The owner's number from the business's country:** an owner of the business (managers and staff don't count) must have a verified number of the business's country; no number counts as the wrong country.
+- **One founding place per person:** refused when an owner already holds a place on another business of theirs (a closed one too); between places given before the rules, the earlier one wins.
+- **Checked twice:** at «پیشنهاد بنیان‌گذار» in admin (the reason in plain words, with the country's name) and when the owner starts the free months (a line on the billing page). Every refusal in `audit_log` (`organization.founding_refused`). No database change.
+- **Places given before:** kept with their badge; admin › businesses shows what they break. Staging: «taskpilot» (German number, free months running) breaks nothing; the same owner's «دارالترجمه پارسیان» would now be refused a place.
+- **Tests:** 920 passing (new: wrong country and no number refused and logged, a manager's number doesn't count, a second place refused, a closed business's place counts, the second check at the free months, places given before the rules); typecheck and `check:rtl` clean.

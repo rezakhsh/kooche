@@ -52,7 +52,8 @@ export async function foundingOfferAction(form: FormData): Promise<void> {
   if (!id) redirect(adminHref('/businesses'));
   const r = await appDb().transaction((tx) => offerFounding(tx, staff.ctx, id));
   const tab = form.get('tab') === 'all' ? '&tab=all' : '';
-  redirect(adminHref(`/businesses?${r.ok ? 'done=1' : `founding=${r.reason}`}${tab}`));
+  const country = !r.ok && 'country' in r ? `&country=${r.country}` : '';
+  redirect(adminHref(`/businesses?${r.ok ? 'done=1' : `founding=${r.reason}${country}`}${tab}`));
 }
 
 export async function staffRoleAction(form: FormData): Promise<void> {
