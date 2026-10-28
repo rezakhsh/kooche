@@ -287,6 +287,16 @@ body:has([data-app-bar]) > footer [data-footer-slim] {
   color: inherit;
 }
 
+/* MapLibre's stylesheet sets Helvetica/Arial on the whole map box: our Persian on the map (the
+   distance, the arrow home, the two-finger hint) is set in the page's own font. Our selector is
+   stronger because MapLibre's stylesheet loads after this one. */
+[data-map-canvas].maplibregl-map {
+  font-family: var(--font-sans);
+}
+[data-map-canvas] .maplibregl-cooperative-gesture-screen {
+  direction: rtl;
+}
+
 /* The visitor's own place on the street map (src/components/street-map-gl.ts): a house, the
    distance halfway, or an arrow on the map's edge pointing home when it is far */
 .peydoo-map-home {
