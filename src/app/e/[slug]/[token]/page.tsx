@@ -432,7 +432,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             <StreetMap
               view={mapView}
               label={d.venueName ?? messages.map.section}
-              className="aspect-[16/9]"
+              // Taller with the visitor's place on it, so both fit closer in
+              className={mapView.home ? 'aspect-[4/3] sm:aspect-[16/9]' : 'aspect-[16/9]'}
               fallback={l.countryCode ? <OutlineMap countryCode={l.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={messages.map.section} /> : null}
             />
             {mapView.home && (
