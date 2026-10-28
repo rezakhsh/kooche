@@ -47,6 +47,8 @@ function attributeFilter(f: AttributeFilter): string {
  */
 export function meiliFilter(f: SearchFilters, opts: { omit?: 'category' | string; events?: boolean } = {}): string {
   const parts: string[] = [`country = ${filterValue(f.countryCode)}`, `is_event = ${opts.events ? 'true' : 'false'}`];
+  // `!=` also matches documents indexed before the field existed
+  if (!f.withTest) parts.push('is_test != true');
   if (!opts.events && f.categoryIds && opts.omit !== 'category') parts.push(`category_id IN ${list(f.categoryIds)}`);
   if (f.locationId) parts.push(`location_id = ${filterValue(f.locationId)}`);
   if (f.postalCode) parts.push(`postal_code = ${filterValue(f.postalCode)}`);

@@ -146,6 +146,7 @@ export function PersonCard({ p, title, contact, listingCountry, sameText, otherL
         <bdi dir="auto">{p.name}</bdi>
         {p.status !== 'active' && <StatusPill status={p.status} />}
         {p.staffRole && <Pill tone="brand">{t.person.staff}</Pill>}
+        {p.testAccount && <Pill tone="saffron">{t.person.test}</Pill>}
       </p>
       <dl className="mt-2 divide-y divide-neutral-100 text-sm">
         {rows.map(([k, v, red]) => (

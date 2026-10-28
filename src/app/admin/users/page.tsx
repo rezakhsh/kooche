@@ -4,18 +4,28 @@ import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
 import { searchUsers } from '../../../modules/admin/users';
 import { adminHref, requireStaff, staffCan } from '../../../modules/admin/server';
-import { AdminTitle, Ago, SearchForm, StatusPill } from '../ui';
+import { AdminTitle, Ago, SearchForm, selectClass, StatusPill } from '../ui';
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requireStaff('users.view');
-  const q = ((await searchParams).q ?? '').slice(0, 100);
+  const sp = await searchParams;
+  const q = (sp.q ?? '').slice(0, 100);
+  const testOnly = sp.test === '1';
   const contact = await staffCan('user.contact');
-  const rows = await searchUsers(appDb(), q, { withContact: contact });
+  const rows = await searchUsers(appDb(), q, { withContact: contact, testOnly });
   const t = admin.users;
   return (
     <>
       <AdminTitle title={t.title} />
-      <SearchForm label={t.searchLabel} value={q} />
+      <SearchForm label={t.searchLabel} value={q}>
+        <label>
+          <span className="mb-1 block text-sm font-medium text-neutral-700">{t.show}</span>
+          <select name="test" defaultValue={testOnly ? '1' : ''} className={selectClass}>
+            <option value="">{t.showAll}</option>
+            <option value="1">{t.showTest}</option>
+          </select>
+        </label>
+      </SearchForm>
       {rows.length === 0 ? (
         <p className="text-sm text-neutral-500">{admin.common.noResults}</p>
       ) : (
@@ -26,6 +36,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                 <bdi className="font-bold" dir="auto">{u.name}</bdi>
                 <StatusPill status={u.status} />
                 {u.staffRole && <Pill tone="brand">{admin.roles[u.staffRole]}</Pill>}
+                {u.testAccount && <Pill tone="saffron">{admin.item.person.test}</Pill>}
                 {contact && <bdi dir="ltr" className="text-neutral-500">{u.email}</bdi>}
                 <span className="ms-auto flex gap-3 text-xs text-neutral-500">
                   <span>{t.live}: {u.live.toLocaleString('fa-IR')}</span>

@@ -253,6 +253,7 @@ Standard columns, plus:
 | `phone_verification_method` | `text null` | `CHECK IN ('telegram','sms')`: how the current number was verified |
 | `telegram_user_id` | `bigint null UNIQUE` | Set by Telegram verification. Lets the bot send notifications (in a private chat, the chat id equals the user id) and allows Telegram login later. |
 | `staff_role` | `text null` | `CHECK IN ('moderator','admin')`. Null for normal users. |
+| `test_account` | `text null` | `CHECK IN ('country','personal')` (migration 0028). Test accounts: `country` is a seeded per-country account (fixed code on staging, mail and Telegram forwarded to the owner), `personal` a real person's own account kept for testing. Their content is shown only to staff and test accounts. Set only by `scripts/test-accounts.ts` as `classifieds_owner`. Partial index `users_test_account_idx` on `id`. |
 | `two_factor_enabled` | `boolean DEFAULT false` | Better Auth `twoFactorEnabled`. Staff without it are refused at login. That rule is in the app, so a role can be granted before the person enrolls. |
 | `trust_score` | `smallint DEFAULT 50` | `CHECK (BETWEEN 0 AND 100)`. Computed by the worker (account age, verified phone, upheld reports, sanctions). |
 | `home_location_id` | `uuid null` FK → `locations` | The city of the seller's saved place, pre-filled in new listings |

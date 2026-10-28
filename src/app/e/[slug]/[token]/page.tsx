@@ -32,7 +32,7 @@ import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
 import { eventsPath } from '../../../../modules/search/paths';
 import { sellerPath } from '../../../../modules/users/profile';
-import { currentSession } from '../../../../modules/users/server';
+import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { followAction } from '../../../events/follow-actions';
 import { BackButton, ShareButton } from '../../../v/[slug]/[token]/photo-bar';
 
@@ -47,7 +47,11 @@ import { BackButton, ShareButton } from '../../../v/[slug]/[token]/photo-bar';
 
 type Params = { slug: string; token: string };
 
-const load = cache(async (token: string) => (/^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? publicEvent(appDb(), token) : null));
+const load = cache(async (token: string) => {
+  const data = /^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? await publicEvent(appDb(), token) : null;
+  // A test account's event is only for staff and test accounts
+  return data?.testOwner && !(await viewerSeesTest()) ? null : data;
+});
 
 /** Statuses anyone may see; the rest only the owner (with a notice). An ended event is `expired`. */
 const PUBLIC = new Set(['active', 'paused', 'expired']);

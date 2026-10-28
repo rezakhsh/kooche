@@ -6,6 +6,7 @@ import { ancestry, isEventCategory, loadCatalog, type Catalog } from '../listing
 import { listingPath } from '../listings/slug';
 import { browsePath, eventsPath } from './paths';
 import { allCities } from './places';
+import { hideTest } from '../users/test-accounts';
 
 // XML sitemaps (docs/architecture.md, SEO), built by the worker every hour and stored in
 // sitemap_files; the web app serves them at /sitemap.xml and /sitemaps/<name>.xml unless
@@ -55,6 +56,7 @@ async function countryPages(db: Queryable, catalog: Catalog, appUrl: string, cou
         eq(listings.status, 'active'),
         eq(listings.countryCode, country.code),
         sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`,
+        hideTest(false, listings.userId),
       ),
     )
     .groupBy(listings.locationId, listings.categoryId);
@@ -92,7 +94,7 @@ async function countryPages(db: Queryable, catalog: Catalog, appUrl: string, cou
     .select({ locationId: eventDates.locationId, latest: sql<string>`max(${listings.updatedAt})` })
     .from(eventDates)
     .innerJoin(listings, eq(listings.id, eventDates.listingId))
-    .where(and(eq(eventDates.countryCode, country.code), gt(eventDates.endsAt, now), eq(listings.status, 'active')))
+    .where(and(eq(eventDates.countryCode, country.code), gt(eventDates.endsAt, now), eq(listings.status, 'active'), hideTest(false, listings.userId)))
     .groupBy(eventDates.locationId);
   let countryEvents: Date | null = null;
   for (const u of upcoming) {
@@ -117,7 +119,7 @@ async function listingPages(db: Queryable, appUrl: string, countryCode: string):
       isEvent: sql<boolean>`EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})`,
     })
     .from(listings)
-    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode)))
+    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode), hideTest(false, listings.userId)))
     .orderBy(asc(listings.id));
   return rows.map((r) => ({ loc: `${appUrl}${r.isEvent ? eventPath(r.title, r.token) : listingPath(r.title, r.token)}`, lastmod: r.updatedAt }));
 }

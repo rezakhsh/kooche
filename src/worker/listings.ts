@@ -11,6 +11,7 @@ import { runListingChecks } from '../modules/moderation/checks';
 import { LOGO_OUTBOX, processLogo } from '../modules/organizations/logo';
 import { sendExpiryReminders } from '../modules/notifications/expiry-reminder';
 import { notificationMailer } from '../modules/notifications/mailer';
+import { testInbox } from '../modules/users/test-accounts';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
 
@@ -40,7 +41,7 @@ export async function startListingJobs(
 ): Promise<{ handlers: OutboxHandlers; close: () => Promise<void> }> {
   const env = workerEnv();
   const storage = storageFromEnv(env);
-  const mailer = notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM });
+  const mailer = notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: testInbox(db, env.TEST_INBOX_EMAIL).mail });
 
   const media = new Queue('media', { connection, defaultJobOptions: { ...RETRY, ...KEEP } });
   const checks = new Queue('listing-checks', { connection, defaultJobOptions: { ...RETRY, ...KEEP } });

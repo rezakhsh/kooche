@@ -9,7 +9,20 @@ export type Mailer = (mail: Mail) => Promise<void>;
 
 let transport: Transporter | undefined;
 
-export function notificationMailer({ smtpUrl, from }: { smtpUrl?: string; from?: string }): Mailer {
+/**
+ * `route` may send a mail elsewhere or drop it (null): test accounts' mail goes to the owner's
+ * inbox (src/modules/users/test-accounts.ts).
+ */
+export function notificationMailer({ smtpUrl, from, route }: { smtpUrl?: string; from?: string; route?: (mail: Mail) => Promise<Mail | null> }): Mailer {
+  const send = sender(smtpUrl, from);
+  if (!route) return send;
+  return async (mail) => {
+    const routed = await route(mail);
+    if (routed) await send(routed);
+  };
+}
+
+function sender(smtpUrl: string | undefined, from: string | undefined): Mailer {
   if (!smtpUrl || !from) {
     return async (mail) => console.log(`email: to ${mail.to}: ${mail.subject}\n${mail.text}`);
   }

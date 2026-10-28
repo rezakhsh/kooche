@@ -39,7 +39,7 @@ import { listingPath } from '../../../../modules/listings/slug';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
 import { sellerPath } from '../../../../modules/users/profile';
-import { currentSession } from '../../../../modules/users/server';
+import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { Contact } from './contact';
 import { Gallery, type GalleryImage } from './gallery';
 import { BackButton, CopyLink, ShareButton } from './photo-bar';
@@ -68,7 +68,11 @@ const FACT_ICONS: Record<string, IconName> = {
   mileage_km: 'car',
 };
 
-const load = cache(async (token: string) => (/^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? publicListing(appDb(), token) : null));
+const load = cache(async (token: string) => {
+  const data = /^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? await publicListing(appDb(), token) : null;
+  // A test account's listing is only for staff and test accounts
+  return data?.testOwner && !(await viewerSeesTest()) ? null : data;
+});
 
 /** Statuses anyone may see; the rest only the owner (with a notice) */
 const PUBLIC = new Set(['active', 'paused', 'sold', 'expired']);
@@ -152,7 +156,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     l.status === 'active' ? isFeatured(appDb(), l.id) : Promise.resolve(false),
     sellerReplySpeed(appDb(), l.userId),
     otherActiveListings(appDb(), l),
-    similarListings(appDb(), l),
+    similarListings(appDb(), l, await viewerSeesTest()),
     // The postal code's area, never a point (docs/setup.md, "The street map")
     streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }, isOwner ? null : session?.user.id),
   ]);

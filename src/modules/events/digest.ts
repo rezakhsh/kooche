@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
+import { hideTestRaw } from '../users/test-accounts';
 import { EVENT_OUTBOX } from './events';
 import { whenWindow } from './queries';
 
@@ -16,7 +17,7 @@ export async function writeWeeklyDigests(db: Queryable, timeZone: string, now = 
     WITH due AS (
       SELECT DISTINCT ON (d.listing_id) d.listing_id, d.country_code, d.starts_at
       FROM event_dates d
-      JOIN listings l ON l.id = d.listing_id AND l.status = 'active'
+      JOIN listings l ON l.id = d.listing_id AND l.status = 'active' ${hideTestRaw(false, sql`l.user_id`)}
       JOIN event_details e ON e.listing_id = d.listing_id AND e.schedule_status <> 'cancelled'
       JOIN countries c ON c.code = d.country_code AND c.is_active
       WHERE d.ends_at > ${from.toISOString()}::timestamptz AND d.starts_at < ${to!.toISOString()}::timestamptz

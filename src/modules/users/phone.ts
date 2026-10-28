@@ -71,10 +71,15 @@ export async function completeVerification(
   try {
     await db.transaction(async (tx) => {
       const [phoneOwner] = await tx
-        .select({ id: users.id })
+        .select({ id: users.id, test: users.testAccount })
         .from(users)
         .where(and(eq(users.phoneE164, v.phoneE164), ne(users.id, v.userId)));
-      if (phoneOwner) {
+      if (phoneOwner?.test === 'country') {
+        // A per-country test account's made-up number turned out to be a real person's: they get
+        // it, the test account loses it (scripts/test-accounts.ts gives it another one)
+        await tx.update(users).set({ phoneE164: null, phoneVerifiedAt: null, phoneVerificationMethod: null }).where(eq(users.id, phoneOwner.id));
+        await tx.insert(auditLog).values({ actorType: 'system', action: 'phone.released_by_test_account', targetType: 'user', targetId: phoneOwner.id, data: { forUserId: v.userId } });
+      } else if (phoneOwner) {
         refused = 'phone_in_use';
         return;
       }

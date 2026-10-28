@@ -12,6 +12,7 @@ import { hit } from '../../lib/rate-limit';
 import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, notificationMailer } from '../../modules/notifications/mailer';
+import { testInbox } from '../../modules/users/test-accounts';
 import { acceptInvitation, changeMember, invite, revokeInvitation } from '../../modules/organizations/members';
 import { hoursFromForm, WEEKDAYS } from '../../modules/organizations/hours';
 import { requestLogoUpload } from '../../modules/organizations/logo';
@@ -142,7 +143,7 @@ export async function inviteAction(form: FormData): Promise<void> {
   const link = `${env.APP_URL}/business/invite/${r.token}`;
   const role = t.roles[parsed.data.role];
   const e = t.invitation.email;
-  await notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM })({
+  await notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: testInbox(appDb(), env.TEST_INBOX_EMAIL).mail })({
     to: parsed.data.email.trim().toLowerCase(),
     subject: e.subject(r.orgName),
     text: e.text(r.orgName, role, link),

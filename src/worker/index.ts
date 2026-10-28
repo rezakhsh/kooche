@@ -6,6 +6,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import postgres from 'postgres';
 import * as schema from '../db/schema';
 import { workerEnv } from '../lib/env';
+import { testInbox } from '../modules/users/test-accounts';
 import { monitoringConfig } from '../lib/monitoring/config';
 import { flushMonitoring, initMonitoring, reportError } from '../lib/monitoring/server';
 import { notificationMailer } from '../modules/notifications/mailer';
@@ -40,6 +41,8 @@ const env = workerEnv();
 // Direct connection, as classifieds_worker (never through a pooler: FOR UPDATE SKIP LOCKED).
 const sql = postgres(env.WORKER_DATABASE_URL, { max: 5, connect_timeout: 10, onnotice: () => {} });
 const db = drizzle(sql, { schema });
+// Test accounts' mail and Telegram messages go to the owner (src/modules/users/test-accounts.ts)
+const inbox = testInbox(db, env.TEST_INBOX_EMAIL);
 
 // BullMQ requires maxRetriesPerRequest: null on the connections its workers use.
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
@@ -90,8 +93,8 @@ async function main(): Promise<void> {
   const retention = await startRetention(sql, connection);
   const listingJobs = await startListingJobs(db, connection);
   const chatJobs = await startChatJobs(db, connection, {
-    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal) : null,
-    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal, undefined, inbox.chat) : null,
+    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
     timeZone: env.APP_TIME_ZONE,
   });
@@ -104,9 +107,9 @@ async function main(): Promise<void> {
   // Applies payment webhooks; reads subscriptions and invoices back from Stripe
   const paymentJobs = await startPaymentJobs(db, connection, {
     gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null,
-    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
+    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
-    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal) : null,
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal, undefined, inbox.chat) : null,
   });
   // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
   const seoQueue = new Queue('seo', { connection });

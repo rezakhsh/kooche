@@ -4,6 +4,7 @@ import type { Queryable } from '../../db/drizzle';
 import { cityWaitlist, locations, type WAITLIST_ROLES } from '../../db/schema';
 import { linkToken, sha256 } from '../../lib/tokens';
 import { staffAudit, type StaffContext } from '../admin/audit';
+import { testOwned } from '../users/test-accounts';
 
 // City waitlists (round 12, docs/wave0-plan.md, item 1). A city that isn't open shows its goal of
 // verified businesses, the people waiting (for information only) and a "notify me" form. Only the
@@ -41,7 +42,8 @@ export type CityLaunch = {
 
 const counts = (group: ReturnType<typeof sql>) => sql`
   (SELECT count(*)::int FROM organizations o
-    WHERE o.location_id IN (${group}) AND o.status = 'active' AND o.verification_status = 'verified') AS businesses,
+    WHERE o.location_id IN (${group}) AND o.status = 'active' AND o.verification_status = 'verified'
+      AND NOT ${testOwned(sql`o.created_by_user_id`)}) AS businesses,
   (SELECT count(*)::int FROM city_waitlist w WHERE w.location_id IN (${group}) AND w.confirmed_at IS NOT NULL) AS waiting`;
 
 /** Everything a city's waitlist page shows; null for an unknown city */

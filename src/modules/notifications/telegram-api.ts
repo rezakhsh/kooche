@@ -24,6 +24,11 @@ export class TelegramClient implements BotApi {
     private readonly signal?: AbortSignal,
     /** Another base URL, for tests with a fake Telegram */
     private readonly base: string = TELEGRAM_API,
+    /**
+     * May send a message to another chat or drop it (null): test accounts' messages go to the
+     * owner's Telegram (src/modules/users/test-accounts.ts)
+     */
+    private readonly route?: (chatId: number, text: string) => Promise<{ chatId: number; text: string } | null>,
   ) {}
 
   async call<T>(method: string, body: Record<string, unknown>, timeoutMs = 10_000): Promise<T> {
@@ -45,10 +50,12 @@ export class TelegramClient implements BotApi {
   }
 
   async sendMessage(chatId: number, text: string, replyMarkup?: ReplyMarkup): Promise<void> {
+    const to = this.route ? await this.route(chatId, text) : { chatId, text };
+    if (!to) return;
     await this.call('sendMessage', {
-      chat_id: chatId,
+      chat_id: to.chatId,
       // Every line right to left, whatever it starts with (../../lib/bidi.ts)
-      text: rtlLines(text),
+      text: rtlLines(to.text),
       ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     });
   }

@@ -197,6 +197,13 @@
       "when": 1793197967866,
       "tag": "0027_street_map",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793225819014,
+      "tag": "0028_test_accounts",
+      "breakpoints": true
     }
   ]
 }

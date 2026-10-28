@@ -3476,6 +3476,8 @@ export const admin = {
     business: 'کسب‌وکار',
     person: {
       title: 'سابقه',
+      /** users.test_account: seen only by staff and test accounts, never counted */
+      test: 'آزمایشی',
       since: 'عضو از',
       telegram: 'تلگرام وصل',
       listings: 'آگهی‌ها',
@@ -3656,6 +3658,9 @@ export const admin = {
     released: 'شماره آزاد شد.',
     listings: 'آگهی‌های اخیر',
     businesses: 'کسب‌وکارها',
+    show: 'نمایش',
+    showAll: 'همه',
+    showTest: 'فقط حساب‌های آزمایشی',
   },
   listings: {
     title: 'آگهی‌ها و رویدادها',

@@ -23,7 +23,7 @@ import { formatPrice } from '../../../modules/listings/price';
 import { featuredEventIds } from '../../../modules/payments/plans';
 import { eventsPath } from '../../../modules/search/paths';
 import { eventsCityOf, noticesOn } from '../../../modules/users/notification-prefs';
-import { currentSession } from '../../../modules/users/server';
+import { currentSession, viewerSeesTest } from '../../../modules/users/server';
 import { weeklyEventsAction } from '../../events/follow-actions';
 import { FilterSubmit } from '../_browse/filter-submit';
 import { RememberCountry } from '../remember-country';
@@ -95,7 +95,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
   const t = messages.events.list;
   const catalog = await cachedCatalog(db);
   const types = eventTypes(catalog);
-  const filter = placeFilter(catalog, place, s, now);
+  const filter = { ...placeFilter(catalog, place, s, now), withTest: await viewerSeesTest() };
   const season = currentSeason(now, place.timeZone);
   const session = await currentSession();
   const [page, total, days, cities, seasonCount, featuredIds, me] = await Promise.all([

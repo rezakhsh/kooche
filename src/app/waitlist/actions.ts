@@ -13,6 +13,7 @@ import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { confirmWaitlist, joinWaitlist, leaveWaitlist } from '../../modules/launch/waitlist';
 import { emailHtml, escapeHtml, notificationMailer } from '../../modules/notifications/mailer';
+import { testInbox } from '../../modules/users/test-accounts';
 import { checkTurnstile } from '../../modules/security/server';
 import { WAITLIST_ROLES } from '../../db/schema';
 
@@ -53,7 +54,7 @@ export async function joinWaitlistAction(_: WaitlistState, form: FormData): Prom
     const env = webEnv();
     const link = `${env.APP_URL}/waitlist/confirm?t=${joined.token}`;
     const e = t.email;
-    await notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM })({
+    await notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: testInbox(appDb(), env.TEST_INBOX_EMAIL).mail })({
       to: parsed.data.email,
       subject: e.subject(city!.nameFa),
       text: e.text(city!.nameFa, link),

@@ -1244,3 +1244,13 @@ The owner found the first map hard to read (the postal area filled 80% of it, gr
 
 - Written for approval: `docs/wave2-plan.md`, page https://claude.ai/artifact/VLqjQurhjY4gEqckT23uQL. Ten parts, 19–22.5 days (estimate); part 1 is the admin tools (test accounts with code 123456 on staging only, view as a country, sign in as a user) and the founders rules. Five decisions for the owner at the end. No code yet.
 
+
+## Oct 28, 2026: wave 2 part 1, step 1a: test accounts
+
+The owner approved the wave 2 plan to be built step by step, each step discussed and approved on its own. Step 1a, approved with the owner's changes: accounts only for the countries in the launch plan (Turkey included), their emails and Telegram messages to the owner's own account, and the owner's Iran account «حمید» as the Iran test account. `docs/setup.md`, "Test accounts".
+
+- **Accounts:** `germany@`, `austria@`, `netherlands@`, `uk@`, `canada@`, `us@`, `australia@`, `italy@`, `sweden@`, `france@`, `turkey@peydoo.com` («آزمایشی · آلمان» …), each with a verified number of its country and its biggest city as home (none yet for Italy, Sweden, France, Turkey). «حمید» marked as a test account of a real person (own email, Telegram, normal sign-in). Made by `scripts/test-accounts.ts` as `classifieds_owner`; migration 0028 adds `users.test_account`.
+- **Sign-in on staging:** email + `123456` (`TEST_ACCOUNT_CODE`, refused outside staging), no email sent. Nothing on production yet.
+- **Hidden from real people:** listings, events, businesses, seller pages, search (Meilisearch document version 3), counts, sitemaps, alerts, digest, city goals and admin statistics; staff and test accounts see them. No chat between test accounts and real people (staff excepted). Their mail and Telegram go to `TEST_INBOX_EMAIL`'s account, marked with the account's name. A real person verifying a test account's number gets it.
+- **Admin:** «آزمایشی» badge, users filter «فقط حساب‌های آزمایشی».
+- **Tests:** 915 passing (new: the fixed code only for country accounts and only with the setting, the staging-only setting, who sees test content, browse/search/cards/counts, pages, events, chat, forwarding, numbers); typecheck and `check:rtl` clean.

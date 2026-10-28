@@ -9,6 +9,7 @@ import { isNewAccount } from '../users/new-account';
 import { canSendMessage, loadActor, type Denied } from '../users/permissions';
 import { CHAT_LIMITS } from './limits';
 import { BLOCKED_FOR_NEW_ACCOUNTS, detectRisks, type RiskFlag } from './risk';
+import { mixesTestAndReal } from '../users/test-accounts';
 
 // Chat (docs/schema.md, section 10; docs/setup.md, "Chat"): one conversation per listing per
 // buyer, created with its first message. Every write goes through here, so the rules live in one
@@ -170,6 +171,8 @@ export async function sendMessage(
     if (conv?.status === 'locked') return { ok: false, reason: 'locked' };
 
     const otherId = conv ? otherParticipant(conv, opts.userId) : listingToStart!.userId;
+    // Test accounts and real people never meet (staff excepted): to the sender it is not there
+    if (await mixesTestAndReal(tx, opts.userId, otherId)) return { ok: false, reason: 'not_found' };
     const blocks = await blockState(tx, opts.userId, otherId);
     if (blocks.iBlocked) return { ok: false, reason: 'blocked_by_me' };
     const withheld = blocks.blockedMe;

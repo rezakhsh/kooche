@@ -93,19 +93,21 @@ export type SellerProfile = {
 export async function sellerProfile(
   db: Queryable,
   token: string,
-  opts: { viewerId?: string | null; after?: string | null; now?: Date } = {},
+  opts: { viewerId?: string | null; after?: string | null; now?: Date; withTest?: boolean } = {},
 ): Promise<SellerProfile | null> {
   if (!TOKEN.test(token)) return null;
   const [seller] = await db
     .select({
       id: users.id,
+      test: users.testAccount,
       name: users.displayName,
       createdAt: users.createdAt,
       phoneVerified: sql<boolean>`${users.phoneVerifiedAt} IS NOT NULL`,
     })
     .from(users)
     .where(and(eq(users.publicToken, token), eq(users.status, 'active')));
-  if (!seller) return null;
+  // A test account's page is only for staff and test accounts (./test-accounts.ts)
+  if (!seller || (seller.test && !opts.withTest)) return null;
 
   const after = decodeCursor(opts.after ?? null, 'newest');
   const rows = await db
@@ -128,7 +130,7 @@ export async function sellerProfile(
   const covers = await coverKeys(db, page.map((r) => r.id));
   const last = page.at(-1);
   // Events only on the first page; a seller rarely has more than a page of them
-  const events = after ? [] : (await upcomingEvents(db, { sellerId: seller.id, from: opts.now ?? new Date(), to: null }, opts.now)).items;
+  const events = after ? [] : (await upcomingEvents(db, { sellerId: seller.id, from: opts.now ?? new Date(), to: null, withTest: opts.withTest }, opts.now)).items;
 
   return {
     name: seller.name,

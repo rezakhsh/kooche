@@ -15,6 +15,7 @@ import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { validHours } from './hours';
 import { ownLogoUpload, queueLogo, removeLogo } from './logo';
 import { queueBusinessNotice } from './notices';
+import { testOwned } from '../users/test-accounts';
 
 // Businesses (docs/schema.md, section 7; roadmap step 6). A business has a public page /b/{slug}
 // with the legal details German law asks of traders (§5 DDG), its members with roles, and a plan
@@ -327,6 +328,8 @@ export async function businessBySlug(db: Queryable, slug: string) {
       neighbourhood: sql<string | null>`(SELECT n.name_fa FROM neighbourhoods n
         WHERE n.location_id = ${organizations.locationId} AND n.is_active AND ${organizations.postalCode} IS NOT NULL AND ST_Covers(n.boundary, ${organizations.point})
         ORDER BY n.key LIMIT 1)`,
+      /** Made by a test account: the page shows it only to staff and test accounts */
+      testOwner: testOwned(organizations.createdByUserId),
     })
     .from(organizations)
     .where(and(eq(organizations.slug, slug), eq(organizations.status, 'active')));

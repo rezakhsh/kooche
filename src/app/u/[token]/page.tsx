@@ -17,7 +17,7 @@ import { cardOf } from '../../../modules/listings/card';
 import { cachedCatalog } from '../../../modules/listings/catalog';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { sellerPath, sellerProfile } from '../../../modules/users/profile';
-import { currentSession } from '../../../modules/users/server';
+import { currentSession, viewerSeesTest } from '../../../modules/users/server';
 
 // A seller's public page, /u/{token} (approved Oct 21, 2026): name, member since, whether the phone
 // is verified, active listings and upcoming events. Never the email, phone number or internal ids.
@@ -28,7 +28,7 @@ type Search = { after?: string };
 
 const load = cache(async (token: string, after: string | null) => {
   const session = await currentSession();
-  const profile = await sellerProfile(appDb(), token, { viewerId: session?.user.id ?? null, after });
+  const profile = await sellerProfile(appDb(), token, { viewerId: session?.user.id ?? null, after, withTest: await viewerSeesTest() });
   return profile ? { profile, session } : null;
 });
 

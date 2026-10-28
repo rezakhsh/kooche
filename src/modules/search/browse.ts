@@ -6,6 +6,7 @@ import type { Point } from '../../db/types';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { listingNeighbourhood } from '../listings/neighbourhood';
 import { coverKeys } from '../listings/queries';
+import { hideTest } from '../users/test-accounts';
 import type { AttributeFilter, Sort } from './filters';
 import { STOP_WORDS, synonymsOf } from './synonyms';
 
@@ -41,6 +42,8 @@ export type SearchFilters = {
   shipping: boolean;
   attributes: AttributeFilter[];
   sort: Sort;
+  /** Test accounts' listings too: only for staff and test accounts (src/modules/users/test-accounts.ts) */
+  withTest?: boolean;
 };
 
 export type BrowseItem = {
@@ -199,6 +202,7 @@ function conditions(f: SearchFilters): SQL[] {
     eq(listings.status, 'active'),
     eq(listings.countryCode, f.countryCode),
     notAnEvent,
+    hideTest(f.withTest, listings.userId),
     f.categoryIds ? inArray(listings.categoryId, f.categoryIds) : undefined,
     f.locationId ? eq(listings.locationId, f.locationId) : undefined,
     f.postalCode ? eq(listings.postalCode, f.postalCode) : undefined,
@@ -331,7 +335,7 @@ export async function searchesShowing(db: Queryable, listingId: string, searches
  * Cards for listing ids found by keyword search, in the order given. Only active listings that
  * aren't events: an index entry that went stale since is simply left out.
  */
-export async function cardsByIds(db: Queryable, ids: string[], around: SearchFilters['around']): Promise<BrowseItem[]> {
+export async function cardsByIds(db: Queryable, ids: string[], around: SearchFilters['around'], withTest?: boolean): Promise<BrowseItem[]> {
   if (ids.length === 0) return [];
   const rows = await db
     .select({
@@ -340,7 +344,7 @@ export async function cardsByIds(db: Queryable, ids: string[], around: SearchFil
     })
     .from(listings)
     .leftJoin(locations, eq(locations.id, listings.locationId))
-    .where(and(inArray(listings.id, ids), eq(listings.status, 'active'), notAnEvent));
+    .where(and(inArray(listings.id, ids), eq(listings.status, 'active'), notAnEvent, hideTest(withTest, listings.userId)));
   const covers = await coverKeys(db, ids);
   const byId = new Map(rows.map(({ distanceM, ...r }) => [r.id, { ...r, coverKey: covers.get(r.id) ?? null, distanceKm: distanceM === null ? null : roundKm(Number(distanceM)) }]));
   return ids.map((id) => byId.get(id)).filter((r): r is BrowseItem => !!r);
@@ -360,11 +364,11 @@ export const SIMILAR_COUNT = 6;
  * «آگهی‌های مشابه» under a listing (wave 1): the newest active listings of the same category in the
  * same city (or country when it has no city), without the listing itself.
  */
-export async function similarListings(db: Queryable, l: { id: string; countryCode: string | null; categoryId: string | null; locationId: string | null }): Promise<BrowseItem[]> {
+export async function similarListings(db: Queryable, l: { id: string; countryCode: string | null; categoryId: string | null; locationId: string | null }, withTest?: boolean): Promise<BrowseItem[]> {
   if (!l.countryCode || !l.categoryId) return [];
   const { items } = await browseListings(
     db,
-    { countryCode: l.countryCode, keyword: null, categoryIds: [l.categoryId], locationId: l.locationId, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest' },
+    { countryCode: l.countryCode, keyword: null, categoryIds: [l.categoryId], locationId: l.locationId, postalCode: null, around: null, price: null, shipping: false, attributes: [], sort: 'newest', withTest },
     null,
   );
   return items.filter((i) => i.id !== l.id).slice(0, SIMILAR_COUNT);
@@ -388,6 +392,7 @@ export async function typicalPrice(db: Queryable, f: Pick<SearchFilters, 'countr
     WHERE ${and(
       eq(listings.status, 'active'),
       eq(listings.countryCode, f.countryCode),
+      hideTest(false, listings.userId),
       inArray(listings.categoryId, f.categoryIds),
       f.locationId ? eq(listings.locationId, f.locationId) : undefined,
       sql`${listings.priceType} IN ('fixed', 'negotiable') AND ${listings.priceMinor} > 0`,
@@ -410,7 +415,10 @@ export async function countListings(db: Queryable, f: SearchFilters): Promise<nu
   return Number(row?.n ?? 0);
 }
 
-/** Active listings by category (the leaf), in a country or one city; the page adds them up the tree */
+/**
+ * Active listings by category (the leaf), in a country or one city; the page adds them up the tree.
+ * Counts never include test accounts' listings, whoever looks.
+ */
 export async function categoryCounts(db: Queryable, countryCode: string, locationId: string | null = null): Promise<Map<string, number>> {
   const rows = await db
     .select({ categoryId: listings.categoryId, n: sql<number>`count(*)::int` })
@@ -421,6 +429,7 @@ export async function categoryCounts(db: Queryable, countryCode: string, locatio
         eq(listings.countryCode, countryCode),
         locationId ? eq(listings.locationId, locationId) : undefined,
         notAnEvent,
+        hideTest(false, listings.userId),
       ),
     )
     .groupBy(listings.categoryId);
@@ -432,7 +441,7 @@ export async function cityCounts(db: Queryable, countryCode: string): Promise<Ma
   const rows = await db
     .select({ locationId: listings.locationId, n: sql<number>`count(*)::int` })
     .from(listings)
-    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode), notAnEvent))
+    .where(and(eq(listings.status, 'active'), eq(listings.countryCode, countryCode), notAnEvent, hideTest(false, listings.userId)))
     .groupBy(listings.locationId);
   return new Map(rows.filter((r) => r.locationId).map((r) => [r.locationId!, r.n]));
 }

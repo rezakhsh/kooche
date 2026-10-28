@@ -27,7 +27,7 @@ import { businessBySlug, legalComplete, roleIn } from '../../../modules/organiza
 import { businessListingCards } from '../../../modules/organizations/queries';
 import { foundingBadge } from '../../../modules/payments/founding';
 import { featuredListingIds } from '../../../modules/payments/plans';
-import { currentSession } from '../../../modules/users/server';
+import { currentSession, viewerSeesTest } from '../../../modules/users/server';
 import { followAction } from '../../events/follow-actions';
 
 // A business's public page, /b/{slug} (wave 1, mockup final/business-page): cover, logo, the
@@ -40,7 +40,11 @@ type Params = { slug: string };
 type Search = { tab?: string; followed?: string; follow?: string };
 type Tab = 'listings' | 'events' | 'about';
 
-const load = cache(async (slug: string) => businessBySlug(appDb(), slug));
+const load = cache(async (slug: string) => {
+  const found = await businessBySlug(appDb(), slug);
+  // A test account's business is only for staff and test accounts
+  return found?.testOwner && !(await viewerSeesTest()) ? null : found;
+});
 const faDigits = (s: string) => s.replace(/\d/g, (c) => '۰۱۲۳۴۵۶۷۸۹'[Number(c)]!);
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
@@ -71,7 +75,7 @@ export default async function BusinessPage({ params, searchParams }: { params: P
   const [catalog, items, events, member] = await Promise.all([
     cachedCatalog(db),
     businessListingCards(db, org.id),
-    upcomingEvents(db, { organizationId: org.id, from: now, to: null }, now, 20).then((r) => r.items),
+    upcomingEvents(db, { organizationId: org.id, from: now, to: null, withTest: await viewerSeesTest() }, now, 20).then((r) => r.items),
     session ? roleIn(db, session.user.id, org.id) : Promise.resolve(null),
   ]);
   const [saved, featured, following] = await Promise.all([

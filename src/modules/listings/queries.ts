@@ -6,6 +6,7 @@ import { lastTakeDown } from '../moderation/history';
 import type { Place } from './places';
 import { listingNeighbourhood } from './neighbourhood';
 import { listingPath } from './slug';
+import { hideTest } from '../users/test-accounts';
 
 // Reads for the posting pages, "my listings" and the public listing page.
 
@@ -109,7 +110,7 @@ export async function countryCounts(db: Queryable): Promise<Map<string, number>>
   const rows = await db
     .select({ code: listings.countryCode, n: sql<number>`count(*)::int` })
     .from(listings)
-    .where(and(eq(listings.status, 'active'), notAnEvent))
+    .where(and(eq(listings.status, 'active'), notAnEvent, hideTest(false, listings.userId)))
     .groupBy(listings.countryCode);
   return new Map(rows.filter((r) => r.code).map((r) => [r.code!, r.n]));
 }
@@ -161,6 +162,8 @@ export async function publicListing(db: Queryable, token: string) {
       cityLocal: locations.nameLocal,
       neighbourhood: listingNeighbourhood,
       seller: { displayName: users.displayName, publicToken: users.publicToken, createdAt: users.createdAt },
+      /** Posted by a test account: the page shows it only to staff and test accounts */
+      testOwner: sql<boolean>`${users.testAccount} IS NOT NULL`,
       // Posted for a business (roadmap step 6): the business is the seller shown
       business: { name: organizations.name, slug: organizations.slug, verificationStatus: organizations.verificationStatus, createdAt: organizations.createdAt },
     })
@@ -214,7 +217,7 @@ export async function pathOfListingCode(db: Queryable, text: string): Promise<st
   const [l] = await db
     .select({ title: listings.title, token: listings.publicToken, isEvent: sql<boolean>`EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = ${listings.id})` })
     .from(listings)
-    .where(and(eq(listings.refNumber, Number(digits)), eq(listings.status, 'active')));
+    .where(and(eq(listings.refNumber, Number(digits)), eq(listings.status, 'active'), hideTest(false, listings.userId)));
   if (!l) return null;
   return l.isEvent ? eventPath(l.title, l.token) : listingPath(l.title, l.token);
 }

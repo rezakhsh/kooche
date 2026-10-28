@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { listings, organizations, outboxEvents, sessions, users } from '../../db/schema';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -15,7 +15,8 @@ const TOKEN = /^[0-9a-hjkmnp-tv-z]{10}$/;
 /** Persian and Arabic digits to Latin */
 const latin = (s: string) => s.replace(/[۰-۹٠-٩]/g, (d) => String(d.charCodeAt(0) - (d >= '۰' ? 0x06f0 : 0x0660)));
 
-export async function searchUsers(db: Queryable, q: string, opts: { withContact: boolean }) {
+/** `testOnly`: only test accounts (src/modules/users/test-accounts.ts), all of them without a query */
+export async function searchUsers(db: Queryable, q: string, opts: { withContact: boolean; testOnly?: boolean }) {
   const text = latin(q.trim());
   const conds: SQL[] = [];
   if (UUID.test(text)) conds.push(eq(users.id, text));
@@ -32,12 +33,13 @@ export async function searchUsers(db: Queryable, q: string, opts: { withContact:
       email: users.email,
       status: users.status,
       staffRole: users.staffRole,
+      testAccount: users.testAccount,
       createdAt: users.createdAt,
       phoneVerified: sql<boolean>`${users.phoneVerifiedAt} IS NOT NULL`,
       live: sql<number>`(SELECT count(*)::int FROM listings l WHERE l.user_id = ${users.id} AND l.status = 'active')`,
     })
     .from(users)
-    .where(conds.length ? or(...conds) : sql`true`)
+    .where(and(conds.length ? or(...conds) : sql`true`, opts.testOnly ? isNotNull(users.testAccount) : undefined))
     .orderBy(desc(users.createdAt))
     .limit(50);
 }

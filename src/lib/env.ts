@@ -66,6 +66,10 @@ const liveKeyAllowed = (e: { STRIPE_SECRET_KEY?: string; PAYMENTS_LIVE: 'on' | '
   !e.STRIPE_SECRET_KEY || !isLiveStripeKey(e.STRIPE_SECRET_KEY) || e.PAYMENTS_LIVE === 'on';
 const liveKeyRule = { message: 'a live Stripe key needs PAYMENTS_LIVE=on (production only)', path: ['STRIPE_SECRET_KEY'] };
 
+// Test accounts (src/modules/users/test-accounts.ts): what would be emailed or sent by Telegram to
+// a per-country test account goes to the account with this email (the owner's). Unset: dropped.
+const testInboxField = { TEST_INBOX_EMAIL: optional(z.email().max(254)) };
+
 const webSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_URL: z.url(),
@@ -126,9 +130,21 @@ const webSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[0-9A-Za-z]{10,}$/)),
   ADMIN_PATH: adminPath,
   ...monitoringFields,
+  ...testInboxField,
+  // The sign-in code of the per-country test accounts (6 digits; no email is sent to them). Staging
+  // only: a known code on the live site would be a back door, so it needs SENTRY_ENVIRONMENT=staging
+  // (or a local APP_URL) and is refused with live payments or search indexing on. Unset: these
+  // accounts can't sign in by email.
+  TEST_ACCOUNT_CODE: optional(z.string().regex(/^[0-9]{6}$/, '6 digits')),
 })
   .refine(liveKeyAllowed, liveKeyRule)
   .refine(environmentNamed, environmentRule)
+  .refine(
+    (e) =>
+      !e.TEST_ACCOUNT_CODE ||
+      ((e.SENTRY_ENVIRONMENT === 'staging' || isLocal(e.APP_URL)) && e.PAYMENTS_LIVE !== 'on' && e.SEARCH_INDEXING !== 'on'),
+    { message: 'TEST_ACCOUNT_CODE is for staging only (SENTRY_ENVIRONMENT=staging or a local APP_URL, no live payments, no indexing)', path: ['TEST_ACCOUNT_CODE'] },
+  )
   .refine((e) => !e.STRIPE_SECRET_KEY === !e.STRIPE_WEBHOOK_SECRET, {
     message: 'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together',
     path: ['STRIPE_WEBHOOK_SECRET'],
@@ -185,6 +201,7 @@ const workerSchema = z.object({
   CLOUDFLARE_ZONE_ID: optional(z.string().regex(/^[0-9a-f]{32}$/)),
   CLOUDFLARE_PURGE_TOKEN: optional(z.string().min(1)),
   ...monitoringFields,
+  ...testInboxField,
 })
   .refine(environmentNamed, environmentRule)
   .refine((e) => e.NODE_ENV !== 'production' || (hasS3(e) && e.SMTP_URL && e.EMAIL_FROM), {

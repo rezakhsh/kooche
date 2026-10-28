@@ -32,7 +32,7 @@ export type ResolvedPlace =
  */
 export async function resolveFilters(
   db: Queryable,
-  opts: { countryCode: string; categoryIds: string[] | null; locationId: string | null; state: BrowseState; secret: string },
+  opts: { countryCode: string; categoryIds: string[] | null; locationId: string | null; state: BrowseState; secret: string; withTest?: boolean },
 ): Promise<{ filters: SearchFilters; place: ResolvedPlace; notice: PlaceNotice | null; state: BrowseState }> {
   let state = opts.state;
   let notice: PlaceNotice | null = null;
@@ -74,6 +74,7 @@ export async function resolveFilters(
       shipping: state.ship,
       attributes: state.attributes,
       sort: state.sort,
+      withTest: opts.withTest,
     },
     place,
     notice,
@@ -108,7 +109,7 @@ export async function searchListings(db: Queryable, filters: SearchFilters, curs
   if (filters.keyword && opts.meili) {
     try {
       const r = await keywordSearch(opts.meili, opts.index ?? LISTINGS_INDEX, filters, cursor, { facetKeys: opts.facetKeys, events: opts.events });
-      return { items: await cardsByIds(db, r.ids, filters.around), next: r.next, total: r.total, facets: r.facets, eventIds: r.eventIds, fallback: false };
+      return { items: await cardsByIds(db, r.ids, filters.around, filters.withTest), next: r.next, total: r.total, facets: r.facets, eventIds: r.eventIds, fallback: false };
     } catch (e) {
       console.error('search: keyword search failed, using PostgreSQL:', e instanceof Error ? e.message : e);
       return { ...(await postgresSearch(db, { ...filters, sort: filters.sort === 'relevance' ? 'newest' : filters.sort }, null)), fallback: true };

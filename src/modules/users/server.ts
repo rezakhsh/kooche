@@ -7,6 +7,7 @@ import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
 import { smtpMailer } from './email';
 import { smsProvider, type SmsProvider } from './sms';
+import { seesTestContent } from './test-accounts';
 import { telegramTransport, type OidcConfig, type OidcTransport } from './telegram-oidc';
 
 // The Next.js side of the users module: the Better Auth instance and session helpers for pages and
@@ -23,6 +24,7 @@ export function auth(): Auth {
     secret: env.AUTH_SECRET,
     baseURL: env.APP_URL,
     sendLoginCode: smtpMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM }),
+    testAccountCode: env.TEST_ACCOUNT_CODE,
     nextJs: true,
   }));
 }
@@ -51,6 +53,15 @@ export type CurrentSession = NonNullable<Awaited<ReturnType<Auth['api']['getSess
 /** The signed-in session, or null. Cached per request. */
 export const currentSession = cache(async (): Promise<CurrentSession | null> => {
   return auth().api.getSession({ headers: await headers() });
+});
+
+/**
+ * Whether the visitor sees test accounts' listings, events, businesses and seller pages: staff
+ * and test accounts only (src/modules/users/test-accounts.ts). Cached per request.
+ */
+export const viewerSeesTest = cache(async (): Promise<boolean> => {
+  const session = await currentSession();
+  return seesTestContent(appDb(), session?.user.id);
 });
 
 /** For pages behind login: the session, or a redirect to /login that comes back here. */

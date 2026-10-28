@@ -16,6 +16,7 @@ import { publicToken } from '../../lib/tokens';
 import { messages } from '../../messages/fa';
 import type { LoginCodeMailer } from './email';
 import { LIMITS } from './limits';
+import { isCountryTestEmail } from './test-accounts';
 
 // Better Auth on our own tables (docs/schema.md, section 6): sign-in by email code only, no
 // passwords. Google can be added later as a social provider: it links through auth_accounts to
@@ -35,6 +36,11 @@ export type AuthDeps = {
   secret: string;
   baseURL: string;
   sendLoginCode: LoginCodeMailer;
+  /**
+   * The per-country test accounts' sign-in code (TEST_ACCOUNT_CODE, staging only): they get this
+   * code instead of a random one, and no email (they have no inbox). Unset: none for them.
+   */
+  testAccountCode?: string;
   /** Next.js only: set cookies from server actions (needs a request scope, so not in tests) */
   nextJs?: boolean;
 };
@@ -62,7 +68,10 @@ function tooMany(retryAfterSeconds: number): never {
   });
 }
 
-export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }: AuthDeps) {
+export function createAuth({ db, redis, secret, baseURL, sendLoginCode, testAccountCode, nextJs }: AuthDeps) {
+  // Emails of per-country test accounts that just asked for a code. generateOTP can't wait for the
+  // database, so the hook before it looks the email up and leaves it here for it.
+  const fixedCodeFor = new Set<string>();
   return betterAuth({
     appName: messages.site.name,
     baseURL,
@@ -157,6 +166,8 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
             ...(ip ? ([[LIMITS.codeSendPerIp, ip]] as const) : []),
           ]);
           if (!result.ok) tooMany(result.retryAfterSeconds);
+          if (testAccountCode && (await isCountryTestEmail(db, email))) fixedCodeFor.add(email);
+          else fixedCodeFor.delete(email);
         } else if (ctx.path === '/sign-in/email-otp') {
           const body = z.object({ email: emailSchema }).safeParse(ctx.body);
           if (!body.success) throw new APIError('BAD_REQUEST', { code: 'INVALID_EMAIL' });
@@ -182,8 +193,12 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, nextJs }
         expiresIn: CODE_TTL_SECONDS,
         allowedAttempts: CODE_ATTEMPTS,
         storeOTP: 'hashed',
+        // undefined: Better Auth's own random code
+        generateOTP: ({ email }) => (testAccountCode && fixedCodeFor.delete(email.toLowerCase()) ? testAccountCode : undefined),
         sendVerificationOTP: async ({ email, otp, type }) => {
           if (type !== 'sign-in') throw new APIError('BAD_REQUEST', { code: 'UNSUPPORTED' });
+          // Per-country test accounts have no inbox: the code is TEST_ACCOUNT_CODE or nothing
+          if (await isCountryTestEmail(db, email)) return;
           await sendLoginCode(email, otp);
         },
       }),

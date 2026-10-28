@@ -6,6 +6,7 @@ import { placeLabel, placeOfListing, placeValue } from '../listings/places';
 import { coverKeys, publicListing } from '../listings/queries';
 import type { ActiveSeason } from './seasons';
 import { addDays, dayNumber, localParts, zonedToUtc, type LocalDate } from './time';
+import { hideTestRaw } from '../users/test-accounts';
 
 // Reads for the events pages: upcoming events of a country (optionally one city, type, online or
 // free), one event's page and "my events". Only active listings are shown; an event that has
@@ -46,6 +47,8 @@ export function whenWindow(when: When, now: Date, timeZone: string): { from: Dat
 }
 
 export type EventFilter = {
+  /** Test accounts' events too: only for staff and test accounts (src/modules/users/test-accounts.ts) */
+  withTest?: boolean;
   /** A country's events, or (without it) one seller's events everywhere */
   countryCode?: string;
   /** Only this seller's own events, not their organizations' (the seller page) */
@@ -135,6 +138,7 @@ function eventConditions(f: EventFilter, now: Date) {
   const words = f.season?.words ?? [];
   const text = f.text ? `%${normalizePersian(f.text).toLowerCase().replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
   const rest = sql`
+    ${hideTestRaw(f.withTest, sql`l.user_id`)}
     ${near}
     ${f.categoryIds?.length ? sql`AND l.category_id IN (${sql.join(f.categoryIds.map((id) => sql`${id}::uuid`), sql`, `)})` : sql``}
     ${f.online ? sql`AND e.attendance <> 'in_person'` : sql``}
@@ -285,7 +289,7 @@ export async function eventCities(db: Queryable, countryCode: string, now = new 
     FROM event_dates d
     JOIN listings l ON l.id = d.listing_id AND l.status = 'active'
     JOIN locations c ON c.id = d.location_id
-    WHERE d.country_code = ${countryCode} AND d.ends_at > ${now.toISOString()}::timestamptz
+    WHERE d.country_code = ${countryCode} AND d.ends_at > ${now.toISOString()}::timestamptz ${hideTestRaw(false, sql`l.user_id`)}
     GROUP BY c.id, c.slug, c.name_fa
     ORDER BY n DESC, c.name_fa
     LIMIT 50

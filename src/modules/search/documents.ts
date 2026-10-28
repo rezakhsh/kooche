@@ -13,7 +13,7 @@ import { STOP_WORDS, synonymSettings } from './synonyms';
 
 export const LISTINGS_INDEX = 'listings';
 /** Raised when the document's shape changes, so the worker rebuilds the index at its next start */
-export const DOC_VERSION = 2;
+export const DOC_VERSION = 3;
 
 export type ListingDocument = {
   id: string;
@@ -28,6 +28,8 @@ export type ListingDocument = {
   shipping: boolean;
   kind: string;
   is_event: boolean;
+  /** Posted by a test account (src/modules/users/test-accounts.ts): found only by staff and test accounts */
+  is_test: boolean;
   /** Epoch seconds */
   ranked_at: number;
   /** The category's filterable fields: choices as values, numbers, dates as YYYYMMDD numbers */
@@ -48,7 +50,7 @@ export function indexSettings(): Record<string, unknown> {
   const searchable = ['title', 'category_text', 'attr_text', 'place_text', 'description'];
   return {
     searchableAttributes: searchable,
-    filterableAttributes: ['id', 'country', 'category_id', 'location_id', 'postal_code', '_geo', 'price_value', 'shipping', 'kind', 'is_event', 'attrs'],
+    filterableAttributes: ['id', 'country', 'category_id', 'location_id', 'postal_code', '_geo', 'price_value', 'shipping', 'kind', 'is_event', 'is_test', 'attrs'],
     sortableAttributes: ['_geo', 'price_value', 'ranked_at'],
     // Meilisearch's defaults, then the newest first among equally good matches
     rankingRules: ['words', 'typo', 'proximity', 'attributeRank', 'sort', 'wordPosition', 'exactness', 'ranked_at:desc'],
@@ -144,6 +146,7 @@ type Row = {
   title_normalized: string;
   description_normalized: string;
   is_event: boolean;
+  is_test: boolean;
 };
 
 const SELECT = sql`
@@ -152,7 +155,8 @@ const SELECT = sql`
          ST_Y(l.point::geometry) AS lat, ST_X(l.point::geometry) AS lng,
          l.price_type, l.price_minor, l.shipping_offered, l.kind, l.ranked_at, l.attributes,
          l.title_normalized, l.description_normalized,
-         EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event
+         EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
+         EXISTS (SELECT 1 FROM users u WHERE u.id = l.user_id AND u.test_account IS NOT NULL) AS is_test
   FROM listings l
   LEFT JOIN locations loc ON loc.id = l.location_id`;
 
@@ -174,6 +178,7 @@ export function documentOf(catalog: Catalog, r: Row): ListingDocument {
     shipping: r.shipping_offered,
     kind: r.kind,
     is_event: r.is_event,
+    is_test: r.is_test,
     ranked_at: Math.floor(new Date(r.ranked_at!).getTime() / 1000),
     attrs: indexedAttributes(defs, r.attributes ?? {}),
     title: r.title_normalized,

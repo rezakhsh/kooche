@@ -34,6 +34,13 @@ import { locations } from './listings';
 
 export const STAFF_ROLES = ['moderator', 'admin'] as const;
 export const USER_STATUSES = ['active', 'deactivated', 'deleted'] as const;
+/**
+ * Test accounts (wave 2 part 1, src/modules/users/test-accounts.ts): `country` is one of the
+ * seeded per-country accounts (fixed sign-in code on staging, its email and Telegram go to the
+ * owner's inbox); `personal` is a real person's own account kept for testing (normal sign-in, own
+ * email and Telegram). Their content is shown only to staff and other test accounts.
+ */
+export const TEST_ACCOUNT_KINDS = ['country', 'personal'] as const;
 
 export const users = pgTable(
   'users',
@@ -55,6 +62,8 @@ export const users = pgTable(
       'users_telegram_user_id_key',
     ),
     staffRole: text('staff_role', { enum: STAFF_ROLES }),
+    /** Set only by scripts/test-accounts.ts as classifieds_owner; null for real people */
+    testAccount: text('test_account', { enum: TEST_ACCOUNT_KINDS }),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
     trustScore: smallint('trust_score').notNull().default(50),
     homeLocationId: uuid('home_location_id').references(() => locations.id),
@@ -78,6 +87,9 @@ export const users = pgTable(
       isIn(t.phoneVerificationMethod, PHONE_VERIFICATION_METHODS),
     ),
     check('users_staff_role_check', isIn(t.staffRole, STAFF_ROLES)),
+    check('users_test_account_check', isIn(t.testAccount, TEST_ACCOUNT_KINDS)),
+    // The few test accounts, for the "is the owner a test account" checks on public queries
+    index('users_test_account_idx').on(t.id).where(sql`${t.testAccount} IS NOT NULL`),
     check('users_home_postal_code_check', matches(t.homePostalCode, PATTERNS.postalCode)),
     check('users_home_place_name_check', sql`char_length(${t.homePlaceName}) BETWEEN 1 AND 100`),
     check('users_home_district_check', sql`char_length(${t.homeDistrict}) BETWEEN 1 AND 60`),

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
+import { testOwned } from '../users/test-accounts';
 
 // The overview (roadmap step 8): how many people and listings arrived, what was talked about and
 // paid, by country and day, and the launch metrics per city from docs/strategy.md ("Gates" and
@@ -15,19 +16,21 @@ export const GATE_ROOTS = ['real-estate', 'services', 'jobs'] as const;
 
 const NOT_EVENT = sql`NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`;
 const IS_EVENT = sql`EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`;
+/** Test accounts and what they post never count (src/modules/users/test-accounts.ts) */
+const REAL = sql`NOT ${testOwned(sql`l.user_id`)}`;
 
 /** Each metric's rows as (day, country, value) since `from` */
 function metricRows(metric: Metric, from: string) {
   switch (metric) {
     case 'users':
       // Accounts have no country; counted under '—'
-      return sql`SELECT created_at AS at, NULL::text AS country, 1::bigint AS v FROM users WHERE created_at >= ${from}::timestamptz AND status <> 'deleted'`;
+      return sql`SELECT created_at AS at, NULL::text AS country, 1::bigint AS v FROM users WHERE created_at >= ${from}::timestamptz AND status <> 'deleted' AND test_account IS NULL`;
     case 'listings':
-      return sql`SELECT l.published_at AS at, l.country_code AS country, 1::bigint AS v FROM listings l WHERE l.published_at >= ${from}::timestamptz AND ${NOT_EVENT}`;
+      return sql`SELECT l.published_at AS at, l.country_code AS country, 1::bigint AS v FROM listings l WHERE l.published_at >= ${from}::timestamptz AND ${NOT_EVENT} AND ${REAL}`;
     case 'events':
-      return sql`SELECT l.published_at AS at, l.country_code AS country, 1::bigint AS v FROM listings l WHERE l.published_at >= ${from}::timestamptz AND ${IS_EVENT}`;
+      return sql`SELECT l.published_at AS at, l.country_code AS country, 1::bigint AS v FROM listings l WHERE l.published_at >= ${from}::timestamptz AND ${IS_EVENT} AND ${REAL}`;
     case 'chats':
-      return sql`SELECT c.created_at AS at, l.country_code AS country, 1::bigint AS v FROM conversations c JOIN listings l ON l.id = c.listing_id WHERE c.created_at >= ${from}::timestamptz`;
+      return sql`SELECT c.created_at AS at, l.country_code AS country, 1::bigint AS v FROM conversations c JOIN listings l ON l.id = c.listing_id WHERE c.created_at >= ${from}::timestamptz AND ${REAL}`;
     case 'reports':
       return sql`SELECT r.created_at AS at, coalesce(l.country_code, o.country_code) AS country, 1::bigint AS v FROM reports r
         LEFT JOIN listings l ON l.id = r.listing_id LEFT JOIN organizations o ON o.id = r.organization_id WHERE r.created_at >= ${from}::timestamptz`;
@@ -114,7 +117,7 @@ export async function cityMetrics(db: Queryable): Promise<CityMetrics[]> {
     FROM listings l
     JOIN locations loc ON loc.id = l.location_id
     JOIN countries co ON co.code = l.country_code
-    WHERE l.published_at IS NOT NULL AND l.status <> 'deleted' AND ${NOT_EVENT}
+    WHERE l.published_at IS NOT NULL AND l.status <> 'deleted' AND ${NOT_EVENT} AND ${REAL}
     GROUP BY co.slug, loc.slug, loc.name_fa
     HAVING count(*) FILTER (WHERE l.status = 'active') > 0 OR count(*) FILTER (WHERE l.published_at > now() - interval '35 days') > 0
     ORDER BY active DESC, loc.slug

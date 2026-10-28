@@ -100,6 +100,7 @@ describe('documents', () => {
       shipping: false,
       kind: 'offer',
       is_event: false,
+      is_test: false,
       attrs: { condition: 'like_new', brand: 'apple', storage_gb: 128 },
     });
     expect(doc.category_text).toContain(normalizePersian('موبایل'));
@@ -111,7 +112,7 @@ describe('documents', () => {
     expect(json).not.toContain(u.id);
     expect(json).not.toContain(u.email);
     expect(Object.keys(doc).sort()).toEqual(
-      ['_geo', 'attr_text', 'attrs', 'category_id', 'category_text', 'country', 'description', 'id', 'is_event', 'kind', 'location_id', 'place_text', 'postal_code', 'price_value', 'ranked_at', 'shipping', 'title', 'v'].sort(),
+      ['_geo', 'attr_text', 'attrs', 'category_id', 'category_text', 'country', 'description', 'id', 'is_event', 'is_test', 'kind', 'location_id', 'place_text', 'postal_code', 'price_value', 'ranked_at', 'shipping', 'title', 'v'].sort(),
     );
   });
 

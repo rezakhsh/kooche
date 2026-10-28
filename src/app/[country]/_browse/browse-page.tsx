@@ -76,7 +76,7 @@ const pageData = cache(async (b: Browse) => {
     cachedCityCounts(db, b.country.code),
   ]);
   const events = result.eventIds.length
-    ? (await upcomingEvents(db, { countryCode: b.country.code, from: new Date(), to: null, listingIds: result.eventIds })).items
+    ? (await upcomingEvents(db, { countryCode: b.country.code, from: new Date(), to: null, listingIds: result.eventIds, withTest: b.filters.withTest })).items
     : [];
   // Paid featured listings (roadmap step 6): a strip on the first page without a keyword, and the
   // badge on any card of the page that is featured
@@ -86,7 +86,7 @@ const pageData = cache(async (b: Browse) => {
   // the plain city or country page, when there are some
   const plain = !b.category && !b.state.q && !b.state.after;
   const zone = b.city ? ((await cityBySlug(db, b.country.code, b.city.slug))?.timeZone ?? DEFAULT_TIME_ZONE) : DEFAULT_TIME_ZONE;
-  const weekFilter = { countryCode: b.country.code, locationId: b.city?.id ?? null, ...whenWindow('week', new Date(), zone) };
+  const weekFilter = { countryCode: b.country.code, locationId: b.city?.id ?? null, ...whenWindow('week', new Date(), zone), withTest: b.filters.withTest };
   const [week, weekCount] = plain ? await Promise.all([upcomingEvents(db, weekFilter, new Date(), 1), countEvents(db, weekFilter)]) : [null, 0];
   const weekEvent = week?.items[0] ?? null;
   // «قیمت بیشتر آگهی‌های …: ۵۰۰ تا ۷۵۰ €» under the price fields, for a category with prices

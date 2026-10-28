@@ -3,6 +3,7 @@ import { webEnv } from '../../../../../lib/env';
 import { buildIcs } from '../../../../../modules/events/ics';
 import { publicEvent } from '../../../../../modules/events/queries';
 import { eventPath } from '../../../../../modules/events/slug';
+import { viewerSeesTest } from '../../../../../modules/users/server';
 
 // "Add to calendar": /e/{title}/{token}/calendar answers an .ics file with the event's dates that
 // haven't ended. Only for events anyone may see.
@@ -12,7 +13,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
   const data = /^[0-9a-hjkmnp-tv-z]{10}$/.test(token) ? await publicEvent(appDb(), token) : null;
   const now = new Date();
   const dates = data?.dates.filter((d) => d.endsAt > now) ?? [];
-  if (!data || data.listing.status !== 'active' || dates.length === 0) return new Response('Not found', { status: 404 });
+  if (!data || data.listing.status !== 'active' || dates.length === 0 || (data.testOwner && !(await viewerSeesTest()))) return new Response('Not found', { status: 404 });
   const { listing: l, details: d, cityLocal } = data;
   const env = webEnv();
   const place = l.postalCode && l.placeName ? `${l.postalCode} ${l.placeName}` : cityLocal;

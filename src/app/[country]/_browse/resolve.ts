@@ -2,6 +2,7 @@ import { notFound, permanentRedirect, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
+import { viewerSeesTest } from '../../../modules/users/server';
 import { browsableCategory, cachedCatalog, EVENT_ROOT_SLUG, isEventCategory, subtreeIds, type Catalog, type CategoryNode } from '../../../modules/listings/catalog';
 import { cityLaunch } from '../../../modules/launch/waitlist';
 import { activeCountries, closedCountry, type Country } from '../../../modules/listings/queries';
@@ -116,6 +117,7 @@ async function resolve(countrySlug: string, placeSlug: string, categorySlug: str
     locationId: city?.id ?? null,
     state: parsed,
     secret: webEnv().AUTH_SECRET,
+    withTest: await viewerSeesTest(),
   });
   return { country, city, category, catalog, ctx, state: resolved.state, filters: resolved.filters, place: resolved.place, notice: resolved.notice, path };
 }

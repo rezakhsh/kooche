@@ -104,6 +104,7 @@ export async function personHistory(db: Queryable, userId: string) {
       telegramLinked: sql<boolean>`${users.telegramUserId} IS NOT NULL`,
       status: users.status,
       staffRole: users.staffRole,
+      testAccount: users.testAccount,
       createdAt: users.createdAt,
       lastSeenAt: users.lastSeenAt,
       trustScore: users.trustScore,
