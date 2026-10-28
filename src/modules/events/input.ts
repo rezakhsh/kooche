@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { EVENT_ATTENDANCE, EVENT_LANGUAGES, EVENT_REPEATS, EVENT_SCHEDULE_STATUSES, EVENT_SEATING, type EventPerformer } from '../../db/schema/events';
 import { normalizePersian } from '../../lib/normalize-persian';
 import type { FieldErrors } from '../listings/listings';
+import type { Point } from '../../db/types';
 import { checkLink } from './links';
 import {
   MAX_DATES,
@@ -55,6 +56,8 @@ export const eventInputSchema = z.object({
   attendance: z.enum(EVENT_ATTENDANCE).default('in_person'),
   venueName: z.string().max(500).default(''),
   streetAddress: z.string().max(500).default(''),
+  /** The venue's exact spot on the street map, "lat,lng" or "" (src/modules/maps/pin.ts); checked against the place when saving */
+  pin: z.string().max(40).default(''),
   onlineUrl: z.string().max(2000).default(''),
   ticketUrl: z.string().max(2000).default(''),
   organizerName: z.string().max(500).default(''),
@@ -76,6 +79,8 @@ export type EventDetailsValues = {
   venueName: string | null;
   venueNameNormalized: string | null;
   streetAddress: string | null;
+  /** Set by the events module, which knows the place (src/modules/events/events.ts) */
+  venuePin?: Point | null;
   onlineUrl: string | null;
   ticketUrl: string | null;
   organizerName: string | null;

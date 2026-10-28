@@ -130,6 +130,21 @@ describe('creating and editing a business', () => {
     expect(after?.org.slug).toBe(org.slug);
   });
 
+  it('may mark the shop’s exact spot on the street map, near its postal code only', async () => {
+    const me = await user();
+    // 12045 Neukölln; a pin on Sonnenallee
+    const r = await createBusiness(appDb, { userId: me.id, countryCode: 'DE', input: details({ pin: '52.48601,13.43521' }) });
+    expect(r).toMatchObject({ ok: true });
+    const found = await businessBySlug(db, r.ok ? r.slug : '');
+    expect(found?.org.pin).toEqual({ lat: 52.48601, lng: 13.43521 });
+    // Hamburg is no place for a Neukölln shop's pin; nonsense isn't a pin at all
+    expect(await createBusiness(appDb, { userId: me.id, countryCode: 'DE', input: details({ pin: '53.5511,9.9937' }) })).toMatchObject({ ok: false, reason: 'pin_far', fields: { pin: 'pin_far' } });
+    expect(await createBusiness(appDb, { userId: me.id, countryCode: 'DE', input: details({ pin: 'here' }) })).toMatchObject({ ok: false, reason: 'invalid', fields: { pin: 'invalid' } });
+    // Editing without a pin removes it
+    expect(await updateBusiness(appDb, { userId: me.id, organizationId: r.ok ? r.id : '', input: details({ slug: found!.org.slug }) })).toEqual({ ok: true });
+    expect((await businessBySlug(db, found!.org.slug))?.org.pin).toBeNull();
+  });
+
   it('suspended businesses have no page', async () => {
     const { org } = await business();
     await db.update(schema.organizations).set({ status: 'suspended' }).where(eq(schema.organizations.id, org.id));

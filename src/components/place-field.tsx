@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { Point } from '../db/types';
 import { fieldDir } from '../lib/field-dir';
 import { snapToGrid } from '../lib/geo';
@@ -11,6 +11,9 @@ import { Flag } from './flag';
 import { Icon } from './icons';
 import { Field } from './ui';
 import { OutlineMap } from './outline-map';
+import { usePlaceArea } from './place-area';
+import { StreetMap } from './street-map';
+import { AREA_CIRCLE_M } from '../modules/maps/view';
 
 // Where something is: country, postal code or town (suggestions from our own data), an optional
 // district, and "use my location". Used by the posting form and by "my location" in the account.
@@ -46,6 +49,8 @@ export function PlaceField({
   onCountryChange,
   compact = false,
   label,
+  onPlaceChange,
+  mapVersion = null,
 }: {
   countries: { code: string; nameFa: string }[];
   initial: PlaceFieldValue;
@@ -69,6 +74,10 @@ export function PlaceField({
   compact?: boolean;
   /** The compact field's label instead of «کد پستی» (the new-business form asks «کجا») */
   label?: string;
+  /** The chosen place, for the venue or shop pin's map (src/components/map-pin-field.tsx) */
+  onPlaceChange?: (place: { value: string; center: Point | null }) => void;
+  /** The street map's version: the chosen postal code's area is shown as buyers will see it; null keeps the outline */
+  mapVersion?: string | null;
 }) {
   const [country, setCountry] = useState(initial.countryCode || countries[0]?.code || '');
   const [text, setText] = useState(initial.place);
@@ -81,6 +90,14 @@ export function PlaceField({
   const [searching, setSearching] = useState(false);
   const request = useRef(0);
   const listId = useId();
+  const postalArea = usePlaceArea(value, !!mapVersion);
+  const preview = useMemo(
+    () => (mapVersion && center ? { version: mapVersion, center: [center.lng, center.lat] as [number, number], area: postalArea, circle: postalArea || !value.startsWith('p:') ? null : AREA_CIRCLE_M, pin: null } : null),
+    [mapVersion, center, postalArea, value],
+  );
+  const placeChanged = useRef(onPlaceChange);
+  placeChanged.current = onPlaceChange;
+  useEffect(() => placeChanged.current?.({ value, center }), [value, center]);
 
   // Suggestions a moment after the seller stops typing; an older answer never replaces a newer one
   useEffect(() => {
@@ -311,10 +328,19 @@ export function PlaceField({
         </div>
       )}
 
-      {shown && !compact && (
-        <div className="flex justify-center">
-          <OutlineMap countryCode={country} point={shown} label={t.mapPreview} />
+      {/* What buyers will see: the postal code's area, never the "my location" point */}
+      {preview ? (
+        <div>
+          <StreetMap view={preview} label={t.mapPreview} className="aspect-[16/9]" />
+          <p className="mt-1 text-xs text-neutral-600">{messages.map.preview}</p>
         </div>
+      ) : (
+        shown &&
+        !compact && (
+          <div className="flex justify-center">
+            <OutlineMap countryCode={country} point={shown} label={t.mapPreview} />
+          </div>
+        )
       )}
     </div>
   );

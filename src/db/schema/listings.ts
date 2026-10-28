@@ -186,6 +186,25 @@ export const postalPlaces = pgTable(
 );
 
 /**
+ * A postal code's area (the street map, migration 0027): a listing's map shades its postal code's
+ * area instead of showing a point. OpenStreetMap's `boundary=postal_code` relations (ODbL),
+ * simplified to about 15–20 m, seeded from seed/postal-areas/<cc>.json
+ * (scripts/import-postal-areas.mjs). A postal code without an area (post-office boxes) shows a
+ * circle around its centre instead.
+ */
+export const postalAreas = pgTable(
+  'postal_areas',
+  {
+    countryCode: text('country_code')
+      .notNull()
+      .references(() => countries.code),
+    postalCode: text('postal_code').notNull(),
+    boundary: geographyMultiPolygon('boundary').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.countryCode, t.postalCode] }), check('postal_areas_postal_code_check', matches(t.postalCode, PATTERNS.postalCode))],
+);
+
+/**
  * A city's neighbourhoods (wave 1, migration 0022): the official boundaries with a Persian name, so
  * a card says «ودینگ» instead of «برلین». A listing's neighbourhood is the one covering its point,
  * looked up when shown (never stored), and only when the point is a postal code or an area, not a

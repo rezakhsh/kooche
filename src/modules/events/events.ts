@@ -13,6 +13,7 @@ import {
   type Refused,
   type SaveResult,
 } from '../listings/listings';
+import { pinField, pinNear } from '../maps/pin';
 import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor } from '../users/permissions';
 import { EVENT_PRICE_TYPES, prepareEventFields, type EventDate, type EventDetailsValues, type EventInput } from './input';
@@ -75,6 +76,7 @@ const DETAIL_FIELDS = [
   'attendance',
   'venueName',
   'streetAddress',
+  'venuePin',
   'onlineUrl',
   'ticketUrl',
   'organizerName',
@@ -115,10 +117,19 @@ function eventExtension(input: EventInput, listingInput: ListingInput): ListingE
       const timeZone = (place && (await cityTimeZone(tx, place.locationId))) || details.timeZone;
       const r = prepareEventFields(input, { timeZone, mode, goingOut, now });
       const errors: FieldErrors = r.ok ? {} : { ...r.errors };
+      // The venue's pin: only for a place people go to, and near the event's postal code
+      const pin = pinField.safeParse(input.pin);
+      let venuePin = pin.success && input.attendance !== 'online' ? pin.data : null;
+      if (!pin.success) errors.pin = 'invalid';
+      else if (venuePin && (!place || !pinNear(venuePin, place.center))) {
+        if (place) errors.pin = 'too_far';
+        else venuePin = null;
+      }
       if (!(EVENT_PRICE_TYPES as readonly string[]).includes(listingInput.priceType)) errors.priceType = 'not_allowed';
       if (!r.ok || Object.keys(errors).length) return { ok: false, errors };
 
-      const { values, dates } = r;
+      const values = { ...r.values, venuePin };
+      const { dates } = r;
       const diff = detailsDiff(details, values);
       const datesChanged = !sameDates(before, dates);
       if (datesChanged) diff.dates = [before.map((d) => d.startsAt), dates.map((d) => d.startsAt)];
@@ -281,6 +292,7 @@ export async function copyEvent(
         venueName: d.venueName,
         venueNameNormalized: d.venueNameNormalized,
         streetAddress: d.streetAddress,
+        venuePin: d.venuePin,
         onlineUrl: d.onlineUrl,
         ticketUrl: d.ticketUrl,
         organizerName: d.organizerName,

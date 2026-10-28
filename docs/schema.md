@@ -361,7 +361,8 @@ Standard columns, plus:
 | `location_id` | `uuid null` | Composite FK `(location_id, country_code) → locations (id, country_code)` |
 | `address_line1`, `address_line2`, `postal_code` | `text null` | |
 | `place_name` | `text null` | The town of the postal code, from `postal_places` (migration 0014): the address and the Impressum |
-| `point` | `geography(Point,4326) null` | Exact: a shop's address is public, unlike a private seller's |
+| `point` | `geography(Point,4326) null` | The postal code's centre (`postal_places.center`) |
+| `pin` | `geography(Point,4326) null` | The shop's exact spot, tapped on the street map by the business (migration 0027; optional). Public like the address; within 15 km of the postal code (`src/modules/maps/pin.ts`) |
 | `phone_e164` | `text null` | Public business phone |
 | `email` | `text null` | Public contact email |
 | `website` | `text null` | `CHECK (website ~ '^https://')` |
@@ -435,6 +436,16 @@ A city's official neighbourhoods with Persian names (wave 1, migration 0022; own
 | `name_fa` | `text` | «ودینگ», «پرنتسلاوئر برگ»; the seed refuses a neighbourhood without one |
 | `boundary` | `geography(MultiPolygon,4326)` | `GIST` index; `ST_Covers(boundary, listings.point)` |
 | `is_active` | `boolean DEFAULT true` | Rows that leave the files are set inactive, never deleted |
+
+### `postal_areas`
+
+A postal code's area for the street map (migration 0027, Oct 28, 2026; `docs/setup.md`, "The street map"): a listing's map shades its postal code's area instead of showing a point. OpenStreetMap's `boundary=postal_code` relations (ODbL), simplified to about 15–20 m. Reference data: written only by the seed (`seed/postal-areas/`, replaced per country), `SELECT` for the app, worker and readonly roles.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `country_code` | `text` FK → `countries` | `PRIMARY KEY (country_code, postal_code)` |
+| `postal_code` | `text` | Same pattern as `postal_places.postal_code`; one row per code (relations with the same code are merged) |
+| `boundary` | `geography(MultiPolygon,4326)` | Read with `ST_AsGeoJSON(boundary, 5)` |
 
 ---
 
@@ -616,6 +627,7 @@ Migration 0010, Oct 18, 2026. The events section («رویدادها») is a sec
 | `attendance` | `text DEFAULT 'in_person'` | `CHECK IN ('in_person','online','hybrid')` |
 | `venue_name`, `venue_name_normalized` | `text null` | 1–100 characters. Public. |
 | `street_address` | `text null` | 1–120 characters. **Public**, unlike a listing's place: people have to find the venue. The stored point is still the postal-code centre or a ~500 m cell. |
+| `venue_pin` | `geography(Point,4326) null` | The venue's exact spot, tapped on the street map by the organizer (migration 0027; optional, never for online events). Public like the street address; within 15 km of the postal code |
 | `online_url` | `text null` | `^https://`, at most 500. Shown only to signed-in visitors. |
 | `ticket_url` | `text null` | `^https://`, at most 500. URL shorteners are refused by the app and by the post-checks. |
 | `organizer_name`, `organizer_name_normalized` | `text null` | 1–80. Without it the account's name is shown. |

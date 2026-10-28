@@ -20,6 +20,10 @@ const config: NextConfig = {
   // `npm run typecheck` (tsc 7) checks types before every build. Next's own check needs the
   // TypeScript 5/6 JavaScript API, which TypeScript 7 doesn't ship.
   typescript: { ignoreBuildErrors: true },
+  // Files the street map's routes read from disk (src/app/map/), copied into the standalone build
+  outputFileTracingIncludes: {
+    '/map/**': ['./src/modules/maps/glyphs/**/*', './node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs'],
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

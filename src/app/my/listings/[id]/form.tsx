@@ -54,6 +54,8 @@ export type FormProps = {
   userName: string;
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
+  /** The street map's version for the place preview; null without a map file */
+  mapVersion: string | null;
   /** "Post as": the user's businesses; fixed once the listing is out; some categories need one */
   postAs: { options: { id: string; name: string; slug: string; legal: boolean }[]; locked: boolean; businessOnly: boolean };
   values: {
@@ -403,6 +405,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
         {props.country ? (
           <PlaceField
             compact={!!wizard}
+            mapVersion={props.mapVersion}
             countries={[props.country]}
             initial={v.place}
             fixed={{

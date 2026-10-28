@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, date, foreignKey, index, jsonb, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { geographyPoint } from '../types';
 import { createdAt, id, isIn, matches, textArrayWithin, tstz, updatedAt } from './_columns';
 import { countries, listings, locations } from './listings';
 
@@ -30,6 +31,11 @@ export const eventDetails = pgTable(
     venueName: text('venue_name'),
     venueNameNormalized: text('venue_name_normalized'),
     streetAddress: text('street_address'),
+    /**
+     * The venue's exact spot, tapped on the street map by the organizer (migration 0027; optional).
+     * Public like the street address. The listing's own point stays the postal code's centre.
+     */
+    venuePin: geographyPoint('venue_pin'),
     /** Shown only to signed-in visitors */
     onlineUrl: text('online_url'),
     ticketUrl: text('ticket_url'),

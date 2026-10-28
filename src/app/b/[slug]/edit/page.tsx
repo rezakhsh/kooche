@@ -3,6 +3,7 @@ import { webEnv } from '../../../../lib/env';
 import { messages } from '../../../../messages/fa';
 import { placeOfListing, placeLabel, placeValue } from '../../../../modules/listings/places';
 import { activeCountries } from '../../../../modules/listings/queries';
+import { streetMapVersion } from '../../../../modules/maps/street-map';
 import { imageUrl } from '../../../../modules/media/server';
 import { WEEKDAYS, validHours } from '../../../../modules/organizations/hours';
 import { updateBusinessAction } from '../../../business/actions';
@@ -36,6 +37,7 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ s
     instagram: org.instagram ?? '',
     telegram: org.telegram ?? '',
     description: org.description,
+    pin: org.pin ? `${org.pin.lat},${org.pin.lng}` : '',
     legalName: org.legalName ?? '',
     legalForm: !org.legalForm ? '' : CHIP_FORMS.includes(org.legalForm) ? org.legalForm : 'other',
     legalFormOther: org.legalForm && !CHIP_FORMS.includes(org.legalForm) ? org.legalForm : '',
@@ -66,6 +68,7 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ s
           place={{ countryCode: org.countryCode, place: place ? placeLabel(place) : '', placeValue: place ? placeValue(place) : '', district: '', area: null, center: place?.center ?? null }}
           logoUrl={org.logoKey ? imageUrl(org.logoKey, 'thumb', 'webp') : null}
           host={new URL(webEnv().APP_URL).host}
+          mapVersion={streetMapVersion()}
           legalCountry={org.countryCode === 'DE' || org.countryCode === 'AT'}
         />
       </main>

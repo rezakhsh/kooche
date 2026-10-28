@@ -6,12 +6,22 @@ import { Alert, Button } from '../../../components/ui';
 import { messages } from '../../../messages/fa';
 import { savePlaceAction, type PlaceState } from './actions';
 
-export function SavedPlaceForm({ countries, initial, hasPlace }: { countries: { code: string; nameFa: string }[]; initial: PlaceFieldValue; hasPlace: boolean }) {
+export function SavedPlaceForm({
+  countries,
+  initial,
+  hasPlace,
+  mapVersion,
+}: {
+  countries: { code: string; nameFa: string }[];
+  initial: PlaceFieldValue;
+  hasPlace: boolean;
+  mapVersion: string | null;
+}) {
   const [state, dispatch, pending] = useActionState<PlaceState, FormData>(savePlaceAction, undefined);
   const t = messages.account;
   return (
     <form action={dispatch} className="space-y-4">
-      <PlaceField countries={countries} initial={initial} allowArea={false} errors={state?.errors} />
+      <PlaceField countries={countries} initial={initial} allowArea={false} errors={state?.errors} mapVersion={mapVersion} />
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.notice && <Alert tone="success">{state.notice}</Alert>}
       <div className="flex flex-col gap-3 sm:flex-row-reverse">

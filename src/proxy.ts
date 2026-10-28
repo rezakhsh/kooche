@@ -145,8 +145,10 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Pages only: not static files, not /health, not prefetches (they reuse the page's policy)
-      source: '/((?!_next/static|_next/image|favicon.ico|health).*)',
+      // Pages only: not static files, not /health, not the street map's tiles, letters and worker
+      // (src/app/map/, the same for everyone and kept for a year), not prefetches (they reuse the
+      // page's policy)
+      source: '/((?!_next/static|_next/image|favicon.ico|health|map/).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

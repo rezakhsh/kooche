@@ -6,6 +6,7 @@ import { auditLog, countries, organizationMembers, organizations } from '../../d
 import { BUSINESS_LANGUAGES, BUSINESS_TYPES, type OpeningHours } from '../../db/schema/organizations';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
+import { pinField, pinNear } from '../maps/pin';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { placeByValue, resolvePlace } from '../listings/places';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
@@ -51,6 +52,8 @@ export const businessInputSchema = z.object({
   /** A postal code or place, resolved in the business's country like a listing's place */
   place: text(120).pipe(z.string().min(2)),
   placeValue: z.string().max(40).default(''),
+  /** The shop's exact spot on the street map, "lat,lng" (src/modules/maps/pin.ts); "" for none */
+  pin: pinField,
   servesOnline: z.boolean().default(false),
   languages: z.array(z.enum(BUSINESS_LANGUAGES)).max(BUSINESS_LANGUAGES.length).default([]),
   description: z.string().max(20_000).transform((s) => s.normalize('NFC').replace(/\r\n?/g, '\n').trim()).pipe(z.string().max(5000)),
@@ -103,7 +106,8 @@ export type BusinessError =
   | 'phone_invalid'
   | 'register_incomplete'
   | 'legal_incomplete'
-  | 'postal_required';
+  | 'postal_required'
+  | 'pin_far';
 
 const LEGAL_FIELDS = ['legalName', 'legalForm', 'representativeName', 'addressLine1', 'addressLine2', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra'] as const;
 
@@ -127,6 +131,7 @@ async function columns(db: Queryable, countryCode: string, raw: z.output<typeof 
     ? await resolvePlace(db, countryCode, input.legalPostal)
     : (input.placeValue && (await placeByValue(db, countryCode, input.placeValue))) || (await resolvePlace(db, countryCode, input.place));
   if (!place || typeof place === 'string') return { error: 'place_not_found', fields: { [input.legalPostal ? 'legalPostal' : 'place']: 'place_not_found' } };
+  if (input.pin && !pinNear(input.pin, place.center)) return { error: 'pin_far', fields: { pin: 'pin_far' } };
   let phone: string | null = null;
   if (input.phone) {
     const parsed = parsePhoneNumberFromString(input.phone, countryCode as 'DE');
@@ -160,6 +165,7 @@ async function columns(db: Queryable, countryCode: string, raw: z.output<typeof 
       placeName: place.kind === 'postal' ? place.placeName : null,
       locationId: place.locationId,
       point: place.center,
+      pin: input.pin,
       phoneE164: phone,
       email: input.email,
       website: input.website,

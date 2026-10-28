@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Icon } from '../../components/icons';
+import { MapPinField } from '../../components/map-pin-field';
 import { PlaceField, type PlaceFieldValue } from '../../components/place-field';
 import { Alert } from '../../components/ui';
 import { fieldDir } from '../../lib/field-dir';
@@ -32,7 +33,7 @@ const COMPANY_FORMS = new Set(['GmbH', 'UG (haftungsbeschränkt)']);
 const TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`).concat('24:00');
 
 const STEP_OF: Record<string, Step> = {
-  name: 1, slug: 1, businessType: 1, place: 1, servesOnline: 1,
+  name: 1, slug: 1, businessType: 1, place: 1, pin: 1, servesOnline: 1,
   phone: 2, email: 2, website: 2, instagram: 2, telegram: 2, languages: 2, tagline: 2, description: 2,
 };
 const stepOf = (field: string): Step => STEP_OF[field] ?? (field.startsWith('hours.') ? 2 : 3);
@@ -182,6 +183,7 @@ export function BusinessForm({
   logoUrl,
   host,
   legalCountry,
+  mapVersion,
 }: {
   action: (state: BusinessFormState, form: FormData) => Promise<BusinessFormState>;
   initial: Values;
@@ -193,6 +195,8 @@ export function BusinessForm({
   host: string;
   /** Germany and Austria: the Impressum, by that name */
   legalCountry: boolean;
+  /** The street map's version for the shop's pin; null without a map file */
+  mapVersion: string | null;
 }) {
   const [state, dispatch, pending] = useActionState(action, undefined);
   const v = state?.values ?? initial;
@@ -204,6 +208,7 @@ export function BusinessForm({
   const [slugOpen, setSlugOpen] = useState(!!f.slug);
   const [legalForm, setLegalForm] = useState(v.legalForm ?? '');
   const [logoBusy, setLogoBusy] = useState(false);
+  const [pinPlace, setPinPlace] = useState({ value: place.placeValue, center: place.center });
   const formRef = useRef<HTMLFormElement>(null);
   const names: readonly string[] = w.steps;
 
@@ -359,7 +364,9 @@ export function BusinessForm({
             showDistrict={false}
             allowArea={false}
             errors={f.place ? { place: t.errors[f.place as keyof typeof t.errors] ?? t.errors.invalid } : {}}
+            onPlaceChange={setPinPlace}
           />
+          <MapPinField version={mapVersion} place={pinPlace} initial={v.pin ?? ''} error={f.pin ? (t.errors[f.pin as keyof typeof t.errors] ?? t.errors.invalid) : undefined} />
         </div>
         <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" name="servesOnline" defaultChecked={v.servesOnline === 'on'} className="size-5 shrink-0 accent-brand-700" />

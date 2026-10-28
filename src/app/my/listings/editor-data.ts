@@ -11,6 +11,7 @@ import { postingCountry } from '../../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
 import { myBusinesses } from '../../../modules/organizations/organizations';
 import { storage } from '../../../modules/media/server';
+import { streetMapVersion } from '../../../modules/maps/street-map';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
@@ -86,6 +87,7 @@ export async function editorData(
       /** «خودم (…)» in the check before publishing */
       userName: me?.displayName ?? '',
       turnstileSiteKey: turnstileSiteKey(),
+      mapVersion: streetMapVersion(),
       // "Post as" (roadmap step 6): the businesses the user belongs to, chosen while it is a draft
       postAs: {
         options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name, slug: b.slug, legal: b.legal })),

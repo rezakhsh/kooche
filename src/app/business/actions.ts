@@ -32,7 +32,7 @@ const t = messages.business;
 const uuid = z.uuid();
 const INVITES = { name: 'org-invite:user:1d', max: 20, windowSeconds: 86_400 };
 
-const TEXT_FIELDS = ['name', 'slug', 'businessType', 'tagline', 'place', 'placeValue', 'description', 'phone', 'email', 'website', 'instagram', 'telegram', 'legalName', 'legalForm', 'legalFormOther', 'representativeName', 'addressLine1', 'addressLine2', 'legalPostal', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra', 'logoUpload', 'logoPreview'] as const;
+const TEXT_FIELDS = ['name', 'slug', 'businessType', 'tagline', 'place', 'placeValue', 'pin', 'description', 'phone', 'email', 'website', 'instagram', 'telegram', 'legalName', 'legalForm', 'legalFormOther', 'representativeName', 'addressLine1', 'addressLine2', 'legalPostal', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra', 'logoUpload', 'logoPreview'] as const;
 const FLAGS = ['servesOnline', 'removeLogo'] as const;
 const HOUR_FIELDS = WEEKDAYS.flatMap((d) => [`hours.${d}.open`, `hours.${d}.from`, `hours.${d}.to`]);
 
@@ -79,6 +79,8 @@ function businessError(reason: string): string {
       return t.errors.phone_invalid;
     case 'register_incomplete':
       return t.errors.register_incomplete;
+    case 'pin_far':
+      return t.errors.pin_far;
     case 'legal_incomplete':
     case 'postal_required':
       return t.wizard.legalMissing;

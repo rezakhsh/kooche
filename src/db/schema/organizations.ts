@@ -59,8 +59,10 @@ export const organizations = pgTable(
     postalCode: text('postal_code'),
     /** The town of the postal code ("Berlin", "Wien"), for the address and the Impressum (migration 0014) */
     placeName: text('place_name'),
-    /** Exact: a shop's address is public, unlike a private seller's */
+    /** The postal code's centre; the exact spot is `pin` */
     point: geographyPoint('point'),
+    /** The shop's exact spot, tapped on the street map by the business (migration 0027; optional). Public like the address. */
+    pin: geographyPoint('pin'),
     phoneE164: text('phone_e164'),
     email: text('email'),
     website: text('website'),

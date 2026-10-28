@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { DateInput } from '../../components/date-input';
 import { Icon } from '../../components/icons';
+import { MapPinField } from '../../components/map-pin-field';
 import { PlaceField, type PlaceFieldValue } from '../../components/place-field';
 import { TermsNotice } from '../../components/terms-notice';
 import { useTurnstile } from '../../components/turnstile';
@@ -44,6 +45,8 @@ export type EventFormProps = {
   postAs: { options: { id: string; name: string; slug: string; legal: boolean }[]; locked: boolean };
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
+  /** The street map's version for the venue's pin; null without a map file */
+  mapVersion: string | null;
   values: {
     categoryId: string;
     title: string;
@@ -61,6 +64,8 @@ export type EventFormProps = {
     attendance: Attendance;
     venueName: string;
     streetAddress: string;
+    /** "lat,lng" of the venue's pin, or "" */
+    pin: string;
     onlineUrl: string;
     ticketUrl: string;
     organizerName: string;
@@ -329,6 +334,7 @@ export function EventForm(
   const [titleLength, setTitleLength] = useState(v.title.length);
   const [street, setStreet] = useState(v.streetAddress);
   const [place, setPlace] = useState<{ value: PlaceFieldValue; key: number }>({ value: v.place, key: 0 });
+  const [pinPlace, setPinPlace] = useState({ value: v.place.placeValue, center: v.place.center });
   const currencySymbol = props.countries[0]?.currencySymbol ?? '';
   const placeError = (k: string) => (errors[k] ? (t.errors[errors[k]] ?? t.errors.invalid) : undefined);
 
@@ -508,6 +514,7 @@ export function EventForm(
                 changeHref: props.countryChangeable ? '/?choose' : null,
               }}
               errors={{ countryCode: placeError('countryCode'), place: placeError('place'), area: placeError('area') }}
+              onPlaceChange={setPinPlace}
             />
           ) : (
             <Alert tone="info">
@@ -518,6 +525,14 @@ export function EventForm(
             </Alert>
           )}
           <p className="mt-1 text-xs text-neutral-600">{e.placeHint}</p>
+          {attendance !== 'online' && (
+            <MapPinField
+              version={props.mapVersion}
+              place={pinPlace}
+              initial={v.pin}
+              error={errors.pin === 'too_far' ? messages.map.pickTooFar : errors.pin ? (t.errors[errors.pin] ?? t.errors.invalid) : undefined}
+            />
+          )}
         </div>
         {attendance !== 'in_person' && (
           <label className="mt-4 block">

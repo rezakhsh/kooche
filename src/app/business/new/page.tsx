@@ -4,6 +4,7 @@ import { webEnv } from '../../../lib/env';
 import { messages } from '../../../messages/fa';
 import { activeCountries } from '../../../modules/listings/queries';
 import { canPostListing, loadActor } from '../../../modules/users/permissions';
+import { streetMapVersion } from '../../../modules/maps/street-map';
 import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
@@ -47,6 +48,7 @@ export default async function NewBusinessPage() {
           place={{ countryCode: country.code, place: '', placeValue: '', district: '', area: null, center: null }}
           logoUrl={null}
           host={new URL(webEnv().APP_URL).host}
+          mapVersion={streetMapVersion()}
           legalCountry={country.code === 'DE' || country.code === 'AT'}
         />
       </main>

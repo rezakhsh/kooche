@@ -154,6 +154,7 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
     attendance: str(form, 'attendance') || undefined,
     venueName: str(form, 'venueName'),
     streetAddress: str(form, 'streetAddress'),
+    pin: str(form, 'pin'),
     onlineUrl: str(form, 'onlineUrl'),
     ticketUrl: str(form, 'ticketUrl'),
     organizerName: str(form, 'organizerName'),

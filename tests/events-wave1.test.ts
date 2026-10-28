@@ -186,6 +186,26 @@ describe('posting an event (mockups final/post-event1–2)', () => {
   });
 });
 
+describe('the venue on the street map', () => {
+  it('keeps the organizer’s pin near the event’s postal code; online events have none', async () => {
+    const u = await user(SETTLED);
+    const id = await publish(u.id, { event: { pin: '52.48236,13.43311' } });
+    const pinOf = async (listingId: string) => (await db.select({ pin: schema.eventDetails.venuePin }).from(schema.eventDetails).where(eq(schema.eventDetails.listingId, listingId)))[0]?.pin;
+    expect(await pinOf(id)).toEqual({ lat: 52.48236, lng: 13.43311 });
+    // The listing's own point stays the postal code's centre
+    expect((await listing(id)).locationPrecision).toBe('postal_code');
+
+    const d = await createEventDraft(appDb, { userId: u.id, categoryId: (await categoryBySlug('event-concerts')).id });
+    if (!d.ok) throw new Error(d.reason);
+    const far = await saveEvent(appDb, { userId: u.id, listingId: d.listingId, input: listingIn(), event: eventIn({ pin: '53.5511,9.9937' }), intent: 'publish', now: NOW });
+    expect(far).toMatchObject({ ok: false, errors: { pin: 'too_far' } });
+    const bad = await saveEvent(appDb, { userId: u.id, listingId: d.listingId, input: listingIn(), event: eventIn({ pin: 'x' }), intent: 'save', now: NOW });
+    expect(bad).toMatchObject({ ok: false, errors: { pin: 'invalid' } });
+    const online = await publish(u.id, { event: { attendance: 'online', onlineUrl: 'https://zoom.us/j/123456', venueName: '', streetAddress: '', pin: '52.48236,13.43311' } });
+    expect(await pinOf(online)).toBeNull();
+  });
+});
+
 describe('following a business and its new events', () => {
   it('follow and unfollow; only active businesses', async () => {
     const owner = await user();

@@ -12,6 +12,7 @@ import {
   currencies,
   locations,
   neighbourhoods,
+  postalAreas,
   postalPlaces,
 } from './schema';
 import { foldLatin } from '../lib/fold-latin';
@@ -36,6 +37,7 @@ export type SeedSummary = {
   regions: number;
   cities: number;
   postalPlaces: number;
+  postalAreas: number;
   neighbourhoods: number;
   categories: number;
   leafCategories: number;
@@ -54,6 +56,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         regions: 0,
         cities: 0,
         postalPlaces: 0,
+        postalAreas: 0,
         neighbourhoods: 0,
         categories: 0,
         leafCategories: 0,
@@ -66,6 +69,7 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         summary.cities += cities;
       }
       for (const code of seed.POSTAL_COUNTRIES) summary.postalPlaces += await seedPostalPlaces(tx, code);
+      for (const code of seed.POSTAL_AREA_COUNTRIES) summary.postalAreas += await seedPostalAreas(tx, code);
       summary.neighbourhoods = await seedNeighbourhoods(tx);
       Object.assign(summary, await seedCategories(tx, seed.categories));
 
@@ -214,6 +218,25 @@ async function seedPostalPlaces(tx: Tx, countryCode: string): Promise<number> {
       ORDER BY l.center <-> p.center
       LIMIT 1)
     WHERE p.country_code = ${countryCode}`);
+  return rows.length;
+}
+
+const AREA_BATCH = 200;
+
+/**
+ * Postal code areas of one country (seed/postal-areas/). Reference data that nothing points to,
+ * so the country's rows are replaced as a whole.
+ */
+async function seedPostalAreas(tx: Tx, countryCode: string): Promise<number> {
+  const rows = seed.postalAreas(countryCode);
+  await tx.delete(postalAreas).where(eq(postalAreas.countryCode, countryCode));
+  for (let i = 0; i < rows.length; i += AREA_BATCH) {
+    await tx.insert(postalAreas).values(rows.slice(i, i + AREA_BATCH).map((r) => ({ countryCode, postalCode: r.postalCode, boundary: multiPolygonEwkt(r.polygons) })));
+  }
+  // Simplifying can make a ring touch or cross itself; PostGIS mends it (polygons only)
+  await tx.execute(sql`
+    UPDATE postal_areas SET boundary = ST_Multi(ST_CollectionExtract(ST_MakeValid(boundary::geometry), 3))::geography
+    WHERE country_code = ${countryCode} AND NOT ST_IsValid(boundary::geometry)`);
   return rows.length;
 }
 

@@ -41,7 +41,7 @@ async function denied(tx: Tx, role: Role, statement: (tx: Tx) => PromiseLike<unk
 describe('grants', () => {
   it('cover every table for all three roles', async () => {
     const all = await tables();
-    expect(all).toHaveLength(46);
+    expect(all).toHaveLength(47);
     const missing: string[] = [];
     for (const table of all) {
       for (const role of ROLES) if (!(await has(role, table, 'SELECT'))) missing.push(`${role} ${table}`);
@@ -163,7 +163,7 @@ describe('grants', () => {
 
   it('keep reference data and products read-only for running code', async () => {
     for (const role of ['classifieds_app', 'classifieds_worker'] as const) {
-      for (const table of ['categories', 'locations', 'countries', 'postal_places', 'neighbourhoods', 'products', 'product_prices']) {
+      for (const table of ['categories', 'locations', 'countries', 'postal_places', 'postal_areas', 'neighbourhoods', 'products', 'product_prices']) {
         expect(await has(role, table, 'UPDATE'), `${role} UPDATE ${table}`).toBe(false);
         expect(await has(role, table, 'INSERT'), `${role} INSERT ${table}`).toBe(false);
       }

@@ -12,6 +12,7 @@ import { postingCountry } from '../../modules/listings/posting-country';
 import { activeCountries, savedPlace } from '../../modules/listings/queries';
 import { storage } from '../../modules/media/server';
 import { myBusinesses } from '../../modules/organizations/organizations';
+import { streetMapVersion } from '../../modules/maps/street-map';
 import { turnstileSiteKey } from '../../modules/security/server';
 import { photoView, type PhotoView } from '../my/listings/photo-view';
 import type { EventFormProps } from './form';
@@ -82,6 +83,7 @@ export async function eventEditorData(
         locked: !!l && l.status !== 'draft',
       },
       turnstileSiteKey: turnstileSiteKey(),
+      mapVersion: streetMapVersion(),
       values: {
         categoryId: l?.categoryId ?? (preferredType && types.some((t) => t.id === preferredType.id) ? preferredType.id : ''),
         title: l?.title ?? '',
@@ -107,6 +109,7 @@ export async function eventEditorData(
         attendance: d?.attendance ?? 'in_person',
         venueName: d?.venueName ?? '',
         streetAddress: d?.streetAddress ?? '',
+        pin: d?.venuePin ? `${d.venuePin.lat},${d.venuePin.lng}` : '',
         onlineUrl: d?.onlineUrl ?? '',
         ticketUrl: d?.ticketUrl ?? '',
         organizerName: d?.organizerName ?? '',

@@ -13,3 +13,4 @@ export const locations: LocationsSeed[] = [germany, austria, canada, unitedState
 
 export { POSTAL_COUNTRIES, postalPlaces } from './postal';
 export { NEIGHBOURHOOD_CITIES, neighbourhoods } from './neighbourhoods';
+export { POSTAL_AREA_COUNTRIES, postalAreas } from './postal-areas';

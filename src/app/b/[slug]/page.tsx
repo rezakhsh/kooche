@@ -8,6 +8,7 @@ import { FavoriteButton } from '../../../components/favorite-button';
 import { Icon, type IconName } from '../../../components/icons';
 import { ListingCard } from '../../../components/listing-card';
 import { OutlineMap } from '../../../components/outline-map';
+import { StreetMap } from '../../../components/street-map';
 import { ReportLink } from '../../../components/report-link';
 import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
@@ -17,6 +18,7 @@ import { isFollowing } from '../../../modules/events/follows';
 import { eventRowOf } from '../../../modules/events/card';
 import { upcomingEvents } from '../../../modules/events/queries';
 import { cardOf } from '../../../modules/listings/card';
+import { streetMapView } from '../../../modules/maps/street-map';
 import { cachedCatalog } from '../../../modules/listings/catalog';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { imageUrl } from '../../../modules/media/server';
@@ -91,6 +93,8 @@ export default async function BusinessPage({ params, searchParams }: { params: P
           : p.opensOn(t.days[open.next.day]!, faDigits(open.next.at))
         : p.closedNow;
   const street = org.addressLine1 ? [org.addressLine1, org.addressLine2].filter(Boolean).join(', ') : null;
+  // The shop's pin where the business set one, otherwise its postal code's area (the address is public)
+  const mapView = street ? await streetMapView(appDb(), { countryCode: org.countryCode, postalCode: org.postalCode, placeName: org.placeName, point: org.point, pin: org.pin, precision: 'postal_code' }) : null;
   const addressLatin = street ? [street, [org.postalCode, cityLocal].filter(Boolean).join(' ')].filter(Boolean).join(', ') : null;
   const verified = org.verificationStatus === 'verified';
   const legal = legalComplete(org);
@@ -116,7 +120,7 @@ export default async function BusinessPage({ params, searchParams }: { params: P
 
   const actions: { icon: IconName; label: string; href: string; external?: boolean }[] = [
     ...(org.phoneE164 ? [{ icon: 'phone' as const, label: p.call, href: `tel:${org.phoneE164}` }] : []),
-    ...(addressLatin ? [{ icon: 'pin' as const, label: p.route, href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressLatin)}`, external: true }] : []),
+    ...(addressLatin ? [{ icon: 'pin' as const, label: p.route, href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(org.pin ? `${org.pin.lat},${org.pin.lng}` : addressLatin)}`, external: true }] : []),
   ];
   const tabHref = (x: Tab) => `${path}${x === 'listings' ? '' : `?tab=${x}`}#tabs`;
 
@@ -315,7 +319,16 @@ export default async function BusinessPage({ params, searchParams }: { params: P
                     )}
                   </p>
                 ))}
-                {street && org.point && <OutlineMap countryCode={org.countryCode} point={org.point} label={t.page.address} />}
+                {mapView ? (
+                  <StreetMap
+                    view={mapView}
+                    label={t.page.address}
+                    className="aspect-[4/3]"
+                    fallback={<OutlineMap countryCode={org.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={t.page.address} />}
+                  />
+                ) : (
+                  street && org.point && <OutlineMap countryCode={org.countryCode} point={org.point} label={t.page.address} />
+                )}
               </section>
             )}
           </div>

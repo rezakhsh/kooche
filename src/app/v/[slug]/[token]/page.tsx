@@ -5,12 +5,14 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { cache, type ReactNode } from 'react';
 import { thumbHashToDataURL } from 'thumbhash';
 import { OutlineMap } from '../../../../components/outline-map';
+import { StreetMap } from '../../../../components/street-map';
 import { ListingFooter } from '../../../../components/report-link';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon, type IconName } from '../../../../components/icons';
 import { clientIp } from '../../../../lib/client-ip';
 import { valkey } from '../../../../lib/valkey';
 import { countView } from '../../../../modules/listings/views';
+import { streetMapView } from '../../../../modules/maps/street-map';
 import { isFeatured } from '../../../../modules/payments/plans';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -44,9 +46,8 @@ import { BackButton, CopyLink, ShareButton } from './photo-bar';
 
 // The public listing page, /v/{persian-title}/{token}, rendered on the server. The token finds the
 // listing; the title part is not checked, and the canonical link carries the current one.
-// Never shown: the exact location (only postal code, place, district, and a dot on an outline of
-// the country drawn from the stored point, which is never exact), the phone number (fetched on
-// request), internal ids.
+// Never shown: the exact location (only postal code, place, district, and the street map with the
+// postal code's area shaded, never a point), the phone number (fetched on request), internal ids.
 // Wave 1 (mockup final/listing): on phones back, share and save over the photo, the site header and
 // bottom bar out of the way, and a fixed bar with chat, phone and save; on computers title, price
 // and contact in a card beside the photo. Fact tiles, a safety box for the category, the seller
@@ -145,13 +146,15 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const countryName = country?.nameFa ?? '';
   const city = countrySlug && l.locationId ? ((await allCities(appDb())).find((c) => c.id === l.locationId) ?? null) : null;
   // The ♡ for visitors; the seller sees how many saved it instead (nobody else does)
-  const [savedByMe, favCount, featured, replySpeed, others, similar] = await Promise.all([
+  const [savedByMe, favCount, featured, replySpeed, others, similar, mapView] = await Promise.all([
     session && !isOwner ? savedAmong(appDb(), session.user.id, [l.id]).then((s) => s.has(l.id)) : Promise.resolve(false),
     isOwner ? favoriteCounts(appDb(), session!.user.id, [l.id]).then((m) => m.get(l.id) ?? 0) : Promise.resolve(null),
     l.status === 'active' ? isFeatured(appDb(), l.id) : Promise.resolve(false),
     sellerReplySpeed(appDb(), l.userId),
     otherActiveListings(appDb(), l),
     similarListings(appDb(), l),
+    // The postal code's area, never a point (docs/setup.md, "The street map")
+    streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }),
   ]);
   const facts = cardFacts(catalog, l.categoryId, attrs, amountCurrency);
   const safety = t.safetyBox[safetyKind(crumbs)];
@@ -503,6 +506,19 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                     />
                   )}
                 </dl>
+              </section>
+            )}
+            {mapView && (
+              <section>
+                <h2 className="mb-2 text-lg font-extrabold">{messages.map.section}</h2>
+                <StreetMap
+                  view={mapView}
+                  label={messages.map.section}
+                  fallback={l.countryCode ? <OutlineMap countryCode={l.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={messages.map.section} /> : null}
+                />
+                <p className="mt-2 text-xs leading-6 text-neutral-600">
+                  {mapView.area && l.postalCode ? messages.map.listingArea(l.postalCode) : mapView.circle ? messages.map.listingCircle : messages.map.listingCity}
+                </p>
               </section>
             )}
             {similar.length > 0 && (

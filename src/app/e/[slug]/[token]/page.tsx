@@ -6,7 +6,9 @@ import { cache, type ReactNode } from 'react';
 import { EventRow } from '../../../../components/event-row';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon, type IconName } from '../../../../components/icons';
+import { OutlineMap } from '../../../../components/outline-map';
 import { ListingFooter } from '../../../../components/report-link';
+import { StreetMap } from '../../../../components/street-map';
 import { Alert } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { clientIp } from '../../../../lib/client-ip';
@@ -25,6 +27,7 @@ import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorit
 import { amountInputValue } from '../../../../modules/listings/price';
 import { activeCountries } from '../../../../modules/listings/queries';
 import { countView } from '../../../../modules/listings/views';
+import { streetMapView } from '../../../../modules/maps/street-map';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
 import { eventsPath } from '../../../../modules/search/paths';
@@ -116,7 +119,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const sp = await searchParams;
 
   const organizationId = business ? l.organizationId : null;
-  const [chat, savedSet, going, facts, following, similar] = await Promise.all([
+  const [chat, savedSet, going, facts, following, similar, mapView] = await Promise.all([
     isOwner || l.status !== 'active' ? Promise.resolve(null) : chatEntry(db, { userId: session?.user.id ?? null, listing: l, returnTo: path }),
     session && !isOwner ? savedAmong(db, session.user.id, [l.id]) : Promise.resolve(new Set<string>()),
     favoriteCounts(db, l.userId, [l.id]).then((m) => m.get(l.id) ?? 0),
@@ -127,6 +130,10 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           r.items.length >= 2 ? r.items : (await upcomingEvents(db, { countryCode: l.countryCode!, locationId: l.locationId, from: now, to: null, notId: l.id }, now, 3)).items,
         )
       : Promise.resolve([]),
+    // The venue is public: its pin where the organizer set one, otherwise the postal code's area
+    d.attendance !== 'online'
+      ? streetMapView(db, { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, pin: d.venuePin, precision: l.locationPrecision })
+      : Promise.resolve(null),
   ]);
   const saved = savedSet.has(l.id);
   const similarSaved = session ? await savedAmong(db, session.user.id, similar.map((e) => e.id)) : new Set<string>();
@@ -250,7 +257,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
       sub: placeLine ? <bdi dir="ltr">{placeLine}</bdi> : cityName,
       action:
         live && addressText ? (
-          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressText)}`} target="_blank" rel="noopener noreferrer nofollow" className="text-sm font-bold text-brand-800 hover:underline">
+          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d.venuePin ? `${d.venuePin.lat},${d.venuePin.lng}` : addressText)}`} target="_blank" rel="noopener noreferrer nofollow" className="text-sm font-bold text-brand-800 hover:underline">
             {v.route}
           </a>
         ) : undefined,
@@ -420,6 +427,14 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             </li>
           ))}
         </ul>
+        {mapView && inPerson && (
+          <StreetMap
+            view={mapView}
+            label={d.venueName ?? messages.map.section}
+            className="aspect-[16/9]"
+            fallback={l.countryCode ? <OutlineMap countryCode={l.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={messages.map.section} /> : null}
+          />
+        )}
 
         {upcoming.length > 1 && (
           <section>

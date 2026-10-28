@@ -4,6 +4,7 @@ import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { placeLabel, placeValue } from '../../../modules/listings/places';
 import { activeCountries, savedPlace } from '../../../modules/listings/queries';
+import { streetMapVersion } from '../../../modules/maps/street-map';
 import { requireSession } from '../../../modules/users/server';
 import { chosenCountry } from '../../country-choice';
 import { SavedPlaceForm } from './form';
@@ -25,6 +26,7 @@ export default async function SavedPlacePage() {
         <SavedPlaceForm
           countries={countries.map((c) => ({ code: c.code, nameFa: c.nameFa }))}
           hasPlace={!!saved}
+          mapVersion={streetMapVersion()}
           initial={{
             countryCode: saved?.place.countryCode ?? chosen?.code ?? countries[0]?.code ?? '',
             place: saved ? placeLabel(saved.place) : '',
