@@ -739,7 +739,6 @@ export const messages = {
       'موافقم که این خدمت همین حالا شروع شود و می‌دانم حق انصراف ۱۴ روزه‌ام با انجام کامل آن (مثلاً اجرای نردبان) از بین می‌رود و برای بخش انجام‌شده پولی برنمی‌گردد.',
     pay: 'ادامه و پرداخت',
     methods: 'پرداخت با کارت، Apple Pay، Google Pay، PayPal یا EPS (اتریش) در صفحه امن Stripe.',
-    cancelled: 'پرداخت انجام نشد. اگر خواستید دوباره امتحان کنید.',
     notLive: 'فقط آگهی‌های فعال را می‌شود ارتقا داد.',
     off: 'پرداخت فعلاً در دسترس نیست.',
     running: 'ارتقاهای فعال این آگهی',
@@ -786,6 +785,13 @@ export const messages = {
       partially_refunded: 'بخشی بازپرداخت شد',
     },
     failedHint: 'پرداخت انجام نشد و پولی از حساب‌تان کم نشده است.',
+    // Wave 1, abandoned payments: back from any payment page unpaid, and a page still open
+    notPaid: 'پرداخت انجام نشد و پولی از حساب‌تان کم نشد.',
+    retry: 'دوباره امتحان کنید',
+    resume: 'ادامهٔ پرداخت',
+    unpaidYet: 'این خرید هنوز پرداخت نشده است. صفحهٔ پرداخت تا یک ساعت پس از باز شدن باز می‌ماند.',
+    closed: 'این صفحهٔ پرداخت بسته شده و پولی از حساب‌تان کم نشده است. اگر خواستید، از صفحهٔ ارتقا دوباره امتحان کنید.',
+    promoteAgain: 'صفحهٔ ارتقا',
     listing: 'آگهی',
     backToListing: 'دیدن آگهی',
     backToMine: 'آگهی‌های من',
@@ -3766,6 +3772,15 @@ export const admin = {
     withChat: 'گفتگو در ۷ روز',
     withChatValue: (pct: number | null, n: number) => (pct === null ? '—' : `${pct.toLocaleString('fa-IR')}٪ از ${n.toLocaleString('fa-IR')}`),
     noCities: 'هنوز آگهی‌ای در شهری نیست.',
+    // Wave 1, abandoned payments: Stripe pages opened vs paid
+    funnel: (period: string) => `صفحه‌های پرداخت، ${period}`,
+    funnelIntro: 'چند صفحهٔ پرداخت Stripe باز شد و چندتایش پرداخت شد. اشتراک‌ها: کسب‌وکارهایی که رفتند و کسب‌وکارهایی که شروع کردند. ایمیل یادآوری نمی‌فرستیم (در آلمان تبلیغ حساب می‌شود).',
+    funnelProduct: 'محصول',
+    funnelOpened: 'باز شد',
+    funnelPaid: 'پرداخت شد',
+    funnelRate: 'نسبت',
+    funnelFounding: 'Pro بنیان‌گذار (۶ ماه رایگان)',
+    funnelEmpty: 'در این دوره صفحهٔ پرداختی باز نشد.',
   },
   // The owner's Telegram alert through n8n (src/modules/admin/alert.ts)
   alert: (s: { newReports: number; newAppeals: number; illegal: number; open: number; oldestMinutes: number | null }) =>

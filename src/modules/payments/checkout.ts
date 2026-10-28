@@ -1,15 +1,19 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, billingCustomers, eventDates, listings, orders, organizationMembers, organizations, productPrices, products, users } from '../../db/schema';
 import { manageableBy } from '../organizations/limits';
 import { legalComplete } from '../organizations/organizations';
 import { activeSubscription } from './plans';
-import type { InvoiceSummary, PaymentGateway } from './gateway';
+import { CHECKOUT_OPEN_MS, type InvoiceSummary, type PaymentGateway } from './gateway';
 
 // Starting a purchase (docs/schema.md, section 12), as classifieds_app. The app may insert a
 // pending order and the billing customer and store the Checkout Session's id, nothing more: the
 // order is marked paid, and anything is granted, only by the worker from the provider's webhook.
 // Coming back to the success page grants nothing.
+//
+// The same purchase started again while its Checkout page is still open (a second tab, the back
+// button, «ادامهٔ پرداخت») goes back to that page instead of making a second one, so it can't be
+// paid twice (wave 1, abandoned payments).
 
 export type CheckoutRefusal =
   | 'payments_off'
@@ -122,6 +126,9 @@ export async function startListingCheckout(
   const found = await activePrice(db, opts.productCode, currency);
   if (!found) return { ok: false, reason: 'not_allowed' };
 
+  const open = await openOrderCheckout(db, gateway, { userId: user.id, listingId: listing.id, productId: found.product.id });
+  if (open) return { ok: true, url: open.url, orderId: open.orderId };
+
   const customerId = await customerFor(db, gateway, { userId: user.id }, { email: user.email, name: user.name });
   // The app may insert only a pending order's columns (migration 0014), hence plain SQL
   const [order] = await db.execute<{ id: string }>(sql`
@@ -145,11 +152,61 @@ export async function startListingCheckout(
     priceId: found.price.providerPriceId,
     clientReferenceId: order!.id,
     metadata: { order_id: order!.id, listing_id: listing.id, product: opts.productCode },
-    successUrl: `${opts.appUrl}/my/orders/${order!.id}`,
-    cancelUrl: `${opts.appUrl}/my/listings/${listing.id}/promote?cancelled=1`,
+    successUrl: `${opts.appUrl}/my/orders/${order!.id}?done=1`,
+    cancelUrl: `${opts.appUrl}/my/listings/${listing.id}/promote?cancelled=1&product=${opts.productCode}`,
   });
   await db.update(orders).set({ providerCheckoutId: session.id }).where(eq(orders.id, order!.id));
   return { ok: true, url: session.url, orderId: order!.id };
+}
+
+/** The buyer's pending order for this product and listing whose Checkout page is still open */
+async function openOrderCheckout(db: Queryable, gateway: PaymentGateway, o: { userId: string; listingId: string; productId: string }) {
+  const [order] = await db
+    .select({ id: orders.id, checkoutId: orders.providerCheckoutId })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.buyerUserId, o.userId),
+        eq(orders.listingId, o.listingId),
+        eq(orders.productId, o.productId),
+        eq(orders.status, 'pending'),
+        isNotNull(orders.providerCheckoutId),
+        gt(orders.createdAt, new Date(Date.now() - CHECKOUT_OPEN_MS)),
+      ),
+    )
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  if (!order?.checkoutId) return null;
+  const state = await gateway.getCheckout(order.checkoutId);
+  return state.status === 'open' && state.url ? { orderId: order.id, url: state.url } : null;
+}
+
+/**
+ * The business's open plan Checkout page for the same choice, if there is one. Any other open plan
+ * page is closed first: two pages paid in two tabs would make two subscriptions.
+ */
+export async function openPlanCheckout(gateway: PaymentGateway, customerId: string, metadata: Record<string, string>): Promise<string | null> {
+  const same = (m: Record<string, string>) => m.plan === metadata.plan && m.interval === metadata.interval && (m.founding ?? '') === (metadata.founding ?? '');
+  let url: string | null = null;
+  for (const c of await gateway.openSubscriptionCheckouts(customerId)) {
+    if (!url && c.url && same(c.metadata)) url = c.url;
+    else await gateway.expireCheckout(c.id);
+  }
+  return url;
+}
+
+/** «ادامهٔ پرداخت»: back to the buyer's own pending order's Checkout page while it is open */
+export async function resumeOrderCheckout(db: Queryable, gateway: PaymentGateway | null, opts: { userId: string; orderId: string } & Where): Promise<CheckoutResult> {
+  if (!gateway) return { ok: false, reason: 'payments_off' };
+  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
+  const [order] = await db
+    .select({ status: orders.status, checkoutId: orders.providerCheckoutId })
+    .from(orders)
+    .where(and(eq(orders.id, opts.orderId), eq(orders.buyerUserId, opts.userId)));
+  if (!order) return { ok: false, reason: 'not_found' };
+  if (order.status !== 'pending' || !order.checkoutId) return { ok: false, reason: 'not_allowed' };
+  const state = await gateway.getCheckout(order.checkoutId);
+  return state.status === 'open' && state.url ? { ok: true, url: state.url, orderId: opts.orderId } : { ok: false, reason: 'not_allowed' };
 }
 
 /** Whether the user is the business's owner (billing is the owner's) */
@@ -211,14 +268,17 @@ export async function startPlanCheckout(
   if (!(await confirmBusinessBuyer(db, user.id, org.id, opts, opts.plan))) return { ok: false, reason: 'business_required' };
 
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? user.email, name: org.legalName ?? org.name });
+  const metadata = { organization_id: org.id, plan: opts.plan, interval: opts.interval };
+  const open = await openPlanCheckout(gateway, customerId, metadata);
+  if (open) return { ok: true, url: open };
   const session = await gateway.createCheckout({
     mode: 'subscription',
     customerId,
     priceId: found.price.providerPriceId,
     clientReferenceId: org.id,
-    metadata: { organization_id: org.id, plan: opts.plan },
+    metadata,
     successUrl: `${opts.appUrl}/b/${org.slug}/billing?done=1`,
-    cancelUrl: `${opts.appUrl}/b/${org.slug}/billing`,
+    cancelUrl: `${opts.appUrl}/b/${org.slug}/billing?cancelled=1`,
     // The 6-month launch code is retired: founding businesses get a trial without a card instead
     // (./founding.ts), which never charges by itself
     promotionCodes: false,

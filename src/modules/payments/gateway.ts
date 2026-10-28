@@ -15,6 +15,13 @@ export const STRIPE_API_VERSION = '2026-09-30.endive' as const;
  */
 export const INVOICE_FOOTER = 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.';
 
+/**
+ * How long a Checkout page stays open without being paid (wave 1, abandoned payments). Stripe
+ * allows 30 minutes to 24 hours and defaults to 24; an hour is enough to pay and short enough
+ * that an open page isn't paid by surprise a day later. Then Stripe sends checkout.session.expired.
+ */
+export const CHECKOUT_OPEN_MS = 60 * 60_000;
+
 /** One-time products: cards (with Apple Pay and Google Pay in Checkout), PayPal, EPS (Austria) */
 export const ONE_TIME_METHODS = ['card', 'paypal', 'eps'] as const;
 /** Subscriptions: cards (with the wallets), PayPal, SEPA Direct Debit. EPS can't recur. */
@@ -41,7 +48,12 @@ export type CheckoutInput = {
    * and the subscription is cancelled at the end unless the business has added a payment method.
    */
   trialEnd?: Date;
+  /** When the page closes unpaid; an hour from now unless the test says otherwise */
+  expiresAt?: Date;
 };
+
+/** A Checkout page as Stripe has it now: still open (and its address), paid, or closed */
+export type CheckoutState = { id: string; status: 'open' | 'complete' | 'expired' | null; url: string | null; metadata: Record<string, string> };
 
 export type CustomerInput = { email: string; name: string; metadata: Record<string, string> };
 
@@ -52,6 +64,11 @@ export interface PaymentGateway {
   readonly provider: 'stripe';
   createCustomer(input: CustomerInput): Promise<string>;
   createCheckout(input: CheckoutInput): Promise<{ id: string; url: string }>;
+  getCheckout(id: string): Promise<CheckoutState>;
+  /** The customer's subscription Checkout pages that are still open */
+  openSubscriptionCheckouts(customerId: string): Promise<CheckoutState[]>;
+  /** Closes an open Checkout page, so it can't be paid any more */
+  expireCheckout(id: string): Promise<void>;
   createPortal(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
   /** Checks the signature and parses the event; null when either fails */
   verifyEvent(rawBody: string, signature: string | null): ProviderEvent | null;
@@ -83,6 +100,7 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
     locale: 'auto',
     // The name and address typed in Checkout go onto the customer (and so the invoice)
     customer_update: { name: 'auto', address: 'auto' },
+    expires_at: Math.floor((input.expiresAt?.getTime() ?? Date.now() + CHECKOUT_OPEN_MS) / 1000),
   } satisfies Stripe.Checkout.SessionCreateParams;
   // No automatic tax and no tax rates: small-business VAT exemption (§19 UStG)
   if (input.mode === 'payment') {
@@ -119,6 +137,12 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
   };
 }
 
+function checkoutState(s: Stripe.Checkout.Session): CheckoutState {
+  const known = ['open', 'complete', 'expired'] as const;
+  const status = known.find((k) => k === s.status) ?? null;
+  return { id: s.id, status, url: s.url, metadata: s.metadata ?? {} };
+}
+
 export class StripeGateway implements PaymentGateway {
   readonly provider = 'stripe' as const;
   private readonly stripe: Stripe;
@@ -146,6 +170,24 @@ export class StripeGateway implements PaymentGateway {
     const session = await this.stripe.checkout.sessions.create(checkoutParams(input));
     if (!session.url) throw new Error('Stripe returned a Checkout Session without a URL');
     return { id: session.id, url: session.url };
+  }
+
+  async getCheckout(id: string): Promise<CheckoutState> {
+    return checkoutState(await this.stripe.checkout.sessions.retrieve(id));
+  }
+
+  async openSubscriptionCheckouts(customerId: string): Promise<CheckoutState[]> {
+    const list = await this.stripe.checkout.sessions.list({ customer: customerId, status: 'open', limit: 20 });
+    return list.data.filter((s) => s.mode === 'subscription').map(checkoutState);
+  }
+
+  async expireCheckout(id: string): Promise<void> {
+    try {
+      await this.stripe.checkout.sessions.expire(id);
+    } catch (e) {
+      // Paid or closed in the meantime: nothing left to close
+      if (!(e instanceof Stripe.errors.StripeInvalidRequestError)) throw e;
+    }
   }
 
   async createPortal(input: { customerId: string; returnUrl: string }): Promise<{ url: string }> {

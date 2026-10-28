@@ -68,7 +68,17 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
             {listing.title}
           </Link>
         </p>
-        {query.cancelled && <Alert tone="info">{t.cancelled}</Alert>}
+        {/* Back from Stripe's page unpaid (wave 1); the same choice is ticked below */}
+        {query.cancelled && (
+          <Alert tone="info">
+            {messages.orders.notPaid}{' '}
+            {live && payments && (
+              <a href="#pay" className="font-bold text-brand-800 underline">
+                {messages.orders.retry}
+              </a>
+            )}
+          </Alert>
+        )}
         {query.requested && <Alert tone="success">{t.plan.requested}</Alert>}
         {query.plan === 'none_left' && <Alert tone="error">{t.plan.none_left}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
@@ -117,7 +127,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         )}
 
         {live && payments && offers.length > 0 && (
-          <form action={startPromotionAction} className="space-y-4">
+          <form id="pay" action={startPromotionAction} className="scroll-mt-20 space-y-4">
             <input type="hidden" name="listingId" value={listing.id} />
             <fieldset className="space-y-3">
               <legend className="mb-2 text-sm text-neutral-700">{t.intro}</legend>

@@ -53,15 +53,24 @@ type Product = typeof products.$inferSelect;
 /** Something the event needs isn't there yet (events can arrive out of order): retried later */
 export class NotReady extends Error {}
 
-export type ApplyOutcome = 'applied' | 'duplicate';
+/**
+ * The event is about something this database never made: a checkout or subscription started
+ * elsewhere on the same Stripe account (a local run on the shared test account, Oct 22, 2026).
+ * In test mode it is skipped; in live mode it stays an error for the system page.
+ */
+export class NotOurs extends Error {}
+
+export type ApplyOutcome = 'applied' | 'duplicate' | 'skipped';
 
 /** Applies one stored webhook. Throws on failure, after recording the error on the row. */
 export async function applyWebhookEvent(db: Db, gateway: PaymentGateway, webhookEventId: string, now = new Date()): Promise<ApplyOutcome> {
   const [row] = await db.select().from(webhookEvents).where(eq(webhookEvents.id, webhookEventId));
   if (!row) throw new Error(`webhook event ${webhookEventId} not found`);
   if (row.processedAt) return 'duplicate';
+  let live = true;
   try {
     const event = eventSchema.parse(row.payload);
+    live = event.livemode;
     const fetched = await prefetch(gateway, event.type, event.data.object);
     return await db.transaction(async (tx) => {
       const [locked] = await tx
@@ -79,6 +88,13 @@ export async function applyWebhookEvent(db: Db, gateway: PaymentGateway, webhook
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    if (e instanceof NotOurs && !live) {
+      await db
+        .update(webhookEvents)
+        .set({ processedAt: now, attempts: sql`least(${webhookEvents.attempts} + 1, 32767)`, lastError: `skipped (test mode): ${message}`.slice(0, 1000) })
+        .where(and(eq(webhookEvents.id, webhookEventId), isNull(webhookEvents.processedAt)));
+      return 'skipped';
+    }
     await db
       .update(webhookEvents)
       .set({ attempts: sql`least(${webhookEvents.attempts} + 1, 32767)`, lastError: message.slice(0, 1000) })
@@ -147,12 +163,14 @@ async function dispatch(tx: Queryable, type: string, object: Record<string, unkn
 // One-time products
 // ---------------------------------------------------------------------------
 
-async function lockOrder(tx: Queryable, session: CheckoutSession): Promise<Order> {
+/** The checkout's order, locked; null when this database never made one for it */
+async function lockOrder(tx: Queryable, session: CheckoutSession): Promise<Order | null> {
   const id = session.client_reference_id;
-  const [order] = id && /^[0-9a-f-]{36}$/.test(id)
-    ? await tx.select().from(orders).where(and(eq(orders.id, id), eq(orders.providerCheckoutId, session.id))).for('update')
-    : [];
-  if (!order) throw new NotReady(`no order for checkout ${session.id}`);
+  if (!id || !/^[0-9a-f-]{36}$/.test(id)) return null;
+  const [order] = await tx.select().from(orders).where(eq(orders.id, id)).for('update');
+  if (!order) return null;
+  // The order is made before its Checkout page, and the page's id stored right after
+  if (order.providerCheckoutId !== session.id) throw new NotReady(`order ${order.id} isn't linked to checkout ${session.id} yet`);
   return order;
 }
 
@@ -166,6 +184,7 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
   // A delayed payment method completes the session unpaid; async_payment_succeeded follows
   if (session.payment_status !== 'paid') return;
   const order = await lockOrder(tx, session);
+  if (!order) throw new NotOurs(`no order for checkout ${session.id}`);
   if (order.status !== 'pending' && order.status !== 'expired' && order.status !== 'failed') return;
 
   const subtotal = session.amount_subtotal ?? 0;
@@ -213,8 +232,9 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
 
 async function checkoutClosed(tx: Queryable, session: CheckoutSession, status: 'failed' | 'expired'): Promise<void> {
   if (session.mode !== 'payment') return;
+  // A page that closed unpaid without an order of ours needs nothing (wave 1)
   const order = await lockOrder(tx, session);
-  if (order.status === 'pending') await tx.update(orders).set({ status }).where(eq(orders.id, order.id));
+  if (order?.status === 'pending') await tx.update(orders).set({ status }).where(eq(orders.id, order.id));
 }
 
 /** The entitlements a paid one-time order grants (docs/schema.md, section 12) */
@@ -318,7 +338,8 @@ async function subscriberOf(tx: Queryable, sub: Subscription): Promise<string> {
     .from(billingCustomers)
     .where(and(eq(billingCustomers.provider, 'stripe'), eq(billingCustomers.providerCustomerId, sub.customer)));
   if (customer?.organizationId) return customer.organizationId;
-  throw new Error(`subscription ${sub.id}: no business found`);
+  // Plan checkouts always carry the business's id, and the business is never deleted
+  throw new NotOurs(`subscription ${sub.id}: no business found`);
 }
 
 /** A paid invoice grants its period of Pro (a €0 invoice from the launch coupon too) */

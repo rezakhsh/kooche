@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { organizations, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
-import { activePrice, confirmBusinessBuyer, customerFor, isOwner, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
+import { activePrice, confirmBusinessBuyer, customerFor, isOwner, openPlanCheckout, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
 import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
@@ -121,14 +121,17 @@ export async function startFoundingCheckout(
   if (!(await confirmBusinessBuyer(db, opts.userId, org.id, opts, 'pro-founding'))) return { ok: false, reason: 'business_required' };
   const [owner] = await db.execute<{ email: string }>(sql`SELECT email FROM users WHERE id = ${opts.userId}`);
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? owner!.email, name: org.legalName ?? org.name });
+  const metadata = { organization_id: org.id, plan: 'pro', interval: 'month', founding: '1' };
+  const open = await openPlanCheckout(gateway, customerId, metadata);
+  if (open) return { ok: true, url: open };
   const session = await gateway.createCheckout({
     mode: 'subscription',
     customerId,
     priceId: price.price.providerPriceId,
     clientReferenceId: org.id,
-    metadata: { organization_id: org.id, plan: 'pro', founding: '1' },
+    metadata,
     successUrl: `${opts.appUrl}/b/${org.slug}/billing?done=1`,
-    cancelUrl: `${opts.appUrl}/b/${org.slug}/billing`,
+    cancelUrl: `${opts.appUrl}/b/${org.slug}/billing?cancelled=1`,
     promotionCodes: false,
     trialEnd: foundingTrialEnd(opts.now ?? new Date()),
   });

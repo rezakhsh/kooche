@@ -7,6 +7,7 @@ import { admin } from '../../messages/fa';
 import { can } from '../../modules/admin/access';
 import { change } from '../../modules/admin/attention';
 import { cityMetrics, METRICS, overview, type CityMetrics } from '../../modules/admin/overview';
+import { checkoutFunnel } from '../../modules/admin/payments';
 import { queueAge } from '../../modules/admin/queue';
 import { adminHref, requireStaff } from '../../modules/admin/server';
 import { businessesAdmin } from '../../modules/admin/users';
@@ -47,11 +48,12 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const days = sp.days === '30' ? 30 : sp.days === '90' ? 90 : 7;
   const db = appDb();
   const tz = webEnv().APP_TIME_ZONE;
-  const [[{ totals, series }, cities], queue, system, waiting] = await Promise.all([
+  const [[{ totals, series }, cities], queue, system, waiting, funnel] = await Promise.all([
     data(days),
     can(staff.role, 'queue.view') ? queueAge(db) : null,
     can(staff.role, 'system.view') ? systemState() : null,
     can(staff.role, 'businesses.view') ? businessesAdmin(db, { waiting: true, q: '' }) : [],
+    can(staff.role, 'payments.view') ? checkoutFunnel(db, days) : null,
   ]);
   const t = admin.overview;
   const period = t.periods[String(days)]!;
@@ -149,6 +151,38 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           <LineChart key={m} title={`${t.metrics[m]}، ${period}`} points={series[m]} money={m === 'revenue'} />
         ))}
       </div>
+
+      {funnel && (
+        <Panel title={t.funnel(period)} className="mb-5">
+          <p className="mb-3 text-xs text-neutral-600">{t.funnelIntro}</p>
+          {funnel.length === 0 ? (
+            <p className="text-sm text-neutral-600">{t.funnelEmpty}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[28rem] text-sm">
+                <thead className="text-xs text-neutral-600">
+                  <tr>
+                    <th className="py-2 text-start font-medium">{t.funnelProduct}</th>
+                    <th className="py-2 text-start font-medium">{t.funnelOpened}</th>
+                    <th className="py-2 text-start font-medium">{t.funnelPaid}</th>
+                    <th className="py-2 text-start font-medium">{t.funnelRate}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {funnel.map((f) => (
+                    <tr key={f.code}>
+                      <td className="py-2 pe-3 font-medium">{f.code === 'pro-founding' ? t.funnelFounding : (f.name ?? f.code)}</td>
+                      <td className="py-2 pe-3 tabular-nums">{f.opened.toLocaleString('fa-IR')}</td>
+                      <td className="py-2 pe-3 tabular-nums">{f.paid.toLocaleString('fa-IR')}</td>
+                      <td className="py-2 tabular-nums">{f.opened ? `${Math.round((f.paid / f.opened) * 100).toLocaleString('fa-IR')}٪` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      )}
 
       <Panel title={t.cities}>
         <p className="mb-3 text-xs text-neutral-600">{t.citiesIntro}</p>

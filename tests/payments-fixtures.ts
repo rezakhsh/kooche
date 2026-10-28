@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { priceKey, syncCatalog } from '../src/modules/payments/catalog-sync';
-import type { CheckoutInput, CustomerInput, InvoiceSummary, PaymentGateway, RefundInput } from '../src/modules/payments/gateway';
+import type { CheckoutInput, CheckoutState, CustomerInput, InvoiceSummary, PaymentGateway, RefundInput } from '../src/modules/payments/gateway';
 import { eventSchema, type ProviderEvent } from '../src/modules/payments/stripe-objects';
 import { products } from '../seed/products';
 import { db, makeListing, publicToken, type Tx } from './db';
@@ -49,6 +49,21 @@ export class FakeGateway implements PaymentGateway {
     this.checkouts.push({ ...input, id: sessionId });
     return { id: sessionId, url: `https://checkout.stripe.com/c/pay/${sessionId}` };
   }
+  /** Checkout pages that were paid or closed (all others are open) */
+  closed = new Set<string>();
+  async getCheckout(sessionId: string): Promise<CheckoutState> {
+    const c = this.checkouts.find((x) => x.id === sessionId);
+    if (!c) throw new Error(`no checkout ${sessionId}`);
+    const open = !this.closed.has(sessionId);
+    return { id: c.id, status: open ? 'open' : 'expired', url: open ? `https://checkout.stripe.com/c/pay/${c.id}` : null, metadata: c.metadata };
+  }
+  async openSubscriptionCheckouts(customerId: string) {
+    const open = this.checkouts.filter((c) => c.mode === 'subscription' && c.customerId === customerId && !this.closed.has(c.id));
+    return Promise.all(open.map((c) => this.getCheckout(c.id)));
+  }
+  async expireCheckout(sessionId: string) {
+    this.closed.add(sessionId);
+  }
   async createPortal(input: { customerId: string; returnUrl: string }) {
     return { url: `https://billing.stripe.com/p/session/${input.customerId}` };
   }
@@ -82,8 +97,8 @@ export class FakeGateway implements PaymentGateway {
   }
 }
 
-export function event(type: string, object: Record<string, unknown>, created = new Date()): ProviderEvent {
-  return { id: id('evt'), object: 'event', type, created: unix(created), livemode: false, data: { object } };
+export function event(type: string, object: Record<string, unknown>, created = new Date(), livemode = false): ProviderEvent {
+  return { id: id('evt'), object: 'event', type, created: unix(created), livemode, data: { object } };
 }
 
 /** A completed Checkout Session for an order (paid unless said otherwise) */

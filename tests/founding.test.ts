@@ -128,7 +128,12 @@ describe('the free months (business owner)', () => {
       metadata: { organization_id: b.org.id, plan: 'pro', founding: '1' },
       promotionCodes: false,
       trialEnd: new Date('2027-05-20T09:00:00Z'),
+      cancelUrl: `${APP}/b/${b.org.slug}/billing?cancelled=1`,
     });
+    // Pressed again while Stripe's page is open (wave 1): the same page, not a second trial
+    const count = gateway.checkouts.length;
+    expect(await startFoundingCheckout(db, gateway, { userId: b.ownerId, organizationId: b.org.id, appUrl: APP, now, business: true })).toMatchObject({ ok: true });
+    expect(gateway.checkouts).toHaveLength(count);
   });
 
   it('the €0 trial invoice grants six months; ending without a card takes Pro away; it can’t start again', async () => {

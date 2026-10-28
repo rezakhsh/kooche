@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Alert, Card, LinkButton, PageShell, Pill } from '../../../../components/ui';
+import { Alert, Button, Card, LinkButton, PageShell, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatDateTime } from '../../../../lib/format';
@@ -8,18 +8,20 @@ import { messages } from '../../../../messages/fa';
 import { formatPrice } from '../../../../modules/listings/price';
 import { listingPath } from '../../../../modules/listings/slug';
 import { invoiceUrl } from '../../../../modules/payments/notices';
-import { ownOrder } from '../../../../modules/payments/orders';
+import { checkoutOpen, ownOrder } from '../../../../modules/payments/orders';
 import { canWithdraw, WITHDRAWAL_DAYS, withdrawalOf } from '../../../../modules/payments/withdrawals';
 import { paymentGateway } from '../../../../modules/payments/server';
 import { requireSession } from '../../../../modules/users/server';
+import { resumePaymentAction } from '../actions';
 
 // Where Stripe's Checkout sends the buyer back. It only shows the order: the worker marks it paid
 // from Stripe's webhook, usually within seconds, and until then the page reloads itself every
-// three seconds (a meta refresh, so it works without JavaScript).
+// three seconds (a meta refresh, so it works without JavaScript). Opened from «خریدهای من» before
+// paying (no `done`), it offers «ادامهٔ پرداخت» while Stripe's page is still open (wave 1).
 
 export const metadata = { title: messages.orders.order, robots: { index: false } };
 
-export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ withdrawn?: string; error?: string }> }) {
+export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ withdrawn?: string; error?: string; done?: string; closed?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
   const { user } = await requireSession(`/my/orders/${id}`);
@@ -27,7 +29,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   if (!order) notFound();
   const t = messages.orders;
   const zone = webEnv().APP_TIME_ZONE;
-  const waiting = order.status === 'pending';
+  const open = checkoutOpen(order) && !query.closed;
+  // Back from Stripe's page after paying: the webhook usually follows within seconds
+  const waiting = order.status === 'pending' && !!query.done;
+  const unpaid = order.status === 'pending' && !waiting;
   const paidLike = order.status === 'paid' || order.status === 'partially_refunded';
   // The invoice's page at Stripe (view and download), read when the order is paid
   const invoice = paidLike ? await invoiceUrl(paymentGateway(), order.providerInvoiceId) : null;
@@ -52,6 +57,16 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           </Alert>
         )}
         {(order.status === 'failed' || order.status === 'expired') && <Alert tone="error">{t.failedHint}</Alert>}
+        {unpaid && (
+          <Alert tone="info">
+            {open ? t.unpaidYet : t.closed}{' '}
+            {!open && order.listingId && (
+              <Link href={`/my/listings/${order.listingId}/promote`} className="font-bold text-brand-800 underline">
+                {t.promoteAgain}
+              </Link>
+            )}
+          </Alert>
+        )}
         {query.withdrawn && <Alert tone="success">{w.done}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {withdrawal && (
@@ -77,6 +92,12 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
         </Card>
         <div className="flex flex-wrap gap-2">
+          {unpaid && open && (
+            <form action={resumePaymentAction}>
+              <input type="hidden" name="orderId" value={order.id} />
+              <Button type="submit">{t.resume}</Button>
+            </form>
+          )}
           {order.listingTitle && (
             <LinkButton href={listingPath(order.listingTitle, order.listingToken!)} variant="secondary">
               {t.backToListing}

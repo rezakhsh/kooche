@@ -5,11 +5,13 @@ import Stripe from 'stripe';
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { parseWebEnv } from '../src/lib/env';
-import { applyWebhookEvent, NotReady, PRO_GRACE_MS } from '../src/modules/payments/apply';
+import { applyWebhookEvent, NotOurs, NotReady, PRO_GRACE_MS } from '../src/modules/payments/apply';
 import { allowancesLeft, grantAllowance, requestAllowance } from '../src/modules/payments/allowances';
 import { applyDueBumps } from '../src/modules/payments/bumps';
-import { openBillingPortal, startListingCheckout, startPlanCheckout } from '../src/modules/payments/checkout';
-import { checkoutParams, INVOICE_FOOTER, StripeGateway } from '../src/modules/payments/gateway';
+import { openBillingPortal, resumeOrderCheckout, startListingCheckout, startPlanCheckout } from '../src/modules/payments/checkout';
+import { checkoutFunnel } from '../src/modules/admin/payments';
+import { checkoutOpen, ownOrders } from '../src/modules/payments/orders';
+import { CHECKOUT_OPEN_MS, checkoutParams, INVOICE_FOOTER, StripeGateway } from '../src/modules/payments/gateway';
 import { businessPlan, featuredListingIds } from '../src/modules/payments/plans';
 import { receiveWebhook } from '../src/modules/payments/webhook';
 import { contentSecurityPolicy } from '../src/proxy';
@@ -66,7 +68,7 @@ describe('starting a checkout (app role)', () => {
     expect(order).toMatchObject({ status: 'pending', buyerUserId: seller.id, listingId: listing.id, currency: 'EUR', totalMinor: 199, providerCheckoutId: checkoutId, paidAt: null });
     expect(gateway.customers).toHaveLength(1);
     const checkout = gateway.checkouts[0]!;
-    expect(checkout).toMatchObject({ mode: 'payment', priceId: stripePriceId('bump-1'), clientReferenceId: order.id, successUrl: `${APP_URL}/my/orders/${order.id}` });
+    expect(checkout).toMatchObject({ mode: 'payment', priceId: stripePriceId('bump-1'), clientReferenceId: order.id, successUrl: `${APP_URL}/my/orders/${order.id}?done=1` });
     // Coming back to the success page grants nothing: only the worker does, from the webhook
     expect(await entitlementsOf({ orderId: order.id })).toEqual([]);
     const [waiver] = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.targetId, order.id), eq(schema.auditLog.action, 'order.withdrawal_waived')));
@@ -130,6 +132,109 @@ describe('starting a checkout (app role)', () => {
     gateway.subscriptions.set(sub.id, sub);
     await applyWebhookEvent(workerDb, gateway, await storeEvent(event('customer.subscription.created', sub)));
     expect(await start(ownerId)).toEqual({ ok: false, reason: 'already_subscribed' });
+  });
+});
+
+describe('abandoned payments (wave 1)', () => {
+  it('Stripe’s page closes after an hour, and coming back unpaid lands on «پرداخت انجام نشد»', async () => {
+    const base = { customerId: 'cus_1', priceId: 'price_1', clientReferenceId: 'x', metadata: {}, successUrl: 's', cancelUrl: 'c' };
+    const before = Math.floor(Date.now() / 1000);
+    const { expires_at } = checkoutParams({ ...base, mode: 'payment' });
+    expect(expires_at! - before).toBeGreaterThanOrEqual(CHECKOUT_OPEN_MS / 1000);
+    expect(expires_at! - before).toBeLessThanOrEqual(CHECKOUT_OPEN_MS / 1000 + 2);
+    // Stripe allows 30 minutes to 24 hours
+    expect(CHECKOUT_OPEN_MS).toBeGreaterThanOrEqual(30 * 60_000);
+    expect(checkoutParams({ ...base, mode: 'subscription', expiresAt: new Date(2_000_000_000_000) }).expires_at).toBe(2_000_000_000);
+    const { gateway, listing } = await buy('bump-3');
+    expect(gateway.checkouts[0]!.cancelUrl).toBe(`${APP_URL}/my/listings/${listing.id}/promote?cancelled=1&product=bump-3`);
+  });
+
+  it('the same purchase again while its page is open goes back to that page, not a second order', async () => {
+    const { gateway, seller, listing, order } = await buy('bump-1');
+    const again = () => startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP_URL });
+    expect(await again()).toEqual({ ok: true, url: `https://checkout.stripe.com/c/pay/${gateway.checkouts[0]!.id}`, orderId: order.id });
+    expect(gateway.checkouts).toHaveLength(1);
+    // Another product is another purchase
+    expect((await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'featured-7d', waiver: true, appUrl: APP_URL })).ok).toBe(true);
+    expect(gateway.checkouts).toHaveLength(2);
+    // Once Stripe has closed the page, starting again makes a new one
+    gateway.closed.add(gateway.checkouts[0]!.id);
+    const third = await again();
+    expect(third.ok && third.orderId).not.toBe(order.id);
+    expect(gateway.checkouts).toHaveLength(3);
+  });
+
+  it('«خریدهای من» offers «ادامهٔ پرداخت» while the page is open, only to the buyer', async () => {
+    const { gateway, seller, order } = await buy('bump-1');
+    const mine = await ownOrders(appDb, seller.id);
+    expect(mine.map((o) => o.id)).toContain(order.id);
+    expect(checkoutOpen(mine.find((o) => o.id === order.id)!)).toBe(true);
+    expect(checkoutOpen({ status: 'pending', createdAt: new Date(Date.now() - CHECKOUT_OPEN_MS - 1000) })).toBe(false);
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id })).toMatchObject({ ok: true, url: `https://checkout.stripe.com/c/pay/${gateway.checkouts[0]!.id}` });
+    const stranger = await user();
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: stranger.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_found' });
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id, fromIran: true })).toEqual({ ok: false, reason: 'from_iran' });
+    gateway.closed.add(gateway.checkouts[0]!.id);
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_allowed' });
+
+    // Then the order quietly becomes expired and leaves the list
+    await applyWebhookEvent(workerDb, gateway, await storeEvent(event('checkout.session.expired', paidSession(order, gateway.checkouts[0]!.id, { payment_status: 'unpaid', status: 'expired' }))));
+    expect((await orderRow(order.id)).status).toBe('expired');
+    expect((await ownOrders(appDb, seller.id)).map((o) => o.id)).not.toContain(order.id);
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_allowed' });
+  });
+
+  it('a plan started again reuses its open page; another plan closes it first (never two subscriptions)', async () => {
+    const gateway = new FakeGateway();
+    const { org, ownerId } = await business();
+    const start = (plan: 'pro' | 'pro-plus', interval: 'month' | 'year') => startPlanCheckout(appDb, gateway, { userId: ownerId, organizationId: org.id, plan, interval, appUrl: APP_URL, business: true });
+    const first = await start('pro', 'month');
+    expect(await start('pro', 'month')).toEqual(first);
+    expect(gateway.checkouts).toHaveLength(1);
+    expect(gateway.checkouts[0]).toMatchObject({ metadata: { plan: 'pro', interval: 'month' }, cancelUrl: `${APP_URL}/b/${org.slug}/billing?cancelled=1` });
+    await start('pro', 'year');
+    expect(gateway.checkouts).toHaveLength(2);
+    expect(gateway.closed).toEqual(new Set([gateway.checkouts[0]!.id]));
+    expect((await gateway.openSubscriptionCheckouts(gateway.checkouts[1]!.customerId)).map((c) => c.id)).toEqual([gateway.checkouts[1]!.id]);
+  });
+
+  it('a closed page without an order needs nothing; test-mode events about strangers are skipped, live ones stay errors', async () => {
+    const stranger = { id: '01a16a85-0079-7455-8692-1af16d594cdd', totalMinor: 199 };
+    const expired = await storeEvent(event('checkout.session.expired', paidSession(stranger, 'cs_test_elsewhere1', { payment_status: 'unpaid', status: 'expired' })));
+    expect(await applyWebhookEvent(workerDb, new FakeGateway(), expired)).toBe('applied');
+
+    const paidTest = await storeEvent(event('checkout.session.completed', paidSession(stranger, 'cs_test_elsewhere2')));
+    expect(await applyWebhookEvent(workerDb, new FakeGateway(), paidTest)).toBe('skipped');
+    const [row] = await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, paidTest));
+    expect(row!.processedAt).not.toBeNull();
+    expect(row!.lastError).toMatch(/^skipped \(test mode\): no order/);
+
+    const paidLive = await storeEvent(event('checkout.session.completed', paidSession(stranger, 'cs_live_elsewhere3'), new Date(), true));
+    await expect(applyWebhookEvent(workerDb, new FakeGateway(), paidLive)).rejects.toBeInstanceOf(NotOurs);
+    const [live] = await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, paidLive));
+    expect(live).toMatchObject({ processedAt: null, attempts: 1 });
+
+    // A subscription made on the same Stripe account by someone else's run
+    const gateway = new FakeGateway();
+    const sub = stripeSubscription({ organizationId: '01a165ae-840e-77ac-8abe-e9609a78958d', priceId: stripePriceId('pro', 'month'), start: new Date(), end: new Date(Date.now() + 30 * DAY), customer: 'cus_test_elsewhere' });
+    gateway.subscriptions.set(sub.id, sub);
+    expect(await applyWebhookEvent(workerDb, gateway, await storeEvent(event('customer.subscription.created', sub)))).toBe('skipped');
+  });
+
+  it('the admin overview counts payment pages opened and paid, per product', async () => {
+    const days = 1;
+    const before = new Map((await checkoutFunnel(appDb, days)).map((r) => [r.code, r]));
+    const a = await buy('featured-7d');
+    await buy('featured-7d');
+    await pay(a.order, a.checkoutId);
+    const { org, ownerId } = await business();
+    const plan = await startPlanCheckout(appDb, new FakeGateway(), { userId: ownerId, organizationId: org.id, plan: 'pro-plus', interval: 'month', appUrl: APP_URL, business: true });
+    expect(plan.ok).toBe(true);
+    const after = new Map((await checkoutFunnel(appDb, days)).map((r) => [r.code, r]));
+    const diff = (code: string) => ({ opened: (after.get(code)?.opened ?? 0) - (before.get(code)?.opened ?? 0), paid: (after.get(code)?.paid ?? 0) - (before.get(code)?.paid ?? 0) });
+    expect(diff('featured-7d')).toEqual({ opened: 2, paid: 1 });
+    expect(diff('pro-plus')).toEqual({ opened: 1, paid: 0 });
+    expect(after.get('featured-7d')!.name).toBeTruthy();
   });
 });
 

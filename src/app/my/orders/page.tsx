@@ -6,9 +6,10 @@ import { webEnv } from '../../../lib/env';
 import { formatDate } from '../../../lib/format';
 import { messages } from '../../../messages/fa';
 import { formatPrice } from '../../../modules/listings/price';
-import { ownOrders } from '../../../modules/payments/orders';
+import { checkoutOpen, ownOrders } from '../../../modules/payments/orders';
 import { canWithdraw } from '../../../modules/payments/withdrawals';
 import { requireSession } from '../../../modules/users/server';
+import { resumePaymentAction } from './actions';
 
 // «خریدهای من»: the user's own purchases of bumps and featured (roadmap step 6). Invoices come by
 // email from Stripe; businesses see theirs in the Customer Portal.
@@ -54,6 +55,15 @@ export default async function OrdersPage() {
               </span>
               <Icon name="chevronEnd" className="size-4 text-neutral-400" />
             </Link>
+            {/* A purchase whose Stripe page is still open (an hour; wave 1, abandoned payments) */}
+            {checkoutOpen(o) && (
+              <form action={resumePaymentAction} className="ms-13 mt-1">
+                <input type="hidden" name="orderId" value={o.id} />
+                <button type="submit" className="py-1 text-xs font-bold text-brand-800 underline">
+                  {t.resume}
+                </button>
+              </form>
+            )}
             {/* The withdrawal button's first step (§ 356a BGB), for 14 days after paying */}
             {canWithdraw(o) && (
               <Link href={`/my/orders/${o.id}/withdraw`} className="ms-13 mt-1 inline-block text-xs font-bold text-red-700 underline">

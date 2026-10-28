@@ -103,7 +103,7 @@ describe('featured events', () => {
 });
 
 describe('my orders', () => {
-  it('shows a buyer only their own orders; unfinished checkouts are left out of the list', async () => {
+  it('shows a buyer only their own orders; unfinished checkouts only while Stripe’s page is open', async () => {
     const gateway = new FakeGateway();
     const { seller, listing } = await sellerWithListing();
     const other = await user();
@@ -112,6 +112,9 @@ describe('my orders', () => {
     expect(await ownOrder(appDb, other.id, orderId)).toBeNull();
     expect(await ownOrder(appDb, seller.id, 'not-a-uuid')).toBeNull();
     expect(await ownOrder(appDb, seller.id, orderId)).toMatchObject({ status: 'pending', productCode: 'bump-1', listingId: listing.id });
+    // An hour for «ادامهٔ پرداخت» (wave 1), then left out
+    expect((await ownOrders(appDb, seller.id)).map((o) => [o.id, o.status])).toEqual([[orderId, 'pending']]);
+    await db.update(schema.orders).set({ createdAt: new Date(Date.now() - 2 * 3_600_000) }).where(eq(schema.orders.id, orderId));
     expect(await ownOrders(appDb, seller.id)).toEqual([]);
     const order = await orderRow(orderId);
     await applyWebhookEvent(workerDb, gateway, await storeEvent(event('checkout.session.completed', paidSession(order, gateway.checkouts[0]!.id))));

@@ -1,12 +1,16 @@
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { listings, orders, products, users } from '../../db/schema';
+import { CHECKOUT_OPEN_MS } from './gateway';
 import { eligibilityColumns } from './withdrawals';
 
 // Purchases as their buyer sees them (/my/orders), and the worker's clean-up of checkouts that
 // were started and never finished.
 
-/** A checkout left open this long without a webhook is closed (Stripe's sessions last 24 hours) */
+/**
+ * A checkout left pending this long is closed. Stripe closes its page after an hour (./gateway.ts)
+ * and says so by webhook; this catches a webhook that never came.
+ */
 const STALE_MS = 2 * 86_400_000;
 
 /** Pending orders older than two days become `expired`. Worker only (the app can't set a status). */
@@ -48,7 +52,12 @@ export async function ownOrder(db: Queryable, userId: string, orderId: string) {
   return row ?? null;
 }
 
-/** The buyer's orders, newest first; checkouts never finished are left out */
+/** A pending order whose Checkout page may still be open: «ادامهٔ پرداخت» (wave 1) */
+export function checkoutOpen(o: { status: string; createdAt: Date }, now = new Date()): boolean {
+  return o.status === 'pending' && now.getTime() - o.createdAt.getTime() < CHECKOUT_OPEN_MS;
+}
+
+/** The buyer's orders, newest first; checkouts never finished are left out once their page has closed */
 export async function ownOrders(db: Queryable, userId: string, limit = 50) {
   return db
     .select({
@@ -65,7 +74,13 @@ export async function ownOrders(db: Queryable, userId: string, limit = 50) {
     .from(orders)
     .innerJoin(products, eq(products.id, orders.productId))
     .leftJoin(listings, eq(listings.id, orders.listingId))
-    .where(and(eq(orders.buyerUserId, userId), sql`(${orders.status} NOT IN ('pending', 'expired') OR ${orders.paidAt} IS NOT NULL)`))
+    .where(
+      and(
+        eq(orders.buyerUserId, userId),
+        sql`(${orders.status} NOT IN ('pending', 'expired') OR ${orders.paidAt} IS NOT NULL
+          OR (${orders.status} = 'pending' AND ${orders.createdAt} > now() - make_interval(secs => ${CHECKOUT_OPEN_MS / 1000})))`,
+      ),
+    )
     .orderBy(desc(orders.createdAt))
     .limit(limit);
 }

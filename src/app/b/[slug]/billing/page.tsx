@@ -19,7 +19,7 @@ import { memberOf } from '../member';
 
 export const metadata = { title: messages.business.billing.title, robots: { index: false } };
 
-export default async function BillingPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ done?: string; error?: string }> }) {
+export default async function BillingPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ done?: string; error?: string; cancelled?: string }> }) {
   const { slug } = await params;
   const query = await searchParams;
   const { org } = await memberOf(slug, `/b/${slug}/billing`, ['owner']);
@@ -49,6 +49,16 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
       <div className="space-y-5">
         {query.done && !plan.code && <meta httpEquiv="refresh" content="4" />}
         {query.done && <Alert tone="success">{t.done}</Alert>}
+        {query.cancelled && !running && (
+          <Alert tone="info">
+            {messages.orders.notPaid}{' '}
+            {payments && (
+              <a href="#plans" className="font-bold text-brand-800 underline">
+                {messages.orders.retry}
+              </a>
+            )}
+          </Alert>
+        )}
         {error && <Alert tone="error">{error}</Alert>}
         {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
         {/* Wave 1: the legal details can wait until here; paying needs them (legal_missing) */}
@@ -62,7 +72,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         )}
 
         {founding === 'offered' && !running && payments && (
-          <form action={foundingAction} className="space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
+          <form id="plans" action={foundingAction} className="scroll-mt-20 space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
             {hidden}
             <h2 className="text-lg font-extrabold">{t.founding.title}</h2>
             <p className="text-sm leading-7 text-neutral-700">{t.founding.body}</p>
@@ -130,7 +140,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         )}
 
         {!running && payments && (
-          <section className="space-y-3">
+          <section id={founding === 'offered' ? undefined : 'plans'} className="scroll-mt-20 space-y-3">
             <h2 className="font-extrabold">{t.choose}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {offers.map((o) => (

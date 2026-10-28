@@ -36,3 +36,33 @@ export function stripeLink(id: string | null, live: boolean): string | null {
   if (id.startsWith('sub_')) return `${base}/subscriptions/${id}`;
   return null;
 }
+
+/** One product's payment pages in a period: how many were opened, and how many of those were paid */
+export type FunnelRow = { code: string; name: string | null; opened: number; paid: number };
+
+/**
+ * Payment pages opened vs paid per product (wave 1, abandoned payments). Bumps and featured: the
+ * orders made in the period (one per page; the same page reopened makes none). Plans: the
+ * businesses that ticked "for my business" and went on to Stripe in the period, and how many of
+ * them then started that plan (founding Pro counts its free trial).
+ */
+export async function checkoutFunnel(db: Queryable, days: number): Promise<FunnelRow[]> {
+  const rows = await db.execute<{ code: string; name: string | null; opened: number; paid: number }>(sql`
+    SELECT p.code, p.name_fa AS name, count(*)::int AS opened, count(*) FILTER (WHERE o.paid_at IS NOT NULL)::int AS paid
+    FROM orders o JOIN products p ON p.id = o.product_id
+    WHERE o.created_at >= now() - make_interval(days => ${days}) AND o.provider_checkout_id IS NOT NULL
+    GROUP BY p.code, p.name_fa
+    UNION ALL
+    SELECT a.data->>'plan' AS code, (SELECT name_fa FROM products WHERE code = a.data->>'plan') AS name,
+      count(DISTINCT a.target_id)::int AS opened,
+      count(DISTINCT a.target_id) FILTER (WHERE EXISTS (
+        SELECT 1 FROM subscriptions s
+        JOIN product_prices pp ON pp.id = s.product_price_id JOIN products sp ON sp.id = pp.product_id
+        WHERE s.organization_id = a.target_id AND s.created_at >= a.created_at
+          AND sp.code = CASE a.data->>'plan' WHEN 'pro-founding' THEN 'pro' ELSE a.data->>'plan' END
+          AND (s.trial_ends_at IS NOT NULL) = (a.data->>'plan' = 'pro-founding')))::int AS paid
+    FROM audit_log a
+    WHERE a.action = 'subscription.business_buyer' AND a.created_at >= now() - make_interval(days => ${days})
+    GROUP BY 1, 2`);
+  return [...rows];
+}
