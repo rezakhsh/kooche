@@ -186,7 +186,7 @@ const anmeldung: AttributeSeed = {
   key: 'anmeldung',
   type: 'boolean',
   labelFa: 'Anmeldung ممکن',
-  helpFa: 'می‌توانید آدرس این خانه را در Bürgeramt ثبت کنید (Wohnungsgeberbestätigung می‌دهید)',
+  helpFa: 'هم‌خانهٔ تازه می‌تواند این آدرس را در Bürgeramt ثبت کند؛ شما یا صاحب‌خانه Wohnungsgeberbestätigung را می‌دهید',
   isFilterable: true,
 };
 
