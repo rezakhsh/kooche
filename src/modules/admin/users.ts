@@ -159,3 +159,17 @@ export function businessesAdmin(db: Queryable, opts: { waiting: boolean; q: stri
     .orderBy(opts.waiting ? organizations.updatedAt : desc(organizations.createdAt))
     .limit(100);
 }
+
+/**
+ * The test accounts for admin › users › «دیدن سایت از نگاه دیگران» (src/modules/users/test-accounts.ts):
+ * the country accounts first, in the order of their country's home city, then personal ones. The
+ * email only with `withContact` (a personal test account is a real person's).
+ */
+export async function testAccountsAdmin(db: Queryable, opts: { withContact: boolean }) {
+  const rows = await db.execute<{ id: string; name: string; email: string; kind: 'country' | 'personal'; phone: string | null; city: string | null; country: string | null }>(sql`
+    SELECT u.id, u.display_name AS name, u.email, u.test_account AS kind, u.phone_e164 AS phone, c.name_fa AS city, c.country_code AS country
+    FROM users u LEFT JOIN locations c ON c.id = u.home_location_id
+    WHERE u.test_account IS NOT NULL AND u.status = 'active'
+    ORDER BY u.test_account, u.created_at, u.id`);
+  return rows.map((r) => ({ ...r, email: opts.withContact || r.kind === 'country' ? r.email : null }));
+}

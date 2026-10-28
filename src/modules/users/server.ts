@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { appDb } from '../../db/drizzle';
 import { webEnv } from '../../lib/env';
+import { viewAsCountry } from '../admin/view-as';
 import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
 import { smtpMailer } from './email';
@@ -50,9 +51,14 @@ export function telegramLogin(): (OidcConfig & { transport: OidcTransport }) | n
 
 export type CurrentSession = NonNullable<Awaited<ReturnType<Auth['api']['getSession']>>>;
 
-/** The signed-in session, or null. Cached per request. */
+/**
+ * The signed-in session, or null. Cached per request. Staff viewing the site as a country see it
+ * without their account (src/modules/admin/view-as.ts; the admin page never carries the header).
+ */
 export const currentSession = cache(async (): Promise<CurrentSession | null> => {
-  return auth().api.getSession({ headers: await headers() });
+  const h = await headers();
+  if (viewAsCountry(h)) return null;
+  return auth().api.getSession({ headers: h });
 });
 
 /**

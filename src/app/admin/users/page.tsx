@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Icon } from '../../../components/icons';
 import { Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
@@ -16,7 +17,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const t = admin.users;
   return (
     <>
-      <AdminTitle title={t.title} />
+      <AdminTitle title={t.title}>
+        <Link href={adminHref('/users/view-as')} prefetch={false} className="flex h-10 items-center gap-2 rounded-xl border border-neutral-300 px-3 text-sm font-bold text-brand-800 hover:bg-brand-50">
+          <Icon name="globe" className="size-4" />
+          {t.viewAs}
+        </Link>
+      </AdminTitle>
       <SearchForm label={t.searchLabel} value={q}>
         <label>
           <span className="mb-1 block text-sm font-medium text-neutral-700">{t.show}</span>

@@ -6,6 +6,7 @@ import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
 import { IranBanner } from '../components/iran';
 import { SiteFooter, SiteHeader } from '../components/site-header';
+import { ViewAsBanner } from '../components/view-as-banner';
 import { Toaster } from '../components/toast';
 import { webEnv } from '../lib/env';
 import { MONITORING_META } from '../lib/monitoring/browser';
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="fa" dir="rtl" className={vazirmatn.variable} data-theme={theme === 'auto' ? undefined : theme}>
       <head>{monitoring && <meta name={MONITORING_META} content={JSON.stringify(monitoring)} />}</head>
       <body className="flex min-h-dvh flex-col bg-white font-sans text-neutral-900 antialiased">
+        <ViewAsBanner />
         <SiteHeader />
         <IranBanner />
         <div className="flex-1">{children}</div>

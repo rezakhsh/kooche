@@ -1676,6 +1676,12 @@ export const messages = {
   // Iran read-only (src/lib/region.ts, wave 0). Never say "sanctions" and never mention VPNs or
   // virtual numbers (owner, round 12): Peydoo has no office in Iran and can't guarantee safety.
   // People in Iran (src/lib/region.ts): everything by account, as everywhere, except paying
+  // Staff viewing the site as a country (src/modules/admin/view-as.ts, mockup final/viewas-banner)
+  viewAs: {
+    banner: (country: string) => `نمای بازدیدکننده از ${country}، بدون حساب`,
+    iran: 'ایران',
+    end: 'پایان',
+  },
   iran: {
     banner: {
       title: 'از ایران هم می‌توانید ببینید و پیام بدهید',
@@ -3664,6 +3670,24 @@ export const admin = {
     show: 'نمایش',
     showAll: 'همه',
     showTest: 'فقط حساب‌های آزمایشی',
+    viewAs: 'دیدن سایت از نگاه دیگران',
+  },
+  // admin › users › «دیدن سایت از نگاه دیگران» (wave 2 part 1, mockup final/admin-viewas)
+  viewAs: {
+    title: 'دیدن سایت از نگاه دیگران',
+    country: '۱. نمایش به‌عنوان یک کشور',
+    countryIntro: 'صفحهٔ اول و هر صفحهٔ دیگر را همان‌طور ببینید که یک بازدیدکننده از آن کشور می‌بیند. بدون حساب، بدون ثبت چیزی.',
+    countryHint: (hours: number) => `فقط در همین مرورگر، تا ${hours.toLocaleString('fa-IR')} ساعت یا تا «پایان». آگهی‌های حساب‌های آزمایشی در این نما دیده نمی‌شوند.`,
+    iran: 'ایران',
+    now: (country: string, until: string) => `الان سایت را از نگاه ${country} می‌بینید (تا ${until}).`,
+    open: 'دیدن سایت',
+    end: 'پایان',
+    accounts: '۲. حساب‌های آزمایشی، یکی برای هر کشور',
+    accountsIntro: 'با برچسب «آزمایشی». آگهی‌هایشان فقط برای کارکنان دیده می‌شود و در هدف شهرها و آمار شمرده نمی‌شوند.',
+    accountsStaging: 'در staging با ایمیل حساب و کد ۱۲۳۴۵۶ وارد شوید.',
+    columns: { country: 'کشور', account: 'حساب', city: 'شهر', kind: 'نوع' },
+    kinds: { country: 'آزمایشی، تأیید کارکنان', personal: 'حساب شخصی شما' } as Record<string, string>,
+    noAccounts: 'هنوز حساب آزمایشی‌ای نیست (scripts/test-accounts.ts).',
   },
   listings: {
     title: 'آگهی‌ها و رویدادها',

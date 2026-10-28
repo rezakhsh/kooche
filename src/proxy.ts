@@ -3,6 +3,7 @@ import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv, type WebEnv } from './lib/env';
 import { isIranRequest } from './lib/region';
 import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath } from './modules/admin/gate';
+import { readViewAs, VIEW_AS_COOKIE, VIEW_AS_HEADER } from './modules/admin/view-as';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
 // request's CSP header and puts it on its own scripts. The other security headers are static and
@@ -100,8 +101,15 @@ export function proxy(request: NextRequest) {
   const env = webEnv();
   const csp = contentSecurityPolicy(nonce, env, process.env.NODE_ENV === 'development');
 
+  // Staff viewing the site as a country (src/modules/admin/view-as.ts), never on the admin page:
+  // as on a first visit, without the country chosen before
+  const admin = adminRoute(request.nextUrl.pathname, env.ADMIN_PATH) || isInternalAdminPath(request.nextUrl.pathname);
+  const viewAs = admin ? null : request.cookies.get(VIEW_AS_COOKIE)?.value;
+  const viewing = !!readViewAs(viewAs, env.AUTH_SECRET);
+  if (viewing) request.cookies.delete(COUNTRY_COOKIE);
+
   // A browse page shows its own country in the header, whatever was chosen before (see above)
-  const country = adminRoute(request.nextUrl.pathname, env.ADMIN_PATH) ? null : browseCountry(request.nextUrl.pathname);
+  const country = admin ? null : browseCountry(request.nextUrl.pathname);
   if (country) request.cookies.set(COUNTRY_COOKIE, country);
 
   const requestHeaders = new Headers(request.headers);
@@ -109,8 +117,10 @@ export function proxy(request: NextRequest) {
   // The header names the page's city in its place chip (src/components/site-header.tsx)
   requestHeaders.set('x-pathname', request.nextUrl.pathname);
   requestHeaders.set('Content-Security-Policy', csp);
-  // Only this proxy marks a request as coming through the admin page's secret address
+  // Only this proxy marks a request as coming through the admin page's secret address, or as viewed as a country
   requestHeaders.delete(ADMIN_GATE_HEADER);
+  requestHeaders.delete(VIEW_AS_HEADER);
+  if (viewing) requestHeaders.set(VIEW_AS_HEADER, viewAs!);
 
   // The admin page (src/modules/admin/gate.ts): /<ADMIN_PATH>/… becomes /admin/… with the mark.
   // Never indexed, never kept by any cache; /admin itself goes on unmarked and answers 404.
@@ -134,8 +144,8 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  // A page for Iran carries the Iran banner: never kept by Cloudflare for anyone else
-  const cacheControl = fromIran
+  // A page for Iran carries the Iran banner, and a viewed-as page the staff banner: never kept by Cloudflare for anyone else
+  const cacheControl = fromIran || viewing
     ? 'private, no-store'
     : browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);

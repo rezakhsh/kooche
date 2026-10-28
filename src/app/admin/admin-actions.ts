@@ -1,8 +1,12 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { appDb } from '../../db/drizzle';
-import { organizations } from '../../db/schema';
+import { countries, organizations } from '../../db/schema';
+import { webEnv } from '../../lib/env';
+import { staffAudit } from '../../modules/admin/audit';
+import { VIEW_AS_COOKIE, VIEW_AS_HOURS, viewAsToken } from '../../modules/admin/view-as';
 import { eq } from 'drizzle-orm';
 import { setStaffRole } from '../../modules/admin/staff';
 import { adminHref, requireStaffAction } from '../../modules/admin/server';
@@ -54,6 +58,22 @@ export async function foundingOfferAction(form: FormData): Promise<void> {
   const tab = form.get('tab') === 'all' ? '&tab=all' : '';
   const country = !r.ok && 'country' in r ? `&country=${r.country}` : '';
   redirect(adminHref(`/businesses?${r.ok ? 'done=1' : `founding=${r.reason}${country}`}${tab}`));
+}
+
+/**
+ * View as a country (src/modules/admin/view-as.ts): any staff member, for this browser only, then
+ * the first page as a visitor from there sees it. Iran isn't a seeded country but can be chosen.
+ */
+export async function viewAsAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('overview.view');
+  const code = String(form.get('country') ?? '');
+  const db = appDb();
+  const [known] = code === 'IR' ? [{ code }] : await db.select({ code: countries.code }).from(countries).where(eq(countries.code, code));
+  if (!known) redirect(adminHref('/users/view-as'));
+  const until = new Date(Date.now() + VIEW_AS_HOURS * 3_600_000);
+  (await cookies()).set(VIEW_AS_COOKIE, viewAsToken(webEnv().AUTH_SECRET, known.code, until), { path: '/', expires: until, sameSite: 'lax', secure: true, httpOnly: true });
+  await staffAudit(db, staff.ctx, 'staff.view_as', null, { country: known.code });
+  redirect('/');
 }
 
 export async function staffRoleAction(form: FormData): Promise<void> {

@@ -1,4 +1,5 @@
 import { BlockList, isIP } from 'node:net';
+import { viewAsCountry } from '../modules/admin/view-as';
 
 // The client's IP address. Coolify's Traefik doesn't trust incoming X-Forwarded-* headers (no
 // forwardedHeaders.trustedIPs), so it drops what the client sent and writes the address it saw.
@@ -60,9 +61,16 @@ export function clientIp(headers: Headers): string | null {
 
 /**
  * The visitor's country as Cloudflare sees it (CF-IPCountry, ISO code), only when the request
- * really came through Cloudflare. Used to highlight a country on the home page, nothing more.
+ * really came through Cloudflare. Used to highlight a country on the home page and for the Iran
+ * rules (./region.ts). Staff viewing the site as a country get that country, unless the request
+ * really comes from Iran (src/modules/admin/view-as.ts).
  */
 export function visitorCountry(headers: Headers): string | null {
+  const real = cloudflareCountry(headers);
+  return real === 'IR' ? real : (viewAsCountry(headers) ?? real);
+}
+
+function cloudflareCountry(headers: Headers): string | null {
   const peer = valid(headers.get('x-forwarded-for')?.split(',').at(-1)) ?? valid(headers.get('x-real-ip'));
   if (!peer || !isCloudflare(peer)) return null;
   const code = headers.get('cf-ipcountry')?.toUpperCase() ?? '';

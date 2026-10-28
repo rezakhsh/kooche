@@ -832,6 +832,16 @@ Built Oct 28, 2026 (wave 2 part 1, approved by the owner as step 1a). Code in `s
 
 **Admin.** «آزمایشی» on the user list and the person card; the users page filters «فقط حساب‌های آزمایشی».
 
+
+### View as a country
+
+Built Oct 28, 2026 (wave 2 part 1, step 1c; mockups `final/admin-viewas`, `final/viewas-banner`). Code in `src/modules/admin/view-as.ts`.
+
+- Admin › users › «دیدن سایت از نگاه دیگران» (`/<ADMIN_PATH>/users/view-as`, any staff): a button per launch-plan country plus Iran. It sets the `view_as` cookie in this browser only (httpOnly, 2 hours): the country, the end time and an HMAC with `AUTH_SECRET`. Starting is in `audit_log` as `staff.view_as`, ending as `staff.view_as_ended`.
+- On every page except the admin page, `src/proxy.ts` turns a valid cookie into the `x-peydoo-view-as` header (and removes one a client sent). With it: `visitorCountry()` returns the chosen country (Iran too: its banner and rules), except that a request really from Iran stays Iran; `currentSession()` returns null, so the pages are a visitor's without an account and test content is hidden; the remembered `country` cookie is left out as on a first visit; `Cache-Control: private, no-store`.
+- A saffron staff banner on top of every page («نمای بازدیدکننده از اتریش، بدون حساب») with «پایان», which removes the cookie and goes back to the admin page.
+- The same page lists the test accounts (country, account, home city, kind); a personal test account's email only for admins. Signing in as a user (step 1d) comes next.
+
 ## Admin page
 
 Built Oct 23, 2026 (roadmap step 8; plan approved by the owner the same day). Code in `src/modules/admin/`, `src/modules/moderation/`, `src/app/admin/`, `src/app/report/`, `src/app/account/notices/` and `src/worker/moderation.ts`.
