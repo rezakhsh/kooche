@@ -66,6 +66,36 @@ const FLAGS: Record<string, React.ReactNode> = {
       <path d="M15 0v20M0 10h30" stroke="#c8102e" strokeWidth="3.6" />
     </>
   ),
+  // The launch plan's later countries (admin › «دیدن سایت از نگاه دیگران», wave 2)
+  IT: (
+    <>
+      <rect width="30" height="20" fill="#fff" />
+      <rect width="10" height="20" fill="#009246" />
+      <rect x="20" width="10" height="20" fill="#ce2b37" />
+    </>
+  ),
+  FR: (
+    <>
+      <rect width="30" height="20" fill="#fff" />
+      <rect width="10" height="20" fill="#002654" />
+      <rect x="20" width="10" height="20" fill="#ce1126" />
+    </>
+  ),
+  SE: (
+    <>
+      <rect width="30" height="20" fill="#006aa7" />
+      <rect x="9" width="4" height="20" fill="#fecc00" />
+      <rect y="8" width="30" height="4" fill="#fecc00" />
+    </>
+  ),
+  TR: (
+    <>
+      <rect width="30" height="20" fill="#e30a17" />
+      <circle cx="11" cy="10" r="5" fill="#fff" />
+      <circle cx="12.25" cy="10" r="4" fill="#e30a17" />
+      <path d="M15.6 10l3.9-1.27-2.41 3.32V7.95l2.41 3.32Z" fill="#fff" />
+    </>
+  ),
 };
 
 export function Flag({ code, className = 'h-5 w-7.5' }: { code: string; className?: string }) {

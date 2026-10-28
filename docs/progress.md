@@ -1265,3 +1265,13 @@ Approved by the owner as proposed ("go 1b"). `docs/setup.md`, "Founding Pro", fo
 - **Checked twice:** at «پیشنهاد بنیان‌گذار» in admin (the reason in plain words, with the country's name) and when the owner starts the free months (a line on the billing page). Every refusal in `audit_log` (`organization.founding_refused`). No database change.
 - **Places given before:** kept with their badge; admin › businesses shows what they break. Staging: «taskpilot» (German number, free months running) breaks nothing; the same owner's «دارالترجمه پارسیان» would now be refused a place.
 - **Tests:** 920 passing (new: wrong country and no number refused and logged, a manager's number doesn't count, a second place refused, a closed business's place counts, the second check at the free months, places given before the rules); typecheck and `check:rtl` clean.
+
+## Oct 28, 2026: wave 2 part 1, step 1c: view as a country
+
+Approved by the owner ("go 1c"); they will try it later. `docs/setup.md`, "View as a country".
+
+- **Admin › users › «دیدن سایت از نگاه دیگران»** (mockup `admin-viewas`): a button per launch-plan country and Iran, and the test accounts (country, account, home city). Signing in as a user (section 3 of the mockup) is step 1d.
+- **The view:** a signed 2-hour cookie in this browser only; on every page but the admin page the site uses that country as the visitor's (Iran with its banner and rules; a request really from Iran stays Iran), hides the account (so test content too) and the remembered country, and isn't kept by Cloudflare. A saffron banner on every page («نمای بازدیدکننده از اتریش، بدون حساب», mockup `viewas-banner`) with «پایان» back to admin. Start and end in `audit_log`.
+- **Flags** for Italy, France, Sweden and Turkey.
+- **Checked on staging** (`e7ffb90`) in headless Chromium as a temporary moderator (deleted afterwards), phone and computer, light and dark, next to the mockups: start by the Austria button, banner on the first page and Berlin, account hidden («ورود» shown), Iran with its card, «پایان» back to admin with the banner gone, no script errors. A visitor from closed Austria still sees Germany's first page, as today; the «به‌زودی» first page for closed countries is part 8. Screenshots in `/root/peydoo-media/wave2/view-as/`.
+- **Tests:** 928 passing (new: the signed token, the country it sets, Iran stays Iran, the proxy turning the cookie into the header only off the admin page and dropping the remembered country, a client's header removed, a personal test account's email for admins only); typecheck and `check:rtl` clean.

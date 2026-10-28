@@ -3685,7 +3685,7 @@ export const admin = {
     accounts: '۲. حساب‌های آزمایشی، یکی برای هر کشور',
     accountsIntro: 'با برچسب «آزمایشی». آگهی‌هایشان فقط برای کارکنان دیده می‌شود و در هدف شهرها و آمار شمرده نمی‌شوند.',
     accountsStaging: 'در staging با ایمیل حساب و کد ۱۲۳۴۵۶ وارد شوید.',
-    columns: { country: 'کشور', account: 'حساب', city: 'شهر', kind: 'نوع' },
+    columns: { country: 'کشور', account: 'حساب', city: 'شهر', kind: 'تأیید' },
     kinds: { country: 'آزمایشی، تأیید کارکنان', personal: 'حساب شخصی شما' } as Record<string, string>,
     noAccounts: 'هنوز حساب آزمایشی‌ای نیست (scripts/test-accounts.ts).',
   },
