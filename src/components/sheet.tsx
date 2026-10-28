@@ -51,7 +51,7 @@ export function Sheet({
         {summary}
       </summary>
       <div
-        className={`fixed inset-0 z-40 flex items-end bg-neutral-900/45 ${dialog ? 'lg:items-center lg:justify-center' : ''}`}
+        className={`fixed inset-0 z-40 flex items-end bg-neutral-950/45 ${dialog ? 'lg:items-center lg:justify-center' : ''}`}
         onClick={(e) => e.target === e.currentTarget && close()}
       >
         <div

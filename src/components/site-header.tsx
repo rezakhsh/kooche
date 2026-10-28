@@ -9,6 +9,7 @@ import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
 import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { webEnv } from '../lib/env';
 import { chosenCountry } from '../app/country-choice';
+import { currentTheme } from '../app/theme';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
 import { unreadConversations } from '../modules/chat/queries';
@@ -20,6 +21,7 @@ import { Icon } from './icons';
 import { LEGAL_LINKS } from './legal-nav';
 import { LogoMark } from './logo';
 import { SearchBox } from './search-box';
+import { ThemeSwitch } from './theme-switch';
 
 // The header on every page: the logo with its line, the chosen country (the way back to the list
 // of countries), on computers the keyword box and the main actions. On phones the actions are in
@@ -163,7 +165,7 @@ function Label({ text }: { text: string }) {
 export function UnreadBadge({ count, className = '' }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
-    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-neutral-900 ${className}`}>
+    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-ink ${className}`}>
       <span aria-hidden>{count > 99 ? '۹۹+' : count.toLocaleString('fa-IR')}</span>
       <span className="sr-only">{messages.nav.unread(count)}</span>
     </span>
@@ -195,7 +197,7 @@ function FooterColumn({ title, links }: { title: string; links: [ReactNode, stri
  */
 export async function SiteFooter() {
   const db = appDb();
-  const [countries, chosen, waiting] = await Promise.all([activeCountries(db), chosenCountry(db), waitingCountries(db).catch(() => [])]);
+  const [countries, chosen, waiting, theme] = await Promise.all([activeCountries(db), chosenCountry(db), waitingCountries(db).catch(() => []), currentTheme()]);
   const country = chosen ?? countries[0] ?? null;
   const firstCity = country ? (await keyCitiesOf(db, country.code).catch(() => []))[0] : undefined;
   const t = messages.footer;
@@ -261,7 +263,10 @@ export async function SiteFooter() {
             )}
           </div>
         </div>
-        <p className="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-600">{t.legalLine(new Date().getFullYear())}</p>
+        <div className="mt-8 flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-neutral-600">{t.legalLine(new Date().getFullYear())}</p>
+          <ThemeSwitch current={theme} />
+        </div>
       </div>
       {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
       <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">

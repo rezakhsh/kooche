@@ -257,7 +257,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                           </summary>
                           <div className="pb-3">
                             <p className="text-sm">{t.deleteConfirm}</p>
-                            <StatusForm id={l.id} action="delete" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-red-700 text-sm font-bold text-white hover:bg-red-800">
+                            <StatusForm id={l.id} action="delete" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-danger text-sm font-bold text-snow hover:bg-danger-hover">
                               {t.deleteYes}
                             </StatusForm>
                           </div>

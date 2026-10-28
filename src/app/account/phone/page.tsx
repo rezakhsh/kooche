@@ -59,7 +59,7 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
               <Icon name="shield" className="size-6" />
             </span>
             <p className="text-sm leading-7 text-neutral-800">
-              <b className="block text-brand-900">{t.reasonTitle}</b>
+              <b className="block text-brand-800">{t.reasonTitle}</b>
               {t.reasonBody}
             </p>
           </div>

@@ -259,7 +259,7 @@ function ReportDialog({ messageId, onClose }: { messageId: string; onClose: () =
     return () => d?.close();
   }, []);
   return (
-    <dialog ref={ref} onClose={onClose} className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-2xl p-0 backdrop:bg-neutral-900/50">
+    <dialog ref={ref} onClose={onClose} className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-2xl p-0 backdrop:bg-neutral-950/50">
       <div className="space-y-4 p-5">
         <h2 className="text-lg font-bold">{r.title}</h2>
         {state?.done ? (
@@ -293,7 +293,7 @@ function ReportDialog({ messageId, onClose }: { messageId: string; onClose: () =
             </label>
             {state?.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={pending} className="flex-1 rounded-xl bg-red-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-60">
+              <button type="submit" disabled={pending} className="flex-1 rounded-xl bg-danger px-4 py-3 text-sm font-bold text-snow disabled:opacity-60">
                 {r.send}
               </button>
               <button type="button" onClick={onClose} className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-bold">

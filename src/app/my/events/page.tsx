@@ -215,7 +215,7 @@ export default async function MyEventsPage({ searchParams }: { searchParams: Pro
                             </summary>
                             <div className="pb-3">
                               <p className="text-sm">{t.cancelConfirm}</p>
-                              <StatusForm id={l.id} action="cancel" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-red-700 text-sm font-bold text-white hover:bg-red-800">
+                              <StatusForm id={l.id} action="cancel" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-danger text-sm font-bold text-snow hover:bg-danger-hover">
                                 {t.cancelYes}
                               </StatusForm>
                             </div>
@@ -230,7 +230,7 @@ export default async function MyEventsPage({ searchParams }: { searchParams: Pro
                           </summary>
                           <div className="pb-3">
                             <p className="text-sm">{t.deleteConfirm}</p>
-                            <StatusForm id={l.id} action="delete" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-red-700 text-sm font-bold text-white hover:bg-red-800">
+                            <StatusForm id={l.id} action="delete" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-danger text-sm font-bold text-snow hover:bg-danger-hover">
                               {m.deleteYes}
                             </StatusForm>
                           </div>

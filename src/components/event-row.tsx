@@ -43,7 +43,7 @@ export function Poster({ e, className = '' }: { e: Pick<EventRowData, 'cover' | 
         <img src={e.cover} alt="" width={240} height={300} loading="lazy" decoding="async" className="size-full object-cover" />
       ) : (
         // No poster yet: the title on the brand's colour, like a typographic poster
-        <div className="flex size-full flex-col justify-between p-[8%] text-white">
+        <div className="flex size-full flex-col justify-between p-[8%] text-snow">
           <span className="text-[0.65em] font-bold opacity-80">{e.typeName}</span>
           <span className="line-clamp-4 text-[0.95em] font-black leading-[1.35]">{e.title}</span>
         </div>

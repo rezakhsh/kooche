@@ -326,7 +326,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       <div className="space-y-1">
         <Title className="text-xl leading-9 font-extrabold text-balance">
           {featured && (
-            <span className="me-2 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2.5 py-0.5 align-middle text-xs font-bold text-neutral-900">
+            <span className="me-2 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2.5 py-0.5 align-middle text-xs font-bold text-ink">
               <Icon name="star" className="size-3" />
               {messages.featured.badge}
             </span>
@@ -390,7 +390,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <CopyLink label={t.posted.copy} />
               </div>
               <Link href={`/my/listings/${l.id}/promote`} className="mt-5 flex items-center gap-3 rounded-2xl bg-saffron-50 p-4 text-start">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-500 text-neutral-900">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-500 text-ink">
                   <Icon name="arrowUp" className="size-5" />
                 </span>
                 <span className="flex-1">

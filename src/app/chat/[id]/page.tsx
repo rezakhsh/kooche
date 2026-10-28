@@ -164,7 +164,7 @@ export default async function ConversationPage({ params, searchParams }: { param
                     <input type="hidden" name="conversationId" value={view.id} />
                     <input type="hidden" name="op" value="block" />
                     <p className="text-sm leading-relaxed text-neutral-700">{t.blockConfirm(otherName)}</p>
-                    <button type="submit" className="flex h-11 w-full items-center justify-center rounded-xl bg-red-700 text-sm font-bold text-white hover:bg-red-800">
+                    <button type="submit" className="flex h-11 w-full items-center justify-center rounded-xl bg-danger text-sm font-bold text-snow hover:bg-danger-hover">
                       {t.blockYes}
                     </button>
                   </form>

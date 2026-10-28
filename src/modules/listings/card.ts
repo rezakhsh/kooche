@@ -39,6 +39,7 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     photoCount: l.photoCount,
     founding: l.founding,
     verified: l.verified,
+    anmeldung: l.attributes.anmeldung === true,
     // Rent is the cold rent a month (mockup final/browse: «۵۹۰ € سرد، ماهانه»)
     unit: l.categoryId && l.priceMinor !== null && ancestry(catalog, l.categoryId).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate') ? messages.country.rentUnit : null,
     wanted: l.kind === 'wanted',

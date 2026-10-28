@@ -52,23 +52,23 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const envName = webEnv().SENTRY_ENVIRONMENT ?? 'local';
   return (
     <div data-admin className="min-h-dvh bg-neutral-50">
-      <header className="sticky top-0 z-30 bg-brand-950 text-white">
+      <header className="sticky top-0 z-30 bg-brand-950 text-snow">
         <div className="flex items-center gap-3 px-4 py-2.5 lg:px-6">
           <LogoMark className="size-8 shrink-0" />
           <b className="text-base">پیدو</b>
-          <span className="rounded-md bg-white/15 px-2 text-xs leading-6 font-bold">{t.panel}</span>
-          <span className={`rounded-md px-2 text-xs leading-6 font-bold ${envName === 'production' ? 'bg-red-600 text-white' : 'bg-saffron-500 text-neutral-900'}`} dir="ltr">
+          <span className="rounded-md bg-snow/15 px-2 text-xs leading-6 font-bold">{t.panel}</span>
+          <span className={`rounded-md px-2 text-xs leading-6 font-bold ${envName === 'production' ? 'bg-danger text-snow' : 'bg-saffron-500 text-ink'}`} dir="ltr">
             {t.env[envName] ?? envName}
           </span>
           {items.length > 0 && (
-            <form method="get" action={adminHref('/find')} role="search" className="ms-auto hidden h-10 w-80 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm focus-within:ring-2 focus-within:ring-white/40 lg:flex">
-              <Icon name="search" className="size-4 shrink-0 text-brand-100" />
-              <input name="q" data-admin-search aria-label={t.searchLabel} placeholder={t.search} dir="rtl" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-brand-100" />
-              <kbd className="rounded border border-white/30 px-1.5 text-xs text-brand-100">/</kbd>
+            <form method="get" action={adminHref('/find')} role="search" className="ms-auto hidden h-10 w-80 items-center gap-2 rounded-lg bg-snow/10 px-3 text-sm focus-within:ring-2 focus-within:ring-snow/40 lg:flex">
+              <Icon name="search" className="size-4 shrink-0 text-snow/75" />
+              <input name="q" data-admin-search aria-label={t.searchLabel} placeholder={t.search} dir="rtl" className="min-w-0 flex-1 bg-transparent text-snow outline-none placeholder:text-snow/75" />
+              <kbd className="rounded border border-snow/30 px-1.5 text-xs text-snow/75">/</kbd>
             </form>
           )}
-          {ok && <span className="ms-auto truncate text-sm text-brand-100 lg:ms-3">{`${state.name}، ${admin.roles[state.role]}`}</span>}
-          <Link href="/" prefetch={false} className={`${ok ? '' : 'ms-auto '}hidden h-9 shrink-0 items-center rounded-lg px-3 text-sm text-brand-100 ring-1 ring-white/25 hover:bg-white/10 lg:flex`}>
+          {ok && <span className="ms-auto truncate text-sm text-snow/75 lg:ms-3">{`${state.name}، ${admin.roles[state.role]}`}</span>}
+          <Link href="/" prefetch={false} className={`${ok ? '' : 'ms-auto '}hidden h-9 shrink-0 items-center rounded-lg px-3 text-sm text-snow/75 ring-1 ring-snow/25 hover:bg-snow/10 lg:flex`}>
             {t.back}
           </Link>
         </div>

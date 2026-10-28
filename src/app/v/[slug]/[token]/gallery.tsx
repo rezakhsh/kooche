@@ -98,7 +98,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
       >
         {/* The photo fills its frame (mockup final/listing); the viewer shows it whole */}
         <Picture image={cover} alt={title} priority className="object-cover" />
-        <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-lg bg-neutral-900/70 px-2 py-0.5 text-xs text-white">
+        <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-lg bg-neutral-950/70 px-2 py-0.5 text-xs text-snow">
           <Icon name="camera" className="size-3.5" />
           {t.counter(1, total)}
         </span>
@@ -129,7 +129,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
         onClose={onClose}
         onKeyDown={onKeyDown}
         aria-label={t.viewer}
-        className="photo-viewer m-0 h-dvh max-h-none w-screen max-w-none bg-neutral-950 p-0 text-white"
+        className="photo-viewer m-0 h-dvh max-h-none w-screen max-w-none bg-neutral-950 p-0 text-snow"
       >
         {open && (
           <div className="flex h-full flex-col">
@@ -138,7 +138,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
               <button
                 type="button"
                 onClick={() => dialog.current?.close()}
-                className="flex size-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+                className="flex size-10 items-center justify-center rounded-full bg-snow/15 hover:bg-snow/25"
                 aria-label={t.closeViewer}
                 autoFocus
               >
@@ -161,21 +161,21 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
                 type="button"
                 onClick={() => goTo(Math.max(0, index - 1))}
                 disabled={index === 0}
-                className="hidden size-11 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 disabled:opacity-30 sm:flex"
+                className="hidden size-11 items-center justify-center rounded-full bg-snow/15 hover:bg-snow/25 disabled:opacity-30 sm:flex"
                 aria-label={t.previous}
               >
                 <Icon name="chevronStart" className="size-5" />
               </button>
               <div className="flex gap-1.5" aria-hidden>
                 {images.map((img, i) => (
-                  <span key={img.id} className={`size-1.5 rounded-full ${i === index ? 'bg-white' : 'bg-white/35'}`} />
+                  <span key={img.id} className={`size-1.5 rounded-full ${i === index ? 'bg-snow' : 'bg-snow/35'}`} />
                 ))}
               </div>
               <button
                 type="button"
                 onClick={() => goTo(Math.min(total - 1, index + 1))}
                 disabled={index === total - 1}
-                className="hidden size-11 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 disabled:opacity-30 sm:flex"
+                className="hidden size-11 items-center justify-center rounded-full bg-snow/15 hover:bg-snow/25 disabled:opacity-30 sm:flex"
                 aria-label={t.next}
               >
                 <Icon name="chevronEnd" className="size-5" />

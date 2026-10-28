@@ -43,14 +43,14 @@ export function EventCard({ e }: { e: EventCardData }) {
           <span className="block text-xs text-neutral-600">{when.weekday}</span>
         </div>
         {e.featured && (
-          <span className="absolute start-2 bottom-2 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">
+          <span className="absolute start-2 bottom-2 flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-ink">
             <Icon name="star" className="size-3" />
             {messages.featured.badge}
           </span>
         )}
         {label && (
           <span
-            className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-brand-700 text-white' : 'bg-red-700 text-white'}`}
+            className={`absolute end-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold ${e.scheduleStatus === 'scheduled' ? 'bg-brand-700 text-white' : 'bg-danger text-snow'}`}
           >
             {label}
           </span>

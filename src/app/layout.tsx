@@ -11,6 +11,7 @@ import { webEnv } from '../lib/env';
 import { MONITORING_META } from '../lib/monitoring/browser';
 import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
 import { messages } from '../messages/fa';
+import { currentTheme } from './theme';
 import './globals.css';
 
 // Vazirmatn variable font (100–900), subset by scripts/subset-font.sh. SIL OFL, see fonts/OFL.txt.
@@ -33,9 +34,21 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export const viewport: Viewport = {
-  themeColor: '#0b6e77',
-};
+// The browser's bar: turquoise in light, the dark surface in dark (wave 1, part 10)
+const BAR = { light: '#0b6e77', dark: '#16211f' };
+
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await currentTheme();
+  return {
+    themeColor:
+      theme === 'auto'
+        ? [
+            { media: '(prefers-color-scheme: light)', color: BAR.light },
+            { media: '(prefers-color-scheme: dark)', color: BAR.dark },
+          ]
+        : BAR[theme],
+  };
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // Every page is rendered per request: the CSP nonce from src/proxy.ts changes on each one, and
@@ -44,9 +57,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const env = webEnv();
   // Browser error monitoring's settings (src/lib/monitoring/browser.ts); none when it is off
   const monitoring = browserMonitoringConfig(monitoringConfig(env), env.APP_URL);
+  // Light or dark when chosen; otherwise globals.css follows the device (src/app/theme.ts)
+  const theme = await currentTheme();
 
   return (
-    <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+    <html lang="fa" dir="rtl" className={vazirmatn.variable} data-theme={theme === 'auto' ? undefined : theme}>
       <head>{monitoring && <meta name={MONITORING_META} content={JSON.stringify(monitoring)} />}</head>
       <body className="flex min-h-dvh flex-col bg-white font-sans text-neutral-900 antialiased">
         <SiteHeader />

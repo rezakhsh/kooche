@@ -178,10 +178,10 @@ export function DecisionForm(props: {
         type="submit"
         data-key-submit
         disabled={!picked || pending}
-        className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold disabled:cursor-not-allowed ${!picked ? 'bg-neutral-100 text-neutral-500' : restricting ? 'bg-red-700 text-white hover:bg-red-800' : 'bg-brand-700 text-white hover:bg-brand-800'} disabled:opacity-80`}
+        className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold disabled:cursor-not-allowed ${!picked ? 'bg-neutral-100 text-neutral-500' : restricting ? 'bg-danger text-snow hover:bg-danger-hover' : 'bg-brand-700 text-white hover:bg-brand-800'} disabled:opacity-80`}
       >
         {picked ? t.submitNext(picked.label) : t.chooseFirst}
-        {picked && <kbd className="rounded bg-white/20 px-1.5 text-xs font-normal">Enter</kbd>}
+        {picked && <kbd className="rounded bg-snow/20 px-1.5 text-xs font-normal">Enter</kbd>}
       </button>
       {restricting && <p className="text-center text-xs text-neutral-600">{t.previewNote}</p>}
     </form>

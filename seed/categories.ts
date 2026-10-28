@@ -180,6 +180,16 @@ const furnished: AttributeSeed = {
   isFilterable: true,
 };
 
+/** Whether the tenant may register the address (Anmeldung). A main tenant always may, so only WG
+ * rooms and short lets ask (mockups final/category, post3; wave 1). Shown as a chip on the photo. */
+const anmeldung: AttributeSeed = {
+  key: 'anmeldung',
+  type: 'boolean',
+  labelFa: 'Anmeldung ممکن',
+  helpFa: 'می‌توانید آدرس این خانه را در Bürgeramt ثبت کنید (Wohnungsgeberbestätigung می‌دهید)',
+  isFilterable: true,
+};
+
 const balcony: AttributeSeed = {
   key: 'balcony',
   type: 'boolean',
@@ -632,6 +642,7 @@ export const categories: CategorySeed[] = [
           availableFrom(),
           availableUntil,
           furnished,
+          anmeldung,
           deposit,
         ],
       }),

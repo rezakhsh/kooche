@@ -59,7 +59,7 @@ export function BottomNav({ home, signedIn, unread }: { home: string; signedIn: 
           <span className={`relative ${i.primary ? 'rounded-xl bg-brand-700 px-3 py-0.5 text-white' : `rounded-full px-4 py-0.5 transition-colors ${i.active ? 'bg-brand-50' : ''}`}`}>
             <Icon name={i.icon} className="size-5" />
             {!!i.badge && (
-              <span className="absolute -top-1.5 -end-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-neutral-900">
+              <span className="absolute -top-1.5 -end-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-saffron-500 px-1 text-xs font-bold text-ink">
                 <span aria-hidden>{i.badge > 99 ? '۹۹+' : i.badge.toLocaleString('fa-IR')}</span>
                 <span className="sr-only">{t.unread(i.badge)}</span>
               </span>

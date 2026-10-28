@@ -304,7 +304,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const organizerBox = (
     <section id="organizer" className="rounded-2xl border border-neutral-200 p-4">
       <div className="flex items-center gap-3">
-        <Link href={organizerHref} className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-950 text-lg font-black text-white">
+        <Link href={organizerHref} className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-950 text-lg font-black text-snow">
           {facts.logoKey ? <img src={imageUrl(facts.logoKey, 'thumb', 'webp') ?? ''} alt="" className="size-full object-cover" /> : organizer.slice(0, 1)}
         </Link>
         <div className="min-w-0 flex-1">
@@ -355,7 +355,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <img src={posterSrc.webp} alt={l.title} width={cover!.width ?? undefined} height={cover!.height ?? undefined} fetchPriority="high" className="w-full rounded-xl shadow-2xl lg:rounded-none" />
               </picture>
             ) : (
-              <div className="flex aspect-[4/5] flex-col justify-between rounded-xl bg-brand-900 p-[8%] text-white shadow-2xl lg:rounded-none">
+              <div className="flex aspect-[4/5] flex-col justify-between rounded-xl bg-brand-900 p-[8%] text-snow shadow-2xl lg:rounded-none">
                 <span className="text-sm font-bold opacity-80">{type?.nameFa}</span>
                 <span className="text-2xl font-black leading-[1.4]">{l.title}</span>
               </div>
@@ -535,7 +535,7 @@ function OwnerTools({ listingId, active, saved }: { listingId: string; active: b
         {messages.events.page.edit}
       </Link>
       {active && (
-        <Link href={`/my/listings/${listingId}/promote`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-saffron-500 text-sm font-bold text-neutral-900 hover:bg-saffron-400">
+        <Link href={`/my/listings/${listingId}/promote`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-saffron-500 text-sm font-bold text-ink hover:bg-saffron-400">
           <Icon name="arrow-up" className="size-4" />
           {messages.promote.titleEvent}
         </Link>

@@ -38,7 +38,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                   {r.targetType && r.targetId && (LINKS[r.targetType] ? (
                     <Link href={adminHref(`/items/${LINKS[r.targetType]}/${r.targetId}`)} prefetch={false} className="text-xs text-brand-800 hover:underline">{r.targetType}</Link>
                   ) : <span className="text-xs text-neutral-500">{r.targetType}</span>)}
-                  {r.ip && <bdi dir="ltr" className="text-xs text-neutral-400">{r.ip}</bdi>}
+                  {r.ip && <bdi dir="ltr" className="text-xs text-neutral-500">{r.ip}</bdi>}
                 </div>
                 {Object.keys(r.data as object).length > 0 && (
                   <code dir="ltr" className="mt-1 block truncate text-start text-xs text-neutral-500">{JSON.stringify(r.data)}</code>

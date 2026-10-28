@@ -27,7 +27,7 @@ export async function IranBanner() {
           <Icon name="globe" className="size-6" />
         </span>
         <div className="flex-1">
-          <h2 className="text-base font-extrabold text-brand-900 lg:text-lg">{t.title}</h2>
+          <h2 className="text-base font-extrabold text-brand-800 lg:text-lg">{t.title}</h2>
           <p className="mt-1 text-sm leading-7 text-neutral-800">{t.body}</p>
           <p className="mt-2 text-sm leading-7 text-neutral-800">{session ? t.traveling : t.guest}</p>
           <div className="mt-3 flex flex-wrap gap-2">

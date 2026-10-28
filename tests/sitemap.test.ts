@@ -128,7 +128,7 @@ describe('cache headers of browse pages', () => {
     expect(browseCacheControl('/germany', q(), none)).toBe('public, max-age=0, s-maxage=60');
     expect(browseCacheControl('/germany/berlin/cars', q('brand=bmw&sort=price_asc'), none)).toBe('public, max-age=0, s-maxage=60');
     expect(browseCacheControl('/germany', q(), (n) => (n === 'country' ? 'germany' : undefined))).toBe('public, max-age=0, s-maxage=60');
-    for (const cookie of ['__Secure-better-auth.session_token', 'better-auth.session_token', 'view']) {
+    for (const cookie of ['__Secure-better-auth.session_token', 'better-auth.session_token', 'view', 'theme']) {
       expect(browseCacheControl('/germany', q(), (n) => (n === cookie ? 'x' : undefined)), cookie).toBe('private, no-store');
     }
     // proxy() sets the country cookie to the page's own, so another country's cookie is shared too

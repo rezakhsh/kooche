@@ -372,7 +372,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 24. Oktober 2026',
+  updated: 'Stand: 28. Oktober 2026',
   draft: true,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
@@ -430,6 +430,7 @@ const privacy: LegalDoc = {
             'pending_favorite: merkt sich eine Anzeige, die Sie vor der Anmeldung merken wollten, 30 Minuten.',
             'country: das gewählte Land, 1 Jahr.',
             'view: Darstellung als Raster oder Liste, 1 Jahr.',
+            'theme: helle oder dunkle Darstellung, wenn Sie sie selbst wählen, 1 Jahr.',
           ],
         },
       ],

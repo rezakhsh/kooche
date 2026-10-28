@@ -110,6 +110,7 @@ export const messages = {
     count: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
     rentUnit: 'سرد، ماهانه',
     verifiedBadge: 'تأییدشده',
+    anmeldungTitle: 'می‌توانید آدرس این خانه را ثبت کنید (Anmeldung)',
     categories: 'دسته‌بندی‌ها',
     allCategories: 'همه دسته‌ها',
     all: 'همه آگهی‌ها',
@@ -286,6 +287,7 @@ export const messages = {
     channel: 'کانال تلگرام پیدو',
     soon: (names: string) => `به‌زودی: ${names} و بیشتر.`,
     notifyMe: 'خبرم کن',
+    appearance: 'ظاهر',
     // The legal pages' own row and the one line under the posting pages (wave 1, part 8)
     legalNav: 'صفحه‌های حقوقی',
     legalLinks: { impressum: 'Impressum', terms: 'شرایط (AGB)', privacy: 'حریم خصوصی (Datenschutz)', dsa: 'تماس DSA' },
@@ -1348,6 +1350,18 @@ export const messages = {
       myData: 'دریافت داده‌های من',
       myDataHint: 'یک فایل با همهٔ چیزهایی که از شما نگه می‌داریم',
       delete: 'حذف حساب',
+      appearance: 'ظاهر',
+    },
+    // Settings › Appearance and the footer's switch (wave 1, part 10; mockup final/appearance)
+    appearance: {
+      title: 'ظاهر',
+      intro: 'پیدو را روشن ببینید یا تیره. اگر مطمئن نیستید، «خودکار» را نگه دارید.',
+      options: {
+        auto: { name: 'خودکار', hint: 'مثل گوشی یا کامپیوتر شما' },
+        light: { name: 'روشن', hint: 'همیشه روشن' },
+        dark: { name: 'تیره', hint: 'همیشه تیره، برای شب و نور کم' },
+      },
+      notes: ['رنگ‌ها و عکس‌ها در هر دو حالت همان‌اند؛ فقط زمینه عوض می‌شود.', 'انتخاب شما روی همین دستگاه می‌ماند.'],
     },
     help: 'راهنما و معاملهٔ امن',
     support: 'تماس با پشتیبانی',
@@ -2787,7 +2801,7 @@ export const pages = {
   } satisfies LegalDoc,
   privacy: {
     title: 'حریم خصوصی',
-    updated: 'به‌روزرسانی: ۲ آبان ۱۴۰۵ (۲۴ اکتبر ۲۰۲۶)',
+    updated: 'به‌روزرسانی: ۲۸ اکتبر ۲۰۲۶',
     draft: true,
     intro: [
       'اینجا می‌گوییم پیدو کدام داده‌های شخصی را، برای چه، تا کی و نزد چه کسی پردازش می‌کند. متن به آلمانی و فارسی است و متن آلمانی معتبر است.',
@@ -2845,6 +2859,7 @@ export const pages = {
               'pending_favorite: آگهی‌ای را که پیش از ورود خواستید نشان کنید نگه می‌دارد، ۳۰ دقیقه.',
               'country: کشور انتخاب‌شده، ۱ سال.',
               'view: نمایش شبکه‌ای یا فهرستی، ۱ سال.',
+              'theme: ظاهر روشن یا تیره، اگر خودتان انتخاب کنید، ۱ سال.',
             ],
           },
         ],

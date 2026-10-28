@@ -30,7 +30,7 @@ export function AdminNav({ items, home, site }: { items: NavItem[]; home: string
         >
           <Icon name={i.icon} className="size-[18px]" />
           {i.label}
-          {i.badge && <span className={`ms-auto rounded-full px-2 text-xs leading-5 font-bold ${i.badge.tone === 'red' ? 'bg-red-100 text-red-800' : 'bg-saffron-500 text-neutral-900'}`}>{i.badge.text}</span>}
+          {i.badge && <span className={`ms-auto rounded-full px-2 text-xs leading-5 font-bold ${i.badge.tone === 'red' ? 'bg-red-100 text-red-800' : 'bg-saffron-500 text-ink'}`}>{i.badge.text}</span>}
         </Link>
       ))}
       <Link href="/" prefetch={false} className="flex h-10 shrink-0 items-center gap-2.5 rounded-xl px-3 text-sm whitespace-nowrap text-neutral-500 hover:bg-neutral-100 lg:mt-auto lg:hidden">

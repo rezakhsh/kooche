@@ -77,7 +77,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         )}
         {running?.status === 'trialing' && running.trialEndsAt && (
           <div className="space-y-1 rounded-2xl bg-brand-50 p-4 text-sm leading-7">
-            <p className="font-bold text-brand-900">{t.founding.trialing(formatDate(running.trialEndsAt, zone))}</p>
+            <p className="font-bold text-brand-800">{t.founding.trialing(formatDate(running.trialEndsAt, zone))}</p>
             <p className="text-neutral-700">{t.founding.continue}</p>
           </div>
         )}

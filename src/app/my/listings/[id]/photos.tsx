@@ -191,7 +191,7 @@ export function PhotoEditor({
               </span>
             )}
             {i === 0 && p.status === 'ready' && (
-              <span className="absolute start-1.5 top-1.5 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">{t.cover}</span>
+              <span className="absolute start-1.5 top-1.5 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-ink">{t.cover}</span>
             )}
             <details className="absolute end-1 bottom-1">
               <summary aria-label={t.photoActions} className="flex size-11 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden">

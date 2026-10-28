@@ -43,9 +43,9 @@ export function browseCountry(pathname: string): string | null {
 /**
  * Cache-Control for browse pages. A logged-out visitor's page is the same for everyone, so
  * Cloudflare keeps it for 60 seconds (the Cache Rule in docs/setup.md, "Browsing and favorites").
- * Anything personal stays private: a session, the remembered layout, and a postal code or "near
- * me" or a keyword in the address (keyword pages are rarely asked twice, so a shared copy would
- * mostly cache typos). The `country` cookie can't make a difference: proxy() renders every browse
+ * Anything personal stays private: a session, the remembered layout or colours (light or dark),
+ * and a postal code or "near me" or a keyword in the address (keyword pages are rarely asked twice,
+ * so a shared copy would mostly cache typos). The `country` cookie can't make a difference: proxy() renders every browse
  * page as if the page's own country were chosen, which RememberCountry then saves anyway. Only GET
  * and HEAD are shared. React Server Components requests (`RSC` header, `_rsc` parameter) get the
  * same header, because Next.js hides both from the proxy; the Cache Rule leaves them out instead
@@ -58,7 +58,7 @@ export function browseCacheControl(
   method = 'GET',
 ): string | null {
   if (!browseCountry(pathname)) return null;
-  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined;
+  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined || cookie('theme') !== undefined;
   return (method !== 'GET' && method !== 'HEAD') || personal || search.has('near') || search.has('postal') || search.has('q') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
 }
 

@@ -56,7 +56,7 @@ export function Field({
 
 const buttonStyles = {
   primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-700/60',
-  accent: 'bg-saffron-500 text-neutral-900 hover:bg-saffron-400',
+  accent: 'bg-saffron-500 text-ink hover:bg-saffron-400',
   secondary: 'border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50',
   danger: 'border border-red-200 bg-white text-red-700 hover:bg-red-50',
 };

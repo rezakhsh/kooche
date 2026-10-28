@@ -98,7 +98,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                         {preview}
                       </span>
                       {c.unread > 0 && (
-                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-saffron-500 px-1.5 text-xs font-bold text-neutral-900" title={t.unreadBadge(c.unread)}>
+                        <span className="ms-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-saffron-500 px-1.5 text-xs font-bold text-ink" title={t.unreadBadge(c.unread)}>
                           {c.unread.toLocaleString('fa-IR')}
                           <span className="sr-only">{t.unreadBadge(c.unread)}</span>
                         </span>

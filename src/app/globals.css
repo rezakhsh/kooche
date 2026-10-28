@@ -6,7 +6,8 @@
 /* Peydoo palette (approved Oct 17, 2026): Persian turquoise as the brand colour, saffron as the
    accent, greys tinted towards the turquoise. brand-700 is the primary (#0B6E77, white text
    5.98:1), saffron-500 takes dark text only. Text colours pass WCAG AA on white and neutral-50.
-   Light only for now; dark mode later redefines these tokens. */
+   Dark mode (wave 1, part 10) redefines the same names below, so pages need no dark code of their
+   own; tests/dark-mode.test.ts checks the contrast of both and that the two dark blocks agree. */
 @theme {
   --font-sans: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
 
@@ -44,6 +45,125 @@
 
   /* The browsing pages' background, under white cards (owner's choice, Oct 27, 2026) */
   --color-page: #eef3f2;
+
+  /* Colours that stay the same in dark mode: `white` there becomes the dark card surface, and
+     `text-white` on a turquoise or near-black fill turns dark with it (round 3: light turquoise
+     buttons take dark text). Text over photos and posters, on the admin bar and on the red fill
+     takes `snow`; text on saffron takes `ink`; a red button is `danger`. */
+  --color-snow: #ffffff;
+  --color-ink: #16211f;
+  --color-danger: #b91c1c;
+  --color-danger-hover: #991b1b;
+}
+
+/* Dark mode: automatic (follows the device) unless the `theme` cookie chose light or dark, which
+   the root layout writes as data-theme on <html> (src/app/theme.ts). Tokens from round 3 of
+   docs/design-options.md (mockups final/*-dark): surfaces #0f1716 / #16211f, turquoise #5cc0c7
+   with dark text on buttons, saffron #f5c862. Photos are never dimmed. brand-900/950 and
+   neutral-950 stay dark: posters, the admin bar, the photo viewer and backdrops use them. The two
+   blocks must stay identical. */
+:root {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-white: #16211f;
+    --color-page: #0f1716;
+    --color-neutral-50: #1b2826;
+    --color-neutral-100: #223230;
+    --color-neutral-200: #2c3836;
+    --color-neutral-300: #3a4946;
+    --color-neutral-400: #7d8f8b;
+    --color-neutral-500: #9fb0ac;
+    --color-neutral-600: #9fb0ac;
+    --color-neutral-700: #bccac7;
+    --color-neutral-800: #d5dfdc;
+    --color-neutral-900: #e8efed;
+    --color-brand-50: #123234;
+    --color-brand-100: #1a4447;
+    --color-brand-200: #1f5559;
+    --color-brand-300: #2a6d72;
+    --color-brand-400: #3e989c;
+    --color-brand-500: #4fb3bb;
+    --color-brand-600: #5cc0c7;
+    --color-brand-700: #5cc0c7;
+    --color-brand-800: #74ccd2;
+    --color-saffron-50: #2e2512;
+    --color-saffron-100: #4a3a17;
+    --color-saffron-400: #f8d68a;
+    --color-saffron-500: #f5c862;
+    --color-saffron-600: #f5c862;
+    --color-saffron-700: #f5c862;
+    --color-saffron-800: #f7d27e;
+    --color-red-50: #3a1416;
+    --color-red-100: #5a1d20;
+    --color-red-200: #6e2a2e;
+    --color-red-300: #a33a3f;
+    --color-red-600: #f07b7f;
+    --color-red-700: #ff9c9c;
+    --color-red-800: #ffb3b3;
+    --color-red-900: #ffc9c9;
+    --color-green-50: #12301d;
+    --color-green-200: #1f5a35;
+    --color-green-600: #4cc073;
+    --color-green-800: #7fd69b;
+    --color-amber-50: #2e2512;
+    --color-amber-200: #4a3a17;
+    --color-amber-800: #f5c862;
+    --color-amber-900: #f8d68a;
+    --color-danger: #c43c42;
+    --color-danger-hover: #a8333a;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-white: #16211f;
+  --color-page: #0f1716;
+  --color-neutral-50: #1b2826;
+  --color-neutral-100: #223230;
+  --color-neutral-200: #2c3836;
+  --color-neutral-300: #3a4946;
+  --color-neutral-400: #7d8f8b;
+  --color-neutral-500: #9fb0ac;
+  --color-neutral-600: #9fb0ac;
+  --color-neutral-700: #bccac7;
+  --color-neutral-800: #d5dfdc;
+  --color-neutral-900: #e8efed;
+  --color-brand-50: #123234;
+  --color-brand-100: #1a4447;
+  --color-brand-200: #1f5559;
+  --color-brand-300: #2a6d72;
+  --color-brand-400: #3e989c;
+  --color-brand-500: #4fb3bb;
+  --color-brand-600: #5cc0c7;
+  --color-brand-700: #5cc0c7;
+  --color-brand-800: #74ccd2;
+  --color-saffron-50: #2e2512;
+  --color-saffron-100: #4a3a17;
+  --color-saffron-400: #f8d68a;
+  --color-saffron-500: #f5c862;
+  --color-saffron-600: #f5c862;
+  --color-saffron-700: #f5c862;
+  --color-saffron-800: #f7d27e;
+  --color-red-50: #3a1416;
+  --color-red-100: #5a1d20;
+  --color-red-200: #6e2a2e;
+  --color-red-300: #a33a3f;
+  --color-red-600: #f07b7f;
+  --color-red-700: #ff9c9c;
+  --color-red-800: #ffb3b3;
+  --color-red-900: #ffc9c9;
+  --color-green-50: #12301d;
+  --color-green-200: #1f5a35;
+  --color-green-600: #4cc073;
+  --color-green-800: #7fd69b;
+  --color-amber-50: #2e2512;
+  --color-amber-200: #4a3a17;
+  --color-amber-800: #f5c862;
+  --color-amber-900: #f8d68a;
+  --color-danger: #c43c42;
+  --color-danger-hover: #a8333a;
 }
 
 /* Browsing pages (first page, browse, events, saved) on a soft background so white cards stand

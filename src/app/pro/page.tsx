@@ -74,7 +74,7 @@ export default async function ProPage() {
 
       {founding && firstOpen && country && left > 0 && (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl bg-saffron-50 p-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-500 text-neutral-900">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron-500 text-ink">
             <Icon name="star" className="size-5" />
           </span>
           <div className="min-w-0 flex-1 basis-64">

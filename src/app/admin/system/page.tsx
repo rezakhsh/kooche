@@ -51,7 +51,7 @@ export default async function SystemPage() {
                     <span className="text-sm leading-7 text-neutral-700">{x.what}</span>
                   </div>
                   {x.action && (
-                    <Link href={x.action.href} prefetch={false} className="flex h-10 shrink-0 items-center rounded-lg bg-red-700 px-3 text-sm font-bold text-white hover:bg-red-800">
+                    <Link href={x.action.href} prefetch={false} className="flex h-10 shrink-0 items-center rounded-lg bg-danger px-3 text-sm font-bold text-snow hover:bg-danger-hover">
                       {x.action.label}
                     </Link>
                   )}

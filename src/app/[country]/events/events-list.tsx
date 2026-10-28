@@ -174,7 +174,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
         <div className="mx-4 mt-4 flex items-center gap-2 rounded-2xl bg-[#5b1a1f] px-3 py-2 text-sm text-[#fff6e6] lg:mx-0">
           <Icon name="moon" className="size-5" />
           <b className="flex-1">{messages.events.seasons.strip(messages.events.seasons.names[s.season.key]!)}</b>
-          <Link href={href({ season: null })} className="flex size-9 items-center justify-center rounded-full hover:bg-white/10" aria-label={t.clear}>
+          <Link href={href({ season: null })} className="flex size-9 items-center justify-center rounded-full hover:bg-snow/10" aria-label={t.clear}>
             <Icon name="close" className="size-4" />
           </Link>
         </div>

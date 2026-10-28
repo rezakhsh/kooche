@@ -27,6 +27,8 @@ export type CardData = {
   founding?: boolean;
   /** Posted by a verified business */
   verified?: boolean;
+  /** A WG room where the address may be registered: «Anmeldung» on the photo (mockup final/ui.js) */
+  anmeldung?: boolean;
   /** After the price: «سرد، ماهانه» for rent */
   unit?: string | null;
   /** Without a photo: the category on a soft tile, and the business under it on its page (mockup final/business-page) */
@@ -61,7 +63,7 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
             </span>
           )}
           {card.featured && (
-            <span className="flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-neutral-900">
+            <span className="flex items-center gap-1 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-ink">
               <Icon name="star" className="size-3" />
               {messages.featured.badge}
             </span>
@@ -75,10 +77,15 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
         </span>
       )}
       {card.photoCount > 1 && (
-        <span className="absolute bottom-1.5 start-1.5 flex items-center gap-1 rounded-md bg-neutral-900/70 px-1.5 text-xs leading-5 text-white">
+        <span className="absolute bottom-1.5 start-1.5 flex items-center gap-1 rounded-md bg-neutral-950/70 px-1.5 text-xs leading-5 text-snow">
           <Icon name="camera" className="size-3" />
           <span className="sr-only">{t.photoCount(card.photoCount)}</span>
           <span aria-hidden>{card.photoCount.toLocaleString('fa-IR')}</span>
+        </span>
+      )}
+      {card.anmeldung && (
+        <span title={t.anmeldungTitle} className={`absolute end-1.5 rounded-md bg-white/95 px-1.5 text-xs font-bold leading-5 text-brand-800 ${view === 'grid' ? 'bottom-1.5' : 'bottom-1'}`}>
+          <bdi>Anmeldung</bdi>
         </span>
       )}
     </div>

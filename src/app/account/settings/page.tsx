@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { SettingsGroup, SettingsRow, TaskPage } from '../../../components/settings';
+import { THEME_ICONS } from '../../../components/theme-switch';
 import { appDb } from '../../../db/drizzle';
 import { users } from '../../../db/schema';
 import { valkey } from '../../../lib/valkey';
@@ -12,13 +13,15 @@ import { NOTICE_KINDS, noticeChannels, quietHoursOn } from '../../../modules/use
 import { maskPhone } from '../../../modules/users/phone-number';
 import { isPlaceholderName } from '../../../modules/users/profile';
 import { requireSession } from '../../../modules/users/server';
+import { currentTheme } from '../../theme';
 
 export const metadata = { title: messages.account.settings, robots: { index: false } };
 
 // Settings, one row from the account hub (wave 1; no mockup, designed in the approved style):
-// grouped like the hub's own rows (the account; notifications; security and devices; privacy and
-// data), each row with its current value under its name, and what still needs doing in saffron.
-// Appearance joins with dark mode (part 10).
+// grouped like the hub's own rows (the account; notifications; appearance; security and devices;
+// privacy and data), each row with its current value under its name, and what still needs doing in
+// saffron.
+// Appearance came with dark mode (part 10).
 
 export default async function SettingsPage() {
   const { user, session } = await requireSession('/account/settings');
@@ -31,6 +34,7 @@ export default async function SettingsPage() {
       .where(eq(users.id, user.id)),
     listDevices(db, user.id, session.id),
   ]);
+  const theme = await currentTheme();
   const t = messages.account;
   const s = t.settingsPage;
   const tg = me?.telegramUserId ?? null;
@@ -57,6 +61,9 @@ export default async function SettingsPage() {
       </SettingsGroup>
       <SettingsGroup title={s.notices}>
         <SettingsRow href="/account/notifications" icon="bell" label={t.notifications} value={notices} />
+      </SettingsGroup>
+      <SettingsGroup title={s.appearance}>
+        <SettingsRow href="/account/appearance" icon={THEME_ICONS[theme]} label={t.appearance.title} value={t.appearance.options[theme].name} />
       </SettingsGroup>
       <SettingsGroup title={s.security}>
         <SettingsRow href="/account/devices" icon="devices" label={t.devices} value={s.devices(devices.length)} />
