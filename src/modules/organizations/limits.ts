@@ -8,7 +8,10 @@ import { businessPlan } from '../payments/plans';
 // - private people post for free, but at most 2 active service or lesson offers;
 // - job offers from employers and the business-only categories (tax and accounting) need a
 //   business;
-// - a business has 3 active listings without Pro, 25 with Pro, 100 with Pro Plus.
+// - a business has 3 active listings without Pro, 25 with Pro, 100 with Pro Plus;
+// - a business's listings and events go live only once its legal details (the Impressum) are
+//   complete (owner, Oct 28, 2026; like Kleinanzeigen's «Rechtliche Angaben» for PRO accounts,
+//   § 5 DDG). Its page and drafts can start earlier.
 // Checked when a listing goes live: published, sent again, renewed or resumed. Listings already
 // live are never taken down by these rules.
 
@@ -18,7 +21,7 @@ export const PRIVATE_SERVICE_OFFERS = 2;
 /** Offers in this top category come from employers */
 export const JOBS_ROOT = 'jobs';
 
-export type PostingRefusal = 'business_only' | 'private_service_limit' | 'business_limit';
+export type PostingRefusal = 'business_only' | 'private_service_limit' | 'business_limit' | 'legal_missing';
 
 /**
  * Listings the user may manage: their own, and every listing of a business where they are owner
@@ -55,12 +58,21 @@ export async function postingRefusal(
     return null;
   }
 
+  if (!(await businessLegalComplete(db, l.organizationId))) return 'legal_missing';
   const plan = await businessPlan(db, l.organizationId, now);
   const [row] = await db.execute<{ n: number }>(sql`
     SELECT count(*)::int AS n FROM listings l
     WHERE l.organization_id = ${l.organizationId} AND l.status = 'active' AND l.id <> ${l.id}
       AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`);
   return (row?.n ?? 0) >= plan.features.activeListings ? 'business_limit' : null;
+}
+
+/** Whether the business's Impressum is complete (the same fields as legalComplete()) */
+export async function businessLegalComplete(db: Queryable, organizationId: string): Promise<boolean> {
+  const [row] = await db.execute<{ yes: boolean }>(sql`
+    SELECT (legal_name IS NOT NULL AND legal_form IS NOT NULL AND address_line1 IS NOT NULL AND postal_code IS NOT NULL AND email IS NOT NULL) AS yes
+    FROM organizations WHERE id = ${organizationId}`);
+  return !!row?.yes;
 }
 
 /** A category and every category under it */

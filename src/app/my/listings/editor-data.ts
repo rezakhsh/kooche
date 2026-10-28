@@ -88,7 +88,7 @@ export async function editorData(
       turnstileSiteKey: turnstileSiteKey(),
       // "Post as" (roadmap step 6): the businesses the user belongs to, chosen while it is a draft
       postAs: {
-        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name })),
+        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name, slug: b.slug, legal: b.legal })),
         locked: !!listing && listing.status !== 'draft',
         businessOnly: !!category.businessOnly,
       },

@@ -44,6 +44,8 @@ function refusal(reason: string): string {
     case 'category_not_postable':
     case 'business_only':
       return messages.post.categoryNotPostable;
+    case 'legal_missing':
+      return messages.business.limits.legalMissing;
     case 'too_many_events':
       return messages.events.form.tooManyEvents;
     case 'new_account_limit':

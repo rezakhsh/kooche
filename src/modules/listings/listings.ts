@@ -8,7 +8,7 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
 import { reviewPolicy } from '../moderation/policy';
-import { manageableBy, postingRefusal } from '../organizations/limits';
+import { businessLegalComplete, manageableBy, postingRefusal } from '../organizations/limits';
 import { roleIn } from '../organizations/organizations';
 import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
@@ -345,7 +345,9 @@ export type Refusal =
   /** The business's plan allows no more active listings */
   | 'business_limit'
   /** "Post as" a business the user isn't a member of */
-  | 'not_member';
+  | 'not_member'
+  /** The business's legal details (Impressum) aren't complete yet (src/modules/organizations/limits.ts) */
+  | 'legal_missing';
 export type Refused = { ok: false; reason: Refusal };
 
 /**
@@ -588,6 +590,8 @@ export async function saveListing(
       const refused = await postingRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind }, now);
       if (refused) return { ok: false, reason: refused };
     }
+    // A business's events too wait for its legal details (../organizations/limits.ts)
+    if (goingOut && opts.extension && organizationId && !(await businessLegalComplete(tx, organizationId))) return { ok: false, reason: 'legal_missing' };
     // Accounts in their first 7 days publish only a few listings a day (events count apart, in
     // src/modules/events/events.ts)
     if (

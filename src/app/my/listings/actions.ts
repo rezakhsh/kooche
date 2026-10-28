@@ -58,6 +58,8 @@ function refusal(reason: string): string {
       return t.business.limits.privateServices;
     case 'business_limit':
       return t.business.limits.businessListings;
+    case 'legal_missing':
+      return t.business.limits.legalMissing;
     case 'not_member':
       return t.business.limits.notMember;
     default:

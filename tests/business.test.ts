@@ -7,6 +7,8 @@ import { acceptInvitation, changeMember, invitationByToken, invite, revokeInvita
 import { businessUsage, postingRefusal } from '../src/modules/organizations/limits';
 import { businessBySlug, createBusiness, myBusinesses, setVerification, updateBusiness, type BusinessInput } from '../src/modules/organizations/organizations';
 import { managedListings } from '../src/modules/organizations/queries';
+import { createEventDraft, saveEvent } from '../src/modules/events/events';
+import { eventInputSchema } from '../src/modules/events/input';
 import { publicListing } from '../src/modules/listings/queries';
 import { appDb } from './accounts';
 import { db, makeListing, publicToken, type Tx } from './db';
@@ -209,6 +211,40 @@ describe('posting as a business', () => {
     const expired = await makeListing(owner, ownerId, { organizationId: org.id, status: 'expired' });
     await db.update(schema.entitlements).set({ revokedAt: new Date(), revokeReason: 'test' }).where(eq(schema.entitlements.organizationId, org.id));
     expect(await changeListingStatus(appDb, { userId: ownerId, listingId: expired.id, action: 'renew' })).toEqual({ ok: false, reason: 'business_limit' });
+  });
+
+  it('a business’s listings and events go live only with its legal details complete (owner, Oct 28, 2026)', async () => {
+    const me = await user();
+    await db.update(schema.users).set({ createdAt: new Date(Date.now() - 30 * DAY) }).where(eq(schema.users.id, me.id));
+    const blank = { legalName: '', legalForm: '', addressLine1: '', email: '' } as const;
+    const made = await createBusiness(appDb, { userId: me.id, countryCode: 'DE', input: details(blank) });
+    if (!made.ok) throw new Error(made.reason);
+    expect((await myBusinesses(db, me.id))[0]).toMatchObject({ id: made.id, legal: false });
+
+    // A listing as the business stays a draft and says why; privately the person still posts
+    const first = await publishAs(me.id, made.id);
+    expect(first.result).toEqual({ ok: false, reason: 'legal_missing' });
+    expect((await ownListing(db, me.id, first.id))?.listing.status).toBe('draft');
+    expect((await publishAs(me.id, null)).result).toMatchObject({ ok: true, status: 'active' });
+
+    // So does an event
+    const event = await createEventDraft(appDb, { userId: me.id, categoryId: (await categoryBySlug('event-parties')).id });
+    if (!event.ok) throw new Error(event.reason);
+    const eventInput = await input({ organizationId: made.id, place: '12045', attributes: {} });
+    const eventDetails = eventInputSchema.parse({ startDate: '2026-12-19', startTime: '20:00', endTime: '23:30', venueName: 'Kulturhaus Neukölln', streetAddress: 'Karl-Marx-Straße 141', organizerName: 'نان‌وایی بربری', languages: ['fa'] });
+    expect(await saveEvent(appDb, { userId: me.id, listingId: event.listingId, input: eventInput, event: eventDetails, intent: 'publish' })).toEqual({ ok: false, reason: 'legal_missing' });
+
+    // With the Impressum complete both go live, and it can't be emptied again
+    expect(await updateBusiness(appDb, { userId: me.id, organizationId: made.id, input: details() })).toEqual({ ok: true });
+    expect((await myBusinesses(db, me.id))[0]).toMatchObject({ legal: true });
+    expect((await saveListing(appDb, { userId: me.id, listingId: first.id, input: await input({ organizationId: made.id }), intent: 'publish' })).ok).toBe(true);
+    expect(await saveEvent(appDb, { userId: me.id, listingId: event.listingId, input: eventInput, event: eventDetails, intent: 'publish' })).toMatchObject({ ok: true, status: 'active' });
+    expect(await updateBusiness(appDb, { userId: me.id, organizationId: made.id, input: details(blank) })).toMatchObject({ ok: false, reason: 'legal_incomplete' });
+
+    // Renewing waits for it too (a business whose details went missing another way)
+    const expired = await makeListing(owner, me.id, { organizationId: made.id, status: 'expired' });
+    await db.update(schema.organizations).set({ legalName: null }).where(eq(schema.organizations.id, made.id));
+    expect(await changeListingStatus(appDb, { userId: me.id, listingId: expired.id, action: 'renew' })).toEqual({ ok: false, reason: 'legal_missing' });
   });
 
   it('only members post as the business; the choice is fixed once the listing is out', async () => {

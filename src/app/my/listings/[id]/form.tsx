@@ -55,7 +55,7 @@ export type FormProps = {
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
   /** "Post as": the user's businesses; fixed once the listing is out; some categories need one */
-  postAs: { options: { id: string; name: string }[]; locked: boolean; businessOnly: boolean };
+  postAs: { options: { id: string; name: string; slug: string; legal: boolean }[]; locked: boolean; businessOnly: boolean };
   values: {
     kind: 'offer' | 'wanted';
     title: string;
@@ -470,6 +470,18 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
             )}
           </label>
           <span className="block text-xs text-neutral-600">{props.postAs.locked ? t.postAsLocked : t.postAsHint}</span>
+          {/* A business without its Impressum can't publish yet (src/modules/organizations/limits.ts) */}
+          {!props.postAs.locked &&
+            props.postAs.options
+              .filter((o) => !o.legal)
+              .map((o) => (
+                <p key={o.id} className="text-xs leading-6 text-red-700">
+                  {messages.business.limits.legalMissingFor(o.name)}{' '}
+                  <a href={`/b/${o.slug}/edit`} className="font-bold underline">
+                    {messages.business.limits.completeLegal}
+                  </a>
+                </p>
+              ))}
         </Card>
       )}
 

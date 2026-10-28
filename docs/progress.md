@@ -1188,3 +1188,14 @@ The footer itself was built in the polish round (help, legal with the German nam
 - **Tests:** 872 passing; typecheck and `check:rtl` clean. `tests/search.test.ts` "near me" can fail by chance (random encrypted bytes may contain "52.5"); it passed on rerun. Not changed.
 
 **Where wave 1 stands:** all 11 parts done on staging. Waiting on the owner: the three part-7 choices, the neighbourhood spellings, `TELEGRAM_CHANNEL`, the `ev-cv` draft event, replacing the sample WG photo (its old picture has «…meldung» and «۶📷» baked in) and ticking «Anmeldung ممکن». Production gets wave 0 + wave 1 together only when the owner asks (`peydoo-promote`; delete the Cloudflare WAF Iran rule then).
+
+## Oct 28, 2026: the owner's answers (part 7 choices, spellings, Telegram channel, sample event)
+
+- **Legal details first** (owner: "legal details should be filled before the system shows their listing"; Kleinanzeigen PRO does the same with «Rechtliche Angaben»): a business's listings and events go live (publish, renew, resume) only with its Impressum complete; otherwise they stay drafts with «اطلاعات حقوقی این کسب‌وکار (Impressum) هنوز کامل نیست…», the "post as" choice in both posting forms names each business still missing it with a link to complete it, and the texts of the business form and dashboard say so. A complete Impressum can't be emptied again by editing. `docs/setup.md`, "A business's Impressum before its listings".
+- **Chats with a business** (owner: "manage the chats in a correct way"): chats stay per listing, as on Kleinanzeigen. On the business page «پیام» now opens the only listing's chat directly, asks which listing when there are several, and is left out when there are none.
+- **Founding texts:** explained to the owner (offered by Peydoo, Berlin's 30 places, €24 after six months, badge for a year, no invite code); no change.
+- **Neighbourhood spellings:** confirmed by the owner, no changes.
+- **Telegram channel:** `TELEGRAM_CHANNEL=peydooapp` on staging's web app (Coolify, runtime, set through the Coolify model in `artisan tinker`; not a secret); production gets it at launch.
+- **CV workshop sample event:** still refused by the 5-events-a-day limit (the owner's five went out Oct 27 at 20:24 UTC); `/root/peydoo-media/test-data/publish-ev-cv.mts` publishes it with the app's own code after 20:26 UTC today.
+- **Flaky test fixed:** `tests/search.test.ts` "near me" checked that the random token text has no "52", which happens by chance in about 1 token in 75 (66 of 5,000 measured); it now checks the token is plain base64url (no dot, so no readable coordinate). The decoded bytes never showed the coordinates in 5,000 runs.
+- **Tests:** 873 passing (new: a business's listing and event wait for its legal details, renewing too, the Impressum can't be emptied, `myBusinesses().legal`).

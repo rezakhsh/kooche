@@ -778,6 +778,10 @@ This API version has no fixed `payment_method_types`; Checkout gets `allowed_pay
 
 **Private and business limits** (decided Oct 22, 2026, checked at publish, renew and resume; live listings are never taken down by them): private people at most 2 active offers under `services` and `lessons-courses`; job offers (`jobs`, kind `offer`) and `businessOnly` categories (today `tax-accounting`) only as a business; a business 3 / 25 / 100 active listings by plan.
 
+**A business's Impressum before its listings** (owner, Oct 28, 2026): a business's listings and events go live (publish, renew, resume) only when its legal details are complete (`businessLegalComplete()`, the same five fields as `legalComplete()`); until then they stay drafts with the reason `legal_missing`, and the "post as" choice says so with «تکمیل اطلاعات حقوقی». The business page and its drafts can start earlier. Once complete, editing can't empty the legal details again. Practice: Kleinanzeigen PRO accounts enter their «Rechtliche Angaben» and they show on every listing; § 5 DDG requires an Impressum for commercial offers.
+
+**Messaging a business:** a chat always belongs to a listing (as on Kleinanzeigen). On the business page «پیام» opens the chat of its only live listing, asks which one when there are several, and is left out when there are none (call and route stay).
+
 **Bumped listings** (Oct 27, 2026, as on Kleinanzeigen): no badge; the card's time is the last bump (`ranked_at`, else `published_at`), so a bumped listing says «۵ دقیقه پیش» at the top of the list, and «آگهی‌های من» shows «نردبان: …» to its seller. Only publication and bumps move `ranked_at`. Featured listings keep their «ویژه» label (paid placement).
 
 **Views.** `countView()` (`src/modules/listings/views.ts`) on listing and event pages: once per visitor (16-character SHA-256 of the IP, kept 30 minutes) per listing, no obvious bots, never the seller's own; the listings worker adds them to `listings.view_count` every 5 minutes.

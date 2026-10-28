@@ -351,7 +351,9 @@ describe('near me', () => {
   it('the token holds only the ~500 m cell, encrypted, for 2 hours', () => {
     const exact = { lat: 52.520008, lng: 13.404954 };
     const token = createNearToken(SECRET, exact, 1_000_000);
-    expect(token).not.toContain('52');
+    // Only base64url: no dot, so no readable coordinate (a plain "52" turns up by chance in about 1
+    // token in 75, which made this test fail now and then)
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(Buffer.from(token, 'base64url').toString('latin1')).not.toMatch(/52\.5|13\.4/);
     const read = readNearToken(SECRET, token, 1_000_000 + 60_000);
     expect(read).toEqual({ ok: true, point: snapToGrid(exact) });

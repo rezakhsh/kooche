@@ -194,34 +194,36 @@ export default async function BusinessPage({ params, searchParams }: { params: P
           {openLine && <span className={`rounded-full px-2.5 leading-7 font-bold ${open?.open ? 'bg-green-50 text-green-800' : 'bg-neutral-100 text-neutral-700'}`}>{openLine}</span>}
         </div>
 
-        {/* Message (about one of its listings: chat always belongs to a listing), call, route */}
-        {!member && (
-          <div className={`mt-4 grid gap-2 ${actions.length === 2 ? 'grid-cols-3' : actions.length === 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <details className="group relative">
-              <summary className="flex h-12 cursor-pointer list-none items-center justify-center gap-1.5 rounded-xl bg-brand-700 text-sm font-bold text-white hover:bg-brand-800 [&::-webkit-details-marker]:hidden">
+        {/* Message, call, route. A chat always belongs to a listing (as on Kleinanzeigen): one live
+            listing opens its chat, several ask which one, none leaves the button out (wave 1) */}
+        {!member && (items.length > 0 || actions.length > 0) && (
+          <div className={`mt-4 grid gap-2 ${['grid-cols-1', 'grid-cols-1', 'grid-cols-2', 'grid-cols-3'][actions.length + (items.length ? 1 : 0)]}`}>
+            {items.length === 1 ? (
+              <Link href={`/chat/new?l=${items[0]!.publicToken}`} className="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-brand-700 text-sm font-bold text-white hover:bg-brand-800">
                 <Icon name="chat" className="size-4" />
                 {p.message}
-              </summary>
-              <div className="absolute start-0 top-14 z-20 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-neutral-200 bg-white p-2 shadow-lg">
-                {items.length ? (
-                  <>
-                    <p className="px-2 pt-1 pb-2 text-xs font-bold text-neutral-600">{p.messagePick}</p>
-                    <ul className="max-h-72 overflow-y-auto">
-                      {items.slice(0, 12).map((l) => (
-                        <li key={l.id}>
-                          <Link href={`/chat/new?l=${l.publicToken}`} className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm hover:bg-neutral-50">
-                            <Icon name="chat" className="size-4 shrink-0 text-brand-700" />
-                            <span className="truncate">{l.title}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  <p className="p-2 text-sm leading-7 text-neutral-700">{p.messageNone}</p>
-                )}
-              </div>
-            </details>
+              </Link>
+            ) : items.length > 1 ? (
+              <details className="group relative">
+                <summary className="flex h-12 cursor-pointer list-none items-center justify-center gap-1.5 rounded-xl bg-brand-700 text-sm font-bold text-white hover:bg-brand-800 [&::-webkit-details-marker]:hidden">
+                  <Icon name="chat" className="size-4" />
+                  {p.message}
+                </summary>
+                <div className="absolute start-0 top-14 z-20 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-neutral-200 bg-white p-2 shadow-lg">
+                  <p className="px-2 pt-1 pb-2 text-xs font-bold text-neutral-600">{p.messagePick}</p>
+                  <ul className="max-h-72 overflow-y-auto">
+                    {items.slice(0, 12).map((l) => (
+                      <li key={l.id}>
+                        <Link href={`/chat/new?l=${l.publicToken}`} className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm hover:bg-neutral-50">
+                          <Icon name="chat" className="size-4 shrink-0 text-brand-700" />
+                          <span className="truncate">{l.title}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+            ) : null}
             {actions.map((a) => (
               <a key={a.label} href={a.href} {...(a.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="flex h-12 items-center justify-center gap-1.5 rounded-xl border border-neutral-300 bg-white text-sm font-bold text-neutral-800 hover:bg-neutral-50">
                 <Icon name={a.icon} className="size-4" />

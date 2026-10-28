@@ -72,7 +72,21 @@ async function business(ownerId: string, verified = true) {
   const name = `نوا پروداکشن ${publicToken()}`;
   const [org] = await db
     .insert(schema.organizations)
-    .values({ slug: `org-${publicToken()}`, name, nameNormalized: normalizePersian(name), countryCode: 'DE', createdByUserId: ownerId, verificationStatus: verified ? 'verified' : 'unverified' })
+    .values({
+      slug: `org-${publicToken()}`,
+      name,
+      nameNormalized: normalizePersian(name),
+      countryCode: 'DE',
+      createdByUserId: ownerId,
+      verificationStatus: verified ? 'verified' : 'unverified',
+      // A complete Impressum: a business's events go live only with it (owner, Oct 28, 2026)
+      legalName: 'Nava Production',
+      legalForm: 'Einzelunternehmen',
+      addressLine1: 'Karl-Marx-Straße 1',
+      postalCode: '12043',
+      placeName: 'Berlin',
+      email: 'info@nava.example',
+    })
     .returning();
   await db.insert(schema.organizationMembers).values({ organizationId: org!.id, userId: ownerId, role: 'owner' });
   return org!;

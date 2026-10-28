@@ -97,7 +97,9 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                 ? messages.business.limits.businessListings
                 : params.error === 'business_only'
                   ? messages.business.limits.businessOnly
-                  : t.notAllowed}
+                  : params.error === 'legal_missing'
+                    ? messages.business.limits.legalMissing
+                    : t.notAllowed}
           </Alert>
         )}
       </div>

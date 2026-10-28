@@ -108,7 +108,7 @@ export type BusinessError =
 const LEGAL_FIELDS = ['legalName', 'legalForm', 'representativeName', 'addressLine1', 'addressLine2', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra'] as const;
 
 /** Everything the Impressum, the «تأییدشده» badge and a payment need */
-export function legalComplete(org: { legalName: string | null; legalForm: string | null; addressLine1: string | null; postalCode: string | null; email: string | null }): boolean {
+export function legalComplete(org: { legalName?: string | null; legalForm?: string | null; addressLine1?: string | null; postalCode?: string | null; email?: string | null }): boolean {
   return !!(org.legalName && org.legalForm && org.addressLine1 && org.postalCode && org.email);
 }
 
@@ -233,6 +233,8 @@ export async function updateBusiness(
       if (!org) return { ok: false, reason: 'not_found' };
       const built = await columns(tx, org.countryCode, { ...parsed.data, legalLater: false });
       if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
+      // Once complete, the Impressum stays: the business's live listings depend on it (./limits.ts)
+      if (legalComplete(org) && !legalComplete(built.values)) return { ok: false, reason: 'legal_incomplete', fields: { legalName: 'required' } };
       // Changing the legal details sends a verified business back to unverified
       const legalChanged = org.legalName !== built.values.legalName || org.registrationNumber !== built.values.registrationNumber || org.vatId !== built.values.vatId;
       await tx
@@ -273,7 +275,16 @@ export async function roleIn(db: Queryable, userId: string, organizationId: stri
 /** The businesses the user belongs to, for the "post as" choice and /business */
 export async function myBusinesses(db: Queryable, userId: string) {
   return db
-    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, role: organizationMembers.role, verificationStatus: organizations.verificationStatus, countryCode: organizations.countryCode })
+    .select({
+      id: organizations.id,
+      slug: organizations.slug,
+      name: organizations.name,
+      role: organizationMembers.role,
+      verificationStatus: organizations.verificationStatus,
+      countryCode: organizations.countryCode,
+      // The Impressum is complete: its listings may go live (./limits.ts)
+      legal: sql<boolean>`(${organizations.legalName} IS NOT NULL AND ${organizations.legalForm} IS NOT NULL AND ${organizations.addressLine1} IS NOT NULL AND ${organizations.postalCode} IS NOT NULL AND ${organizations.email} IS NOT NULL)`,
+    })
     .from(organizationMembers)
     .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId))
     .where(and(eq(organizationMembers.userId, userId), eq(organizations.status, 'active')))

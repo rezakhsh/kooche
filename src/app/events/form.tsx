@@ -41,7 +41,7 @@ export type EventFormProps = {
   /** The city the times are read in («به وقت برلین») */
   cityName: string;
   /** Post as the user or one of their businesses, chosen while it is a draft */
-  postAs: { options: { id: string; name: string }[]; locked: boolean };
+  postAs: { options: { id: string; name: string; slug: string; legal: boolean }[]; locked: boolean };
   /** Cloudflare Turnstile for "publish" (src/components/turnstile.tsx); null when it is off */
   turnstileSiteKey: string | null;
   values: {
@@ -616,6 +616,18 @@ export function EventForm(
               <Pills name="organizationId" value={v.organizationId} options={[['', st.myself(props.userName)], ...props.postAs.options.map((o) => [o.id, o.name] as [string, string])]} />
             )}
             <ErrorText code={errors.organizationId} />
+            {/* A business without its Impressum can't publish yet (src/modules/organizations/limits.ts) */}
+            {!props.postAs.locked &&
+              props.postAs.options
+                .filter((o) => !o.legal)
+                .map((o) => (
+                  <p key={o.id} className="text-xs leading-6 text-red-700">
+                    {messages.business.limits.legalMissingFor(o.name)}{' '}
+                    <a href={`/b/${o.slug}/edit`} className="font-bold underline">
+                      {messages.business.limits.completeLegal}
+                    </a>
+                  </p>
+                ))}
           </>
         )}
         <label className="block">

@@ -78,7 +78,7 @@ export async function eventEditorData(
       userName: me?.displayName ?? '',
       cityName: city?.nameFa ?? messages.notifications.defaultCity,
       postAs: {
-        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name })),
+        options: businesses.filter((b) => !countryCode || b.countryCode === countryCode).map((b) => ({ id: b.id, name: b.name, slug: b.slug, legal: b.legal })),
         locked: !!l && l.status !== 'draft',
       },
       turnstileSiteKey: turnstileSiteKey(),
