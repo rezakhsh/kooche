@@ -401,7 +401,12 @@ export function mountMap(
     if (home && nearHome(view)) {
       const here: Geometry = shape && !view.pin ? shape : { type: 'Point', coordinates: view.pin ?? view.center };
       const there: Geometry = home.area ?? { type: 'Point', coordinates: home.center };
-      map.fitBounds(bounds([here, there]), { padding: { top: 56, bottom: view.pin ? 72 : 48, left: 64, right: 48 }, maxZoom: 14.5, animate: false });
+      // Room for the house, the pin and the distance, in proportion to the frame (event maps are
+      // wide and low on phones)
+      const [w, h] = [container.clientWidth, container.clientHeight];
+      const side = Math.round(w * 0.12);
+      const top = Math.round(h * 0.14);
+      map.fitBounds(bounds([here, there]), { padding: { top: top + (view.pin ? 20 : 0), bottom: top, left: side, right: side }, maxZoom: 14.5, animate: false });
     } else if (view.pin) map.jumpTo({ center: view.pin, zoom: onPick ? 15.5 : 14.8 });
     else if (shape) {
       map.fitBounds(bounds([shape]), { padding: 24, maxZoom: 15, animate: false });

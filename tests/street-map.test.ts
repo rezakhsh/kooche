@@ -81,8 +81,7 @@ describe('a page’s street map', () => {
     const center = await postalCenter('12045');
     const pin = { lng: 13.43521, lat: 52.48601 };
     const view = await streetMapView(appDb, { countryCode: 'DE', postalCode: '12045', point: { lng: center.lng, lat: center.lat }, pin, precision: 'postal_code' });
-    expect(view).toMatchObject({ center: [pin.lng, pin.lat], pin: [pin.lng, pin.lat], circle: null });
-    expect(view!.area).not.toBeNull();
+    expect(view).toMatchObject({ center: [pin.lng, pin.lat], pin: [pin.lng, pin.lat], circle: null, area: null });
   });
 
   it('is left out without a map file or a place', async () => {

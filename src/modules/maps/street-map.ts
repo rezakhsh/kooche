@@ -62,7 +62,8 @@ export async function streetMapView(
   return {
     version,
     center,
-    area,
+    // An exact pin says it all: the postal code's area under it is only noise
+    area: place.pin ? null : area,
     circle: area || place.pin || place.precision === 'city' ? null : AREA_CIRCLE_M,
     pin: place.pin ? [place.pin.lng, place.pin.lat] : null,
     neighbourhoods,
