@@ -548,7 +548,7 @@ function SortMenu({ sorts, current, href }: { sorts: Sort[]; current: Sort; href
         <span className="sr-only">{tb.sort}: </span>
         {tb.sorts[current]}
       </summary>
-      <ul className="absolute start-0 top-full z-20 mt-1 min-w-40 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
+      <ul className="absolute end-0 top-full z-20 mt-1 min-w-40 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
         {sorts.map((s) => (
           <li key={s}>
             <Link

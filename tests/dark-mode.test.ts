@@ -124,7 +124,7 @@ describe('dark mode', () => {
         .split('\n')
         .map((line, i) => [line, i + 1] as const)
         .filter(([line]) => /\btext-white\b/.test(line) && !path.endsWith('globals.css'))
-        .filter(([line]) => !/bg-brand-[67]00|bg-neutral-900\b|bg-\[#2aabee\]/.test(line))
+        .filter(([line]) => !/bg-brand-[67]00|bg-neutral-900\b|bg-\[#197bb8\]/.test(line))
         .map(([, n]) => `${path}:${n}`),
     );
     expect(wrong).toEqual([]);

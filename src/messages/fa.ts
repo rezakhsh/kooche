@@ -3636,6 +3636,7 @@ export const admin = {
   businesses: {
     title: 'کسب‌وکارها',
     tabs: { waiting: 'در انتظار تأیید', all: 'همه' } as Record<string, string>,
+    verificationStatus: { unverified: 'تأییدنشده', pending: 'در انتظار تأیید', verified: 'تأییدشده', rejected: 'ردشده' } as Record<string, string>,
     waitingIntro: 'کسب‌وکارهایی که اطلاعات حقوقی دارند و هنوز تأیید نشده‌اند. نام، شماره ثبت یا مالیاتی و نشانی را با ثبت تجاری (Handelsregister، Gewerbeamt، Firmenbuch) یا سایت کسب‌وکار مقایسه کنید.',
     legal: 'اطلاعات حقوقی',
     register: 'ثبت',

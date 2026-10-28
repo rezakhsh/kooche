@@ -21,7 +21,7 @@ export default function HelpPage() {
                 <summary className="cursor-pointer list-none font-semibold text-neutral-900 marker:hidden">
                   <span className="flex items-center justify-between gap-3">
                     {item.q}
-                    <span aria-hidden className="text-neutral-400 transition-transform group-open:rotate-45">+</span>
+                    <span aria-hidden className="text-neutral-500 transition-transform group-open:rotate-45">+</span>
                   </span>
                 </summary>
                 <p className="mt-2 leading-7 text-neutral-700">{item.a}</p>

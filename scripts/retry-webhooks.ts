@@ -1,12 +1,16 @@
 // Applies every stored Stripe webhook that was never applied, once more (wave 1, part 11). The
 // worker retries an event 10 times and then leaves it on the system page; after a fix, this runs
 // them again. Test-mode events about something this database never made are now skipped
-// (src/modules/payments/apply.ts, NotOurs). Runs as classifieds_worker, like the worker.
+// (src/modules/payments/apply.ts, NotOurs). Runs as classifieds_worker, like the worker. With
+// REDIS_URL it also removes the queue's failed jobs whose event is now applied, so the system page
+// stops counting them.
 //
-//   WORKER_DATABASE_URL=… STRIPE_SECRET_KEY=… npx tsx scripts/retry-webhooks.ts
+//   WORKER_DATABASE_URL=… STRIPE_SECRET_KEY=… [REDIS_URL=…] npx tsx scripts/retry-webhooks.ts
 
+import { Queue } from 'bullmq';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
+import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import * as schema from '../src/db/schema';
 import { applyWebhookEvent } from '../src/modules/payments/apply';
@@ -25,6 +29,25 @@ try {
     console.log(`${r.type} ${r.id}: ${outcome}`);
   }
   console.log(`${rows.length} events`);
+  if (process.env.REDIS_URL) {
+    const connection = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+    const queue = new Queue('payments', { connection });
+    let removed = 0;
+    for (const job of await queue.getFailed(0, 1999)) {
+      if (job.name !== 'apply') continue;
+      const [done] = await db
+        .select({ id: schema.webhookEvents.id })
+        .from(schema.webhookEvents)
+        .where(and(eq(schema.webhookEvents.id, String(job.data.aggregateId)), isNotNull(schema.webhookEvents.processedAt)));
+      if (done) {
+        await job.remove();
+        removed++;
+      }
+    }
+    console.log(`${removed} failed jobs removed`);
+    await queue.close();
+    await connection.quit();
+  }
 } finally {
   await sql.end();
 }

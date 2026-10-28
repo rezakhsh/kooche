@@ -53,7 +53,7 @@ export function TelegramVerify() {
           href={state.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9]"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#197bb8] text-base font-bold text-white hover:bg-[#1673ad]"
         >
           <Icon name="send" className="size-5" />
           {t.telegramOpen}
@@ -73,7 +73,7 @@ export function TelegramVerify() {
       <button
         type="submit"
         disabled={pending}
-        className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9] disabled:opacity-70"
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#197bb8] text-base font-bold text-white hover:bg-[#1673ad] disabled:opacity-70"
       >
         <Icon name="send" className="size-5" />
         {failed ? t.retry : t.loginButton}
@@ -93,7 +93,7 @@ export function TelegramLogin({ label, hint = true }: { label?: string; hint?: b
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#2aabee] text-base font-bold text-white hover:bg-[#229ed9] disabled:opacity-70"
+        className="mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#197bb8] text-base font-bold text-white hover:bg-[#1673ad] disabled:opacity-70"
       >
         <Icon name="send" className="size-5" />
         {label ?? t.loginButton}

@@ -37,7 +37,7 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <a href={`/b/${b.slug}`} target="_blank" rel="noreferrer" className="font-bold hover:underline">{b.name}</a>
                 <StatusPill status={b.status} />
-                <span className="text-xs text-neutral-500">{admin.status[b.verification] ?? b.verification}</span>
+                <span className="text-xs text-neutral-500">{t.verificationStatus[b.verification] ?? b.verification}</span>
                 <span className="text-xs text-neutral-500"><Ago date={b.createdAt} /></span>
               </div>
               <Facts
