@@ -1240,3 +1240,7 @@ The owner found the first map hard to read (the postal area filled 80% of it, gr
 - The owner found «جزئیات کامل» on admin › users › a person doing nothing: on the user's own page the person card linked to that same page. The card now leaves the link out there (`PersonCard onUserPage`); on item and moderation pages it still opens the user's page.
 - Still missing from the admin mockups (round 12 `admin-viewas`, put in wave 2 by the wave 1 plan): view as a country, one test account per country, sign in as a user. The owner asked for them now, plus the founders rule (the owner's phone from the business's country; one founding place per person). Next: the wave 2 plan for approval, admin part first; then Berlin launches.
 
+## Oct 28, 2026: the wave 2 plan
+
+- Written for approval: `docs/wave2-plan.md`, page https://claude.ai/artifact/VLqjQurhjY4gEqckT23uQL. Ten parts, 19–22.5 days (estimate); part 1 is the admin tools (test accounts with code 123456 on staging only, view as a country, sign in as a user) and the founders rules. Five decisions for the owner at the end. No code yet.
+

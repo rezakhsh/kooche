@@ -6,7 +6,7 @@ The build waves from the launch plan (`docs/design-options/launch-plan.html`, ve
 | --- | --- | --- |
 | 0 | Before Berlin opens: Berlin only, city waitlists, Telegram refusal, founding Pro, withdrawal button, Iran by account | Done on staging, except WhatsApp (postponed) |
 | 1 | The «صیقل‌خورده» redesign (11 parts) | Building on staging (approved Oct 27, 2026) |
-| 2 | Many countries: category × city switch, modes, private vs business, admin "view as country" and "sign in as user", starter pages, prices in $ and £ | Next |
+| 2 | Many countries: category × city switch, modes, private vs business, admin "view as country" and "sign in as user", starter pages, prices in $ and £ | Plan for approval: `docs/wave2-plan.md` (Oct 28, 2026); Berlin launches after it (owner) |
 | 3 | Turkey, business stage | |
 | 4 | Safety at scale: AI screening, trust levels, night and safe modes, backup server, Radar rules | |
 | 5 | Turkey, private listings | |
