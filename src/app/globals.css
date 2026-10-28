@@ -264,3 +264,25 @@ body:has([data-app-bar]) > footer [data-footer-slim] {
     padding-bottom: 6rem;
   }
 }
+
+/* The street map's buttons and «© OpenStreetMap» (MapLibre, src/components/street-map-gl.ts) in
+   the page's own colours, so they turn dark with it; the + and − are drawn black by MapLibre and
+   turned light on a dark map */
+.maplibregl-ctrl-group:not(:empty) {
+  background-color: var(--color-white);
+  box-shadow: 0 0 0 1px var(--color-neutral-200);
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-neutral-200);
+}
+.peydoo-map-dark .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background-color: color-mix(in oklab, var(--color-white) 80%, transparent);
+  color: var(--color-neutral-700);
+  font-size: 0.6875rem;
+}
+.maplibregl-ctrl-attrib a {
+  color: inherit;
+}

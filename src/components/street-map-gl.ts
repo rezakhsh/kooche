@@ -134,7 +134,7 @@ function pinElement(): HTMLElement {
   const el = document.createElement('div');
   el.className = 'peydoo-map-pin';
   el.innerHTML =
-    '<svg viewBox="0 0 24 32" width="30" height="40" aria-hidden="true"><path d="M12 31s10-10.2 10-18.5C22 6.2 17.5 1.5 12 1.5S2 6.2 2 12.5C2 20.8 12 31 12 31z" fill="#0b6e77" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12.5" r="4" fill="#fff"/></svg>';
+    '<svg viewBox="0 0 24 32" width="30" height="40" aria-hidden="true"><path d="M12 31s10-10.2 10-18.5C22 6.2 17.5 1.5 12 1.5S2 6.2 2 12.5C2 20.8 12 31 12 31z" fill="var(--color-brand-700)" stroke="var(--color-white)" stroke-width="2"/><circle cx="12" cy="12.5" r="4" fill="var(--color-white)"/></svg>';
   return el;
 }
 
@@ -161,7 +161,7 @@ export function mountMap(
     zoom: 13,
     maxZoom: 17,
     minZoom: 4,
-    attributionControl: { compact: true },
+    attributionControl: { compact: false },
     cooperativeGestures: !onPick,
     dragRotate: false,
     pitchWithRotate: false,
@@ -178,6 +178,7 @@ export function mountMap(
   map.keyboard.disableRotation();
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
   map.getCanvas().setAttribute('aria-label', texts.label);
+  container.classList.toggle('peydoo-map-dark', isDark);
 
   let marker: maplibregl.Marker | null = null;
   function setPin(pin: [number, number] | null) {
@@ -195,10 +196,20 @@ export function mountMap(
   function frame() {
     const shape = shapeOf(view);
     if (view.pin) map.jumpTo({ center: view.pin, zoom: 15.5 });
-    else if (shape) map.fitBounds(bounds(shape), { padding: 28, maxZoom: 15, animate: false });
+    else if (shape) map.fitBounds(bounds(shape), { padding: 24, maxZoom: 15, animate: false });
     else map.jumpTo({ center: view.center, zoom: 11 });
+    // For checks in the browser: the zoom and the size it was fitted to
+    container.dataset.fit = `${map.getZoom().toFixed(2)}@${container.clientWidth}x${container.clientHeight}`;
   }
   frame();
+  // The frame's size can settle after the map starts (fonts, the page's layout on phones): fit the
+  // area again until the visitor moves the map themselves
+  let moved = false;
+  map.on('movestart', (e) => {
+    if ((e as { originalEvent?: unknown }).originalEvent) moved = true;
+  });
+  map.once('load', () => !moved && frame());
+  map.on('resize', () => !moved && frame());
   setPin(view.pin);
   if (onPick) map.on('click', (e: MapMouseEvent) => onPick(e.lngLat.toArray() as [number, number]));
 
@@ -206,6 +217,7 @@ export function mountMap(
     setDark(next) {
       if (next === isDark) return;
       isDark = next;
+      container.classList.toggle('peydoo-map-dark', isDark);
       map.setStyle(style(view, isDark));
     },
     setView(next) {
