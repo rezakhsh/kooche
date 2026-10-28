@@ -154,7 +154,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     otherActiveListings(appDb(), l),
     similarListings(appDb(), l),
     // The postal code's area, never a point (docs/setup.md, "The street map")
-    streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }),
+    streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }, isOwner ? null : session?.user.id),
   ]);
   const facts = cardFacts(catalog, l.categoryId, attrs, amountCurrency);
   const safety = t.safetyBox[safetyKind(crumbs)];
@@ -518,6 +518,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 />
                 <p className="mt-2 text-xs leading-6 text-neutral-600">
                   {mapView.area && l.postalCode ? messages.map.listingArea(l.postalCode) : mapView.circle ? messages.map.listingCircle : messages.map.listingCity}
+                  {mapView.home && ` ${mapView.home.km < 1 ? messages.map.sameArea : messages.map.fromHome(messages.map.km(mapView.home.km))}`}
                 </p>
               </section>
             )}

@@ -94,7 +94,7 @@ export default async function BusinessPage({ params, searchParams }: { params: P
         : p.closedNow;
   const street = org.addressLine1 ? [org.addressLine1, org.addressLine2].filter(Boolean).join(', ') : null;
   // The shop's pin where the business set one, otherwise its postal code's area (the address is public)
-  const mapView = street ? await streetMapView(appDb(), { countryCode: org.countryCode, postalCode: org.postalCode, placeName: org.placeName, point: org.point, pin: org.pin, precision: 'postal_code' }) : null;
+  const mapView = street ? await streetMapView(appDb(), { countryCode: org.countryCode, postalCode: org.postalCode, placeName: org.placeName, point: org.point, pin: org.pin, precision: 'postal_code' }, member ? null : session?.user.id) : null;
   const addressLatin = street ? [street, [org.postalCode, cityLocal].filter(Boolean).join(' ')].filter(Boolean).join(', ') : null;
   const verified = org.verificationStatus === 'verified';
   const legal = legalComplete(org);
@@ -320,12 +320,17 @@ export default async function BusinessPage({ params, searchParams }: { params: P
                   </p>
                 ))}
                 {mapView ? (
-                  <StreetMap
-                    view={mapView}
-                    label={t.page.address}
-                    className="aspect-[4/3]"
-                    fallback={<OutlineMap countryCode={org.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={t.page.address} />}
-                  />
+                  <>
+                    <StreetMap
+                      view={mapView}
+                      label={t.page.address}
+                      className="aspect-[4/3]"
+                      fallback={<OutlineMap countryCode={org.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={t.page.address} />}
+                    />
+                    {mapView.home && (
+                      <p className="text-xs leading-6 text-neutral-600">{mapView.home.km < 1 ? messages.map.sameArea : messages.map.fromHome(messages.map.km(mapView.home.km))}</p>
+                    )}
+                  </>
                 ) : (
                   street && org.point && <OutlineMap countryCode={org.countryCode} point={org.point} label={t.page.address} />
                 )}

@@ -13,6 +13,7 @@ import {
   type Refused,
   type SaveResult,
 } from '../listings/listings';
+import { pinFromAddress } from '../maps/geocode';
 import { pinField, pinNear } from '../maps/pin';
 import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor } from '../users/permissions';
@@ -103,7 +104,7 @@ function detailsDiff(before: Details, after: EventDetailsValues): Record<string,
 }
 
 /** The extension that adds an event's fields to saveListing */
-function eventExtension(input: EventInput, listingInput: ListingInput): ListingExtension {
+function eventExtension(input: EventInput, listingInput: ListingInput, pinFound = false): ListingExtension {
   return {
     async prepare(tx, { current, place, mode, goingOut, now }) {
       const [details] = await tx.select().from(eventDetails).where(eq(eventDetails.listingId, current.id)).for('update');
@@ -117,12 +118,13 @@ function eventExtension(input: EventInput, listingInput: ListingInput): ListingE
       const timeZone = (place && (await cityTimeZone(tx, place.locationId))) || details.timeZone;
       const r = prepareEventFields(input, { timeZone, mode, goingOut, now });
       const errors: FieldErrors = r.ok ? {} : { ...r.errors };
-      // The venue's pin: only for a place people go to, and near the event's postal code
+      // The venue's pin: only for a place people go to, and near the event's postal code. One found
+      // from the address that lands far away was a wrong match: left out, not the organizer's error.
       const pin = pinField.safeParse(input.pin);
       let venuePin = pin.success && input.attendance !== 'online' ? pin.data : null;
       if (!pin.success) errors.pin = 'invalid';
       else if (venuePin && (!place || !pinNear(venuePin, place.center))) {
-        if (place) errors.pin = 'too_far';
+        if (place && !pinFound) errors.pin = 'too_far';
         else venuePin = null;
       }
       if (!(EVENT_PRICE_TYPES as readonly string[]).includes(listingInput.priceType)) errors.priceType = 'not_allowed';
@@ -190,6 +192,23 @@ export async function saveEvent(
       return { ok: false, reason: fresh ? 'new_account_limit' : 'too_many_events' };
     }
   }
+  // No pin from the organizer: the venue's street address finds one (src/modules/maps/geocode.ts)
+  let event = opts.event;
+  let pinFound = false;
+  const street = event.attendance !== 'online' ? event.streetAddress.normalize('NFC').replace(/\s+/g, ' ').trim() : '';
+  if (street) {
+    const [saved] = await db
+      .select({ countryCode: listings.countryCode, street: eventDetails.streetAddress, pin: eventDetails.venuePin })
+      .from(listings)
+      .innerJoin(eventDetails, eq(eventDetails.listingId, listings.id))
+      .where(eq(listings.id, opts.listingId));
+    const own = pinField.safeParse(event.pin);
+    if (saved && own.success) {
+      const found = await pinFromAddress({ pin: own.data, street, place: opts.input.place, countryCode: saved.countryCode ?? (opts.input.countryCode.toUpperCase() || null), saved: { street: saved.street, pin: saved.pin } });
+      pinFound = found.fromAddress;
+      event = { ...event, pin: found.pin ? `${found.pin.lat},${found.pin.lng}` : '' };
+    }
+  }
   const r = await saveListing(db, {
     userId: opts.userId,
     listingId: opts.listingId,
@@ -198,7 +217,7 @@ export async function saveEvent(
     intent: opts.intent,
     now,
     check: opts.check,
-    extension: eventExtension(opts.event, opts.input),
+    extension: eventExtension(event, opts.input, pinFound),
   });
   // The posting steps (wave 1): what publishing would still refuse of the event's own fields too
   if (r.ok && r.missing) {

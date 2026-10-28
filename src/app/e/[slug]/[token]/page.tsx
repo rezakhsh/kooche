@@ -132,7 +132,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
       : Promise.resolve([]),
     // The venue is public: its pin where the organizer set one, otherwise the postal code's area
     d.attendance !== 'online'
-      ? streetMapView(db, { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, pin: d.venuePin, precision: l.locationPrecision })
+      ? streetMapView(db, { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, pin: d.venuePin, precision: l.locationPrecision }, isOwner ? null : session?.user.id)
       : Promise.resolve(null),
   ]);
   const saved = savedSet.has(l.id);
@@ -428,12 +428,17 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           ))}
         </ul>
         {mapView && inPerson && (
-          <StreetMap
-            view={mapView}
-            label={d.venueName ?? messages.map.section}
-            className="aspect-[16/9]"
-            fallback={l.countryCode ? <OutlineMap countryCode={l.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={messages.map.section} /> : null}
-          />
+          <div>
+            <StreetMap
+              view={mapView}
+              label={d.venueName ?? messages.map.section}
+              className="aspect-[16/9]"
+              fallback={l.countryCode ? <OutlineMap countryCode={l.countryCode} point={{ lng: mapView.center[0], lat: mapView.center[1] }} label={messages.map.section} /> : null}
+            />
+            {mapView.home && (
+              <p className="mt-2 text-xs leading-6 text-neutral-600">{mapView.home.km < 1 ? messages.map.sameArea : messages.map.fromHome(messages.map.km(mapView.home.km))}</p>
+            )}
+          </div>
         )}
 
         {upcoming.length > 1 && (

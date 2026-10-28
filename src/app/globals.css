@@ -286,3 +286,46 @@ body:has([data-app-bar]) > footer [data-footer-slim] {
 .maplibregl-ctrl-attrib a {
   color: inherit;
 }
+
+/* The visitor's own place on the street map (src/components/street-map-gl.ts): a house, the
+   distance halfway, or an arrow on the map's edge pointing home when it is far */
+.peydoo-map-home {
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 9999px;
+  background-color: var(--color-saffron-500);
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.peydoo-map-km,
+.peydoo-map-far {
+  direction: rtl;
+  white-space: nowrap;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+.peydoo-map-km {
+  padding: 0.1875rem 0.5rem;
+  background-color: var(--color-white);
+  color: var(--color-neutral-900);
+}
+.peydoo-map-far {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.25rem 0.625rem;
+  background-color: var(--color-saffron-500);
+  color: #fff;
+  pointer-events: none;
+}
+.peydoo-map-far svg {
+  flex: none;
+}

@@ -329,13 +329,22 @@ export const messages = {
     listingCity: 'فقط شهر مشخص شده است.',
     preview: 'خریداران همین محدوده را روی نقشه می‌بینند، نه نشانی شما را.',
     pickTitle: 'جای دقیق روی نقشه (اختیاری)',
-    pickHint: 'روی نقشه بزنید تا نقطه گذاشته شود؛ برای جابه‌جایی، نقطه را بکشید. بدون آن، محدودهٔ کد پستی نشان داده می‌شود.',
+    pickHint: 'با نوشتن نشانی، نقطه بعد از ذخیره خودش پیدا می‌شود. می‌توانید روی نقشه بزنید یا نقطه را بکشید تا دقیق‌تر شود. بدون نقطه، محدودهٔ کد پستی نشان داده می‌شود.',
     pickClear: 'حذف نقطه',
     pickSet: 'نقطه گذاشته شد.',
     pickTooFar: 'نقطه باید نزدیک کد پستی انتخاب‌شده باشد.',
     pickFirst: 'اول کد پستی را انتخاب کنید.',
     directions: 'مسیریابی',
     section: 'محل روی نقشه',
+    expand: 'نقشهٔ بزرگ',
+    close: 'بستن نقشه',
+    home: 'محدودهٔ شما',
+    /** «حدود ۹ کیلومتر»: straight-line, rounded to tens when far */
+    km: (km: number) => (km < 1 ? 'کمتر از ۱ کیلومتر' : `حدود ${faDigits(String(km < 30 ? Math.round(km) : Math.round(km / 10) * 10))} کیلومتر`),
+    far: (km: string, name: string) => `${km} تا ${name}`,
+    /** Under a listing's or an event's map, for a visitor who saved "my location" */
+    fromHome: (km: string) => `${km} از محدودهٔ شما.`,
+    sameArea: 'در همان محدودهٔ شما.',
   },
   notFound: {
     title: 'صفحه پیدا نشد',

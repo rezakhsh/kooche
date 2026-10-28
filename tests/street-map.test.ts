@@ -4,6 +4,9 @@ import { streetMapView } from '../src/modules/maps/street-map';
 import { AREA_CIRCLE_M } from '../src/modules/maps/view';
 import { appDb } from './accounts';
 import { db } from './db';
+import { user } from './listings-fixtures';
+import * as schema from '../src/db/schema';
+import { eq } from 'drizzle-orm';
 
 // The street map (docs/setup.md, "The street map"): the seeded postal code areas, and what a page's
 // map may show. A listing never shows a point, not even its rounded one: its postal code's area,
@@ -92,3 +95,35 @@ describe('a page’s street map', () => {
     }
   });
 });
+
+describe('the map around a place', () => {
+  it('names a city’s districts where we have them (Berlin), nowhere else', async () => {
+    const [berlin] = await db.execute<{ id: string }>(sql`SELECT DISTINCT location_id AS id FROM neighbourhoods WHERE is_active LIMIT 1`);
+    const wedding = await postalCenter('13353');
+    const view = await streetMapView(appDb, { countryCode: 'DE', postalCode: '13353', point: { lng: wedding.lng, lat: wedding.lat }, precision: 'postal_code' });
+    expect(view?.neighbourhoods).toBe(berlin!.id);
+    const munich = await streetMapView(appDb, { countryCode: 'DE', postalCode: '80331', point: { lng: 11.5755, lat: 48.1374 }, precision: 'postal_code' });
+    expect(munich?.neighbourhoods).toBeNull();
+  });
+
+  it('shows the visitor their own saved place and how far it is, never anyone else', async () => {
+    const [berlin] = await db.execute<{ id: string }>(sql`SELECT id FROM locations WHERE country_code = 'DE' AND name_local = 'Berlin' AND kind = 'city' LIMIT 1`);
+    const visitor = await user();
+    await db.update(schema.users).set({ homeLocationId: berlin!.id, homePostalCode: '13353', homePlaceName: 'Berlin' }).where(eq(schema.users.id, visitor.id));
+    const stranger = await user();
+    const friedrichshain = await postalCenter('10245');
+    const place = { countryCode: 'DE', postalCode: '10245', placeName: 'Berlin', point: { lng: friedrichshain.lng, lat: friedrichshain.lat }, precision: 'postal_code' as const };
+
+    const view = await streetMapView(appDb, place, visitor.id);
+    const wedding = await postalCenter('13353');
+    expect(view?.home).toMatchObject({ center: [wedding.lng, wedding.lat], name: 'Berlin' });
+    expect(view!.home!.area?.type).toBe('MultiPolygon');
+    // Wedding to Friedrichshain: about 8 km as the crow flies
+    expect(view!.home!.km).toBeGreaterThan(6);
+    expect(view!.home!.km).toBeLessThan(11);
+    // No saved place, or no visitor: no home
+    expect((await streetMapView(appDb, place, stranger.id))?.home).toBeNull();
+    expect((await streetMapView(appDb, place))?.home).toBeNull();
+  });
+});
+

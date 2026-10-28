@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { messages } from '../messages/fa';
+import { Icon } from './icons';
 import type { StreetMapView } from '../modules/maps/view';
 import type { MountedMap } from './street-map-gl';
 
@@ -37,6 +38,7 @@ export function StreetMap({
   const latest = useRef({ view, onPick });
   latest.current = { view, onPick };
   const [ready, setReady] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const el = frame.current;
@@ -51,7 +53,17 @@ export function StreetMap({
           if (cancelled) return;
           mounted.current = mountMap(el.querySelector<HTMLElement>('[data-map-canvas]')!, latest.current.view, {
             dark: pageIsDark(),
-            texts: { zoomIn: t.zoomIn, zoomOut: t.zoomOut, gestureDesktop: t.gestureDesktop, gestureMac: t.gestureMac, gesturePhone: t.gesturePhone, label },
+            texts: {
+              zoomIn: t.zoomIn,
+              zoomOut: t.zoomOut,
+              gestureDesktop: t.gestureDesktop,
+              gestureMac: t.gestureMac,
+              gesturePhone: t.gesturePhone,
+              label,
+              home: t.home,
+              km: t.km,
+              far: (km, name) => t.far(t.km(km), name),
+            },
             onPick: latest.current.onPick ? (at) => latest.current.onPick?.(at) : undefined,
           });
           setReady(true);
@@ -83,8 +95,32 @@ export function StreetMap({
     mounted.current?.setView(view);
   }, [view]);
 
+  // «نقشهٔ بزرگ»: the same map over the whole screen, moved with one finger; Esc or «بستن» closes it
+  useEffect(() => {
+    mounted.current?.setExpanded(expanded);
+    if (!expanded) return;
+    const close = (e: KeyboardEvent) => e.key === 'Escape' && setExpanded(false);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', close);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener('keydown', close);
+    };
+  }, [expanded]);
+
   return (
-    <div ref={frame} className={`relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100 ${className}`}>
+    <div
+      ref={frame}
+      className={
+        expanded
+          ? 'fixed inset-0 z-50 overflow-hidden bg-neutral-100 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
+          : `relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100 ${className}`
+      }
+      role={expanded ? 'dialog' : undefined}
+      aria-modal={expanded || undefined}
+      aria-label={expanded ? label : undefined}
+    >
       {/* The map is drawn left to right like every map; the controls are placed by MapLibre. Sized by
           height and width, not by `absolute inset-0`: MapLibre's stylesheet makes its box relative */}
       <div className={`h-full w-full transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`}>
@@ -92,6 +128,16 @@ export function StreetMap({
         <div data-map-canvas dir="ltr" className="h-full w-full" />
       </div>
       {!ready && fallback && <div className="absolute inset-0 flex items-center justify-center p-4">{fallback}</div>}
+      {ready && !onPick && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className={`absolute z-10 inline-flex min-h-9 items-center gap-1 rounded-lg bg-white px-3 text-xs font-bold text-neutral-900 shadow ${expanded ? 'start-3 top-[calc(env(safe-area-inset-top)+0.75rem)]' : 'bottom-2 end-2'}`}
+        >
+          <Icon name={expanded ? 'close' : 'expand'} className="size-4" />
+          {expanded ? t.close : t.expand}
+        </button>
+      )}
     </div>
   );
 }

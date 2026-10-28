@@ -106,6 +106,11 @@ const webSchema = z.object({
   // The street map (docs/setup.md, "The street map"): our own OpenStreetMap extract from Protomaps,
   // one PMTiles file on the server's disk, mounted read-only (/maps/20261028.pmtiles). The file's
   // name is its version in the tile addresses. Unset: pages show the outline map instead.
+  // The address search that puts an event's venue or a shop on the map from its street address
+  // (src/modules/maps/geocode.ts): a Nominatim server, OpenStreetMap's own by default in the
+  // environments that set it (https://nominatim.openstreetmap.org). Unset: no lookups, the
+  // organizer taps the map.
+  GEOCODER_URL: optional(z.url({ protocol: /^https$/ })),
   MAP_TILES_FILE: optional(z.string().regex(/^\/[A-Za-z0-9/_-]+\/[0-9A-Za-z_-]{1,40}\.pmtiles$/, 'an absolute path ending in .pmtiles')),
   // Cloudflare Turnstile on sign-in and publishing (one widget per environment). The site key is
   // public (it goes into the page); the secret only checks tokens with siteverify. Unset in

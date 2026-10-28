@@ -1213,7 +1213,22 @@ Decided with the owner today (`docs/setup.md`, "The street map"): our own OpenSt
 - **Tests:** 889 passing (new: the PMTiles reader against the spec, pins, the polyline decoding, the seeded areas, what a page's map may show and that a listing's own point never reaches it, business and event pins).
 
 **Waiting on the owner:**
-1. **Cloudflare cache rule for `/map/`** (needs your OK; it changes the shared zone): signed-in visitors' map pieces would then come from Cloudflare too. Today they come from our server, which costs almost nothing.
+1. ~~Cloudflare cache rule for `/map/`~~ added with the owner's OK (see the next entry).
 2. **Production at launch:** cut Germany + Austria (about 3 GB) to `/data/peydoo-maps/` on production, the Coolify directory mount and `MAP_TILES_FILE`, then the seed (postal areas).
 
 **Later:** re-run `scripts/import-postal-areas.mjs DE` when OpenStreetMap's main query server answers, for the 135 German codes that show a circle; a fresh map file about twice a year.
+
+## Oct 28, 2026: the street map, easier to read (option B, the visitor's place, exact venues)
+
+The owner found the first map hard to read (the postal area filled 80% of it, grey roads, few names) and asked for a point for events and a way to judge distance. Three looks were rendered from our real map file and shown in an artifact; the owner picked **B, the classic street-map colours, with "your home"**, names as written locally (not Persian), the exact point for events, and an arrow for far places. `docs/setup.md`, "The street map".
+
+- **Look:** warm land, yellow primary roads, white streets, orange motorways, the area in red; a dark version. Train stations with icons (Protomaps' v4 sprite, MIT, `/map/sprites/4/…`), street names from zoom 14, no shops. Labels in English/local (`lang: 'en'`).
+- **District names:** Berlin's 97 districts by their local names with dashed borders, from our own `neighbourhoods` (`/map/neighbourhoods/{city}`), from the whole city down to zoom 14.5; OpenStreetMap only names them close up.
+- **Listings** zoom out until the area is about a quarter of the map. **Events and shops** zoom to 14.8 on their pin.
+- **Your place and the distance:** a signed-in visitor with "my location" sees their area with a house; up to 25 km on the same map with a dotted line and «حدود ۹ کیلومتر», further an amber arrow on the map's edge («۱۵۰ کیلومتر تا Berlin»); the caption says it too. Straight line between postal-code centres, worked out on the server with the page; never for the page's owner, never cached.
+- **Exact venue and shop:** the street address is looked up once when it is new or changed (`src/modules/maps/geocode.ts`, OpenStreetMap's Nominatim, one request a second, `GEOCODER_URL`); the owner's own pin wins, a removed pin stays removed, a match farther than 15 km is left out. `scripts/find-venue-pins.ts` fills events and businesses saved before today.
+- **«نقشهٔ بزرگ»:** the map full screen, one finger to move, Esc or «بستن نقشه» to close.
+- **Cloudflare:** cache rule for `/map/` on staging and peydoo.com (owner's OK today), checked: a tile with a session cookie is a `HIT`.
+- **Staging:** `GEOCODER_URL=https://nominatim.openstreetmap.org` on the web app.
+- **Tests:** 904 passing (new: the address lookup and when it happens, an event's and a shop's pin from the address, a far match left out, district names for Berlin only, the visitor's own place and distance and nobody else's); typecheck and `check:rtl` clean.
+

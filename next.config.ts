@@ -22,7 +22,7 @@ const config: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   // Files the street map's routes read from disk (src/app/map/), copied into the standalone build
   outputFileTracingIncludes: {
-    '/map/**': ['./src/modules/maps/glyphs/**/*', './node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs'],
+    '/map/**': ['./src/modules/maps/glyphs/**/*', './src/modules/maps/sprites/*', './node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs'],
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

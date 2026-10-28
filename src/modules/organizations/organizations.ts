@@ -2,10 +2,12 @@ import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
+import type { Point } from '../../db/types';
 import { auditLog, countries, organizationMembers, organizations } from '../../db/schema';
 import { BUSINESS_LANGUAGES, BUSINESS_TYPES, type OpeningHours } from '../../db/schema/organizations';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
+import { pinFromAddress } from '../maps/geocode';
 import { pinField, pinNear } from '../maps/pin';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { placeByValue, resolvePlace } from '../listings/places';
@@ -125,13 +127,17 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
 
 type ColumnsResult = { error: BusinessError; fields?: Record<string, string> } | { values: Omit<typeof organizations.$inferInsert, 'slug' | 'countryCode' | 'createdByUserId'> };
 
-async function columns(db: Queryable, countryCode: string, raw: z.output<typeof businessInputSchema>): Promise<ColumnsResult> {
+async function columns(db: Queryable, countryCode: string, raw: z.output<typeof businessInputSchema>, pinFound = false): Promise<ColumnsResult> {
   const input = raw.legalLater ? { ...raw, ...Object.fromEntries(LEGAL_FIELDS.map((k) => [k, null])), legalPostal: '' } : raw;
   const place = input.legalPostal
     ? await resolvePlace(db, countryCode, input.legalPostal)
     : (input.placeValue && (await placeByValue(db, countryCode, input.placeValue))) || (await resolvePlace(db, countryCode, input.place));
   if (!place || typeof place === 'string') return { error: 'place_not_found', fields: { [input.legalPostal ? 'legalPostal' : 'place']: 'place_not_found' } };
-  if (input.pin && !pinNear(input.pin, place.center)) return { error: 'pin_far', fields: { pin: 'pin_far' } };
+  // A pin found from the address that lands far away was a wrong match: left out, not refused
+  if (input.pin && !pinNear(input.pin, place.center)) {
+    if (!pinFound) return { error: 'pin_far', fields: { pin: 'pin_far' } };
+    input.pin = null;
+  }
   let phone: string | null = null;
   if (input.phone) {
     const parsed = parsePhoneNumberFromString(input.phone, countryCode as 'DE');
@@ -187,6 +193,12 @@ function uniqueViolation(e: unknown): string | null {
   return code === '23505' ? (err.cause?.constraint_name ?? err.constraint_name ?? 'unique') : null;
 }
 
+/** The shop's pin: the owner's own, or one found from the street address (src/modules/maps/geocode.ts) */
+async function withShopPin(input: z.output<typeof businessInputSchema>, countryCode: string, saved: { street: string | null; pin: Point | null } | null) {
+  const found = await pinFromAddress({ pin: input.pin, street: input.legalLater ? null : input.addressLine1, place: input.legalPostal || input.place, countryCode, saved });
+  return { input: { ...input, pin: found.pin }, pinFound: found.fromAddress };
+}
+
 /** A person with a verified phone creates a business in the country they post in, and owns it */
 export async function createBusiness(
   db: Db,
@@ -195,6 +207,7 @@ export async function createBusiness(
   const parsed = businessInputSchema.safeParse(opts.input);
   if (!parsed.success) return { ok: false, reason: 'invalid', fields: fieldErrors(parsed.error) };
   if (RESERVED_SLUGS.includes(parsed.data.slug)) return { ok: false, reason: 'slug_reserved', fields: { slug: 'reserved' } };
+  const shop = await withShopPin(parsed.data, opts.countryCode, null);
   try {
     return await db.transaction(async (tx) => {
       const allowed = canPostListing(await loadActor(tx, opts.userId));
@@ -207,7 +220,7 @@ export async function createBusiness(
         .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId))
         .where(and(eq(organizationMembers.userId, opts.userId), eq(organizationMembers.role, 'owner'), ne(organizations.status, 'deleted')));
       if ((owned?.n ?? 0) >= MAX_BUSINESSES_PER_USER) return { ok: false, reason: 'too_many' };
-      const built = await columns(tx, country.code, parsed.data);
+      const built = await columns(tx, country.code, shop.input, shop.pinFound);
       if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       const [org] = await tx
         .insert(organizations)
@@ -233,11 +246,14 @@ export async function updateBusiness(
 ): Promise<{ ok: true } | { ok: false; reason: BusinessError; fields?: Record<string, string> }> {
   const parsed = businessInputSchema.safeParse(opts.input);
   if (!parsed.success) return { ok: false, reason: 'invalid', fields: fieldErrors(parsed.error) };
+  const [saved] = await db.select({ countryCode: organizations.countryCode, street: organizations.addressLine1, pin: organizations.pin }).from(organizations).where(eq(organizations.id, opts.organizationId));
+  if (!saved) return { ok: false, reason: 'not_found' };
+  const shop = await withShopPin(parsed.data, saved.countryCode, saved);
   try {
     return await db.transaction(async (tx) => {
       const org = await lockAs(tx, opts.userId, opts.organizationId, ['owner']);
       if (!org) return { ok: false, reason: 'not_found' };
-      const built = await columns(tx, org.countryCode, { ...parsed.data, legalLater: false });
+      const built = await columns(tx, org.countryCode, { ...shop.input, legalLater: false }, shop.pinFound);
       if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       // Once complete, the Impressum stays: the business's live listings depend on it (./limits.ts)
       if (legalComplete(org) && !legalComplete(built.values)) return { ok: false, reason: 'legal_incomplete', fields: { legalName: 'required' } };
