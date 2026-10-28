@@ -121,7 +121,7 @@ const NEW_ACCOUNT_MS = 7 * 86_400_000;
  * the number was verified and from which country (red when it isn't the listing's), listings,
  * decisions and reports so far, and the same text in their other listings.
  */
-export function PersonCard({ p, title, contact, listingCountry, sameText, otherListings }: { p: Person; title: string; contact: boolean; listingCountry?: string | null; sameText?: number; otherListings?: number }) {
+export function PersonCard({ p, title, contact, listingCountry, sameText, otherListings, onUserPage = false }: { p: Person; title: string; contact: boolean; listingCountry?: string | null; sameText?: number; otherListings?: number; onUserPage?: boolean }) {
   const t = admin.item;
   const f = t.sellerFacts;
   const listings = Object.entries(p.listings)
@@ -171,9 +171,12 @@ export function PersonCard({ p, title, contact, listingCountry, sameText, otherL
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <Link href={adminHref(`/users/${p.id}`)} prefetch={false} className="font-bold text-brand-800 hover:underline">
-          {otherListings ? t.seeOthers(otherListings) : t.person.adminView}
-        </Link>
+        {/* On the user's own page the details are already there: no link back to itself */}
+        {!onUserPage && (
+          <Link href={adminHref(`/users/${p.id}`)} prefetch={false} className="font-bold text-brand-800 hover:underline">
+            {otherListings ? t.seeOthers(otherListings) : t.person.adminView}
+          </Link>
+        )}
         <a href={sellerPath(p.publicToken)} target="_blank" rel="noreferrer" className="text-neutral-600 hover:underline">
           {t.person.profile}
         </a>

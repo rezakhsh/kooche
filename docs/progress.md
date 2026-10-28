@@ -1235,3 +1235,8 @@ The owner found the first map hard to read (the postal area filled 80% of it, gr
 - **Persian on the map in the site's font** (owner, Oct 28): MapLibre's stylesheet sets Helvetica/Arial on the whole map box, so «حدود ۸ کیلومتر», the arrow home and the two-finger hint were in Arial; now Vazirmatn like the page (`src/app/globals.css`), checked in the browser on the deployed version.
 - **Staging's disk filled up** (Oct 28, ~19:06 UTC) during the font fix's build: 38 GB, of which 10.5 GB was Docker's unused build cache. Coolify's own database restarted and the web deployment stopped half-way, leaving the old and the new web container answering in turn. Cleared the build cache older than 2 hours (6.4 GB free, 83%), cancelled the stuck deployment and redeployed the same commit through Coolify (`queue_application_deployment`, image reused): one web container on `64cb4a1`, the worker's update ran after it. **To decide with the owner:** a weekly `docker builder prune` on staging, or a bigger disk.
 
+## Oct 28, 2026: admin fix: «جزئیات کامل» on a user's page
+
+- The owner found «جزئیات کامل» on admin › users › a person doing nothing: on the user's own page the person card linked to that same page. The card now leaves the link out there (`PersonCard onUserPage`); on item and moderation pages it still opens the user's page.
+- Still missing from the admin mockups (round 12 `admin-viewas`, put in wave 2 by the wave 1 plan): view as a country, one test account per country, sign in as a user. The owner asked for them now, plus the founders rule (the owner's phone from the business's country; one founding place per person). Next: the wave 2 plan for approval, admin part first; then Berlin launches.
+

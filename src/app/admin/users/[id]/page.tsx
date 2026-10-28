@@ -33,7 +33,7 @@ export default async function UserPage({ params, searchParams }: { params: Promi
       {sp.released && <div className="mb-4"><Alert tone="success">{t.released}</Alert></div>}
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="space-y-5">
-          <PersonCard p={p} title={admin.item.person.title} contact={contact} />
+          <PersonCard p={p} title={admin.item.person.title} contact={contact} onUserPage />
           {contact && (
             <Panel title={t.contact}>
               <Facts
