@@ -87,7 +87,10 @@ export function StreetMap({
     <div ref={frame} className={`relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100 ${className}`}>
       {/* The map is drawn left to right like every map; the controls are placed by MapLibre. Sized by
           height and width, not by `absolute inset-0`: MapLibre's stylesheet makes its box relative */}
-      <div data-map-canvas dir="ltr" className={`h-full w-full transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`} />
+      <div className={`h-full w-full transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Its classes never change after the first render: MapLibre adds its own (and the dark one) */}
+        <div data-map-canvas dir="ltr" className="h-full w-full" />
+      </div>
       {!ready && fallback && <div className="absolute inset-0 flex items-center justify-center p-4">{fallback}</div>}
     </div>
   );

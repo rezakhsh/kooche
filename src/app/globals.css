@@ -272,7 +272,7 @@ body:has([data-app-bar]) > footer [data-footer-slim] {
   background-color: var(--color-white);
   box-shadow: 0 0 0 1px var(--color-neutral-200);
 }
-.maplibregl-ctrl-group button + button {
+.maplibregl-ctrl.maplibregl-ctrl-group button + button {
   border-top-color: var(--color-neutral-200);
 }
 .peydoo-map-dark .maplibregl-ctrl-icon {
