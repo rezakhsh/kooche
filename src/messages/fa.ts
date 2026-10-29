@@ -246,6 +246,9 @@ export const messages = {
     price: 'قیمت',
     priceRange: 'محدوده قیمت',
     shipping: 'ارسال پستی دارد',
+    // Who posted it (wave 2 part 4)
+    seller: 'آگهی‌دهنده',
+    sellers: { all: 'همه', private: 'شخصی', business: 'کسب‌وکار' },
     sort: 'مرتب‌سازی',
     sorts: { relevance: 'مرتبط‌ترین', newest: 'تازه‌ترین', price_asc: 'ارزان‌ترین', price_desc: 'گران‌ترین', distance: 'نزدیک‌ترین' },
     distance: (km: number) => (km <= 1 ? 'کمتر از ۱ کیلومتر' : `حدود ${km.toLocaleString('fa-IR')} کیلومتر`),
@@ -956,6 +959,8 @@ export const messages = {
     verified: 'کسب‌وکار تأییدشده',
     verifiedHint: 'پیدو اطلاعات قانونی این کسب‌وکار را بررسی کرده است.',
     label: 'کسب‌وکار',
+    // The other side of the label on a listing (wave 2 part 4)
+    privateLabel: 'آگهی‌دهندهٔ شخصی',
     fields: {
       name: 'نام کسب‌وکار (همان که مشتری‌ها می‌شناسند)',
       slug: 'نشانی صفحه',

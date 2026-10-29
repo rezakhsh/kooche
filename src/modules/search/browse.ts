@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { listingImages, listings, locations, organizations } from '../../db/schema';
@@ -40,6 +40,8 @@ export type SearchFilters = {
   /** Minor units; free listings count as 0, listings without a price are left out */
   price: { min: number | null; max: number | null } | null;
   shipping: boolean;
+  /** Only private people's (no business) or only businesses' listings */
+  seller?: 'private' | 'business' | null;
   attributes: AttributeFilter[];
   sort: Sort;
   /** Test accounts' listings too: only for staff and test accounts (src/modules/users/test-accounts.ts) */
@@ -211,6 +213,7 @@ function conditions(f: SearchFilters): SQL[] {
     f.price?.min != null ? sql`${priceValue} >= ${f.price.min}` : undefined,
     f.price?.max != null ? sql`${priceValue} <= ${f.price.max}` : undefined,
     f.shipping ? eq(listings.shippingOffered, true) : undefined,
+    f.seller === 'business' ? isNotNull(listings.organizationId) : f.seller === 'private' ? isNull(listings.organizationId) : undefined,
     ...f.attributes.map(attributeCondition),
     f.keyword ? keywordCondition(f.keyword) : undefined,
   ];

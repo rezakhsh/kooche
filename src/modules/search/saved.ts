@@ -253,6 +253,7 @@ export function searchFiltersOf(
     around: postal?.radiusKm && row.point && row.radiusM ? { point: row.point, radiusM: row.radiusM } : null,
     price: state.price,
     shipping: state.ship,
+    seller: state.seller,
     attributes: state.attributes,
     sort: state.sort === 'distance' ? 'newest' : state.sort,
   };

@@ -116,6 +116,18 @@ export function FilterForm({
         </div>
       )}
 
+      {/* Who posted it (wave 2 part 4, round 9): a private person or a business */}
+      <fieldset>
+        <legend className={legendClass}>{t.seller}</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {(['', 'private', 'business'] as const).map((v) => (
+            <Pill key={v} type="radio" name="seller" value={v} checked={(state.seller ?? '') === v}>
+              {t.sellers[v || 'all']}
+            </Pill>
+          ))}
+        </div>
+      </fieldset>
+
       {/* The place last (mockup final/filters): a postal code with a radius; the city is chosen on the first page */}
       <fieldset className="flex flex-col gap-2">
         <legend className={legendClass}>{t.place}</legend>

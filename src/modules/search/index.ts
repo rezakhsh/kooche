@@ -72,6 +72,7 @@ export async function resolveFilters(
       around,
       price: state.price,
       shipping: state.ship,
+      seller: state.seller,
       attributes: state.attributes,
       sort: state.sort,
       withTest: opts.withTest,

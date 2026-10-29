@@ -57,6 +57,7 @@ export function meiliFilter(f: SearchFilters, opts: { omit?: 'category' | string
     if (f.price?.min != null) parts.push(`price_value >= ${f.price.min}`);
     if (f.price?.max != null) parts.push(`price_value <= ${f.price.max}`);
     if (f.shipping) parts.push('shipping = true');
+    if (f.seller) parts.push(`business = ${f.seller === 'business'}`);
     if (opts.omit !== 'category') for (const a of f.attributes) if (a.key !== opts.omit) parts.push(`(${attributeFilter(a)})`);
   }
   return parts.join(' AND ');

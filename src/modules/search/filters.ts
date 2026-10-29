@@ -42,7 +42,7 @@ export const RADII_KM = [5, 10, 25, 50] as const;
 export type RadiusKm = (typeof RADII_KM)[number];
 
 /** Parameters the browse pages use themselves; no attribute key may take them (seed check) */
-export const RESERVED_PARAMS = ['sort', 'price', 'ship', 'postal', 'near', 'r', 'after', 'view', 'q', 'page', 'category', 'city'];
+export const RESERVED_PARAMS = ['sort', 'price', 'ship', 'seller', 'postal', 'near', 'r', 'after', 'view', 'q', 'page', 'category', 'city'];
 /** Suffixes of the form's range inputs (`year_min`), also kept out of attribute keys */
 export const RANGE_SUFFIXES = ['_min', '_max', '_from', '_to'];
 
@@ -66,6 +66,8 @@ export type BrowseState = {
   price: { min: number | null; max: number | null } | null;
   /** Only listings that offer shipping */
   ship: boolean;
+  /** Only private people's or only businesses' listings (wave 2 part 4, round 9) */
+  seller: 'private' | 'business' | null;
   /** A postal code; radius null is "this postal code only" */
   postal: { code: string; radiusKm: RadiusKm | null } | null;
   /** "Near me": an encrypted, short-lived token (src/modules/search/near.ts) */
@@ -82,6 +84,7 @@ export const EMPTY_STATE: BrowseState = {
   sort: 'newest',
   price: null,
   ship: false,
+  seller: null,
   postal: null,
   near: null,
   attributes: [],
@@ -232,6 +235,7 @@ export function browseParamsSchema(ctx: FilterContext) {
       : z.never()
     ).optional(),
     ship: z.literal('1').optional(),
+    seller: z.enum(['private', 'business']).optional(),
     postal: postalSchema.optional(),
     near: nearTokenSchema.optional(),
     r: radiusSchema.optional(),
@@ -333,6 +337,7 @@ export function parseBrowseParams(raw: RawParams, ctx: FilterContext): { state: 
   state.sort = defaultSort(state.q);
   if (parsed.price) state.price = parsed.price as BrowseState['price'];
   state.ship = parsed.ship === '1';
+  state.seller = (parsed.seller as BrowseState['seller'] | undefined) ?? null;
   const radius = (parsed.r as RadiusKm | undefined) ?? null;
   if (parsed.near) {
     state.near = { token: parsed.near as string, radiusKm: radius ?? 10 };
@@ -420,6 +425,7 @@ export function browseQuery(state: BrowseState, minorUnit: number): string {
     q.push(['price', rangeText(fmt(state.price.min), fmt(state.price.max))]);
   }
   if (state.ship) q.push(['ship', '1']);
+  if (state.seller) q.push(['seller', state.seller]);
   for (const f of state.attributes) q.push([f.key, attributeValue(f, minorUnit)]);
   if (state.view) q.push(['view', state.view]);
   if (state.after) q.push(['after', state.after]);
@@ -441,7 +447,7 @@ export function currentQuery(raw: RawParams): string {
 
 /** Whether the state narrows the listings (anything beyond sort, layout and paging; the keyword too) */
 export function isFiltered(state: BrowseState): boolean {
-  return !!(state.q || state.price || state.ship || state.postal || state.near || state.attributes.length);
+  return !!(state.q || state.price || state.ship || state.seller || state.postal || state.near || state.attributes.length);
 }
 
 /**
@@ -450,7 +456,7 @@ export function isFiltered(state: BrowseState): boolean {
  */
 export function without(
   state: BrowseState,
-  what: 'all' | 'q' | 'price' | 'ship' | 'place' | { key: string; value?: string },
+  what: 'all' | 'q' | 'price' | 'ship' | 'seller' | 'place' | { key: string; value?: string },
   defs: AttributeDef[] = [],
 ): BrowseState {
   const next: BrowseState = { ...state, after: null };
@@ -461,6 +467,7 @@ export function without(
     if (next.sort === 'relevance') next.sort = 'newest';
   } else if (what === 'price') next.price = null;
   else if (what === 'ship') next.ship = false;
+  else if (what === 'seller') next.seller = null;
   else if (what === 'place') {
     next.postal = null;
     next.near = null;

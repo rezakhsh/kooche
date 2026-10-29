@@ -37,6 +37,7 @@ export function filterChips(b: Browse): Chip[] {
     chips.push({ label, href: href(without(state, 'price')) });
   }
   if (state.ship) chips.push({ label: messages.browse.shipping, href: href(without(state, 'ship')) });
+  if (state.seller) chips.push({ label: messages.browse.sellers[state.seller], href: href(without(state, 'seller')) });
 
   const defs = new Map(ctx.defs.map((d) => [d.key, d]));
   for (const f of state.attributes) {

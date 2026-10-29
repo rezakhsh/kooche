@@ -249,6 +249,26 @@ describe('browse query', () => {
     });
   });
 
+  it('seller: only private people’s or only businesses’ listings, and back in the address (wave 2 part 4)', async () => {
+    await rollback(async (tx) => {
+      const u = await makeUser(tx);
+      const boats = await category(tx, 'boats');
+      const [org] = await tx
+        .insert(schema.organizations)
+        .values({ slug: `boats-${u.id.slice(-8)}`, name: 'قایق‌فروشی', nameNormalized: 'قایق فروشی', countryCode: 'DE', createdByUserId: u.id })
+        .returning();
+      const own = await makeListing(tx, u.id, { categoryId: boats.id, postalCode: '12099', placeName: 'Berlin' });
+      const shop = await makeListing(tx, u.id, { categoryId: boats.id, postalCode: '12099', placeName: 'Berlin', organizationId: org!.id });
+      await setRole(tx, 'classifieds_app');
+      const f = (seller: SearchFilters['seller']) => all(tx, base({ categoryIds: [boats.id], postalCode: '12099', seller }));
+      expect(new Set(await f(null))).toEqual(new Set([own.id, shop.id]));
+      expect(await f('private')).toEqual([own.id]);
+      expect(await f('business')).toEqual([shop.id]);
+    });
+    expect(parse({ seller: 'business' }, null)).toMatchObject({ refused: [], state: { seller: 'business' } });
+    expect(parse({ seller: 'shop' }, null)).toMatchObject({ refused: ['seller'], state: { seller: null } });
+  });
+
   it('postal code: this code only', async () => {
     await rollback(async (tx) => {
       const u = await makeUser(tx);

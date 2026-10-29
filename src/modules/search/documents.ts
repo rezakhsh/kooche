@@ -13,7 +13,7 @@ import { STOP_WORDS, synonymSettings } from './synonyms';
 
 export const LISTINGS_INDEX = 'listings';
 /** Raised when the document's shape changes, so the worker rebuilds the index at its next start */
-export const DOC_VERSION = 3;
+export const DOC_VERSION = 4;
 
 export type ListingDocument = {
   id: string;
@@ -26,6 +26,8 @@ export type ListingDocument = {
   /** Minor units; free is 0; absent for exchange and on request (they sort last both ways) */
   price_value?: number;
   shipping: boolean;
+  /** Posted as a business (wave 2 part 4: the seller filter) */
+  business: boolean;
   kind: string;
   is_event: boolean;
   /** Posted by a test account (src/modules/users/test-accounts.ts): found only by staff and test accounts */
@@ -50,7 +52,7 @@ export function indexSettings(): Record<string, unknown> {
   const searchable = ['title', 'category_text', 'attr_text', 'place_text', 'description'];
   return {
     searchableAttributes: searchable,
-    filterableAttributes: ['id', 'country', 'category_id', 'location_id', 'postal_code', '_geo', 'price_value', 'shipping', 'kind', 'is_event', 'is_test', 'attrs'],
+    filterableAttributes: ['id', 'country', 'category_id', 'location_id', 'postal_code', '_geo', 'price_value', 'shipping', 'business', 'kind', 'is_event', 'is_test', 'attrs'],
     sortableAttributes: ['_geo', 'price_value', 'ranked_at'],
     // Meilisearch's defaults, then the newest first among equally good matches
     rankingRules: ['words', 'typo', 'proximity', 'attributeRank', 'sort', 'wordPosition', 'exactness', 'ranked_at:desc'],
@@ -140,6 +142,7 @@ type Row = {
   price_type: string;
   price_minor: string | number | null;
   shipping_offered: boolean;
+  business: boolean;
   kind: string;
   ranked_at: Date | string | null;
   attributes: Record<string, unknown>;
@@ -153,7 +156,7 @@ const SELECT = sql`
   SELECT l.id, l.status, l.country_code, l.category_id, l.location_id, l.postal_code, l.place_name,
          l.district_normalized, loc.name_fa AS city_fa,
          ST_Y(l.point::geometry) AS lat, ST_X(l.point::geometry) AS lng,
-         l.price_type, l.price_minor, l.shipping_offered, l.kind, l.ranked_at, l.attributes,
+         l.price_type, l.price_minor, l.shipping_offered, l.organization_id IS NOT NULL AS business, l.kind, l.ranked_at, l.attributes,
          l.title_normalized, l.description_normalized,
          EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
          EXISTS (SELECT 1 FROM users u WHERE u.id = l.user_id AND u.test_account IS NOT NULL) AS is_test
@@ -176,6 +179,7 @@ export function documentOf(catalog: Catalog, r: Row): ListingDocument {
     _geo: { lat: Number(r.lat), lng: Number(r.lng) },
     ...(price === null || !['fixed', 'negotiable', 'free'].includes(r.price_type) ? {} : { price_value: price }),
     shipping: r.shipping_offered,
+    business: r.business,
     kind: r.kind,
     is_event: r.is_event,
     is_test: r.is_test,

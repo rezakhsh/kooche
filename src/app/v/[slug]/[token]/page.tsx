@@ -244,6 +244,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {[...seller.displayName][0]}
           </span>
           <div className="min-w-0 flex-1">
+            {/* The seller's declaration (wave 2 part 4, round 9): a private person, not a business */}
+            <span className="flex items-center gap-1 text-xs text-neutral-600">
+              <Icon name="user" className="size-3.5" />
+              {messages.business.privateLabel}
+            </span>
             <span className="block truncate font-bold">
               <bdi>{seller.displayName}</bdi>
             </span>
