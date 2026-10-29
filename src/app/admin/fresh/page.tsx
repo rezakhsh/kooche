@@ -8,10 +8,12 @@ import { formatPrice } from '../../../modules/listings/price';
 import { cachedCatalog } from '../../../modules/listings/catalog';
 import { imageUrl } from '../../../modules/media/server';
 import { approveFreshAction } from '../moderation-actions';
+import { Flag } from '../../../components/flag';
+import { countryNameFa } from '../../../modules/listings/zones';
 import { AdminTitle, Ago } from '../ui';
 
-// The quick look at new listings from accounts under 7 days (the moderation routine, list B),
-// until the AI review takes this over.
+// The quick look at new listings from accounts under 7 days and from numbers of another zone (wave 2
+// part 5): the moderation routine, list B, until the AI review takes this over.
 
 export default async function FreshPage() {
   await requireStaff('listing.moderate');
@@ -38,6 +40,12 @@ export default async function FreshPage() {
                     <bdi>{r.seller}</bdi>، {t.sellerAge('')}<Ago date={new Date(r.seller_since)} />، {admin.item.code} {faDigits(String(r.ref_number))}
                   </p>
                   <p className="text-xs text-neutral-500"><Ago date={new Date(r.published_at)} /></p>
+                  {r.other_zone && (
+                    <p className="flex items-center gap-1 self-start rounded-full bg-saffron-50 px-2.5 text-xs font-bold leading-7 text-saffron-800">
+                      <Flag code={r.other_zone} className="h-3 w-4" />
+                      {t.otherZone(countryNameFa(r.other_zone))}
+                    </p>
+                  )}
                   <div className="mt-auto flex gap-2 pt-2">
                     <form action={approveFreshAction} className="flex-1">
                       <input type="hidden" name="id" value={r.id} />

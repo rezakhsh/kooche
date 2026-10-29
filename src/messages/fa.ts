@@ -475,6 +475,33 @@ export const messages = {
     publishedIn: (country: string) => `در ${country} منتشر می‌شود،`,
     // A country preparing to open (prestart, wave 2 part 8)
     preparedFor: (country: string) => `برای ${country}، تا روز افتتاح پیش‌نویس می‌ماند،`,
+    // Posting across borders (wave 2 part 5, mockup final/post-crossborder; src/modules/listings/zones.ts)
+    border: {
+      numberFrom: (country: string) => `شمارهٔ تأییدشدهٔ شما از ${country} است`,
+      note: (zone: string, number: string) => `در ${zone} این‌ها از همین حالا باز است. برای اجاره دادن، فروش و پیشنهاد کار، ${number} لازم است؛ وقتی آمدید، آن را تأیید کنید.`,
+      zones: {
+        europe: { name: 'اروپا', number: 'شمارهٔ یک کشور اروپایی', locked: 'با شمارهٔ اروپایی' },
+        north_america: { name: 'آمریکا و کانادا', number: 'شمارهٔ آمریکا یا کانادا', locked: 'با شمارهٔ آمریکا یا کانادا' },
+        australia: { name: 'استرالیا', number: 'شمارهٔ استرالیا', locked: 'با شمارهٔ استرالیا' },
+        turkey: { name: 'ترکیه', number: 'شمارهٔ ترکیه', locked: 'با شمارهٔ ترکیه' },
+      } as Record<string, { name: string; number: string; locked: string }>,
+      /** A country that is a zone of its own (Malaysia) */
+      zoneOf: (country: string) => ({ name: country, number: `شمارهٔ ${country}`, locked: `با شمارهٔ ${country}` }),
+      wanted: 'دنبال اتاق، خانه یا کار هستم',
+      wantedHint: (country: string) => `آگهی «درخواست»؛ برای کسانی که به ${country} می‌آیند`,
+      event: 'رویداد',
+      eventHint: 'کنسرت، کلاس، دورهمی',
+      online: 'خدمات آنلاین',
+      onlineHint: 'ترجمه، مشاوره، کلاس آنلاین',
+      business: 'کسب‌وکار تأییدشده',
+      businessHint: 'با شماره، ثبت و نشانی کسب‌وکار',
+      locked: ['اجاره دادن خانه و اتاق', 'فروش خودرو', 'خرید و فروش وسایل', 'پیشنهاد کار'],
+      otherNumber: 'تأیید شمارهٔ دیگر',
+      wantedMode: 'آگهی «درخواست»: دسته‌ای را انتخاب کنید که دنبالش هستید.',
+      onlineMode: 'خدمات آنلاین: در فرم، «امکان انجام آنلاین» یا برگزاری آنلاین را انتخاب کنید.',
+      zoneNumberRequired: 'شمارهٔ تأییدشدهٔ شما از کشوری بیرون از این منطقه است. از آنجا فقط آگهی «درخواست»، رویداد، خدمات آنلاین و آگهی کسب‌وکار تأییدشده منتشر می‌شود. برای اجاره دادن، فروش و پیشنهاد کار، شمارهٔ همین منطقه را در «حساب من» تأیید کنید؛ آگهی‌تان پیش‌نویس می‌ماند.',
+      abroadFirstWeek: 'در هفتهٔ اول حساب، فقط یک آگهی بیرون از کشورِ شمارهٔ تأییدشده‌تان منتشر می‌شود. چند روز دیگر دوباره امتحان کنید؛ آگهی‌تان پیش‌نویس می‌ماند.',
+    },
     countIn: (parent: string, n: number, place: string) => `در ${parent}، ${n.toLocaleString('fa-IR')} آگهی در ${place}`,
     searchCategory: 'جستجوی دسته',
     searchCategoryPlaceholder: 'مثلاً «اتاق»، «دوچرخه» یا «ترجمه»',
@@ -752,6 +779,8 @@ export const messages = {
     counter: (n: number, total: number) => `${n.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}`,
     memberSince: (date: string) => `عضو از ${date}`,
     phoneVerified: 'شماره تأیید شده',
+    // The seller's number is from another country than the listing's (wave 2 part 5)
+    numberOf: (country: string) => `شمارهٔ ${country}`,
     photo: (n: number, total: number) => `عکس ${n.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}`,
     contact: 'گفتگو با آگهی‌دهنده',
     contactOpen: 'ادامه گفتگو',
@@ -807,6 +836,8 @@ export const messages = {
         link: 'نکات اجارهٔ امن',
         href: '/safety#rent',
       },
+      // A rental posted with a number from another country (wave 2 part 5, mockup final/listing-crossborder)
+      otherCountry: ['آگهی‌دهنده با شمارهٔ کشور دیگری ثبت‌نام کرده است.', 'پیش از دیدن خانه و امضای قرارداد، هیچ پولی نفرستید.'] as const,
       vehicle: {
         title: 'پیش از خرید خودرو',
         points: ['خودرو را ببینید و امتحان کنید، و شمارهٔ شاسی را با کارت خودرو مقایسه کنید.', 'پیش از تحویل خودرو و مدارک، پولی واریز نکنید؛ «حمل با شرکت واسطه» نشانهٔ کلاهبرداری است.'],
@@ -3723,11 +3754,13 @@ export const admin = {
   },
   fresh: {
     title: 'آگهی‌های تازه',
-    intro: 'آگهی‌های حساب‌های کمتر از ۷ روز، در ۴۸ ساعت گذشته، که هنوز کسی نگاهشان نکرده. اگر مشکلی ندارد «مشکلی ندارد» را بزنید؛ وگرنه باز کنید و تصمیم بگیرید.',
+    intro: 'آگهی‌های حساب‌های کمتر از ۷ روز، و آگهی‌هایی که با شمارهٔ منطقه‌ای دیگر منتشر شده‌اند، در ۴۸ ساعت گذشته، که هنوز کسی نگاهشان نکرده. اگر مشکلی ندارد «مشکلی ندارد» را بزنید؛ وگرنه باز کنید و تصمیم بگیرید.',
     empty: 'آگهی تازه‌ای برای نگاه کردن نیست.',
     ok: 'مشکلی ندارد',
     review: 'بررسی',
     sellerAge: (ago: string) => `حساب از ${ago}`,
+    // Wave 2 part 5: listings from a number of another zone, whatever the account's age
+    otherZone: (country: string) => `شمارهٔ ${country}`,
   },
   item: {
     kinds: { listing: 'آگهی', event: 'رویداد', user: 'کاربر', business: 'کسب‌وکار', message: 'پیام' } as Record<string, string>,

@@ -1,6 +1,7 @@
 import { messages } from '../../../messages/fa';
 
-// The text for a refusal by the private and business limits (src/modules/organizations/limits.ts),
+// The text for a refusal by the private and business limits (src/modules/organizations/limits.ts)
+// and by posting across borders (src/modules/listings/zones.ts),
 // for the posting form's error and «آگهی‌های من» after renewing or resuming.
 
 const t = messages.business.limits;
@@ -17,6 +18,9 @@ const TEXTS: Record<string, string> = {
   business_limit: t.businessListings,
   legal_missing: t.legalMissing,
   not_member: t.notMember,
+  // Posting across borders (src/modules/listings/zones.ts)
+  zone_number_required: messages.post.border.zoneNumberRequired,
+  abroad_first_week: messages.post.border.abroadFirstWeek,
 };
 
 /** The text for a limit refusal, or null for any other reason */

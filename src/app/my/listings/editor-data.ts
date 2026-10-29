@@ -31,6 +31,8 @@ export async function editorData(
   listing: Listing | null,
   images: Image[] = [],
   preferredCountry: string | null = null,
+  /** A new listing's kind (a wanted post from the cross-border panel, wave 2 part 5) */
+  kind: 'offer' | 'wanted' = 'offer',
 ): Promise<{ form: FormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
   const [catalog, countries, saved, [me], businesses] = await Promise.all([
     cachedCatalog(db),
@@ -96,7 +98,7 @@ export async function editorData(
         businessOnly: !!category.businessOnly,
       },
       values: {
-        kind: listing?.kind ?? 'offer',
+        kind: listing?.kind ?? kind,
         title: listing?.title ?? '',
         description: listing?.description ?? '',
         attributes,

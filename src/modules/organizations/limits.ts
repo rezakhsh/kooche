@@ -154,7 +154,7 @@ export async function postingRefusal(
 }
 
 /** Whether the business is verified (licensed services need it) */
-async function businessVerified(db: Queryable, organizationId: string): Promise<boolean> {
+export async function businessVerified(db: Queryable, organizationId: string): Promise<boolean> {
   const [row] = await db.execute<{ yes: boolean }>(sql`SELECT verification_status = 'verified' AS yes FROM organizations WHERE id = ${organizationId}`);
   return !!row?.yes;
 }

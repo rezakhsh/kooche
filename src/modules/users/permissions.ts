@@ -11,6 +11,8 @@ export type Actor = {
   id: string;
   status: 'active' | 'deactivated' | 'deleted';
   phoneVerifiedAt: Date | null;
+  /** The verified number, for posting across borders (../listings/zones.ts) */
+  phoneE164?: string | null;
   /** For the new-account limits (./new-account.ts) */
   createdAt: Date;
   /** Active sanctions (user_sanctions, set by moderators); none when left out */
@@ -23,7 +25,7 @@ export type Decision = { ok: true } | { ok: false; reason: Denied };
 export async function loadActor(db: Queryable, userId: string | null | undefined): Promise<Actor | null> {
   if (!userId) return null;
   const [actor] = await db
-    .select({ id: users.id, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt, createdAt: users.createdAt })
+    .select({ id: users.id, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt, phoneE164: users.phoneE164, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, userId));
   if (!actor) return null;

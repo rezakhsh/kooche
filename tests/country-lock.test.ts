@@ -111,7 +111,8 @@ describe('the server refuses another country', () => {
 
 describe('the country page by category', () => {
   it('a category shows its own listings and those of every category below it, with counts up the tree', async () => {
-    const u = await user();
+    // A German number posting twice in Austria: not in its first week (src/modules/listings/zones.ts)
+    const u = await user({ createdAt: new Date(Date.now() - 30 * 86_400_000) });
     const bike = await draft(u.id, 'bicycles');
     await saveListing(appDb, { userId: u.id, listingId: bike, input: await input({ place: '8010', countryCode: 'AT' }), intent: 'publish' });
     const phone = await draft(u.id, 'mobile-phones');

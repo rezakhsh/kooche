@@ -82,6 +82,8 @@ Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved 
 - Another zone (a Turkish number in Germany): wanted posts, events, verified businesses and online services; renting out, selling and job offers only after verifying a number from the zone.
 - First week: one listing outside the number's country; cross-zone posts go to the new-listings review.
 
+**Built Oct 29, 2026** (docs/setup.md, "Posting across borders"). Online services are a service or lesson with «امکان انجام آنلاین» or held online, until part 6 adds «آنلاین»; the first week doesn't count events; the pill is on private listings only.
+
 ## 6. Online layer (1–1.5 days)
 
 - Online services, online events and remote jobs are shown in every open country (today online events show only within their own country; businesses have a badge only).

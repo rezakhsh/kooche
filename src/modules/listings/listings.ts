@@ -8,6 +8,7 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
 import { reviewPolicy } from '../moderation/policy';
+import { borderRefusal, numberCountry, type BorderRefusal } from './zones';
 import { businessLegalComplete, manageableBy, postingRefusal } from '../organizations/limits';
 import { roleIn } from '../organizations/organizations';
 import { isNewAccount } from '../users/new-account';
@@ -363,7 +364,9 @@ export type Refusal =
   /** The business's legal details (Impressum) aren't complete yet (src/modules/organizations/limits.ts) */
   | 'legal_missing'
   /** An emergency pause on this category and place (src/modules/launch/pauses.ts) */
-  | 'paused';
+  | 'paused'
+  /** Posting across borders (./zones.ts) */
+  | BorderRefusal;
 export type Refused = { ok: false; reason: Refusal };
 
 /**
@@ -639,6 +642,11 @@ export async function saveListing(
     if (goingOut && values.countryCode && (await pauseFor(tx, { categoryId: category.id, countryCode: values.countryCode, locationId: values.locationId ?? null }, now))) {
       return { ok: false, reason: 'paused' };
     }
+    // Posting across borders (./zones.ts): the number's zone decides what goes out where
+    if (goingOut && !opts.extension && values.countryCode) {
+      const border = await borderRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind, attributes: values.attributes, countryCode: values.countryCode }, actor!, now);
+      if (border) return { ok: false, reason: border };
+    }
 
     if (displayName) {
       await tx
@@ -671,6 +679,7 @@ export async function saveListing(
         status = 'pending_review';
       }
       dates.statusChangedAt = now;
+      dates.numberCountry = numberCountry(actor!.phoneE164);
     } else if (extra?.ok && listing.status !== 'draft' && extra.expiresAt) {
       // An event that is out ends with its (possibly new) last date
       dates.expiresAt = extra.expiresAt;
@@ -780,7 +789,9 @@ export async function changeListingStatus(
     }
     // Going live again counts like publishing for the private and business limits
     if ((opts.action === 'renew' || opts.action === 'resume') && !isEventCategory(catalog, listing.categoryId)) {
-      const refused = await postingRefusal(tx, catalog, listing, now);
+      const refused =
+        (await postingRefusal(tx, catalog, listing, now)) ??
+        (listing.categoryId && listing.countryCode ? await borderRefusal(tx, catalog, { ...listing, categoryId: listing.categoryId, countryCode: listing.countryCode }, actor!, now) : null);
       if (refused) return { ok: false, reason: refused };
     }
     const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * DAY_MS;

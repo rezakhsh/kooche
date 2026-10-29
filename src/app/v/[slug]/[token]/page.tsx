@@ -33,6 +33,8 @@ import { sellerReplySpeed } from '../../../../modules/chat/response-time';
 import { cardFacts } from '../../../../modules/listings/attribute-text';
 import { cardOf } from '../../../../modules/listings/card';
 import { safetyKind } from '../../../../modules/listings/safety-kind';
+import { countryNameFa } from '../../../../modules/listings/zones';
+import { Flag } from '../../../../components/flag';
 import { ListingCard } from '../../../../components/listing-card';
 import { allCities } from '../../../../modules/search/places';
 import { listingPath } from '../../../../modules/listings/slug';
@@ -161,7 +163,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }, isOwner ? null : session?.user.id),
   ]);
   const facts = cardFacts(catalog, l.categoryId, attrs, amountCurrency);
-  const safety = t.safetyBox[safetyKind(crumbs)];
+  const kind = safetyKind(crumbs);
+  const safety = t.safetyBox[kind];
+  // Posted with a number from another country (wave 2 part 5, mockup final/listing-crossborder): a
+  // private seller's pill, and a rental's safety note starts with it. A business shows its own
+  // country and address instead.
+  const numberFrom = !business && l.numberCountry && l.numberCountry !== l.countryCode ? l.numberCountry : null;
   // Back from a shared link: the listing's category in its city
   const backHref = countrySlug ? browsePath(countrySlug, city?.slug ?? null, crumbs.at(-1)?.slug ?? null) : '/';
   // «ودینگ، 13351 Berlin» (mockup final/listing); without a postal code «ودینگ، برلین»
@@ -270,6 +277,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {t.otherListings(others)}
           </Link>
         )}
+        {numberFrom && (
+          <span className="flex items-center gap-1 rounded-full bg-saffron-50 px-2.5 text-xs font-bold leading-7 text-saffron-800">
+            <Flag code={numberFrom} className="h-3 w-4" />
+            {t.numberOf(countryNameFa(numberFrom))}
+          </span>
+        )}
       </div>
       {isOwner && favCount !== null && (
         <p className="flex items-center gap-1.5 text-xs text-neutral-600" title={messages.favorites.countHint}>
@@ -301,6 +314,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         {safety.title}
       </h2>
       <ul className="mt-2 list-disc space-y-1 ps-5 text-sm leading-7">
+        {numberFrom && kind === 'rent' && (
+          <li>
+            <b>{t.safetyBox.otherCountry[0]}</b> {t.safetyBox.otherCountry[1]}
+          </li>
+        )}
         {safety.points.map((x) => (
           <li key={x}>{x}</li>
         ))}

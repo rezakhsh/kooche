@@ -417,6 +417,9 @@ export const listings = pgTable(
     locationPrecision: text('location_precision', { enum: LOCATION_PRECISIONS }),
     shippingOffered: boolean('shipping_offered').notNull().default(false),
     allowPhoneContact: boolean('allow_phone_contact').notNull().default(false),
+    // The country of the poster's verified number when the listing went out (wave 2 part 5,
+    // migration 0034; src/modules/listings/zones.ts): «شمارهٔ آلمان» on a listing elsewhere
+    numberCountry: text('number_country'),
     status: text('status', { enum: LISTING_STATUSES }).notNull().default('draft'),
     statusChangedAt: tstz('status_changed_at').notNull().defaultNow(),
     publishedAt: tstz('published_at'),
@@ -443,6 +446,7 @@ export const listings = pgTable(
     check('listings_place_name_check', sql`char_length(${t.placeName}) BETWEEN 1 AND 100`),
     check('listings_location_precision_check', isIn(t.locationPrecision, LOCATION_PRECISIONS)),
     check('listings_status_check', isIn(t.status, LISTING_STATUSES)),
+    check('listings_number_country_check', matches(t.numberCountry, '^[A-Z]{2}$')),
     // What a listing that is or was out must have. A draft never published can be deleted as it
     // is, so `deleted` is exempt too (migration 0007).
     check(

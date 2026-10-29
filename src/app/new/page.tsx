@@ -17,6 +17,9 @@ import { myBusinesses } from '../../modules/organizations/organizations';
 import { chosenPostingCountry } from '../country-choice';
 import { pickCategory } from './actions';
 import { preparingCountries } from '../../modules/launch/country-page';
+import { numberCountry, zoneOf, countryNameFa } from '../../modules/listings/zones';
+import { SERVICE_ROOTS } from '../../modules/organizations/limits';
+import type { IconName } from '../../components/icons';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -27,11 +30,12 @@ export const metadata = { title: messages.post.title, robots: { index: false } }
 export default async function NewListingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; listing?: string; error?: string; q?: string }>;
+  searchParams: Promise<{ c?: string; listing?: string; error?: string; q?: string; kind?: string; all?: string }>;
 }) {
   const { user } = await requireSession('/new');
   const t = messages.post;
-  const allowed = canPostListing(await loadActor(appDb(), user.id));
+  const actor = await loadActor(appDb(), user.id);
+  const allowed = canPostListing(actor);
   if (!allowed.ok) {
     return (
       <PageShell title={t.title}>
@@ -60,7 +64,15 @@ export default async function NewListingPage({
   const parent = params.c ? catalog.bySlug.get(params.c) : undefined;
   const ids = parent?.isActive ? parent.childIds : catalog.rootIds;
   const items = ids.map((id) => catalog.byId.get(id)!).filter((c) => c.isActive);
-  const keep = params.listing ? `&listing=${encodeURIComponent(params.listing)}` : '';
+  // A wanted post (the cross-border panel's first row): the form opens on «دنبالش هستم»
+  const wanted = params.kind === 'wanted' && !params.listing;
+  const keep = params.listing ? `&listing=${encodeURIComponent(params.listing)}` : wanted ? '&kind=wanted' : '';
+  // Posting across borders (wave 2 part 5, mockup final/post-crossborder): a number from another
+  // zone than the country's sees what is open to it instead of the whole tree at first
+  const from = numberCountry(actor?.phoneE164);
+  const crossZone = !!country && !!from && zoneOf(from) !== zoneOf(country.code);
+  const showBorder = crossZone && !params.listing && !parent && !wanted && !params.all;
+  const root = parent ? ancestry(catalog, parent.id)[0]?.slug : undefined;
   const up = parent?.parentId ? catalog.byId.get(parent.parentId) : undefined;
   const error =
     params.error === 'too_many'
@@ -127,7 +139,13 @@ export default async function NewListingPage({
           </Alert>
         )}
         {error && <Alert tone="error">{error}</Alert>}
-        {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} />}
+        {showBorder && country && from ? (
+          <BorderPanel from={from} country={country} verifiedBusiness={businesses.some((b) => b.verificationStatus === 'verified')} />
+        ) : (
+          <>
+        {wanted && <Alert tone="info">{t.border.wantedMode}</Alert>}
+        {crossZone && root && (SERVICE_ROOTS as readonly string[]).includes(root) && <Alert tone="info">{t.border.onlineMode}</Alert>}
+        {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} query={wanted ? '?kind=wanted' : ''} />}
         <p className="pt-2 text-sm font-bold text-neutral-700">{parent ? t.pickCategory : t.allCategories}</p>
         {parent && (
           <div className="flex items-center gap-2 text-sm">
@@ -142,17 +160,19 @@ export default async function NewListingPage({
         <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
           {items.map((c) => (
             <li key={c.id}>
-              <CategoryRow category={c} keep={keep} listingId={params.listing} root={!parent} member={member} />
+              <CategoryRow category={c} keep={keep} listingId={params.listing} root={!parent} member={member} wanted={wanted} />
             </li>
           ))}
         </ul>
+          </>
+        )}
       </div>
     </main>
     </>
   );
 }
 
-function CategoryRow({ category, keep, listingId, root, member }: { category: CategoryNode; keep: string; listingId?: string; root: boolean; member: boolean }) {
+function CategoryRow({ category, keep, listingId, root, member, wanted }: { category: CategoryNode; keep: string; listingId?: string; root: boolean; member: boolean; wanted: boolean }) {
   const closed = category.businessOnly && !member;
   const row = 'flex min-h-14 w-full items-center gap-3 px-4 py-3 text-start text-[15px] hover:bg-neutral-50';
   const icon = root && (
@@ -183,7 +203,7 @@ function CategoryRow({ category, keep, listingId, root, member }: { category: Ca
   // Picking a category only opens its empty form; changing an existing draft's category moves it
   if (!listingId) {
     return (
-      <Link href={closed ? '/business' : `/new/${category.slug}`} className={row}>
+      <Link href={closed ? '/business' : `/new/${category.slug}${wanted ? '?kind=wanted' : ''}`} className={row}>
         {icon}
         <span>{category.nameFa}</span>
         {category.businessOnly && <span className="ms-auto text-xs text-neutral-500">{messages.post.businessOnly}</span>}
@@ -200,5 +220,66 @@ function CategoryRow({ category, keep, listingId, root, member }: { category: Ca
         {category.businessOnly && <span className="ms-auto text-xs text-neutral-500">{messages.post.businessOnly}</span>}
       </button>
     </form>
+  );
+}
+
+/** What a number from another zone may post here, what waits for a number from the zone (mockup final/post-crossborder) */
+function BorderPanel({ from, country, verifiedBusiness }: { from: string; country: { code: string; nameFa: string }; verifiedBusiness: boolean }) {
+  const t = messages.post.border;
+  const zone = zoneOf(country.code);
+  const z = t.zones[zone] ?? t.zoneOf(country.nameFa);
+  const open: [IconName, string, string, string][] = [
+    ['search', t.wanted, t.wantedHint(country.nameFa), '/new?kind=wanted'],
+    ['calendar', t.event, t.eventHint, '/events/new'],
+    ['wrench', t.online, t.onlineHint, '/new?c=services'],
+    // A member of a verified business posts anything as the business
+    ['store', t.business, t.businessHint, verifiedBusiness ? '/new?all=1' : '/business'],
+  ];
+  const locked: IconName[] = ['building', 'car', 'sofa', 'briefcase'];
+  return (
+    <>
+      <section className="rounded-2xl bg-brand-50 p-4">
+        <p className="flex items-center gap-2 text-sm font-extrabold text-brand-900">
+          <Flag code={from} className="h-3.5 w-5" />
+          {t.numberFrom(countryNameFa(from))}
+        </p>
+        <p className="mt-1 text-sm leading-7 text-neutral-800">{t.note(z.name, z.number)}</p>
+      </section>
+      <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200">
+        {open.map(([icon, title, hint, href]) => (
+          <li key={href}>
+            <Link href={href} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-neutral-50">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <Icon name={icon} className="size-5" />
+              </span>
+              <span className="flex-1">
+                <b className="block text-[15px]">{title}</b>
+                <span className="text-xs text-neutral-600">{hint}</span>
+              </span>
+              <Icon name="chevronEnd" className="size-5 text-neutral-400" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 -mb-2 flex items-center gap-1.5 text-sm font-bold text-neutral-600">
+        <Icon name="lock" className="size-4" />
+        {z.locked}
+      </p>
+      <ul className="divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+        {t.locked.map((title, i) => (
+          <li key={title} className="flex min-h-14 items-center gap-3 px-4 text-neutral-600">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-white">
+              <Icon name={locked[i]!} className="size-5" />
+            </span>
+            <span className="flex-1 text-[15px]">{title}</span>
+            <Icon name="lock" className="size-4" />
+          </li>
+        ))}
+      </ul>
+      <Link href="/account/phone" className="flex h-12 items-center justify-center gap-2 rounded-xl border border-neutral-300 font-bold text-neutral-800 hover:bg-neutral-50">
+        <Icon name="phone" className="size-5" />
+        {t.otherNumber}
+      </Link>
+    </>
   );
 }

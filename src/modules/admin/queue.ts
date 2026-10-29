@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
+import { zoneSql } from '../listings/zones';
 
 // The moderation queue (roadmap step 8; "The moderation routine" in docs/setup.md, "Admin page"):
 // one row per thing, gathering its open reports (users, visitors, chat), an open flag from the
@@ -103,14 +104,19 @@ export async function queueAge(db: Queryable): Promise<{ count: number; oldest: 
   return { count: items.length, oldest: items.reduce<Date | null>((o, i) => (!o || i.since < o ? i.since : o), null) };
 }
 
-/** New listings from accounts under 7 days, out in the last 48 hours, not yet looked at by staff */
+/**
+ * New listings from accounts under 7 days, or posted with a number from another zone than the
+ * listing's (wave 2 part 5, ../listings/zones.ts), out in the last 48 hours, not yet looked at by staff
+ */
 export async function freshListings(db: Queryable, limit = 60) {
-  return db.execute<{ id: string; title: string; token: string; ref_number: string; price_minor: number | null; currency: string | null; published_at: string | Date; seller: string; seller_since: string | Date; cover: string | null; is_event: boolean }>(sql`
+  const otherZone = sql`(l.number_country IS NOT NULL AND ${zoneSql(sql`l.number_country`)} <> ${zoneSql(sql`l.country_code`)})`;
+  return db.execute<{ id: string; title: string; token: string; ref_number: string; price_minor: number | null; currency: string | null; published_at: string | Date; seller: string; seller_since: string | Date; cover: string | null; is_event: boolean; other_zone: string | null }>(sql`
     SELECT l.id, l.title, l.public_token AS token, l.ref_number, l.price_minor, l.currency, l.published_at, u.display_name AS seller, u.created_at AS seller_since,
       (SELECT i.storage_key FROM listing_images i WHERE i.listing_id = l.id AND i.status = 'ready' ORDER BY i.position LIMIT 1) AS cover,
-      EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event
+      EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
+      CASE WHEN ${otherZone} THEN l.number_country END AS other_zone
     FROM listings l JOIN users u ON u.id = l.user_id
-    WHERE l.status = 'active' AND l.published_at > now() - interval '48 hours' AND u.created_at > now() - interval '7 days'
+    WHERE l.status = 'active' AND l.published_at > now() - interval '48 hours' AND (u.created_at > now() - interval '7 days' OR ${otherZone})
       AND NOT EXISTS (SELECT 1 FROM moderation_decisions d WHERE d.listing_id = l.id AND d.decided_by = 'staff' AND d.listing_revision = l.revision)
     ORDER BY l.published_at DESC
     LIMIT ${limit}

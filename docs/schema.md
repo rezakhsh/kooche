@@ -511,6 +511,7 @@ Standard columns, plus:
 | `location_precision` | `text null` | `CHECK IN ('city','postal_code','area')` (`postal_code` since migration 0008): the city centre, the centre of the postal-code area, or the seller's ~500 m cell. The page shows it as a dot on an outline of the country, with a caption saying which. |
 | `shipping_offered` | `boolean DEFAULT false` | "Ships" filter for country-wide browsing (the audience is spread out) |
 | `allow_phone_contact` | `boolean DEFAULT false` | Phone hidden by default. Chat is always available. |
+| `number_country` | `text` | The country of the poster's verified number when the listing went out (`^[A-Z]{2}$`; migration 0034, wave 2 part 5, `src/modules/listings/zones.ts`). Null for listings from before. A private listing elsewhere shows «شمارهٔ آلمان». |
 | `status` | `text DEFAULT 'draft'` | `CHECK IN ('draft','pending_review','active','paused','sold','expired','rejected','deleted')` |
 | `status_changed_at` | `timestamptz DEFAULT now()` | Moderation queue order, grace period before "gone" status for SEO |
 | `published_at` | `timestamptz null` | First time it became `active` |

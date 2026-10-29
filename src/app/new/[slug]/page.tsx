@@ -15,8 +15,10 @@ export const metadata = { title: messages.post.title, robots: { index: false } }
 // Step 2 of posting: the empty form of a category. Nothing is stored until the seller goes on or
 // adds a photo, so browsing categories leaves no drafts behind.
 
-export default async function NewInCategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function NewInCategoryPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ kind?: string }> }) {
   const { slug } = await params;
+  // «دنبالش هستم» chosen from the cross-border panel (wave 2 part 5)
+  const kind = (await searchParams).kind === 'wanted' ? 'wanted' : 'offer';
   const { user } = await requireSession(`/new/${encodeURIComponent(slug)}`);
   const db = appDb();
   if (!canPostListing(await loadActor(db, user.id)).ok) redirect('/new');
@@ -26,7 +28,7 @@ export default async function NewInCategoryPage({ params }: { params: Promise<{ 
   if (category.businessOnly) redirect('/new?error=business_only');
   if (isEventCategory(catalog, category.id)) redirect(`/events/new?type=${category.slug}`);
 
-  const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null);
+  const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null, kind);
   // Steps 2–4 of posting (wave 1, src/app/my/listings/[id]/steps.ts); each step has its heading
   return (
     <>

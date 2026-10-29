@@ -21,7 +21,7 @@ export function matchCategories(all: Pickable[], q: string): Pickable[] {
   return all.filter((c) => words.every((w) => c.search.includes(w))).slice(0, MAX_SUGGESTIONS);
 }
 
-export function CategorySearch({ all, initial }: { all: Pickable[]; initial: string }) {
+export function CategorySearch({ all, initial, query = '' }: { all: Pickable[]; initial: string; query?: string }) {
   const t = messages.post;
   const [q, setQ] = useState(initial);
   const found = useMemo(() => matchCategories(all, q), [all, q]);
@@ -47,7 +47,7 @@ export function CategorySearch({ all, initial }: { all: Pickable[]; initial: str
           {found.length === 0 && <li className="px-4 py-3 text-sm text-neutral-700">{t.noCategoryFound}</li>}
           {found.map((c) => (
             <li key={c.slug} className="border-b border-brand-100 last:border-0">
-              <Link href={`/new/${c.slug}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-brand-50">
+              <Link href={`/new/${c.slug}${query}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-brand-50">
                 <span className="flex-1">
                   <b className="block text-[15px]">{c.nameFa}</b>
                   <span className="text-xs text-neutral-600">{c.where ?? t.inParent(c.parentFa)}</span>
