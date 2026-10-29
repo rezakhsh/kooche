@@ -1798,6 +1798,22 @@ export const categories: CategorySeed[] = [
         businessOnly: true,
         attributes: [onlinePossible],
       }),
+      // Licensed services (round 11, wave 2 part 4): only verified businesses, whose licence is
+      // checked at verification (src/modules/organizations/limits.ts)
+      leaf('legal-immigration', 'مشاورهٔ حقوقی و مهاجرت', {
+        businessOnly: true,
+        attributes: [onlinePossible],
+      }),
+      leaf('health-services', 'پزشکی و درمان', {
+        businessOnly: true,
+      }),
+      leaf('real-estate-agents', 'مشاور املاک', {
+        businessOnly: true,
+      }),
+      leaf('finance-insurance', 'مالی و بیمه', {
+        businessOnly: true,
+        attributes: [onlinePossible],
+      }),
       leaf('catering-events', 'پذیرایی و مراسم'),
       leaf('photography', 'عکاسی و فیلم‌برداری', {
         attributes: [
@@ -1903,6 +1919,8 @@ export const categories: CategorySeed[] = [
       leaf('sports-courses', 'کلاس ورزشی'),
       leaf('computer-courses', 'کامپیوتر و برنامه‌نویسی'),
       leaf('art-courses', 'هنر و صنایع دستی'),
+      // Licensed (round 11, wave 2 part 4): a driving school is a verified business
+      leaf('driving-school', 'آموزشگاه رانندگی', { businessOnly: true }),
       leaf('other-courses', 'سایر کلاس‌ها'),
     ],
   },

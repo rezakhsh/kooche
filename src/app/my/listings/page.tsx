@@ -21,6 +21,7 @@ import { imageUrl } from '../../../modules/media/server';
 import { requireSession } from '../../../modules/users/server';
 import { listingStatusAction } from './actions';
 import { ShareRow } from './share-row';
+import { limitMessage } from './limit-message';
 
 export const metadata = { title: messages.my.title, robots: { index: false } };
 
@@ -91,15 +92,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
         {done && <Alert tone="success">{done}</Alert>}
         {params.error && (
           <Alert tone="error">
-            {params.error === 'private_service_limit'
-              ? messages.business.limits.privateServices
-              : params.error === 'business_limit'
-                ? messages.business.limits.businessListings
-                : params.error === 'business_only'
-                  ? messages.business.limits.businessOnly
-                  : params.error === 'legal_missing'
-                    ? messages.business.limits.legalMissing
-                    : t.notAllowed}
+            {limitMessage(params.error) ?? t.notAllowed}
           </Alert>
         )}
       </div>

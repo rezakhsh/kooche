@@ -100,14 +100,14 @@ describe('seed checks', () => {
 describe('seeded data', () => {
   // Oct 18, 2026: + the events section (1 root, 13 event types), community › events retired;
   // wave 1 (Oct 27): the event types became the design's eight and «سایر»
-  it('has the approved category tree: 14 roots and 123 leaves', async () => {
+  it('has the approved category tree: 14 roots and 128 leaves (5 licensed services added in wave 2 part 4)', async () => {
     const [roots] = await db.select({ n: count() }).from(categories).where(isNull(categories.parentId));
     const [leaves] = await db
       .select({ n: count() })
       .from(categories)
       .where(eq(categories.allowsListings, true));
     expect(roots!.n).toBe(14);
-    expect(leaves!.n).toBe(123);
+    expect(leaves!.n).toBe(128);
   });
 
   it('opens Germany (Austria closed since wave 0), with its regions and every city under one of them', async () => {

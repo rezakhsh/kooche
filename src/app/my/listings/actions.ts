@@ -27,6 +27,7 @@ import { photoView, type PhotoView } from './photo-view';
 import { checkTurnstile } from '../../../modules/security/server';
 import { requireSession } from '../../../modules/users/server';
 import { chosenPostingCountry } from '../../country-choice';
+import { limitMessage } from './limit-message';
 import { preparingCountries } from '../../../modules/launch/country-page';
 
 /**
@@ -51,22 +52,12 @@ function refusal(reason: string): string {
       return t.form.notEditable;
     case 'category_not_postable':
       return t.post.categoryNotPostable;
-    case 'business_only':
-      return t.business.limits.businessOnly;
     case 'paused':
       return messages.post.paused;
     case 'new_account_limit':
       return t.post.newAccountListings(NEW_ACCOUNT_LISTINGS_PER_DAY);
-    case 'private_service_limit':
-      return t.business.limits.privateServices;
-    case 'business_limit':
-      return t.business.limits.businessListings;
-    case 'legal_missing':
-      return t.business.limits.legalMissing;
-    case 'not_member':
-      return t.business.limits.notMember;
     default:
-      return t.genericError;
+      return limitMessage(reason) ?? t.genericError;
   }
 }
 

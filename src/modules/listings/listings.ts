@@ -346,8 +346,13 @@ export type Refusal =
   | 'category_not_postable'
   | 'business_only'
   | 'new_account_limit'
-  /** A private person's third active service or lesson offer (src/modules/organizations/limits.ts) */
+  /** A private person's limits (src/modules/organizations/limits.ts): services, property, cars, goods */
   | 'private_service_limit'
+  | 'private_property_limit'
+  | 'private_car_limit'
+  | 'private_goods_limit'
+  /** A licensed service by a business that isn't verified yet */
+  | 'licence_required'
   /** The business's plan allows no more active listings */
   | 'business_limit'
   /** "Post as" a business the user isn't a member of */
@@ -595,7 +600,7 @@ export async function saveListing(
     }
     // Private and business limits (decided Oct 22, 2026), when the listing goes live
     if (goingOut && !opts.extension) {
-      const refused = await postingRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind }, now);
+      const refused = await postingRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind, attributes: opts.input.attributes }, now);
       if (refused) return { ok: false, reason: refused };
     }
     // A business's events too wait for its legal details (../organizations/limits.ts)
