@@ -9,13 +9,14 @@ import { maxImages } from '../../modules/listings/listings';
 import { amountInputValue } from '../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../modules/listings/places';
 import { postingCountry } from '../../modules/listings/posting-country';
-import { activeCountries, savedPlace } from '../../modules/listings/queries';
+import { savedPlace } from '../../modules/listings/queries';
 import { storage } from '../../modules/media/server';
 import { myBusinesses } from '../../modules/organizations/organizations';
 import { streetMapVersion } from '../../modules/maps/street-map';
 import { turnstileSiteKey } from '../../modules/security/server';
 import { photoView, type PhotoView } from '../my/listings/photo-view';
 import type { EventFormProps } from './form';
+import { preparingCountries } from '../../modules/launch/country-page';
 
 // What the event editor needs, for a saved event or for a new one that exists only in the browser
 // (`event` null). Server code only. The local times are shown in the event's own time zone.
@@ -35,7 +36,7 @@ export async function eventEditorData(
 ): Promise<{ form: EventFormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
   const [catalog, countries, saved, [me], businesses] = await Promise.all([
     cachedCatalog(db),
-    activeCountries(db),
+    preparingCountries(db),
     savedPlace(db, userId),
     db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)),
     myBusinesses(db, userId),
@@ -49,7 +50,7 @@ export async function eventEditorData(
     listingCountry: l?.countryCode ?? null,
     chosen: preferred.countryCode,
     saved: saved?.place.countryCode ?? null,
-    open: countries.map((c) => c.code),
+    countries,
   });
   let place: Place | null = null;
   if (l) place = await placeOfListing(db, l);

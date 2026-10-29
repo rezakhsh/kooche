@@ -40,22 +40,34 @@ afterAll(async () => {
 });
 
 describe('which country a listing is posted in', () => {
-  const open = ['DE', 'AT'];
+  const countries = [
+    { code: 'DE', mode: 'open' },
+    { code: 'AT', mode: 'open' },
+  ];
   it('a listing keeps its own country, whatever the visitor chose since', () => {
-    expect(postingCountry({ listingCountry: 'DE', chosen: 'AT', saved: 'AT', open })).toBe('DE');
+    expect(postingCountry({ listingCountry: 'DE', chosen: 'AT', saved: 'AT', countries })).toBe('DE');
   });
   it('a new listing takes the chosen country before the saved place’s', () => {
-    expect(postingCountry({ listingCountry: null, chosen: 'AT', saved: 'DE', open })).toBe('AT');
-    expect(postingCountry({ listingCountry: null, chosen: null, saved: 'DE', open })).toBe('DE');
+    expect(postingCountry({ listingCountry: null, chosen: 'AT', saved: 'DE', countries })).toBe('AT');
+    expect(postingCountry({ listingCountry: null, chosen: null, saved: 'DE', countries })).toBe('DE');
   });
   it('a closed country is never taken; without any, the seller must choose first', () => {
-    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: 'AT', open })).toBe('AT');
-    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, open })).toBeNull();
-    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, open })).toBeNull();
+    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: 'AT', countries })).toBe('AT');
+    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, countries })).toBeNull();
+    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, countries })).toBeNull();
   });
   it('with one open country and nothing chosen, that one (wave 1)', () => {
-    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, open: ['DE'] })).toBe('DE');
-    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, open: ['DE'] })).toBe('DE');
+    const one = [{ code: 'DE', mode: 'open' }];
+    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, countries: one })).toBe('DE');
+    expect(postingCountry({ listingCountry: null, chosen: 'TR', saved: null, countries: one })).toBe('DE');
+  });
+  it('a country preparing to open (prestart) can be chosen, but never stands in for the only open one (wave 2 part 8)', () => {
+    const withPrestart = [
+      { code: 'DE', mode: 'open' },
+      { code: 'AT', mode: 'prestart' },
+    ];
+    expect(postingCountry({ listingCountry: null, chosen: 'AT', saved: 'DE', countries: withPrestart })).toBe('AT');
+    expect(postingCountry({ listingCountry: null, chosen: null, saved: null, countries: withPrestart })).toBe('DE');
   });
 });
 

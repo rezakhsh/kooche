@@ -9,6 +9,7 @@ import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
 import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { webEnv } from '../lib/env';
 import { chosenCountry } from '../app/country-choice';
+import { countryBySlug } from '../modules/launch/country-page';
 import { currentTheme } from '../app/theme';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -54,6 +55,10 @@ export async function SiteHeader() {
   const path = requestHeaders.get('x-pathname') ?? '';
   const onCountryPages = !!country && (path === `/${country.slug}` || path.startsWith(`/${country.slug}/`));
   const place = city ?? (country && !onCountryPages && home?.countryCode === country.code ? { slug: home.citySlug, nameFa: home.city } : null);
+  // On a country's own pages before it opens (/austria, /austria/wien; wave 2 part 8, mockup
+  // final/home-waitlist) the chip names that country, and there is nothing to search yet
+  const first = /^\/([a-z][a-z-]{1,40})(?:\/|$)/.exec(path)?.[1];
+  const closedHere = first && !open.some((c) => c.slug === first) ? await countryBySlug(appDb(), first).catch(() => null) : null;
   const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
   // On the events pages the box searches the events (wave 1, mockup final/events: «جستجو در رویدادهای برلین…»)
@@ -76,18 +81,18 @@ export async function SiteHeader() {
               <span className="mt-1 hidden text-xs leading-none whitespace-nowrap text-neutral-500 lg:block">{messages.site.tagline}</span>
             </span>
           </Link>
-          {country && (
+          {(closedHere || country) && (
             <Link
               href="/cities"
               className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 ps-2.5 pe-3 text-[13px] font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
               title={messages.cities.title}
             >
               <Icon name="pin" className="size-4 text-brand-700" />
-              {place?.nameFa ?? country.nameFa}
+              {closedHere?.nameFa ?? place?.nameFa ?? country!.nameFa}
               <Icon name="chevronDown" className="size-3.5" />
             </Link>
           )}
-          {country && (
+          {country && !closedHere && (
             <SearchBox
               key={searchIn}
               id="header-q"
@@ -99,7 +104,7 @@ export async function SiteHeader() {
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
-          <nav aria-label={t.label} className={`${country ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
+          <nav aria-label={t.label} className={`${country && !closedHere ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
             {session && (
               <Link href="/chat" title={t.chat} className="relative flex h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium hover:bg-neutral-50 xl:px-3">
                 <Icon name="chat" className="size-[18px]" />

@@ -23,7 +23,7 @@ import { startFoundingCheckout } from '../../modules/payments/founding';
 import { PAYMENT_LIMITS } from '../../modules/payments/features';
 import { paymentGateway } from '../../modules/payments/server';
 import { requireSession } from '../../modules/users/server';
-import { chosenCountry } from '../country-choice';
+import { chosenPostingCountry } from '../country-choice';
 import type { BusinessFormState } from './business-form';
 
 // Server actions for businesses: create and edit, members and invitations, the plan. Each one
@@ -99,7 +99,7 @@ export async function createBusinessAction(_: BusinessFormState, form: FormData)
   const values = formValues(form);
   const { input, hoursDay } = formInput(form, values);
   if (hoursDay) return hoursRefusal(values, hoursDay);
-  const country = await chosenCountry(appDb());
+  const country = await chosenPostingCountry(appDb());
   const r = await createBusiness(appDb(), { userId: user.id, countryCode: country?.code ?? 'DE', input });
   if (!r.ok) return { error: businessError(r.reason), fields: r.fields ?? (FIELD_OF[r.reason] ? { [FIELD_OF[r.reason]!]: r.reason } : undefined), values };
   redirect(`/b/${r.slug}/manage?created=1`);

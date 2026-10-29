@@ -2,7 +2,7 @@ import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { messages } from '../../../../messages/fa';
 import { placeOfListing, placeLabel, placeValue } from '../../../../modules/listings/places';
-import { activeCountries } from '../../../../modules/listings/queries';
+
 import { streetMapVersion } from '../../../../modules/maps/street-map';
 import { imageUrl } from '../../../../modules/media/server';
 import { WEEKDAYS, validHours } from '../../../../modules/organizations/hours';
@@ -10,6 +10,7 @@ import { updateBusinessAction } from '../../../business/actions';
 import { BusinessForm } from '../../../business/business-form';
 import { PostingBar } from '../../../new/posting-bar';
 import { memberOf } from '../member';
+import { preparingCountries } from '../../../../modules/launch/country-page';
 
 // Editing a business (wave 1): the three parts of the new-business steps on one page, one save.
 
@@ -21,7 +22,7 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ s
   const { slug } = await params;
   const { org } = await memberOf(slug, `/b/${slug}/edit`, ['owner']);
   const db = appDb();
-  const [place, countries] = await Promise.all([placeOfListing(db, org), activeCountries(db)]);
+  const [place, countries] = await Promise.all([placeOfListing(db, org), preparingCountries(db)]);
   const country = countries.find((c) => c.code === org.countryCode);
   const hours = validHours(org.openingHours) ? org.openingHours : {};
   const initial: Record<string, string> = {

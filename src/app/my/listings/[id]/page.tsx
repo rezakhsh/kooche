@@ -10,7 +10,7 @@ import { ownListing } from '../../../../modules/listings/listings';
 import { takeDownStatement } from '../../../../modules/listings/queries';
 import { listingPath } from '../../../../modules/listings/slug';
 import { requireSession } from '../../../../modules/users/server';
-import { chosenCountry } from '../../../country-choice';
+import { chosenPostingCountry } from '../../../country-choice';
 import { editorData } from '../editor-data';
 import { ListingEditor } from './editor';
 import { NoScriptSteps } from './no-script-steps';
@@ -33,7 +33,7 @@ export default async function EditListingPage({ params, searchParams }: { params
 
   const statement = listing.status === 'rejected' ? await takeDownStatement(db, listing.id) : null;
   const editable = ['draft', 'active', 'paused', 'expired', 'rejected'].includes(listing.status);
-  const editor = editable ? await editorData(db, user.id, categoryId, listing, images, (await chosenCountry(db))?.code ?? null) : null;
+  const editor = editable ? await editorData(db, user.id, categoryId, listing, images, (await chosenPostingCountry(db))?.code ?? null) : null;
 
   // A draft continues in steps (wave 1, ./steps.ts), at the step its address names
   if (listing.status === 'draft' && editor) {

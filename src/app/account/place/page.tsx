@@ -3,11 +3,12 @@ import { appDb } from '../../../db/drizzle';
 import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { placeLabel, placeValue } from '../../../modules/listings/places';
-import { activeCountries, savedPlace } from '../../../modules/listings/queries';
+import { savedPlace } from '../../../modules/listings/queries';
 import { streetMapVersion } from '../../../modules/maps/street-map';
 import { requireSession } from '../../../modules/users/server';
-import { chosenCountry } from '../../country-choice';
+import { chosenPostingCountry } from '../../country-choice';
 import { SavedPlaceForm } from './form';
+import { preparingCountries } from '../../../modules/launch/country-page';
 
 export const metadata = { title: messages.account.place, robots: { index: false } };
 
@@ -17,7 +18,7 @@ export const metadata = { title: messages.account.place, robots: { index: false 
 export default async function SavedPlacePage() {
   const { user } = await requireSession('/account/place');
   const db = appDb();
-  const [countries, saved, chosen] = await Promise.all([activeCountries(db), savedPlace(db, user.id), chosenCountry(db)]);
+  const [countries, saved, chosen] = await Promise.all([preparingCountries(db), savedPlace(db, user.id), chosenPostingCountry(db)]);
   const t = messages.account;
   return (
     <TaskPage title={t.place} back="/account/settings" backLabel={messages.account.back}>

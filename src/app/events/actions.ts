@@ -15,10 +15,11 @@ import { cachedCatalog, isEventCategory } from '../../modules/listings/catalog';
 import { LISTING_LIMITS } from '../../modules/listings/limits';
 import { changeDraftCategory, changeListingStatus, listingInputSchema, type FieldErrors } from '../../modules/listings/listings';
 import { postingCountry } from '../../modules/listings/posting-country';
-import { activeCountries, savedPlace } from '../../modules/listings/queries';
+import { savedPlace } from '../../modules/listings/queries';
 import { checkTurnstile } from '../../modules/security/server';
 import { requireSession } from '../../modules/users/server';
-import { chosenCountry } from '../country-choice';
+import { chosenPostingCountry } from '../country-choice';
+import { preparingCountries } from '../../modules/launch/country-page';
 
 // The event form and the buttons on "my events". The listing part of the form has the same
 // field names as the listing form; the event's own fields are read here too.
@@ -87,9 +88,9 @@ export async function saveEventAction(_: EventSaveState, form: FormData): Promis
   let listingId = String(form.get('listingId') ?? '');
   let created: string | undefined;
   // The country is decided here, never taken from the form (decided Oct 17, 2026), as for listings
-  const [chosen, saved, open] = await Promise.all([chosenCountry(appDb()), savedPlace(appDb(), user.id), activeCountries(appDb())]);
+  const [chosen, saved, countries] = await Promise.all([chosenPostingCountry(appDb()), savedPlace(appDb(), user.id), preparingCountries(appDb())]);
   const country = (listingCountry: string | null) =>
-    postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: open.map((c) => c.code) });
+    postingCountry({ listingCountry, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, countries });
   if (!listingId && !country(null)) return { error: messages.form.chooseCountryFirst };
   // Publishing needs Turnstile, checked before anything is written (docs/setup.md, "Bot protection")
   const publishing = form.get('intent') === 'publish';

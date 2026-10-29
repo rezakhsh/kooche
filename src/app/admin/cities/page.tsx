@@ -5,6 +5,7 @@ import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff } from '../../../modules/admin/server';
 import { adminCities } from '../../../modules/launch/waitlist';
 import { adminCountries, type AdminCountry, type CountryMode } from '../../../modules/launch/countries';
+import { isStarter, starterUntil } from '../../../modules/launch/country-page';
 import { Icon } from '../../../components/icons';
 import { activePauses, PAUSE_MAX_DAYS } from '../../../modules/launch/pauses';
 import { cachedCatalog } from '../../../modules/listings/catalog';
@@ -179,6 +180,7 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
           <ModePill mode={country.mode} />
         </h2>
         {country.opensOn && <p className="mt-1 text-sm font-bold text-brand-800">{t.opensOn(formatDate(new Date(`${country.opensOn}T12:00:00Z`), zone))}</p>}
+        {isStarter(country) && <p className="mt-1 text-sm text-neutral-700">{t.starterUntil(formatDate(starterUntil(country.openedAt)!, zone))}</p>}
         <form action={countryModeAction} className="mt-3 space-y-3">
           <input type="hidden" name="country" value={country.code} />
           <fieldset className="grid gap-2 sm:grid-cols-2">

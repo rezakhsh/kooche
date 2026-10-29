@@ -281,7 +281,10 @@ export async function openCountry(tx: Queryable, ctx: StaffContext, countryCode:
     .where(and(eq(locations.countryCode, countryCode), eq(locations.kind, 'city')))
     .returning({ id: locations.id });
   // Opening every city opens the country itself too (its mode, src/modules/launch/countries.ts)
-  await tx.update(countries).set({ mode: 'open', isActive: true, opensOn: null }).where(eq(countries.code, countryCode));
+  await tx
+    .update(countries)
+    .set({ mode: 'open', isActive: true, opensOn: null, openedAt: sql`CASE WHEN ${countries.mode} = 'open' THEN ${countries.openedAt} ELSE now() END` })
+    .where(eq(countries.code, countryCode));
   // audit_log.target_id is a uuid: the country goes into the data
   await staffAudit(tx, ctx, 'country.open', null, { country: countryCode, cities: rows.length });
   return rows.length;

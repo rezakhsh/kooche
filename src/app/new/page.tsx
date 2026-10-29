@@ -12,10 +12,11 @@ import { cachedCategoryCounts } from '../../modules/search/browse';
 import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { postingCountry } from '../../modules/listings/posting-country';
-import { activeCountries, savedPlace } from '../../modules/listings/queries';
+import { savedPlace } from '../../modules/listings/queries';
 import { myBusinesses } from '../../modules/organizations/organizations';
-import { chosenCountry } from '../country-choice';
+import { chosenPostingCountry } from '../country-choice';
 import { pickCategory } from './actions';
+import { preparingCountries } from '../../modules/launch/country-page';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -50,11 +51,11 @@ export default async function NewListingPage({
 
   const params = await searchParams;
   const db = appDb();
-  const [catalog, countries, chosen, saved, businesses] = await Promise.all([cachedCatalog(db), activeCountries(db), chosenCountry(db), savedPlace(db, user.id), myBusinesses(db, user.id)]);
+  const [catalog, countries, chosen, saved, businesses] = await Promise.all([cachedCatalog(db), preparingCountries(db), chosenPostingCountry(db), savedPlace(db, user.id), myBusinesses(db, user.id)]);
   // Business-only categories open for members of a business (roadmap step 6)
   const member = businesses.length > 0;
   // The country a new listing goes into (decided Oct 17, 2026); changing it happens on the home page
-  const code = postingCountry({ listingCountry: null, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, open: countries.map((c) => c.code) });
+  const code = postingCountry({ listingCountry: null, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, countries });
   const country = countries.find((c) => c.code === code);
   const parent = params.c ? catalog.bySlug.get(params.c) : undefined;
   const ids = parent?.isActive ? parent.childIds : catalog.rootIds;
@@ -104,7 +105,7 @@ export default async function NewListingPage({
           {!params.listing && country && (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-600">
               <Flag code={country.code} className="h-3.5 w-5" />
-              {t.publishedIn(country.nameFa)}{' '}
+              {country.mode === 'open' ? t.publishedIn(country.nameFa) : t.preparedFor(country.nameFa)}{' '}
               <Link href="/?choose" className="font-bold text-brand-800 hover:underline">
                 {messages.form.change}
               </Link>

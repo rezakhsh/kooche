@@ -1,8 +1,9 @@
-import { and, desc, eq, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { listings, locations, users } from '../../db/schema';
 import { coverKeys } from '../listings/queries';
 import { cardColumns, type BrowseItem } from '../search/browse';
+import { hideTest, hideTestRaw } from '../users/test-accounts';
 
 // What business pages read: the public grid of a business's live listings, and the manage view
 // with every listing of the business and its simple stats (roadmap step 6).
@@ -69,5 +70,34 @@ export async function managedListings(db: Queryable, organizationId: string, opt
     .where(and(eq(listings.organizationId, organizationId), ne(listings.status, 'deleted'), opts.onlyPostedBy ? eq(listings.userId, opts.onlyPostedBy) : undefined))
     .orderBy(desc(listings.createdAt))
     .limit(500);
+  return rows;
+}
+
+export type DirectoryBusiness = { slug: string; name: string; tagline: string | null; businessType: string | null; city: string | null; logoKey: string | null };
+
+/** A country's newest verified businesses, for its starter page (wave 2 part 8, mockup final/us-starter) */
+export async function newestVerifiedBusinesses(db: Queryable, countryCode: string, opts: { limit: number; withTest: boolean }): Promise<DirectoryBusiness[]> {
+  const rows = await db.execute<{ slug: string; name: string; tagline: string | null; business_type: string | null; city: string | null; logo_key: string | null }>(sql`
+    SELECT o.slug, o.name, o.tagline, o.business_type, l.name_fa AS city, o.logo_key
+    FROM organizations o LEFT JOIN locations l ON l.id = o.location_id
+    WHERE o.country_code = ${countryCode} AND o.status = 'active' AND o.verification_status = 'verified'
+      ${hideTestRaw(opts.withTest, sql`o.created_by_user_id`)}
+    ORDER BY o.verified_at DESC NULLS LAST
+    LIMIT ${opts.limit}`);
+  return rows.map((r) => ({ slug: r.slug, name: r.name, tagline: r.tagline, businessType: r.business_type, city: r.city, logoKey: r.logo_key }));
+}
+
+export type JobRow = { title: string; publicToken: string; city: string | null; placeName: string | null };
+
+/** A country's newest live listings in some categories (its jobs), for its starter page */
+export async function newestListingsIn(db: Queryable, countryCode: string, categoryIds: string[], opts: { limit: number; withTest: boolean }): Promise<JobRow[]> {
+  if (categoryIds.length === 0) return [];
+  const rows = await db
+    .select({ title: listings.title, publicToken: listings.publicToken, city: locations.nameFa, placeName: listings.placeName })
+    .from(listings)
+    .leftJoin(locations, eq(locations.id, listings.locationId))
+    .where(and(eq(listings.countryCode, countryCode), eq(listings.status, 'active'), inArray(listings.categoryId, categoryIds), hideTest(opts.withTest, listings.userId)))
+    .orderBy(desc(listings.publishedAt))
+    .limit(opts.limit);
   return rows;
 }

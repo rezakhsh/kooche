@@ -115,6 +115,7 @@ Seeded from files in Git (`seed/`). The app reads them from a Valkey cache, so t
 | `is_active` | `boolean DEFAULT false` | Countries open for listings. Follows `mode`: `CHECK (is_active = (mode = 'open'))` (migration 0030) |
 | `mode` | `text DEFAULT 'waitlist'` | `hidden`, `waitlist`, `prestart`, `guide`, `open` (migration 0030; `docs/setup.md`, "Country modes"). The owner's state: the seed gives only a new country its first value |
 | `opens_on` | `date null` | The announced opening day of a `prestart` country |
+| `opened_at` | `timestamptz null` | When the owner last opened it (migration 0031): its first page is the starter page for 8 weeks after. Null for Germany, open from the start. The web role may update it |
 | `sort_order` | `smallint DEFAULT 0` | |
 | `slug` | `text null UNIQUE` | Web address of the country page: `/germany`, `/austria` (migration 0008). A name, never the two-letter code, which clashes with our own routes (`/my` is Malaysia). Filled by the seed; a seed check keeps it out of the route names. |
 

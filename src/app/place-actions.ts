@@ -7,8 +7,9 @@ import { hit } from '../lib/rate-limit';
 import { valkey } from '../lib/valkey';
 import { LISTING_LIMITS } from '../modules/listings/limits';
 import { nearestPostalPlace, searchPlaces, toSuggestion, type PlaceSuggestion } from '../modules/listings/places';
-import { activeCountries } from '../modules/listings/queries';
+
 import { currentSession } from '../modules/users/server';
+import { preparingCountries } from '../modules/launch/country-page';
 
 // The place field (posting form, "my location" in the account): suggestions from our own postal
 // codes and cities, and the postal code nearest the browser's position. Signed-in users only,
@@ -20,8 +21,9 @@ const near = z.object({ country: z.string().length(2), lat: z.number(), lng: z.n
 async function allowed(country: string): Promise<boolean> {
   const session = await currentSession();
   if (!session) return false;
-  const open = await activeCountries(appDb());
-  if (!open.some((c) => c.code === country)) return false;
+  // Open countries and those preparing to open (drafts and businesses, wave 2 part 8)
+  const allowed = await preparingCountries(appDb());
+  if (!allowed.some((c) => c.code === country)) return false;
   return (await hit(valkey(), [[LISTING_LIMITS.placeSearchPerUserHour, session.user.id]])).ok;
 }
 

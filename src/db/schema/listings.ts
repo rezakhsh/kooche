@@ -76,6 +76,11 @@ export const countries = pgTable(
     mode: text('mode', { enum: COUNTRY_MODES }).notNull().default('waitlist'),
     /** The announced opening day (prestart) */
     opensOn: date('opens_on', { mode: 'string' }),
+    /**
+     * When the owner last opened it (wave 2 part 8, migration 0031): its first page is the starter
+     * page for 8 weeks after (src/modules/launch/country-page.ts). Null for Germany, open from the start.
+     */
+    openedAt: tstz('opened_at'),
     sortOrder: smallint('sort_order').notNull().default(0),
     // Latin name in web addresses: /germany, /austria (migration 0008). Filled by the seed; a
     // name, not the code, because two-letter codes clash with our own routes (/my is Malaysia).

@@ -3,7 +3,7 @@ import { appDb } from '../../../db/drizzle';
 import { messages } from '../../../messages/fa';
 import { canPostEvent } from '../../../modules/events/events';
 import { requireSession } from '../../../modules/users/server';
-import { chosenCountry } from '../../country-choice';
+import { chosenPostingCountry } from '../../country-choice';
 import { EventEditor } from '../editor';
 import { eventEditorData } from '../editor-data';
 import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
@@ -35,7 +35,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Pro
   }
   const { type } = await searchParams;
   const editor = await eventEditorData(db, user.id, null, {
-    countryCode: (await chosenCountry(db))?.code ?? null,
+    countryCode: (await chosenPostingCountry(db))?.code ?? null,
     typeSlug: typeof type === 'string' ? type : null,
   });
   // Wave 1 (mockup final/post-event1): the posting bar and the steps, like a listing's

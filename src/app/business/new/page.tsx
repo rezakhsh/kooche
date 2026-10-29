@@ -6,7 +6,7 @@ import { activeCountries } from '../../../modules/listings/queries';
 import { canPostListing, loadActor } from '../../../modules/users/permissions';
 import { streetMapVersion } from '../../../modules/maps/street-map';
 import { requireSession } from '../../../modules/users/server';
-import { chosenCountry } from '../../country-choice';
+import { chosenPostingCountry } from '../../country-choice';
 import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
 import { PostingBar } from '../../new/posting-bar';
 import { createBusinessAction } from '../actions';
@@ -34,7 +34,7 @@ export default async function NewBusinessPage() {
       </PageShell>
     );
   }
-  const country = (await chosenCountry(db)) ?? (await activeCountries(db)).find((c) => c.code === 'DE')!;
+  const country = (await chosenPostingCountry(db)) ?? (await activeCountries(db)).find((c) => c.code === 'DE')!;
   return (
     <>
       <PostingBar title={t.wizard.title} closeHref="/business" />

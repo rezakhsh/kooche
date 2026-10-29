@@ -8,13 +8,14 @@ import { maxImages, priceTypesFor } from '../../../modules/listings/listings';
 import { amountInputValue } from '../../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
 import { postingCountry } from '../../../modules/listings/posting-country';
-import { activeCountries, savedPlace } from '../../../modules/listings/queries';
+import { savedPlace } from '../../../modules/listings/queries';
 import { myBusinesses } from '../../../modules/organizations/organizations';
 import { storage } from '../../../modules/media/server';
 import { streetMapVersion } from '../../../modules/maps/street-map';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
+import { preparingCountries } from '../../../modules/launch/country-page';
 
 // What the listing editor needs, for a saved listing or for a new one that exists only in the
 // browser so far (`listing` null). Server code only. The country is the listing's own, else the
@@ -33,7 +34,7 @@ export async function editorData(
 ): Promise<{ form: FormProps; photos: { max: number; initial: PhotoView[]; enabled: boolean } }> {
   const [catalog, countries, saved, [me], businesses] = await Promise.all([
     cachedCatalog(db),
-    activeCountries(db),
+    preparingCountries(db),
     savedPlace(db, userId),
     db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)),
     myBusinesses(db, userId),
@@ -47,7 +48,7 @@ export async function editorData(
     listingCountry: listing?.countryCode ?? null,
     chosen: preferredCountry,
     saved: saved?.place.countryCode ?? null,
-    open: countries.map((c) => c.code),
+    countries,
   });
   let place: Place | null = null;
   let district = '';

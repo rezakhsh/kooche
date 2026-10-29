@@ -2,18 +2,22 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Flag } from '../components/flag';
-import { categoryIcon, Icon, type IconName } from '../components/icons';
+import { Icon, type IconName } from '../components/icons';
 import { SearchBox } from '../components/search-box';
 import { SectionTitle } from '../components/section-title';
 import { appDb } from '../db/drizzle';
 import { visitorCountry } from '../lib/client-ip';
 import { messages } from '../messages/fa';
-import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
-import { cachedCatalog, EVENT_ROOT_SLUG } from '../modules/listings/catalog';
+import { countryByCode, isPlanned, isStarter, soonCountries } from '../modules/launch/country-page';
+import { keyCitiesOf } from '../modules/launch/waitlist';
+import { cachedCatalog } from '../modules/listings/catalog';
 import { activeCountries, countryCounts } from '../modules/listings/queries';
 import { cachedCityCounts } from '../modules/search/browse';
-import { browsePath, eventsPath } from '../modules/search/paths';
-import { chosenCountry } from './country-choice';
+import { browsePath } from '../modules/search/paths';
+import { CountrySoon, openingDay } from './[country]/_browse/country-soon';
+import { StarterPage } from './[country]/_browse/starter-page';
+import { CategoryGrid } from './category-grid';
+import { chosenPageCountry } from './country-choice';
 import { NearestCity } from './nearest-city';
 import { cityFoundingPlaces } from '../modules/payments/founding';
 
@@ -25,6 +29,9 @@ import { cityFoundingPlaces } from '../modules/payments/founding';
 // it; «کشور دیگر» and the header's chip open the city chooser (/cities); `?choose` (from posting,
 // to change the listing's country) lists the open countries and, under «به‌زودی», the ones with a
 // waitlist (mockup final/countries).
+// Wave 2 part 8: a visitor from a planned country that isn't open sees its «پیدو به‌زودی» page
+// (mockup final/home-waitlist), and one from a country in its starter weeks its starter page;
+// a visitor who chose a planned country before goes back to its page.
 
 const TRUST_ICONS: IconName[] = ['shield', 'chat', 'plus'];
 
@@ -32,24 +39,22 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const db = appDb();
   const { choose } = await searchParams;
   if (choose === undefined) {
-    const chosen = await chosenCountry(db);
+    const chosen = await chosenPageCountry(db);
     if (chosen) redirect(`/${chosen.slug}`);
   }
   const countries = await activeCountries(db);
   const here = visitorCountry(await headers());
-  if (choose !== undefined || countries.length === 0) return <CountryChooser here={here} />;
+  if (choose !== undefined) return <CountryChooser here={here} />;
+  const mine = here ? await countryByCode(db, here) : null;
+  if (mine && mine.mode !== 'open' && (await isPlanned(db, mine))) return <CountrySoon country={mine} detected />;
+  if (countries.length === 0) return <CountryChooser here={here} />;
 
   const detected = countries.find((c) => c.code === here) ?? null;
   const country = detected ?? countries[0]!;
+  const info = mine?.code === country.code ? mine : await countryByCode(db, country.code);
+  if (info && isStarter(info)) return <StarterPage country={info} detected={!!detected} />;
   const [cities, perCity, catalog] = await Promise.all([keyCitiesOf(db, country.code), cachedCityCounts(db, country.code), cachedCatalog(db)]);
   const t = messages.home;
-  // The mockup's order and short names («دیجیتال», «خانه»), the rest after them
-  const order = Object.keys(t.categoryShort);
-  const rank = (slug: string) => (order.includes(slug) ? order.indexOf(slug) : order.length);
-  const roots = catalog.rootIds
-    .map((id) => catalog.byId.get(id)!)
-    .filter((c) => c.isActive && c.slug !== EVENT_ROOT_SLUG)
-    .sort((a, b) => rank(a.slug) - rank(b.slug));
   // The founding offer of the first open city, with its places left
   const firstOpen = cities.find((c) => c.status === 'open') ?? null;
   const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
@@ -104,27 +109,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </div>
 
         <SectionTitle title={t.popular} href={browsePath(country.slug, null, null)} className="mt-7" />
-        <ul className="mt-3 grid grid-cols-4 gap-2 lg:grid-cols-8">
-          {/* Events first, in saffron, so people find them at once (owner, Oct 27, 2026) */}
-          <li>
-            <Link href={eventsPath(country.slug, null)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-bold hover:bg-saffron-50">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-saffron-100 text-saffron-800 ring-1 ring-saffron-300 ring-inset">
-                <Icon name="calendar" className="size-6" />
-              </span>
-              {messages.events.section}
-            </Link>
-          </li>
-          {roots.slice(0, 7).map((c) => (
-            <li key={c.id}>
-              <Link href={browsePath(country.slug, null, c.slug)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-medium hover:bg-neutral-50">
-                <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
-                  <Icon name={categoryIcon(c.slug)} className="size-6" />
-                </span>
-                {t.categoryShort[c.slug] ?? c.nameFa}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <CategoryGrid catalog={catalog} country={country.slug} />
 
         <ul className="mt-7 grid gap-2 lg:grid-cols-3">
           {t.trust.map((x, i) => (
@@ -163,7 +148,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 /** `?choose`: every open country with its count, the visitor's own first, then «به‌زودی» (mockup final/countries) */
 async function CountryChooser({ here }: { here: string | null }) {
   const db = appDb();
-  const [countries, counts, waiting] = await Promise.all([activeCountries(db), countryCounts(db), waitingCountries(db)]);
+  const [countries, counts, planned] = await Promise.all([activeCountries(db), countryCounts(db), soonCountries(db)]);
+  const waiting = planned.filter((c) => c.mode !== 'guide');
+  const guides = planned.filter((c) => c.mode === 'guide');
   const ordered = [...countries].sort((a, b) => Number(b.code === here) - Number(a.code === here));
   const t = messages.home;
   return (
@@ -197,12 +184,31 @@ async function CountryChooser({ here }: { here: string | null }) {
             {waiting.map((c) => (
               <li key={c.code} className="flex min-h-14 items-center gap-3 py-2">
                 <Flag code={c.code} className="h-5 w-8" />
-                <span className="flex flex-1 flex-col">
+                <Link href={`/${c.slug}`} className="flex flex-1 flex-col">
                   <span className="text-base">{c.nameFa}</span>
-                  <span className="text-xs text-saffron-800">{t.soonCity(c.city.nameFa)}</span>
-                </span>
-                <Link href={browsePath(c.slug, c.city.slug, null)} className="rounded-full border border-brand-200 bg-brand-50 px-3 text-sm font-bold leading-8 text-brand-800 hover:bg-brand-100">
+                  <span className="text-xs text-saffron-800">{c.opensOn ? messages.countryPage.soonOn(openingDay(c.opensOn, true)) : c.city ? t.soonCity(c.city.nameFa) : null}</span>
+                </Link>
+                <Link href={`/${c.slug}`} className="rounded-full border border-brand-200 bg-brand-50 px-3 text-sm font-bold leading-8 text-brand-800 hover:bg-brand-100">
                   {t.notifyMe}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {guides.length > 0 && (
+        <>
+          <h2 className="mt-6 mb-1 text-sm font-bold text-neutral-600">{messages.countryPage.guide}</h2>
+          <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 px-4">
+            {guides.map((c) => (
+              <li key={c.code}>
+                <Link href={`/${c.slug}`} className="flex min-h-14 items-center gap-3 py-2">
+                  <Flag code={c.code} className="h-5 w-8" />
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-base">{c.nameFa}</span>
+                    <span className="text-xs text-neutral-600">{messages.countryPage.guideLine}</span>
+                  </span>
+                  <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                 </Link>
               </li>
             ))}

@@ -9,7 +9,9 @@ import { normalizePersian } from '../../lib/normalize-persian';
 import { messages } from '../../messages/fa';
 import { homeArea } from '../../modules/listings/neighbourhood';
 import { activeCountries, countryCounts } from '../../modules/listings/queries';
-import { keyCitiesOf, waitingCountries } from '../../modules/launch/waitlist';
+import { soonCountries } from '../../modules/launch/country-page';
+import { keyCitiesOf } from '../../modules/launch/waitlist';
+import { openingDay } from '../[country]/_browse/country-soon';
 import { cachedCityCounts } from '../../modules/search/browse';
 import { browsePath } from '../../modules/search/paths';
 import { currentSession } from '../../modules/users/server';
@@ -21,7 +23,8 @@ export const metadata = { title: messages.cities.title };
 // Choosing a city (round 12, mockup final/city-chooser), from the header's «برلین ▾» and the first
 // page's «کشور دیگر»: the country's key cities (open ones with their counts, waitlist ones with
 // their one goal and «خبرم کن»), what opens the whole country, then the other open countries and
-// the countries that aren't open with their first city's goal.
+// the countries that aren't open with their first city's goal or announced day, each leading to
+// its own page (wave 2 part 8).
 
 const fa = (n: number) => n.toLocaleString('fa-IR');
 const names = (...xs: string[]) => normalizePersian(xs.join(' ')).toLowerCase();
@@ -47,7 +50,7 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
   const [cities, perCity, waiting, perCountry] = await Promise.all([
     country ? keyCitiesOf(db, country.code) : Promise.resolve([]),
     country ? cachedCityCounts(db, country.code) : Promise.resolve(new Map<string, number>()),
-    waitingCountries(db),
+    soonCountries(db),
     countryCounts(db),
   ]);
   const t = messages.cities;
@@ -120,13 +123,21 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
                 </li>
               ))}
               {waiting.map((c) => (
-                <li key={c.code} data-names={names(c.nameFa, c.city.nameFa, c.slug, c.city.slug)}>
-                  <Link href={browsePath(c.slug, c.city.slug, null)} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-neutral-50">
+                <li key={c.code} data-names={names(c.nameFa, c.city?.nameFa ?? '', c.slug, c.city?.slug ?? '')}>
+                  <Link href={`/${c.slug}`} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-neutral-50">
                     <Flag code={c.code} className="h-5 w-7" />
                     <span className="min-w-0 flex-1">
                       <b className="block text-sm">{c.nameFa}</b>
-                      <span className="text-xs text-neutral-600">{c.goal ? t.firstCity(c.city.nameFa, c.businesses, c.goal) : t.firstCityNoGoal(c.city.nameFa)}</span>
-                      {c.goal && <Bar value={c.businesses} max={c.goal} />}
+                      <span className="text-xs text-neutral-600">
+                        {c.opensOn
+                          ? messages.countryPage.soonOn(openingDay(c.opensOn, true))
+                          : !c.city
+                            ? messages.countryPage.guideLine
+                            : c.goal
+                              ? t.firstCity(c.city.nameFa, c.businesses, c.goal)
+                              : t.firstCityNoGoal(c.city.nameFa)}
+                      </span>
+                      {!c.opensOn && c.city && c.goal && <Bar value={c.businesses} max={c.goal} />}
                     </span>
                     <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                   </Link>
