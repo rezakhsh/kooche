@@ -22,7 +22,7 @@ The owner decided on Oct 28 to finish wave 2 on staging first and then launch Be
 | 10 | Phone-size check of every new page (light and dark), tests, docs | 1.5 | — |
 | | **Total** | **19–22.5** | |
 
-The launch plan said 10–14 days. It grew with the admin tools and test accounts (the owner moved them into wave 2's first part), the founders rules, and round 11's "everyone posts from a country's start date", which changes the posting checks. Turkey stays wave 3; the Iran mode is not part of this wave.
+The launch plan said 10–14 days. It grew with the admin tools and test accounts (the owner moved them into wave 2's first part), the founders rules, and round 11's "everyone posts from a country's start date" (part 3, dropped on Oct 29: round 12 wins). Turkey stays wave 3; the Iran mode is not part of this wave.
 
 **Build order:** the parts in the table's order. Each part: tests, commit, Docker cleanup (`/usr/local/bin/peydoo-docker-cleanup`, owner, Oct 28), push to `main` (staging deploy), then a short list for the owner of what to look at on staging. Production gets nothing until the owner asks (`peydoo-promote`; wave 0, wave 1, the street map and wave 2 together).
 
@@ -58,14 +58,9 @@ Mockups `admin-countries` and `admin-cities` (the cities page exists since wave 
 - **Admin «کشورها و شهرها»:** every country with its mode, its cities' waitlists and business counts, and «باز کردن کشور» that really opens a closed country (today it only opens cities of an already open country). Changes go to the audit log and purge Cloudflare's cache.
 - **Emergency pause per category × country or city:** for example rooms in Hamburg off for a week after a scam wave. Publishing refuses with a clear line; browse shows what is already live. In admin, on the country's page.
 
-## 3. Everyone posts in an open country (2–2.5 days)
+## 3. Everyone posts in an open country: dropped (owner, Oct 29, 2026)
 
-Round 11 (newest, replaces round 6's "the city gate opens posting"):
-
-- From a country's start date everyone can post everything: items, rooms, cars, services, jobs, events, businesses, in any city of the country (today: only open cities, `listingArea`).
-- A small city's page shows its own listings and the whole country («۳ آگهی در تورنتو، ۴۰ در کل کانادا») with city and distance filters.
-- The city gate becomes the city's launch («جشن شهر»): its own default page, local promotion, the pioneer badge for everyone active before it, and its founding Pro places. It counts live listings, not drafts.
-- Rooms and cars from new accounts keep the night hold.
+Planned from round 11 by mistake: round 12 (Oct 26) is newer and is the owner's launch strategy. Asked on Oct 29, the owner chose round 12: only the Berlin area takes listings at launch; Hamburg, Cologne–Bonn, Frankfurt and Düsseldorf open when they reach their number of verified businesses; events and business pages work everywhere in an open country. This is what wave 0 built (`src/modules/launch/cities.ts`) and what the mockups `city-chooser` and `city-waitlist` show, so part 3 needs no code.
 
 ## 4. Private or business (3–3.5 days)
 
@@ -115,7 +110,7 @@ Every new page at phone size and on a computer, light and dark; tests for every 
 ## Decisions for the owner
 
 1. **Test accounts:** fixed code `123456` on staging only (codes have 6 digits), none on production, where admin «ورود به‌جای این حساب» opens them. Email names as above. Recommended.
-2. **Country modes:** round 11 is the newest decision and replaces round 6 where they differ (everyone posts from a country's start date; the city gate is the city's launch, not permission to post). My reading; say if round 6 should win.
+2. **Country modes and the city rule:** decided Oct 29, 2026: round 12 wins (Berlin first, each other city at its business goal); round 11's "everyone posts from a country's start date" is not built. Part 3 dropped.
 3. **Posting across borders (part 5):** the zone rule above, open since round 6. Yes, change it, or leave part 5 out for now.
 4. **Free listings for a business:** today 3 without Pro (wave 0); round 11 said 5 free once verified. Recommended: 5 once verified, 3 before.
 5. **Launch:** wave 2 complete on staging, then Berlin launches with everything (the owner's choice on Oct 28).
