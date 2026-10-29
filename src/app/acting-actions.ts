@@ -9,7 +9,7 @@ import { sessions } from '../db/schema';
 import { clientIp } from '../lib/client-ip';
 import { webEnv } from '../lib/env';
 import { allowActingChanges, closeActingSession, returningAdmin, sessionCookieName, sessionTokenOf, STAFF_RETURN_COOKIE } from '../modules/admin/acting';
-import { OWN_COOKIE_DAYS } from '../modules/admin/acting-cookies';
+import { ACTING_BLOCKED_COOKIE, OWN_COOKIE_DAYS } from '../modules/admin/acting-cookies';
 import type { StaffContext } from '../modules/admin/audit';
 import { adminAddress } from '../modules/admin/gate';
 
@@ -46,6 +46,7 @@ export async function endActingAction(): Promise<void> {
 export async function allowActingChangesAction(form: FormData): Promise<void> {
   const { h, actingToken, ctx } = await context();
   if (ctx && actingToken) await appDb().transaction((tx) => allowActingChanges(tx, ctx, actingToken, String(form.get('reason') ?? '')));
+  (await cookies()).delete(ACTING_BLOCKED_COOKIE);
   // The banner lives in the root layout, which a redirect alone doesn't render again
   revalidatePath('/', 'layout');
   redirect(h.get('x-pathname') ?? '/');
