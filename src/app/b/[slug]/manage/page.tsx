@@ -18,6 +18,7 @@ import { paymentGateway } from '../../../../modules/payments/server';
 import { foundingAction, moveListingsAction } from '../../../business/actions';
 import { movableListings } from '../../../../modules/organizations/move';
 import { memberOf } from '../member';
+import { VerifyForm } from './verify-form';
 
 // The business's own dashboard (members only; wave 1, mockup final/business-dashboard): the
 // founding offer where it was given, as steps (verified, place kept, start), with the real places
@@ -42,7 +43,7 @@ function Step({ done, title, sub }: { done: boolean; title: string; sub: string 
   );
 }
 
-export default async function ManageBusinessPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ created?: string; saved?: string; joined?: string; moved?: string; left?: string; why?: string }> }) {
+export default async function ManageBusinessPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ created?: string; saved?: string; joined?: string; moved?: string; left?: string; why?: string; verify?: string }> }) {
   const { slug } = await params;
   const query = await searchParams;
   const { user, org, role, cityFa, neighbourhood } = await memberOf(slug, `/b/${slug}/manage`);
@@ -186,7 +187,30 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
               );
             })}
           </ol>
-          {legal && org.verificationStatus !== 'verified' && <p className="mt-4 text-xs leading-6 text-neutral-700">{d.verifyNext}</p>}
+        </section>
+      )}
+
+      {/* Verification (wave 2 part 4, src/modules/organizations/verification.ts): one document, then staff decide */}
+      {query.verify && (
+        <div className="mt-4">
+          <Alert tone={query.verify === 'sent' ? 'success' : 'error'}>{t.verification.result[query.verify] ?? t.verification.result.bad_file}</Alert>
+        </div>
+      )}
+      {role === 'owner' && legal && org.verificationStatus !== 'verified' && (
+        <section className="mt-5 rounded-2xl border border-brand-200 bg-brand-50 p-4">
+          <h2 className="flex items-center gap-2 font-extrabold">
+            <Icon name="verified" className="size-5 text-brand-700" />
+            {t.verification.title}
+          </h2>
+          {org.verificationStatus === 'pending' ? (
+            <p className="mt-1 text-sm leading-7 text-neutral-700">{t.verification.pending}</p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm leading-7 text-neutral-700">{t.verification.intro}</p>
+              {org.verificationStatus === 'rejected' && <p className="mt-1 text-sm leading-7 text-saffron-800">{t.verification.rejected}</p>}
+              <VerifyForm organizationId={org.id} slug={org.slug} />
+            </>
+          )}
         </section>
       )}
 

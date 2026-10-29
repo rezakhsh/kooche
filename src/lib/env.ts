@@ -115,6 +115,10 @@ const webSchema = z.object({
   // environments that set it (https://nominatim.openstreetmap.org). Unset: no lookups, the
   // organizer taps the map.
   GEOCODER_URL: optional(z.url({ protocol: /^https$/ })),
+  // The EU's VAT number check for business verification (src/modules/organizations/verification.ts):
+  // VIES's REST endpoint, https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number in
+  // staging and production. Unset: no automatic check; staff use the register links.
+  VIES_URL: optional(z.url({ protocol: /^https$/ })),
   MAP_TILES_FILE: optional(z.string().regex(/^\/[A-Za-z0-9/_-]+\/[0-9A-Za-z_-]{1,40}\.pmtiles$/, 'an absolute path ending in .pmtiles')),
   // Cloudflare Turnstile on sign-in and publishing (one widget per environment). The site key is
   // public (it goes into the page); the secret only checks tokens with siteverify. Unset in

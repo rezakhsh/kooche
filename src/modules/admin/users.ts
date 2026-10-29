@@ -145,18 +145,27 @@ export function businessesAdmin(db: Queryable, opts: { waiting: boolean; q: stri
       createdAt: organizations.createdAt,
       updatedAt: organizations.updatedAt,
       foundingOfferedAt: organizations.foundingOfferedAt,
+      businessType: organizations.businessType,
+      hasDocument: sql<boolean>`${organizations.verificationDocumentKey} IS NOT NULL`,
+      requestedAt: organizations.verificationRequestedAt,
+      vatCheck: organizations.vatCheck,
+      sanctionsCheckedAt: organizations.sanctionsCheckedAt,
     })
     .from(organizations)
     .where(
       and(
         sql`${organizations.status} <> 'deleted'`,
         opts.waiting
-          ? and(inArray(organizations.verificationStatus, ['pending', 'unverified']), sql`num_nonnulls(${organizations.legalName}, ${organizations.registrationNumber}, ${organizations.vatId}) > 0`)
+          ? or(
+              eq(organizations.verificationStatus, 'pending'),
+              and(eq(organizations.verificationStatus, 'unverified'), sql`num_nonnulls(${organizations.legalName}, ${organizations.registrationNumber}, ${organizations.vatId}) > 0`),
+            )
           : sql`true`,
         q ? or(ilike(organizations.nameNormalized, `%${q}%`), ilike(organizations.slug, `%${q}%`)) : sql`true`,
       ),
     )
-    .orderBy(opts.waiting ? organizations.updatedAt : desc(organizations.createdAt))
+    // Waiting: those who asked with a document first (oldest request first), then the rest
+    .orderBy(...(opts.waiting ? [sql`${organizations.verificationRequestedAt} ASC NULLS LAST`, organizations.updatedAt] : [desc(organizations.createdAt)]))
     .limit(100);
 }
 

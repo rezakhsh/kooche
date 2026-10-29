@@ -7,6 +7,7 @@ import { businessesAdmin } from '../../../modules/admin/users';
 import { foundingRuleBreaks } from '../../../modules/payments/founding';
 import { countries } from '../../../../seed/countries';
 import { foundingOfferAction, verificationAction } from '../admin-actions';
+import { REGISTERS, sanctionsRequired, verificationLevel } from '../../../modules/organizations/verification';
 import { formatDate } from '../../../lib/format';
 import { webEnv } from '../../../lib/env';
 import { AdminTitle, Ago, Chips, Facts, SearchForm, StatusPill } from '../ui';
@@ -35,6 +36,7 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
         <Chips items={(['waiting', 'all'] as const).map((k) => ({ href: adminHref(`/businesses${k === 'all' ? '?tab=all' : ''}`), label: t.tabs[k]!, active: tab === k }))} />
       </AdminTitle>
       {sp.done && <div className="mb-4"><Alert tone="success">{t.done}</Alert></div>}
+      {sp.error === 'sanctions' && <div className="mb-4"><Alert tone="error">{t.sanctionsMissing}</Alert></div>}
       {refusal && <div className="mb-4"><Alert tone="error">{refusal}</Alert></div>}
       {tab === 'all' && <SearchForm label={admin.common.search} value={q}><input type="hidden" name="tab" value="all" /></SearchForm>}
       {rows.length === 0 ? (
@@ -59,12 +61,35 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
                   [t.website, b.website ? <a key="w" href={b.website} target="_blank" rel="noreferrer nofollow" dir="ltr" className="text-brand-800 hover:underline">{b.website}</a> : null],
                 ]}
               />
+              {/* Verification (wave 2 part 4, src/modules/organizations/verification.ts): the document, VIES, the register */}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {b.hasDocument ? (
+                  <a href={adminHref(`/businesses/document?id=${b.id}`)} target="_blank" rel="noreferrer" className="font-bold text-brand-800 hover:underline">
+                    {t.document}
+                  </a>
+                ) : (
+                  <span className="text-neutral-500">{t.noDocument}</span>
+                )}
+                {b.vatId && <span className={b.vatCheck?.valid === true ? 'text-green-800' : b.vatCheck?.valid === false ? 'text-red-700' : 'text-neutral-600'}>{t.vies(b.vatCheck?.valid ?? null, b.vatCheck?.name ?? null)}</span>}
+                {REGISTERS[b.countryCode] && (
+                  <a href={REGISTERS[b.countryCode]} target="_blank" rel="noreferrer nofollow" className="text-brand-800 hover:underline">
+                    {t.registerLink}
+                  </a>
+                )}
+                <span className="text-neutral-600">{t.level(verificationLevel({ verificationStatus: b.verification, sanctionsCheckedAt: b.sanctionsCheckedAt }))}</span>
+              </div>
               <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-3">
                 {mayVerify && (
                   <form action={verificationAction} className="flex flex-1 flex-wrap items-end gap-2">
                     <input type="hidden" name="organizationId" value={b.id} />
                     <input type="hidden" name="tab" value={tab} />
                     <input name="note" maxLength={500} placeholder={t.note} className="min-w-0 flex-1 basis-40 rounded-xl border border-neutral-300 px-3 py-2 text-sm" />
+                    {b.verification !== 'verified' && (
+                      <label className="flex basis-full items-center gap-2 text-sm">
+                        <input type="checkbox" name="sanctions" className="size-4 accent-brand-700" />
+                        {sanctionsRequired({ countryCode: b.countryCode, businessType: b.businessType }) ? t.sanctionsRequired : t.sanctions}
+                      </label>
+                    )}
                     {b.verification !== 'verified' && <Button type="submit" name="status" value="verified">{t.verify}</Button>}
                     {b.verification !== 'rejected' && b.verification !== 'verified' && <Button type="submit" name="status" value="rejected" variant="secondary">{t.reject}</Button>}
                     {b.verification === 'verified' && <Button type="submit" name="status" value="unverified" variant="danger">{t.unverify}</Button>}

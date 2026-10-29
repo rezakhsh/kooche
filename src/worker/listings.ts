@@ -5,6 +5,7 @@ import { workerEnv } from '../lib/env';
 import { expireDueListings } from '../modules/listings/listings';
 import { flushViews } from '../modules/listings/views';
 import { cleanupAbandonedUploads } from '../modules/media/cleanup';
+import { deleteDecidedDocuments } from '../modules/organizations/verification';
 import { storageFromEnv } from '../modules/media/config';
 import { markImageFailed, processImage } from '../modules/media/process';
 import { runListingChecks } from '../modules/moderation/checks';
@@ -22,7 +23,8 @@ import { reportJobFailure } from './monitoring';
 // - queue `listing-checks` (from the outbox): the post-checks after publish, edit, photo change
 //   and resubmission (src/modules/moderation/checks.ts).
 // - queue `listings` (job schedulers): expiry every 15 minutes, the expiry reminder daily at
-//   09:00 Berlin time, the cleanup of abandoned uploads daily at 02:45 UTC, the listing views
+//   09:00 Berlin time, the cleanup of abandoned uploads (and of verification documents 7 days after
+//   the decision) daily at 02:45 UTC, the listing views
 //   counted in Valkey written to PostgreSQL every 5 minutes.
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
@@ -98,6 +100,9 @@ export async function startListingJobs(
         } else if (job.name === 'upload-cleanup') {
           const n = storage ? await cleanupAbandonedUploads(db, storage) : 0;
           console.log(`listings: removed ${n} abandoned uploads`);
+          // Verification documents 7 days after the decision (src/modules/organizations/verification.ts)
+          const docs = storage ? await deleteDecidedDocuments(db, storage) : 0;
+          if (docs) console.log(`listings: deleted ${docs} verification documents`);
         } else throw new Error(`listings: unknown job ${job.name}`);
       },
       { connection: connections[2]!, concurrency: 1 },

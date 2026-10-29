@@ -17,6 +17,7 @@ import { adminHref, requireStaffAction } from '../../modules/admin/server';
 import { releasePhone, signOutEverywhere } from '../../modules/admin/users';
 import { setVerification } from '../../modules/organizations/organizations';
 import { decideSuspicion } from '../../modules/organizations/suspicions';
+import { sanctionsRequired } from '../../modules/organizations/verification';
 import { offerFounding } from '../../modules/payments/founding';
 
 // Admin-only changes outside moderation decisions: sessions, phone numbers, business verification
@@ -47,11 +48,17 @@ export async function verificationAction(form: FormData): Promise<void> {
   const status = form.get('status');
   if (!id || (status !== 'verified' && status !== 'rejected' && status !== 'unverified')) redirect(adminHref('/businesses'));
   const db = appDb();
-  await db.transaction(async (tx) => {
-    const [o] = await tx.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, id));
-    if (o) await setVerification(tx, { slug: o.slug, status, byUserId: staff.ctx.userId, staff: staff.ctx, note: note(form.get('note')) });
+  const sanctionsChecked = form.get('sanctions') === 'on';
+  const tab = form.get('tab') === 'all' ? '&tab=all' : '';
+  const ok = await db.transaction(async (tx) => {
+    const [o] = await tx.select({ slug: organizations.slug, countryCode: organizations.countryCode, businessType: organizations.businessType }).from(organizations).where(eq(organizations.id, id));
+    if (!o) return true;
+    // Level 2 (src/modules/organizations/verification.ts): Turkey and the risky types need the sanctions check
+    if (status === 'verified' && sanctionsRequired(o) && !sanctionsChecked) return false;
+    await setVerification(tx, { slug: o.slug, status, byUserId: staff.ctx.userId, staff: staff.ctx, note: note(form.get('note')), sanctionsChecked });
+    return true;
   });
-  redirect(adminHref(`/businesses?done=1${form.get('tab') === 'all' ? '&tab=all' : ''}`));
+  redirect(adminHref(`/businesses?${ok ? 'done=1' : 'error=sanctions'}${tab}`));
 }
 
 /** Founding Pro: marks a verified business as founding (src/modules/payments/founding.ts) */

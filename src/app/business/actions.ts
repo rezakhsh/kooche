@@ -18,6 +18,7 @@ import { hoursFromForm, WEEKDAYS } from '../../modules/organizations/hours';
 import { requestLogoUpload } from '../../modules/organizations/logo';
 import { createBusiness, updateBusiness, type BusinessInput } from '../../modules/organizations/organizations';
 import { moveToBusiness } from '../../modules/organizations/move';
+import { requestDocumentUpload, submitVerification } from '../../modules/organizations/verification';
 import { storage } from '../../modules/media/server';
 import { openBillingPortal, startPlanCheckout, type PlanCode } from '../../modules/payments/checkout';
 import { startFoundingCheckout } from '../../modules/payments/founding';
@@ -263,4 +264,28 @@ export async function moveListingsAction(form: FormData): Promise<void> {
   const r = await appDb().transaction((tx) => moveToBusiness(tx, { userId: user.id, organizationId: parsed.data.organizationId, listingIds: parsed.data.ids }));
   if (!r.ok) redirect('/business');
   redirect(`${back}?moved=${r.moved}${r.leftLive ? `&left=${r.leftLive}&why=${r.reason}` : ''}`);
+}
+
+/** A one-time upload URL for the verification document (src/modules/organizations/verification.ts) */
+export async function documentUploadAction(contentType: string, size: number): Promise<{ ok: true; key: string; url: string; headers: Record<string, string> } | { ok: false }> {
+  const { user } = await requireSession('/business');
+  const store = storage();
+  if (!store || typeof contentType !== 'string' || typeof size !== 'number') return { ok: false };
+  if (!(await hit(valkey(), [[LOGO_UPLOADS, user.id]])).ok) return { ok: false };
+  const r = await requestDocumentUpload(store, { userId: user.id, contentType, size });
+  return r.ok ? { ok: true, key: r.key, url: r.upload.url, headers: r.upload.headers } : { ok: false };
+}
+
+/** «درخواست تأیید»: pending with the document, VIES checked (src/modules/organizations/verification.ts) */
+export async function submitVerificationAction(form: FormData): Promise<void> {
+  const parsed = z
+    .object({ organizationId: z.uuid(), slug: z.string().max(40), upload: z.string().max(200) })
+    .safeParse({ organizationId: form.get('organizationId'), slug: form.get('slug'), upload: form.get('upload') });
+  if (!parsed.success) redirect('/business');
+  const back = `/b/${parsed.data.slug}/manage`;
+  const { user } = await requireSession(back);
+  const store = storage();
+  if (!store) redirect(`${back}?verify=bad_file`);
+  const r = await submitVerification(appDb(), store, { userId: user.id, organizationId: parsed.data.organizationId, uploadKey: parsed.data.upload, viesUrl: webEnv().VIES_URL });
+  redirect(`${back}?verify=${r.ok ? 'sent' : r.reason}`);
 }

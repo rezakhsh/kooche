@@ -88,6 +88,16 @@ export const organizations = pgTable(
     verifiedAt: tstz('verified_at'),
     verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
     /**
+     * Verification (wave 2 part 4, src/modules/organizations/verification.ts): the proof the
+     * business uploaded (a private key, never public; deleted 7 days after the decision), when it
+     * asked, the automatic VIES result for an EU VAT number, and the sanctions check of level 2.
+     */
+    verificationDocumentKey: text('verification_document_key'),
+    verificationRequestedAt: tstz('verification_requested_at'),
+    verificationDocumentDeleteAt: tstz('verification_document_delete_at'),
+    vatCheck: jsonb('vat_check').$type<{ valid: boolean | null; name: string | null; checkedAt: string }>(),
+    sanctionsCheckedAt: tstz('sanctions_checked_at'),
+    /**
      * Founding business (round 12, migration 0020): the owner's offer in admin. It allows one
      * 6-month Pro trial without a card (src/modules/payments/founding.ts) and shows the
      * «بنیان‌گذار» badge until a year after the business page was created.

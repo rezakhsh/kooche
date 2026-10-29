@@ -381,6 +381,11 @@ Standard columns, plus:
 | `verification_status` | `text DEFAULT 'unverified'` | `CHECK IN ('unverified','pending','verified','rejected')`. "Business verification" is where the plan wants to beat Kleinanzeigen. |
 | `verified_at` | `timestamptz null` | |
 | `verified_by_user_id` | `uuid null` FK → `users` | |
+| `verification_document_key` | `text null` | The owner's proof for «تأییدشده», a private storage key under `verification/`; deleted 7 days after the decision (migration 0033, `docs/setup.md`, "Private or business") |
+| `verification_requested_at` | `timestamptz null` | When the owner last asked with a document (the waiting list's order) |
+| `verification_document_delete_at` | `timestamptz null` | Set at the decision: now + 7 days |
+| `vat_check` | `jsonb null` | VIES result `{ valid, name, checkedAt }` for an EU VAT number |
+| `sanctions_checked_at` | `timestamptz null` | Level 2: set when staff verify with the sanctions check; cleared when the badge goes |
 | `status` | `text DEFAULT 'active'` | `CHECK IN ('active','suspended','deleted')`. Suspension is set together with a `moderation_decisions` row. |
 | `created_by_user_id` | `uuid` FK → `users` | |
 | `deleted_at` | `timestamptz null` | |
@@ -392,6 +397,22 @@ Whether a business is Pro is **not a column**: it is an active `pro_plan` entitl
 | `UNIQUE (slug)` | Business page |
 | `UNIQUE (country_code, vat_id) WHERE vat_id IS NOT NULL` | One account per VAT ID, so a business can't open a second account to get the free quota again |
 | `(created_at) WHERE verification_status = 'pending'` | Verification queue, oldest first |
+
+### `business_suspicions`
+
+«احتمالاً کسب‌وکار» cases (migration 0032; `docs/setup.md`, "Private or business"): a private account whose live offers look commercial.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id`, `created_at` | | |
+| `user_id` | `uuid` FK → `users` ON DELETE CASCADE | |
+| `reasons` | `jsonb` | `[{ code, n? }]`: `many_listings`, `similar_titles`, `business_words`, `company_name`. Codes and counts only, never listing text |
+| `root_slugs` | `text[]` | Top categories of the offers concerned; a restriction applies to these |
+| `status` | `text DEFAULT 'open'` | `CHECK IN ('open','asked','restricted','dismissed','switched')` |
+| `asked_at`, `deadline_at` | `timestamptz null` | Asked, and asked + 14 days |
+| `decided_at`, `decided_by_user_id` | | Dismissed or restricted (by staff), switched (by the worker) |
+
+`UNIQUE (user_id) WHERE status IN ('open','asked','restricted')`: one live case per person. Web and worker may select, insert and update; readonly selects.
 
 ### `organization_members`
 

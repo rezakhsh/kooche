@@ -343,15 +343,31 @@ export async function businessBySlug(db: Queryable, slug: string) {
  * scripts/verify-business.ts as classifieds_owner, later from the admin page (roadmap step 8).
  * Never by the business itself; editing the legal details clears it again.
  */
-export async function setVerification(db: Queryable, opts: { slug: string; status: 'verified' | 'rejected' | 'unverified'; byUserId: string | null; staff?: StaffContext; note?: string }) {
+/** A verification document is deleted this long after the decision (./verification.ts) */
+export const VERIFICATION_DOC_KEEP_DAYS = 7;
+
+export async function setVerification(
+  db: Queryable,
+  opts: { slug: string; status: 'verified' | 'rejected' | 'unverified'; byUserId: string | null; staff?: StaffContext; note?: string; sanctionsChecked?: boolean },
+) {
+  const now = new Date();
+  const decided = opts.status === 'verified' || opts.status === 'rejected';
   const [org] = await db
     .update(organizations)
-    .set({ verificationStatus: opts.status, verifiedAt: opts.status === 'verified' ? new Date() : null, verifiedByUserId: opts.status === 'verified' ? opts.byUserId : null })
+    .set({
+      verificationStatus: opts.status,
+      verifiedAt: opts.status === 'verified' ? now : null,
+      verifiedByUserId: opts.status === 'verified' ? opts.byUserId : null,
+      // Level 2 (./verification.ts); taking the badge away takes it too
+      ...(opts.status === 'verified' && opts.sanctionsChecked ? { sanctionsCheckedAt: now } : opts.status !== 'verified' ? { sanctionsCheckedAt: null } : {}),
+      // The document goes 7 days after the decision (./verification.ts, the worker)
+      ...(decided ? { verificationDocumentDeleteAt: new Date(now.getTime() + VERIFICATION_DOC_KEEP_DAYS * 86_400_000) } : {}),
+    })
     .where(eq(organizations.slug, opts.slug))
     .returning({ id: organizations.id });
   if (!org) return null;
   // From the admin page with the session and IP; from the script as the owner
-  if (opts.staff) await staffAudit(db, opts.staff, 'organization.verification', { type: 'organization', id: org.id }, { status: opts.status, ...(opts.note ? { note: opts.note } : {}) });
+  if (opts.staff) await staffAudit(db, opts.staff, 'organization.verification', { type: 'organization', id: org.id }, { status: opts.status, ...(opts.sanctionsChecked ? { sanctions: true } : {}), ...(opts.note ? { note: opts.note } : {}) });
   else await db.insert(auditLog).values({ actorType: 'staff', actorUserId: opts.byUserId, action: 'organization.verification', targetType: 'organization', targetId: org.id, data: { status: opts.status } });
   // The owner is always told, both ways (./notices.ts)
   await queueBusinessNotice(db, org.id, opts.status);

@@ -112,7 +112,7 @@ describe('documents', () => {
     expect(json).not.toContain(u.id);
     expect(json).not.toContain(u.email);
     expect(Object.keys(doc).sort()).toEqual(
-      ['_geo', 'attr_text', 'attrs', 'category_id', 'category_text', 'country', 'description', 'id', 'is_event', 'is_test', 'kind', 'location_id', 'place_text', 'postal_code', 'price_value', 'ranked_at', 'shipping', 'title', 'v'].sort(),
+      ['_geo', 'attr_text', 'attrs', 'business', 'category_id', 'category_text', 'country', 'description', 'id', 'is_event', 'is_test', 'kind', 'location_id', 'place_text', 'postal_code', 'price_value', 'ranked_at', 'shipping', 'title', 'v'].sort(),
     );
   });
 

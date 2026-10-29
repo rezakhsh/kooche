@@ -8,7 +8,7 @@ import type { LegalDoc } from './legal-types';
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 27. Oktober 2026',
+  updated: 'Stand: 29. Oktober 2026',
   draft: true,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Deutsch und auf Persisch vor; rechtlich maßgeblich ist diese deutsche Fassung (Ziffer 13.2).',
@@ -324,8 +324,8 @@ const terms: LegalDoc = {
       heading: '14.1 Private und gewerbliche Anzeigen',
       body: [
         'Private Nutzer veröffentlichen Anzeigen kostenlos. Wer regelmäßig Dienstleistungen gegen Entgelt anbietet, Waren zum Weiterverkauf ankauft oder herstellt oder für ein Unternehmen inseriert, handelt gewerblich und muss ein Geschäftskonto mit vollständigen Angaben zum Anbieter (Impressum) verwenden.',
-        'Privat sind höchstens zwei aktive Angebote in den Rubriken Dienstleistungen und Unterricht gleichzeitig möglich. Stellenangebote und Anzeigen in Rubriken für bestimmte Berufe (etwa Steuern und Buchhaltung) sind nur mit einem Geschäftskonto möglich.',
-        'Ein Geschäftskonto ohne Abonnement kann bis zu drei aktive Anzeigen gleichzeitig haben. Das Kennzeichen „geprüftes Unternehmen“ vergibt nur Peydoo nach einer Prüfung der Angaben.',
+        'Für private Nutzer gelten diese Grenzen: Dienstleistungen und Unterricht zwei aktive und vier neue Angebote in 30 Tagen (Nachhilfe, Kinderbetreuung, Reinigung, Tierbetreuung und Umzugshilfe ohne Grenze); Immobilien zwei aktive Angebote; Autos zwei Angebote in zwölf Monaten; sonstige Waren 30 aktive und 40 neue Angebote in 30 Tagen. Gesuche sind nicht begrenzt. Stellenangebote sind nur mit einem Geschäftskonto möglich, erlaubnispflichtige Dienstleistungen (Steuern, Rechts- und Einwanderungsberatung, Gesundheit, Immobilienmakler, Finanzen und Versicherungen, Fahrschulen, beglaubigte Übersetzungen) nur mit einem geprüften Geschäftskonto.',
+        'Ein Geschäftskonto ohne Abonnement kann bis zu drei aktive Anzeigen gleichzeitig haben. Das Kennzeichen „geprüftes Unternehmen“ vergibt nur Peydoo nach Prüfung eines Nachweises und der Registerangaben. Wirken die privaten Anzeigen eines Nutzers wie eine gewerbliche Tätigkeit, bitten wir ihn, innerhalb von 14 Tagen ein Geschäftskonto anzulegen; danach können neue private Anzeigen in denselben Rubriken abgelehnt werden. Veröffentlichte Anzeigen bleiben bestehen.',
       ],
     },
     {
@@ -471,6 +471,8 @@ const privacy: LegalDoc = {
       body: [
         'Anzeigen und Veranstaltungen sind öffentlich: Titel, Beschreibung, Preis, Fotos, Ort und ungefährer Standort, Ihr Anzeigename, seit wann Sie Mitglied sind und ob Ihre Nummer bestätigt ist. Ihre öffentliche Verkäuferseite zeigt dieselben Angaben und Ihre aktiven Anzeigen. Ihre E-Mail-Adresse zeigen wir nie.',
         'Geschäftskonten: Die Unternehmensseite zeigt die Angaben, die das Unternehmen dafür eingibt, auch Anschrift, E-Mail-Adresse, Telefon und Impressum (§ 5 DDG). Anzeigen eines Unternehmens zeigen das Unternehmen als Anbieter.',
+        'Prüfung von Unternehmen: Den Nachweis, den der Inhaber für das Kennzeichen „geprüft“ hochlädt (Gewerbeanmeldung, Registerauszug oder Erlaubnis), speichern wir nicht öffentlich; nur die entscheidenden Mitarbeiter sehen ihn (jeder Abruf wird protokolliert), und wir löschen ihn sieben Tage nach der Entscheidung. Eine angegebene EU-Umsatzsteuer-Identifikationsnummer prüfen wir über das VIES-System der Europäischen Kommission und speichern nur das Ergebnis (gültig oder nicht, eingetragener Name) (Art. 6 Abs. 1 lit. c und f DSGVO).',
+        'Privat oder gewerblich: Wirken die privaten Anzeigen eines Kontos wie eine regelmäßige Tätigkeit (dieselbe Ware mehrfach, gewerbliche Begriffe, ein firmenähnlicher Name), markiert Peydoo das Konto automatisch zur Prüfung durch Mitarbeiter. Entschieden wird nicht automatisch; wir fragen zuerst nach (Art. 6 Abs. 1 lit. f DSGVO).',
         'Für die Statistik des Anbieters zählen wir, wie oft eine Anzeige aufgerufen wird. Damit ein Besucher nicht mehrfach zählt, speichern wir dafür 30 Minuten lang einen gekürzten Hashwert der IP-Adresse (Art. 6 Abs. 1 lit. f DSGVO).',
       ],
     },
