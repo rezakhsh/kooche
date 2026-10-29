@@ -77,7 +77,13 @@ export const currentSession = cache(async (): Promise<CurrentSession | null> => 
   if (gate === 'block') {
     // In a server action: back to the page, where the banner says why. Anything else: no account.
     if (!h.has('next-action')) return null;
-    (await cookies()).set(ACTING_BLOCKED_COOKIE, '1', { path: '/', maxAge: 15, httpOnly: true, secure: true, sameSite: 'lax' });
+    try {
+      (await cookies()).set(ACTING_BLOCKED_COOKIE, '1', { path: '/', maxAge: 15, httpOnly: true, secure: true, sameSite: 'lax' });
+    } catch {
+      // Cookies can't be set while the page renders again after an action that never asked for
+      // the account (the appearance switch): nothing of the user's was changed, so show the page
+      return session;
+    }
     redirect(path);
   }
   return session;
