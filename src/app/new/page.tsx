@@ -261,7 +261,8 @@ function BorderPanel({ from, country, verifiedBusiness }: { from: string; countr
           </li>
         ))}
       </ul>
-      <p className="mt-2 -mb-2 flex items-center gap-1.5 text-sm font-bold text-neutral-600">
+      <div className="pt-2">
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-neutral-600">
         <Icon name="lock" className="size-4" />
         {z.locked}
       </p>
@@ -276,6 +277,7 @@ function BorderPanel({ from, country, verifiedBusiness }: { from: string; countr
           </li>
         ))}
       </ul>
+      </div>
       <Link href="/account/phone" className="flex h-12 items-center justify-center gap-2 rounded-xl border border-neutral-300 font-bold text-neutral-800 hover:bg-neutral-50">
         <Icon name="phone" className="size-5" />
         {t.otherNumber}

@@ -1333,3 +1333,17 @@ Approved by the owner ("go 4"; answers the same day: a business keeps 3 free lis
 - **Disk:** 12 leftover volumes of the throwaway test databases (6.6 GB) were removed; test containers are now removed with their volumes.
 - **Tests:** 975 passing (new: limits by kind and the 30-day window, open services, licensed services and verification, the seller filter, moving listings, the queue's rules and decisions, the document, VIES and level 2); typecheck and `check:rtl` clean.
 - **Next:** part 5, posting across borders (zones), after the owner's approval.
+
+## Oct 29, 2026: wave 2 part 5: posting across borders
+
+Approved by the owner ("go 5"; the zone rule chosen the same day). `docs/setup.md`, "Posting across borders"; migration 0034; `src/modules/listings/zones.ts`.
+
+- **Zones:** Europe (EU, EEA, Switzerland, UK), North America, Australia, Turkey; Malaysia on its own. A number from the same zone posts everything; from another zone only wanted posts, events, online services and a verified business's listings, until a number from the zone is verified.
+- **First week:** one listing outside the number's country (deleting it doesn't give another; events don't count).
+- **On the listing:** `listings.number_country` is kept when it goes out; a private listing from another country's number shows «شمارهٔ اتریش» next to the seller, and a rental's safety box starts with «آگهی‌دهنده با شمارهٔ کشور دیگری ثبت‌نام کرده است…».
+- **Posting page** (mockup `post-crossborder`): a number from another zone sees what is open (wanted post, which opens the form on «دنبالش هستم»; event; online services, with a note in services and lessons; verified business), what waits for a number from the zone, and «تأیید شمارهٔ دیگر».
+- **Admin «آگهی‌های تازه»:** also lists listings from another zone for 48 hours, whatever the account's age, with «شمارهٔ ترکیه».
+- **Decided from the plan, not asked:** "online services" are today's «امکان انجام آنلاین» and online lessons until part 6 adds «آنلاین»; the pill is on private listings only (a business shows its own country and address); renewing and resuming are checked like publishing.
+- **Checked on staging** (`07c1e50`) in headless Chromium with a temporary admin with a Turkish number and two test-account sellers (all deleted), next to both mockups, phone and computer, light and dark. The locked list's heading spacing was fixed after the side-by-side.
+- **Tests:** 982 passing (new `tests/borders.test.ts`: zones, another zone, online services, verified business, renewing, the same zone, the first week, the fresh list); one older test now uses an older account (a German number posting twice in Austria in its first week).
+- **Next:** part 6, the online layer, after the owner's approval.
