@@ -75,7 +75,7 @@ Round 11 decisions; mockup `private-vs-business`.
 
 ## 5. Posting across borders (1.5 days)
 
-Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **needs the owner's OK** (it was left open then).
+Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved by the owner on Oct 29, 2026** (the zone rule below).
 
 - Zones: Europe (EU, EEA, Switzerland, UK), North America, Australia, Turkey.
 - Same zone (a German number in Austria): everything; the listing shows «شمارهٔ آلمان», and the rental safety note starts with it.
@@ -111,6 +111,6 @@ Every new page at phone size and on a computer, light and dark; tests for every 
 
 1. **Test accounts:** fixed code `123456` on staging only (codes have 6 digits), none on production, where admin «ورود به‌جای این حساب» opens them. Email names as above. Recommended.
 2. **Country modes and the city rule:** decided Oct 29, 2026: round 12 wins (Berlin first, each other city at its business goal); round 11's "everyone posts from a country's start date" is not built. Part 3 dropped.
-3. **Posting across borders (part 5):** the zone rule above, open since round 6. Yes, change it, or leave part 5 out for now.
-4. **Free listings for a business:** today 3 without Pro (wave 0); round 11 said 5 free once verified. Recommended: 5 once verified, 3 before.
+3. **Posting across borders (part 5):** decided Oct 29, 2026: the zone rule, as written in part 5.
+4. **Free listings for a business:** decided Oct 29, 2026: keep 3 without Pro for every business, verified or not; Pro stays the way to more. Round 11's "5 once verified" is not built.
 5. **Launch:** wave 2 complete on staging, then Berlin launches with everything (the owner's choice on Oct 28).
