@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { listingInputSchema, saveListing, changeListingStatus, createDraft, ownListing, type ListingInput } from '../src/modules/listings/listings';
@@ -7,6 +7,7 @@ import { acceptInvitation, changeMember, invitationByToken, invite, revokeInvita
 import { businessUsage, postingRefusal } from '../src/modules/organizations/limits';
 import { businessBySlug, createBusiness, myBusinesses, setVerification, updateBusiness, type BusinessInput } from '../src/modules/organizations/organizations';
 import { managedListings } from '../src/modules/organizations/queries';
+import { movableListings, moveToBusiness } from '../src/modules/organizations/move';
 import { createEventDraft, saveEvent } from '../src/modules/events/events';
 import { eventInputSchema } from '../src/modules/events/input';
 import { publicListing } from '../src/modules/listings/queries';
@@ -379,5 +380,44 @@ describe('private and business limits', () => {
     expect((await createDraft(appDb, { userId: me.id, categoryId: tax.id })).ok).toBe(true);
     const loner = await user();
     expect(await createDraft(appDb, { userId: loner.id, categoryId: tax.id })).toEqual({ ok: false, reason: 'business_only' });
+  });
+});
+
+describe('moving one’s own listings to a business (wave 2 part 4)', () => {
+  it('drafts and listings that aren’t live move freely; live ones only into the plan’s room; others’ and events never', async () => {
+    const { org, ownerId } = await business();
+    const phones = await categoryBySlug('mobile-phones');
+    const live = [];
+    for (let i = 0; i < 4; i++) live.push(await makeListing(owner, ownerId, { categoryId: phones.id }));
+    const draft = await makeListing(owner, ownerId, { categoryId: phones.id, status: 'draft', publishedAt: null });
+    const expired = await makeListing(owner, ownerId, { categoryId: phones.id, status: 'expired' });
+    const someoneElses = await makeListing(owner, (await user()).id, { categoryId: phones.id });
+    const event = await makeListing(owner, ownerId, { categoryId: phones.id });
+    await db.insert(schema.eventDetails).values({ listingId: event.id, timeZone: 'Europe/Berlin' });
+    expect(await movableListings(db, ownerId).then((r) => r.map((x) => x.id).sort())).toEqual([...live.map((l) => l.id), draft.id, expired.id].sort());
+
+    const ids = [...live.map((l) => l.id), draft.id, expired.id, someoneElses.id, event.id];
+    const r = await db.transaction((tx) => moveToBusiness(tx, { userId: ownerId, organizationId: org.id, listingIds: ids }));
+    // No Pro: 3 live listings; the fourth live one stays private
+    expect(r).toEqual({ ok: true, moved: 5, leftLive: 1, reason: 'business_limit' });
+    const after = await db.select({ id: schema.listings.id, org: schema.listings.organizationId }).from(schema.listings).where(inArray(schema.listings.id, ids));
+    const orgOf = new Map(after.map((x) => [x.id, x.org]));
+    expect([live[0]!, live[1]!, live[2]!, draft, expired].every((l) => orgOf.get(l.id) === org.id)).toBe(true);
+    expect(orgOf.get(live[3]!.id)).toBeNull();
+    expect(orgOf.get(someoneElses.id)).toBeNull();
+    expect(orgOf.get(event.id)).toBeNull();
+    // Live ones are announced, so search shows them as the business's
+    const [out] = await db.select().from(schema.outboxEvents).where(and(eq(schema.outboxEvents.aggregateId, live[0]!.id), eq(schema.outboxEvents.eventType, 'listing.updated')));
+    expect(out).toBeDefined();
+  });
+
+  it('live listings need the business’s legal details; only members move, into their own business', async () => {
+    const { org, ownerId } = await business();
+    await db.update(schema.organizations).set({ legalName: null }).where(eq(schema.organizations.id, org.id));
+    const l = await makeListing(owner, ownerId);
+    expect(await db.transaction((tx) => moveToBusiness(tx, { userId: ownerId, organizationId: org.id, listingIds: [l.id] }))).toEqual({ ok: true, moved: 0, leftLive: 1, reason: 'legal_missing' });
+    const stranger = await user();
+    const theirs = await makeListing(owner, stranger.id, { status: 'draft', publishedAt: null });
+    expect(await db.transaction((tx) => moveToBusiness(tx, { userId: stranger.id, organizationId: org.id, listingIds: [theirs.id] }))).toEqual({ ok: false, reason: 'not_member' });
   });
 });

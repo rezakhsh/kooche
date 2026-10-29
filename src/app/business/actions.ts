@@ -17,6 +17,7 @@ import { acceptInvitation, changeMember, invite, revokeInvitation } from '../../
 import { hoursFromForm, WEEKDAYS } from '../../modules/organizations/hours';
 import { requestLogoUpload } from '../../modules/organizations/logo';
 import { createBusiness, updateBusiness, type BusinessInput } from '../../modules/organizations/organizations';
+import { moveToBusiness } from '../../modules/organizations/move';
 import { storage } from '../../modules/media/server';
 import { openBillingPortal, startPlanCheckout, type PlanCode } from '../../modules/payments/checkout';
 import { startFoundingCheckout } from '../../modules/payments/founding';
@@ -249,4 +250,17 @@ export async function portalAction(form: FormData): Promise<void> {
   });
   if (!r.ok) redirect(`${back}?error=${r.reason}`);
   redirect(r.url);
+}
+
+/** «انتقال به این کسب‌وکار» on the business's manage page (wave 2 part 4, src/modules/organizations/move.ts) */
+export async function moveListingsAction(form: FormData): Promise<void> {
+  const parsed = z
+    .object({ organizationId: z.uuid(), slug: z.string().max(40), ids: z.array(z.uuid()).max(100) })
+    .safeParse({ organizationId: form.get('organizationId'), slug: form.get('slug'), ids: form.getAll('listingId') });
+  if (!parsed.success) redirect('/business');
+  const back = `/b/${parsed.data.slug}/manage`;
+  const { user } = await requireSession(back);
+  const r = await appDb().transaction((tx) => moveToBusiness(tx, { userId: user.id, organizationId: parsed.data.organizationId, listingIds: parsed.data.ids }));
+  if (!r.ok) redirect('/business');
+  redirect(`${back}?moved=${r.moved}${r.leftLive ? `&left=${r.leftLive}&why=${r.reason}` : ''}`);
 }

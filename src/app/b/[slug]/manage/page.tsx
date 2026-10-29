@@ -15,7 +15,8 @@ import { managedListings } from '../../../../modules/organizations/queries';
 import { foundingPlaces, foundingState } from '../../../../modules/payments/founding';
 import { activeSubscription } from '../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../modules/payments/server';
-import { foundingAction } from '../../../business/actions';
+import { foundingAction, moveListingsAction } from '../../../business/actions';
+import { movableListings } from '../../../../modules/organizations/move';
 import { memberOf } from '../member';
 
 // The business's own dashboard (members only; wave 1, mockup final/business-dashboard): the
@@ -41,14 +42,21 @@ function Step({ done, title, sub }: { done: boolean; title: string; sub: string 
   );
 }
 
-export default async function ManageBusinessPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ created?: string; saved?: string; joined?: string }> }) {
+export default async function ManageBusinessPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ created?: string; saved?: string; joined?: string; moved?: string; left?: string; why?: string }> }) {
   const { slug } = await params;
   const query = await searchParams;
   const { user, org, role, cityFa, neighbourhood } = await memberOf(slug, `/b/${slug}/manage`);
   const db = appDb();
   const t = messages.business;
   const d = t.dashboard;
-  const [usage, rows, catalog] = await Promise.all([businessUsage(db, org.id), managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {}), cachedCatalog(db)]);
+  const [usage, rows, catalog, movable] = await Promise.all([
+    businessUsage(db, org.id),
+    managedListings(db, org.id, role === 'staff' ? { onlyPostedBy: user.id } : {}),
+    cachedCatalog(db),
+    movableListings(db, user.id),
+  ]);
+  const moved = query.moved ? Number(query.moved) : null;
+  const left = Number(query.left ?? 0);
   const planName = (usage.plan.code && messages.pro.planNames[usage.plan.code]) || t.manage.free;
   // A founding business's owner starts the free months right here (src/modules/payments/founding.ts)
   // Not from Iran: paying (a Stripe checkout, even a free one) isn't possible there (src/lib/region.ts)
@@ -249,6 +257,43 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
             );
           })}
         </ul>
+      )}
+
+      {/* Moving one's own private listings here (wave 2 part 4, src/modules/organizations/move.ts) */}
+      {moved !== null && (
+        <div className="mt-4">
+          <Alert tone={left ? 'info' : 'success'}>
+            {t.move.done(moved)}
+            {left > 0 && ` ${query.why === 'legal_missing' ? t.move.leftLegal(left) : t.move.leftLimit(left)}`}
+          </Alert>
+        </div>
+      )}
+      {movable.length > 0 && (
+        <details className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 font-bold">
+            <Icon name="archive" className="size-5 text-brand-700" />
+            {t.move.title(movable.length)}
+          </summary>
+          <p className="mt-1 text-xs leading-6 text-neutral-600">{t.move.intro(org.name)}</p>
+          <form action={moveListingsAction} className="mt-3 space-y-3">
+            <input type="hidden" name="organizationId" value={org.id} />
+            <input type="hidden" name="slug" value={org.slug} />
+            <ul className="divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+              {movable.map((l) => (
+                <li key={l.id}>
+                  <label className="flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2">
+                    <input type="checkbox" name="listingId" value={l.id} className="size-5 accent-brand-700" />
+                    <span className="min-w-0 flex-1 truncate text-sm">{l.title || messages.my.untitled}</span>
+                    <span className="shrink-0 text-xs text-neutral-600">{messages.status[l.status]}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <button type="submit" className="flex h-11 w-full items-center justify-center rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 sm:w-auto">
+              {t.move.button}
+            </button>
+          </form>
+        </details>
       )}
     </main>
   );

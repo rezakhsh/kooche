@@ -992,6 +992,15 @@ export const messages = {
     label: 'کسب‌وکار',
     // The other side of the label on a listing (wave 2 part 4)
     privateLabel: 'آگهی‌دهندهٔ شخصی',
+    // Moving one's own private listings to the business (wave 2 part 4)
+    move: {
+      title: (n: number) => `انتقال آگهی‌های شخصی خودتان به این کسب‌وکار (${n.toLocaleString('fa-IR')})`,
+      intro: (name: string) => `آگهی‌هایی که انتخاب کنید از این به بعد با نام «${name}» نشان داده می‌شوند. آگهی‌های فعال جزو سهم آگهی این کسب‌وکار حساب می‌شوند؛ این کار برگشت ندارد.`,
+      button: 'انتقال به این کسب‌وکار',
+      done: (n: number) => `${n.toLocaleString('fa-IR')} آگهی منتقل شد.`,
+      leftLimit: (n: number) => `${n.toLocaleString('fa-IR')} آگهی فعال در سهم این کسب‌وکار جا نشد و شخصی ماند. با پرو آگهی فعال بیشتری دارید.`,
+      leftLegal: (n: number) => `${n.toLocaleString('fa-IR')} آگهی فعال شخصی ماند، چون اطلاعات حقوقی (Impressum) این کسب‌وکار هنوز کامل نیست.`,
+    },
     fields: {
       name: 'نام کسب‌وکار (همان که مشتری‌ها می‌شناسند)',
       slug: 'نشانی صفحه',
