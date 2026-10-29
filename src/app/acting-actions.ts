@@ -3,6 +3,7 @@
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { appDb } from '../db/drizzle';
 import { sessions } from '../db/schema';
 import { clientIp } from '../lib/client-ip';
@@ -45,5 +46,7 @@ export async function endActingAction(): Promise<void> {
 export async function allowActingChangesAction(form: FormData): Promise<void> {
   const { h, actingToken, ctx } = await context();
   if (ctx && actingToken) await appDb().transaction((tx) => allowActingChanges(tx, ctx, actingToken, String(form.get('reason') ?? '')));
+  // The banner lives in the root layout, which a redirect alone doesn't render again
+  revalidatePath('/', 'layout');
   redirect(h.get('x-pathname') ?? '/');
 }
