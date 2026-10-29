@@ -36,5 +36,5 @@ export async function endViewAsAction(): Promise<void> {
       data: { country },
     });
   }
-  redirect(adminAddress(env.ADMIN_PATH, '/users/view-as'));
+  redirect(adminAddress(env.ADMIN_PATH, '/view-as'));
 }

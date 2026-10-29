@@ -292,6 +292,8 @@ These follow Better Auth's core model with snake_case column names. Better Auth 
 
 `sessions.staff_verified_at timestamptz null` (migration 0015): when this session last passed the admin page's TOTP check; valid 8 hours, for this session only (`docs/setup.md`, "Admin page").
 
+`sessions.opened_by_user_id uuid null` → users (on delete cascade), `opened_reason text null`, `writable_at timestamptz null` (migration 0029): a session an admin opened for this user ("sign in as a user", `docs/setup.md`), why, and since when changes are allowed (null: read only). CHECK `sessions_opened_check`: reason and `writable_at` only with `opened_by_user_id`.
+
 ### `phone_verifications`
 
 Every attempt to verify a phone number, by either method. Valkey counters do the rate limiting. This table is the durable record behind them and stores which method verified the number.

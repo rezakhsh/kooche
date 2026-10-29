@@ -49,6 +49,8 @@ export const PERMISSIONS = {
   /** Countries and cities: opening, goals, the waitlist export (round 12) */
   'cities.manage': 'admin',
   'staff.manage': 'admin',
+  /** Sign in as a user (./acting.ts) */
+  'user.act_as': 'admin',
 } as const satisfies Record<string, StaffRole>;
 
 export type StaffAction = keyof typeof PERMISSIONS;

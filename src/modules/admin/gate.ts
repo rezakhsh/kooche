@@ -10,6 +10,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const ADMIN_ROUTE = '/admin';
 export const ADMIN_GATE_HEADER = 'x-peydoo-admin-gate';
+/** The request's method, set by src/proxy.ts for the server (headers() doesn't give it) */
+export const METHOD_HEADER = 'x-peydoo-method';
 
 export function adminGateValue(secret: string): string {
   return createHmac('sha256', secret).update('peydoo-admin-gate-v1').digest('base64url');

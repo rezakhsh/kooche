@@ -837,10 +837,22 @@ Built Oct 28, 2026 (wave 2 part 1, approved by the owner as step 1a). Code in `s
 
 Built Oct 28, 2026 (wave 2 part 1, step 1c; mockups `final/admin-viewas`, `final/viewas-banner`). Code in `src/modules/admin/view-as.ts`.
 
-- Admin › users › «دیدن سایت از نگاه دیگران» (`/<ADMIN_PATH>/users/view-as`, any staff): a button per launch-plan country plus Iran. It sets the `view_as` cookie in this browser only (httpOnly, 2 hours): the country, the end time and an HMAC with `AUTH_SECRET`. Starting is in `audit_log` as `staff.view_as`, ending as `staff.view_as_ended`.
+- Admin › «دیدن از نگاه دیگران» in the side menu, also linked from the users page (`/<ADMIN_PATH>/view-as`, any staff): a button per launch-plan country plus Iran. It sets the `view_as` cookie in this browser only (httpOnly, 2 hours): the country, the end time and an HMAC with `AUTH_SECRET`. Starting is in `audit_log` as `staff.view_as`, ending as `staff.view_as_ended`.
 - On every page except the admin page, `src/proxy.ts` turns a valid cookie into the `x-peydoo-view-as` header (and removes one a client sent). With it: `visitorCountry()` returns the chosen country (Iran too: its banner and rules), except that a request really from Iran stays Iran; `currentSession()` returns null, so the pages are a visitor's without an account and test content is hidden; the remembered `country` cookie is left out as on a first visit; `Cache-Control: private, no-store`.
 - A saffron staff banner on top of every page («نمای بازدیدکننده از اتریش، بدون حساب») with «پایان», which removes the cookie and goes back to the admin page.
-- The same page lists the test accounts (country, account, home city, kind); a personal test account's email only for admins. Signing in as a user (step 1d) comes next.
+- The same page lists the test accounts (country, account, home city, kind); a personal test account's email only for admins.
+
+
+### Sign in as a user
+
+Built Oct 29, 2026 (wave 2 part 1, step 1d; mockups `final/admin-viewas` section 3, `final/viewas-banner`). Code in `src/modules/admin/acting.ts` and `acting-cookies.ts`; migration 0029 adds `sessions.opened_by_user_id`, `opened_reason`, `writable_at`.
+
+- **Who:** admins only (permission `user.act_as`), never into a staff account or one's own. Admin › «دیدن از نگاه دیگران», section 3 (email, id or public token; a user's admin page links there with «ورود به‌جای این کاربر»), or «ورود با این حساب» on a test account's row.
+- **A real person:** a written reason and a fresh TOTP code (`verifyStaffCode`). Read only: server actions and anything but GET are refused (`currentSession()` sends a server action back to its page, where the banner says «این کار در حالت «فقط دیدن» بسته است»); the data export answers 403. «اجازهٔ تغییر» in the banner, with its own reason (`staff.acting_writable`), lets changes through, each written to `audit_log` as `staff.acting_change` with the path. After «پایان», a person whose account could be changed gets an email (outbox `user.staff_acted`, worker `staff_acted`). A read-only look tells nobody.
+- **A test account:** no reason or code; changes allowed from the start; nobody is told.
+- **How:** a new row in `sessions` for the user (30 minutes, marked with the admin, the reason, `writable_at`); the browser's session cookie becomes that session's (signed as Better Auth signs it) and the admin's own cookie waits in `staff_return` (signed with `AUTH_SECRET`, with the end time). After 30 minutes `currentSession()` no longer accepts the session (Better Auth may extend `expires_at`; the half hour counts from `created_at`) and `src/proxy.ts` puts the admin's cookie back on the next request. While it lasts the proxy refuses POSTs to `/api/auth/*` (sign-out, email change, two-step settings). The admin page answers 404 meanwhile (the session isn't staff).
+- **Banner** on every page: «شما با حساب «…» هستید، فقط دیدن / تغییر مجاز است · ۲۵ دقیقه مانده», «اجازهٔ تغییر», «پایان». «پایان» (`src/app/acting-actions.ts`) finds the admin through the return cookie (their own session must still be live and an admin's), deletes the user's session, writes `staff.acting_ended` and opens the user's admin page. Start: `staff.acting_started` with the reason.
+- **Privacy policy** (de and fa, section 7): the look into an account, its limits and the email after changes.
 
 ## Admin page
 

@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv, type WebEnv } from './lib/env';
 import { isIranRequest } from './lib/region';
-import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath } from './modules/admin/gate';
+import { OWN_COOKIE_DAYS, readReturn, sessionCookieName, STAFF_RETURN_COOKIE } from './modules/admin/acting-cookies';
+import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath, METHOD_HEADER } from './modules/admin/gate';
 import { readViewAs, VIEW_AS_COOKIE, VIEW_AS_HEADER } from './modules/admin/view-as';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
@@ -108,6 +109,25 @@ export function proxy(request: NextRequest) {
   const viewing = !!readViewAs(viewAs, env.AUTH_SECRET);
   if (viewing) request.cookies.delete(COUNTRY_COOKIE);
 
+  // An admin signed in as a user (src/modules/admin/acting.ts): after the 30 minutes their own
+  // session comes back here (a bad return cookie is just dropped); until then Better Auth's own
+  // endpoints (sign-out, email change, two-step settings …) are closed
+  const back = request.cookies.get(STAFF_RETURN_COOKIE)?.value;
+  const acting = back ? readReturn(env.AUTH_SECRET, back) : null;
+  const restore = back !== undefined && (!acting || acting.until <= new Date());
+  if (restore) {
+    request.cookies.delete(STAFF_RETURN_COOKIE);
+    if (acting) request.cookies.set(sessionCookieName(env.APP_URL), acting.ownCookie);
+  } else if (acting && request.nextUrl.pathname.startsWith('/api/auth/') && request.method !== 'GET' && request.method !== 'HEAD') {
+    return new NextResponse(null, { status: 403 });
+  }
+  const putBack = (response: NextResponse) => {
+    if (!restore) return response;
+    response.cookies.delete(STAFF_RETURN_COOKIE);
+    if (acting) response.cookies.set(sessionCookieName(env.APP_URL), acting.ownCookie, { path: '/', httpOnly: true, secure: env.APP_URL.startsWith('https://'), sameSite: 'lax', maxAge: OWN_COOKIE_DAYS * 86_400 });
+    return response;
+  };
+
   // A browse page shows its own country in the header, whatever was chosen before (see above)
   const country = admin ? null : browseCountry(request.nextUrl.pathname);
   if (country) request.cookies.set(COUNTRY_COOKIE, country);
@@ -121,6 +141,7 @@ export function proxy(request: NextRequest) {
   requestHeaders.delete(ADMIN_GATE_HEADER);
   requestHeaders.delete(VIEW_AS_HEADER);
   if (viewing) requestHeaders.set(VIEW_AS_HEADER, viewAs!);
+  requestHeaders.set(METHOD_HEADER, request.method);
 
   // The admin page (src/modules/admin/gate.ts): /<ADMIN_PATH>/… becomes /admin/… with the mark.
   // Never indexed, never kept by any cache; /admin itself goes on unmarked and answers 404.
@@ -138,7 +159,7 @@ export function proxy(request: NextRequest) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     response.headers.set('Cache-Control', 'private, no-store');
     response.headers.set('Referrer-Policy', 'no-referrer');
-    return response;
+    return putBack(response);
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -149,7 +170,7 @@ export function proxy(request: NextRequest) {
     ? 'private, no-store'
     : browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
-  return response;
+  return putBack(response);
 }
 
 export const config = {

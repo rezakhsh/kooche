@@ -1,11 +1,15 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { appDb } from '../../db/drizzle';
-import { countries, organizations } from '../../db/schema';
+import { countries, organizations, users } from '../../db/schema';
 import { webEnv } from '../../lib/env';
+import { verifyStaffCode } from '../../modules/admin/access';
+import { findUserToActAs, openActingSession, returnToken, sessionCookieName, signSessionToken, STAFF_RETURN_COOKIE } from '../../modules/admin/acting';
 import { staffAudit } from '../../modules/admin/audit';
+import { valkey } from '../../lib/valkey';
+import { auth } from '../../modules/users/server';
 import { VIEW_AS_COOKIE, VIEW_AS_HOURS, viewAsToken } from '../../modules/admin/view-as';
 import { eq } from 'drizzle-orm';
 import { setStaffRole } from '../../modules/admin/staff';
@@ -69,10 +73,41 @@ export async function viewAsAction(form: FormData): Promise<void> {
   const code = String(form.get('country') ?? '');
   const db = appDb();
   const [known] = code === 'IR' ? [{ code }] : await db.select({ code: countries.code }).from(countries).where(eq(countries.code, code));
-  if (!known) redirect(adminHref('/users/view-as'));
+  if (!known) redirect(adminHref('/view-as'));
   const until = new Date(Date.now() + VIEW_AS_HOURS * 3_600_000);
   (await cookies()).set(VIEW_AS_COOKIE, viewAsToken(webEnv().AUTH_SECRET, known.code, until), { path: '/', expires: until, sameSite: 'lax', secure: true, httpOnly: true });
   await staffAudit(db, staff.ctx, 'staff.view_as', null, { country: known.code });
+  redirect('/');
+}
+
+/**
+ * Sign in as a user (src/modules/admin/acting.ts): admins only. A real person needs a reason and
+ * a fresh two-step code; a test account needs neither. The admin's own session cookie waits in
+ * the return cookie, the session cookie becomes the user's, and the site opens as them.
+ */
+export async function actAsAction(form: FormData): Promise<void> {
+  const staff = await requireStaffAction('user.act_as');
+  const db = appDb();
+  const fail: (reason: string) => never = (reason) => redirect(adminHref(`/view-as?acting=${reason}`));
+  const userId = uuid(form.get('userId')) ?? (await findUserToActAs(db, String(form.get('target') ?? '').slice(0, 254)));
+  if (!userId) fail('not_found');
+  const [target] = await db.select({ test: users.testAccount }).from(users).where(eq(users.id, userId));
+  if (!target) fail('not_found');
+  const h = await headers();
+  if (!target.test) {
+    const code = await verifyStaffCode({ db, redis: valkey(), auth: auth() }, staff.ctx, { code: String(form.get('code') ?? ''), kind: 'totp', headers: new Headers(h) });
+    if (!code.ok) fail(code.reason === 'rate_limited' ? 'rate_limited' : 'code');
+  }
+  const env = webEnv();
+  const jar = await cookies();
+  const own = jar.get(sessionCookieName(env.APP_URL))?.value;
+  if (!own) fail('not_found');
+  const r = await db.transaction((tx) => openActingSession(tx, staff.ctx, { userId, reason: String(form.get('reason') ?? ''), userAgent: h.get('user-agent') }));
+  if (!r.ok) fail(r.reason);
+  const secure = env.APP_URL.startsWith('https://');
+  // The return cookie outlives the 30 minutes, so src/proxy.ts can put the admin's cookie back
+  jar.set(STAFF_RETURN_COOKIE, returnToken(env.AUTH_SECRET, own, r.until), { path: '/', httpOnly: true, secure, sameSite: 'lax', maxAge: 7 * 86_400 });
+  jar.set(sessionCookieName(env.APP_URL), signSessionToken(env.AUTH_SECRET, r.token), { path: '/', httpOnly: true, secure, sameSite: 'lax', expires: r.until });
   redirect('/');
 }
 

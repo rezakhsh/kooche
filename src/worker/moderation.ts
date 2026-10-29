@@ -6,7 +6,7 @@ import { listingBrowseUrls, purgeUrls } from '../modules/admin/purge';
 import { collectStatus, writeStatus } from '../modules/admin/system';
 import type { Meili } from '../modules/search/meili';
 import { restoreAfterSuspensions } from '../modules/moderation/decide';
-import { decisionNotices, phoneReleasedMail, reportReceipt } from '../modules/moderation/notices';
+import { decisionNotices, phoneReleasedMail, staffActedMail, reportReceipt } from '../modules/moderation/notices';
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
@@ -102,6 +102,11 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           await connection.set(ALERT_LAST_KEY, String(now), 'EX', 7 * 86_400);
           return 'sent';
         }
+        case 'staff_acted': {
+          const mail = await staffActedMail(db, data.aggregateId, opts.appUrl);
+          if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_acted_${data.outboxId}` });
+          return mail ? 'sent' : 'gone';
+        }
         case 'phone_released': {
           const mail = await phoneReleasedMail(db, data.aggregateId, opts.appUrl);
           if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_phone_${data.outboxId}` });
@@ -132,6 +137,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     'appeal.created': [{ name: 'appeal_received', queue }],
     'moderation.decided': [{ name: 'notify', queue }],
     'user.phone_released': [{ name: 'phone_released', queue }],
+    'user.staff_acted': [{ name: 'staff_acted', queue }],
     [LISTING_OUTBOX.rejected]: [{ name: 'listing_changed', queue }],
     [LISTING_OUTBOX.restored]: [{ name: 'listing_changed', queue }],
   };

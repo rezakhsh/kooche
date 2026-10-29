@@ -122,10 +122,18 @@ export const sessions = pgTable(
      * 0015). Valid for a few hours and only for this session (src/modules/admin/access.ts).
      */
     staffVerifiedAt: tstz('staff_verified_at'),
+    /**
+     * Sign in as a user (wave 2 part 1, src/modules/admin/acting.ts): the admin who opened this
+     * session for the user, why, and since when changes are allowed (null: read only).
+     */
+    openedByUserId: uuid('opened_by_user_id').references(() => users.id, { onDelete: 'cascade' }),
+    openedReason: text('opened_reason'),
+    writableAt: tstz('writable_at'),
   },
   (t) => [
     index('sessions_user_id_idx').on(t.userId),
     index('sessions_expires_at_idx').on(t.expiresAt),
+    check('sessions_opened_check', sql`${t.openedByUserId} IS NOT NULL OR (${t.openedReason} IS NULL AND ${t.writableAt} IS NULL)`),
   ],
 );
 

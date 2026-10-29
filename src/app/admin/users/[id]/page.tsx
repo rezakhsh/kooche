@@ -18,16 +18,24 @@ export default async function UserPage({ params, searchParams }: { params: Promi
   const db = appDb();
   const p = await personHistory(db, id);
   if (!p) notFound();
-  const [contact, sessionsAllowed, releaseAllowed] = await Promise.all([staffCan('user.contact'), staffCan('user.sessions'), staffCan('user.release_phone')]);
+  const [contact, sessionsAllowed, releaseAllowed, actAllowed] = await Promise.all([staffCan('user.contact'), staffCan('user.sessions'), staffCan('user.release_phone'), staffCan('user.act_as')]);
   if (contact) await contactViewed(db, staff.ctx, id);
   const [listings, businesses, sessions] = await Promise.all([recentListingsOf(db, id), businessesOf(db, id), sessionsAllowed ? sessionsOf(db, id) : Promise.resolve([])]);
   const t = admin.users;
   return (
     <>
       <AdminTitle title={`${admin.item.kinds.user}: ${p.name}`}>
-        <Link href={adminHref(`/items/user/${id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">
-          {t.moderation}
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Sign in as this user (src/modules/admin/acting.ts): the form on «دیدن از نگاه دیگران» */}
+          {actAllowed && !p.staffRole && id !== staff.ctx.userId && (
+            <Link href={adminHref(`/view-as?target=${id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">
+              {t.actAs}
+            </Link>
+          )}
+          <Link href={adminHref(`/items/user/${id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">
+            {t.moderation}
+          </Link>
+        </div>
       </AdminTitle>
       {sp.signedOut && <div className="mb-4"><Alert tone="success">{t.signedOut(Number(sp.signedOut))}</Alert></div>}
       {sp.released && <div className="mb-4"><Alert tone="success">{t.released}</Alert></div>}

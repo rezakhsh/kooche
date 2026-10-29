@@ -161,3 +161,15 @@ export async function phoneReleasedMail(db: Queryable, userId: string, appUrl: s
   const url = `${appUrl}/account/phone`;
   return { to: u.email, subject: t.phoneReleasedSubject, text: `${t.phoneReleased}\n\n${t.phoneLink}: ${url}`, html: html([t.phoneReleased], { url, label: t.phoneLink }) };
 }
+
+/**
+ * The email after an admin signed in as the person with changes allowed and pressed «پایان»
+ * (src/modules/admin/acting.ts; the owner's rule: staff changes are always told)
+ */
+export async function staffActedMail(db: Queryable, userId: string, appUrl: string): Promise<Mail | null> {
+  const [u] = await db.select({ email: users.email, status: users.status, test: users.testAccount }).from(users).where(eq(users.id, userId));
+  if (!u || u.status === 'deleted' || u.test) return null;
+  const t = messages.moderationMail;
+  const url = `${appUrl}/contact`;
+  return { to: u.email, subject: t.staffActedSubject, text: `${t.staffActed}\n\n${t.staffActedLink}: ${url}`, html: html([t.staffActed], { url, label: t.staffActedLink }) };
+}

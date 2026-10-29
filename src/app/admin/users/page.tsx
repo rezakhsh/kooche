@@ -18,7 +18,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <AdminTitle title={t.title}>
-        <Link href={adminHref('/users/view-as')} prefetch={false} className="flex h-10 items-center gap-2 rounded-xl border border-neutral-300 px-3 text-sm font-bold text-brand-800 hover:bg-brand-50">
+        <Link href={adminHref('/view-as')} prefetch={false} className="flex h-10 items-center gap-2 rounded-xl border border-neutral-300 px-3 text-sm font-bold text-brand-800 hover:bg-brand-50">
           <Icon name="globe" className="size-4" />
           {t.viewAs}
         </Link>

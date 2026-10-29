@@ -27,6 +27,7 @@ const SECTIONS: Array<{ path: string; key: keyof typeof admin.nav; action: Staff
   { path: '/fresh', key: 'fresh', action: 'queue.view', icon: 'sparkle' },
   { path: '/listings', key: 'listings', action: 'listings.view', icon: 'doc' },
   { path: '/users', key: 'users', action: 'users.view', icon: 'people' },
+  { path: '/view-as', key: 'viewAs', action: 'overview.view', icon: 'globe' },
   { path: '/businesses', key: 'businesses', action: 'businesses.view', icon: 'store' },
   { path: '/cities', key: 'cities', action: 'cities.manage', icon: 'globe' },
   { path: '/payments', key: 'payments', action: 'payments.view', icon: 'card' },

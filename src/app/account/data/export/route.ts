@@ -1,5 +1,6 @@
 import { appDb } from '../../../../db/drizzle';
 import { auditLog } from '../../../../db/schema';
+import { actingState } from '../../../../modules/admin/acting';
 import { clientIp } from '../../../../lib/client-ip';
 import { webEnv } from '../../../../lib/env';
 import { hit } from '../../../../lib/rate-limit';
@@ -16,6 +17,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!sameOrigin(request.headers, env.APP_URL)) return new Response(null, { status: 403 });
   const session = await auth().api.getSession({ headers: request.headers });
   if (!session) return Response.redirect(new URL('/login?next=/account/data', env.APP_URL), 303);
+  // Never while an admin is signed in as the user (src/modules/admin/acting.ts): the person's own copy
+  if (await actingState(appDb(), session.session.id)) return new Response(null, { status: 403 });
   const userId = session.user.id;
   const limited = await hit(valkey(), [[EXPORT_LIMIT, userId]]);
   if (!limited.ok) return Response.redirect(new URL('/account/data?error=rate_limited', env.APP_URL), 303);

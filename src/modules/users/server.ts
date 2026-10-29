@@ -1,8 +1,12 @@
-import { headers } from 'next/headers';
+import { eq } from 'drizzle-orm';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { appDb } from '../../db/drizzle';
+import { sessions } from '../../db/schema';
 import { webEnv } from '../../lib/env';
+import { ACTING_BLOCKED_COOKIE, actingGate, actingState, recordActingChange, type ActingState } from '../admin/acting';
+import { METHOD_HEADER } from '../admin/gate';
 import { viewAsCountry } from '../admin/view-as';
 import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
@@ -58,7 +62,33 @@ export type CurrentSession = NonNullable<Awaited<ReturnType<Auth['api']['getSess
 export const currentSession = cache(async (): Promise<CurrentSession | null> => {
   const h = await headers();
   if (viewAsCountry(h)) return null;
-  return auth().api.getSession({ headers: h });
+  const session = await auth().api.getSession({ headers: h });
+  if (!session) return null;
+  // A session an admin opened for this user (src/modules/admin/acting.ts)
+  const acting = await actingState(appDb(), session.session.id);
+  if (!acting) return session;
+  if (acting === 'ended') {
+    await appDb().delete(sessions).where(eq(sessions.id, session.session.id));
+    return null;
+  }
+  const path = h.get('x-pathname') ?? '/';
+  const gate = actingGate(acting, { method: h.get(METHOD_HEADER) ?? 'GET', action: h.has('next-action') });
+  if (gate === 'record') await recordActingChange(appDb(), acting, session.session.id, path);
+  if (gate === 'block') {
+    // In a server action: back to the page, where the banner says why. Anything else: no account.
+    if (!h.has('next-action')) return null;
+    (await cookies()).set(ACTING_BLOCKED_COOKIE, '1', { path: '/', maxAge: 15, httpOnly: true, secure: true, sameSite: 'lax' });
+    redirect(path);
+  }
+  return session;
+});
+
+/** The session's state when an admin opened it for this user, else null. Cached per request. */
+export const currentActing = cache(async (): Promise<ActingState | null> => {
+  const session = await currentSession();
+  if (!session) return null;
+  const acting = await actingState(appDb(), session.session.id);
+  return acting === 'ended' ? null : acting;
 });
 
 /**
