@@ -41,7 +41,7 @@ async function denied(tx: Tx, role: Role, statement: (tx: Tx) => PromiseLike<unk
 describe('grants', () => {
   it('cover every table for all three roles', async () => {
     const all = await tables();
-    expect(all).toHaveLength(48);
+    expect(all).toHaveLength(49);
     const missing: string[] = [];
     for (const table of all) {
       for (const role of ROLES) if (!(await has(role, table, 'SELECT'))) missing.push(`${role} ${table}`);

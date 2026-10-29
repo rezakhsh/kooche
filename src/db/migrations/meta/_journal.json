@@ -225,6 +225,13 @@
       "when": 1793267532437,
       "tag": "0031_country_opened_at",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793275272765,
+      "tag": "0032_business_suspicions",
+      "breakpoints": true
     }
   ]
 }

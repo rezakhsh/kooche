@@ -12,6 +12,7 @@ import { adminHref, staffSession } from '../../modules/admin/server';
 import { AdminKeys } from './keys';
 import { AdminNav, type NavItem } from './nav';
 import { systemState } from './system/checks';
+import { suspicionsWaiting } from '../../modules/organizations/suspicions';
 
 // The admin page (roadmap step 8). Reached only through /<ADMIN_PATH>/… (src/modules/admin/gate.ts);
 // staffSession() answers 404 to everyone else. Each page checks its own permission again.
@@ -29,6 +30,7 @@ const SECTIONS: Array<{ path: string; key: keyof typeof admin.nav; action: Staff
   { path: '/users', key: 'users', action: 'users.view', icon: 'people' },
   { path: '/view-as', key: 'viewAs', action: 'overview.view', icon: 'globe' },
   { path: '/businesses', key: 'businesses', action: 'businesses.view', icon: 'store' },
+  { path: '/business-queue', key: 'businessQueue', action: 'business.suspicion', icon: 'store' },
   { path: '/cities', key: 'cities', action: 'cities.manage', icon: 'globe' },
   { path: '/payments', key: 'payments', action: 'payments.view', icon: 'card' },
   { path: '/audit', key: 'audit', action: 'overview.view', icon: 'list' },
@@ -40,12 +42,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const { state } = await staffSession();
   const ok = state.kind === 'ok';
   const t = admin.shell;
-  const [queue, system] = ok
-    ? await Promise.all([can(state.role, 'queue.view') ? queueAge(appDb()).catch(() => null) : null, can(state.role, 'system.view') ? systemState() : null])
-    : [null, null];
+  const [queue, system, cases] = ok
+    ? await Promise.all([
+        can(state.role, 'queue.view') ? queueAge(appDb()).catch(() => null) : null,
+        can(state.role, 'system.view') ? systemState() : null,
+        can(state.role, 'business.suspicion') ? suspicionsWaiting(appDb()).catch(() => 0) : 0,
+      ])
+    : [null, null, 0];
   const badges: Partial<Record<string, { text: string; tone: 'saffron' | 'red' }>> = {
     ...(queue?.count ? { queue: { text: faDigits(String(queue.count)), tone: 'saffron' as const } } : {}),
     ...(system?.problems.length ? { system: { text: faDigits(String(system.problems.length)), tone: 'red' as const } } : {}),
+    ...(cases ? { businessQueue: { text: faDigits(String(cases)), tone: 'saffron' as const } } : {}),
   };
   const items: NavItem[] = ok
     ? SECTIONS.filter((s) => can(state.role, s.action)).map((s) => ({ href: adminHref(s.path), label: admin.nav[s.key], icon: s.icon, badge: badges[s.key] }))

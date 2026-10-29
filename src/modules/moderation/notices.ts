@@ -173,3 +173,12 @@ export async function staffActedMail(db: Queryable, userId: string, appUrl: stri
   const url = `${appUrl}/contact`;
   return { to: u.email, subject: t.staffActedSubject, text: `${t.staffActed}\n\n${t.staffActedLink}: ${url}`, html: html([t.staffActed], { url, label: t.staffActedLink }) };
 }
+
+/** «احتمالاً کسب‌وکار» (src/modules/organizations/suspicions.ts): asked, restricted, or cleared after being asked */
+export async function businessCaseMail(db: Queryable, userId: string, kind: 'asked' | 'restricted' | 'cleared', appUrl: string): Promise<Mail | null> {
+  const [u] = await db.select({ email: users.email, status: users.status, test: users.testAccount }).from(users).where(eq(users.id, userId));
+  if (!u || u.status === 'deleted' || u.test) return null;
+  const t = messages.moderationMail.businessCase[kind];
+  const url = `${appUrl}${kind === 'cleared' ? '/my/listings' : '/business/compare'}`;
+  return { to: u.email, subject: t.subject, text: `${t.body}\n\n${t.link}: ${url}`, html: html([t.body], { url, label: t.link }) };
+}

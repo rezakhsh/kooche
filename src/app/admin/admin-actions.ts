@@ -16,6 +16,7 @@ import { setStaffRole } from '../../modules/admin/staff';
 import { adminHref, requireStaffAction } from '../../modules/admin/server';
 import { releasePhone, signOutEverywhere } from '../../modules/admin/users';
 import { setVerification } from '../../modules/organizations/organizations';
+import { decideSuspicion } from '../../modules/organizations/suspicions';
 import { offerFounding } from '../../modules/payments/founding';
 
 // Admin-only changes outside moderation decisions: sessions, phone numbers, business verification
@@ -117,4 +118,15 @@ export async function staffRoleAction(form: FormData): Promise<void> {
   const role = form.get('role') === 'moderator' ? 'moderator' : null;
   const r = await appDb().transaction((tx) => setStaffRole(tx, { email, role, by: staff.ctx }));
   redirect(adminHref(`/staff?${r.ok ? 'done=1' : `error=${r.reason}`}`));
+}
+
+/** «احتمالاً کسب‌وکار»: ask (14 days), dismiss, or after the deadline restrict (src/modules/organizations/suspicions.ts) */
+export async function suspicionAction(form: FormData): Promise<void> {
+  const decision = form.get('decision');
+  if (decision !== 'ask' && decision !== 'dismiss' && decision !== 'restrict') redirect(adminHref('/business-queue'));
+  const staff = await requireStaffAction(decision === 'restrict' ? 'business.restrict' : 'business.suspicion');
+  const id = uuid(form.get('caseId'));
+  if (!id) redirect(adminHref('/business-queue'));
+  const ok = await appDb().transaction((tx) => decideSuspicion(tx, staff.ctx, id, decision));
+  redirect(adminHref(`/business-queue?${ok ? `done=${decision}` : 'stale=1'}`));
 }

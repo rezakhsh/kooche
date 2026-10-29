@@ -353,6 +353,8 @@ export type Refusal =
   | 'private_goods_limit'
   /** A licensed service by a business that isn't verified yet */
   | 'licence_required'
+  /** Private offers restricted after «احتمالاً کسب‌وکار» */
+  | 'business_required'
   /** The business's plan allows no more active listings */
   | 'business_limit'
   /** "Post as" a business the user isn't a member of */

@@ -6,7 +6,9 @@ import { listingBrowseUrls, purgeUrls } from '../modules/admin/purge';
 import { collectStatus, writeStatus } from '../modules/admin/system';
 import type { Meili } from '../modules/search/meili';
 import { restoreAfterSuspensions } from '../modules/moderation/decide';
-import { decisionNotices, phoneReleasedMail, staffActedMail, reportReceipt } from '../modules/moderation/notices';
+import { businessCaseMail, decisionNotices, phoneReleasedMail, staffActedMail, reportReceipt } from '../modules/moderation/notices';
+import { cachedCatalog } from '../modules/listings/catalog';
+import { closeSwitched, findSuspicions } from '../modules/organizations/suspicions';
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
@@ -20,7 +22,9 @@ import { reportJobFailure } from './monitoring';
 // - `listing.rejected` / `listing.restored`: purge the plain browse pages it was on from
 //   Cloudflare (when configured) and rebuild the sitemaps a minute later;
 // - every 15 minutes: listings of suspensions that ran out come back;
-// - every minute: the system status snapshot for the admin page.
+// - every minute: the system status snapshot for the admin page;
+// - daily at 03:40 UTC: «احتمالاً کسب‌وکار» cases found, and closed for those who opened a business
+//   (src/modules/organizations/suspicions.ts); `user.business_*`: the person's email about their case.
 // Emails and Telegram messages go through the chat's send queues (one limiter for the bot).
 // The owner's alert waits 2 minutes to gather a burst and goes out at most once per 10 minutes.
 
@@ -52,6 +56,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
   await queue.upsertJobScheduler('suspensions-ended', { every: 15 * 60_000 }, { name: 'suspensions_ended', opts: { removeOnComplete: 20, removeOnFail: 50 } });
   // The admin page's system status (src/modules/admin/system.ts)
   await queue.upsertJobScheduler('system-status', { every: 60_000 }, { name: 'system_status', opts: { removeOnComplete: 5, removeOnFail: 20, attempts: 1 } });
+  await queue.upsertJobScheduler('business-scan', { pattern: '40 3 * * *', tz: 'UTC' }, { name: 'business_scan', opts: { removeOnComplete: 20, removeOnFail: 50 } });
   const gather = opts.gatherMs ?? ALERT_GATHER_MS;
 
   /** One alert job per ten-minute slot, after a short wait so a burst goes out as one message */
@@ -116,6 +121,18 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           await writeStatus(connection, await collectStatus(db, connection, opts.meili ?? null, opts.prefix));
           return 'written';
         }
+        case 'business_scan': {
+          const closed = await closeSwitched(db);
+          const found = await findSuspicions(db, await cachedCatalog(db));
+          if (closed || found.length) console.log(`moderation: ${found.length} business cases found, ${closed} closed`);
+          return { found: found.length, closed };
+        }
+        case 'business_case': {
+          const kind = data.eventType === 'user.business_asked' ? 'asked' : data.eventType === 'user.business_restricted' ? 'restricted' : 'cleared';
+          const mail = await businessCaseMail(db, data.aggregateId, kind, opts.appUrl);
+          if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_bizcase_${data.outboxId}` });
+          return mail ? 'sent' : 'gone';
+        }
         case 'suspensions_ended': {
           const n = await restoreAfterSuspensions(db);
           if (n) console.log(`moderation: ${n} listings back after suspensions ended`);
@@ -138,6 +155,9 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     'moderation.decided': [{ name: 'notify', queue }],
     'user.phone_released': [{ name: 'phone_released', queue }],
     'user.staff_acted': [{ name: 'staff_acted', queue }],
+    'user.business_asked': [{ name: 'business_case', queue }],
+    'user.business_restricted': [{ name: 'business_case', queue }],
+    'user.business_cleared': [{ name: 'business_case', queue }],
     [LISTING_OUTBOX.rejected]: [{ name: 'listing_changed', queue }],
     [LISTING_OUTBOX.restored]: [{ name: 'listing_changed', queue }],
   };

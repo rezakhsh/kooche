@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import { listings } from '../../db/schema';
 import { ancestry, type Catalog } from '../listings/catalog';
 import { businessPlan } from '../payments/plans';
+import { restrictedRoots } from './suspicions';
 
 // Who may publish what, privately or as a business (decided Oct 22, 2026, "the middle way";
 // wave 2 part 4 with rounds 9 and 11 and the owner's answers of Oct 29, 2026):
@@ -45,6 +46,8 @@ const NO_LIMIT_ROOTS = ['community', 'events-calendar', 'jobs'];
 
 export type PostingRefusal =
   | 'business_only'
+  /** Restricted after «احتمالاً کسب‌وکار» (./suspicions.ts): private offers in these top categories */
+  | 'business_required'
   | 'licence_required'
   | 'private_service_limit'
   | 'private_property_limit'
@@ -112,6 +115,7 @@ export async function postingRefusal(
   if (!l.organizationId) {
     if (category?.businessOnly || licensed) return 'business_only';
     if (l.kind === 'offer' && root === JOBS_ROOT) return 'business_only';
+    if (l.kind === 'offer' && root && (await restrictedRoots(db, l.userId)).includes(root)) return 'business_required';
     const group = l.kind === 'offer' ? privateGroup(catalog, l.categoryId) : null;
     if (!group) return null;
     const limit = PRIVATE_LIMITS[group];

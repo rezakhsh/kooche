@@ -8,6 +8,7 @@ const t = messages.business.limits;
 const TEXTS: Record<string, string> = {
   business_only: t.businessOnly,
   licence_required: t.licenceRequired,
+  business_required: t.businessRequired,
   private_service_limit: t.privateServices,
   private_property_limit: t.privateProperty,
   private_car_limit: t.privateCars,

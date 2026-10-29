@@ -12,7 +12,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { bytea, geographyPoint } from '../types';
-import { PATTERNS, createdAt, isIn, matches, standardColumns, textArrayWithin, tstz, updatedAt } from './_columns';
+import { PATTERNS, createdAt, insertOnlyColumns, isIn, matches, standardColumns, textArrayWithin, tstz, updatedAt } from './_columns';
 import { ORGANIZATION_ROLES } from './_values';
 import { countries, locations } from './listings';
 import { users } from './users';
@@ -209,5 +209,37 @@ export const organizationInvitations = pgTable(
     index('organization_invitations_pending_idx')
       .on(t.organizationId)
       .where(sql`accepted_at IS NULL AND revoked_at IS NULL`),
+  ],
+);
+
+/**
+ * «احتمالاً کسب‌وکار» (wave 2 part 4, round 9): a private account that looks commercial, found by
+ * the worker's daily check (src/modules/organizations/suspicions.ts). Staff ask (14 days to open a
+ * business page), dismiss, or after the deadline restrict private offers in `root_slugs`. Opening a
+ * business closes it by itself. Reasons are codes and counts only, never the listings' text.
+ */
+export const SUSPICION_STATUSES = ['open', 'asked', 'restricted', 'dismissed', 'switched'] as const;
+export type SuspicionReason = { code: 'many_listings' | 'similar_titles' | 'business_words' | 'company_name'; n?: number };
+
+export const businessSuspicions = pgTable(
+  'business_suspicions',
+  {
+    ...insertOnlyColumns(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reasons: jsonb('reasons').$type<SuspicionReason[]>().notNull(),
+    /** Top categories of the private offers concerned; a restriction applies to these */
+    rootSlugs: text('root_slugs').array().notNull(),
+    status: text('status', { enum: SUSPICION_STATUSES }).notNull().default('open'),
+    askedAt: tstz('asked_at'),
+    deadlineAt: tstz('deadline_at'),
+    decidedAt: tstz('decided_at'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    check('business_suspicions_status_check', isIn(t.status, SUSPICION_STATUSES)),
+    // One case per person while it is open, asked or restricted
+    uniqueIndex('business_suspicions_live_key').on(t.userId).where(sql`status IN ('open', 'asked', 'restricted')`),
   ],
 );

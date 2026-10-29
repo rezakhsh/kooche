@@ -51,6 +51,9 @@ export const PERMISSIONS = {
   'staff.manage': 'admin',
   /** Sign in as a user (./acting.ts) */
   'user.act_as': 'admin',
+  /** «احتمالاً کسب‌وکار» (src/modules/organizations/suspicions.ts): ask or dismiss; restricting is the owner's */
+  'business.suspicion': 'moderator',
+  'business.restrict': 'admin',
 } as const satisfies Record<string, StaffRole>;
 
 export type StaffAction = keyof typeof PERMISSIONS;
