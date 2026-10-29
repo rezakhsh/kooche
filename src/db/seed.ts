@@ -97,8 +97,11 @@ async function seedCurrencies(tx: Tx): Promise<number> {
 
 async function seedCountries(tx: Tx): Promise<number> {
   for (const c of seed.countries) {
-    const { code, ...rest } = c;
-    await tx.insert(countries).values(c).onConflictDoUpdate({ target: countries.code, set: rest });
+    // The mode is the owner's (admin › countries and cities): a new country gets its first one,
+    // an existing country keeps whatever it has
+    const { code, isActive, ...rest } = c;
+    const mode = isActive ? 'open' : code === 'TR' ? 'guide' : 'waitlist';
+    await tx.insert(countries).values({ ...c, mode }).onConflictDoUpdate({ target: countries.code, set: rest });
   }
   return seed.countries.length;
 }

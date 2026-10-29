@@ -1,9 +1,10 @@
-import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, ne, sql } from 'drizzle-orm';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
 import type { Point } from '../../db/types';
 import { auditLog, countries, organizationMembers, organizations } from '../../db/schema';
+import { PREPARING } from '../launch/countries';
 import { BUSINESS_LANGUAGES, BUSINESS_TYPES, type OpeningHours } from '../../db/schema/organizations';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
@@ -213,7 +214,8 @@ export async function createBusiness(
     return await db.transaction(async (tx) => {
       const allowed = canPostListing(await loadActor(tx, opts.userId));
       if (!allowed.ok) return allowed;
-      const [country] = await tx.select({ code: countries.code }).from(countries).where(and(eq(countries.code, opts.countryCode), eq(countries.isActive, true)));
+      // Open countries, and prestart ones so businesses are ready on the opening day (src/modules/launch/countries.ts)
+      const [country] = await tx.select({ code: countries.code }).from(countries).where(and(eq(countries.code, opts.countryCode), inArray(countries.mode, [...PREPARING])));
       if (!country) return { ok: false, reason: 'invalid' };
       const [owned] = await tx
         .select({ n: count() })

@@ -52,6 +52,8 @@ function refusal(reason: string): string {
       return t.post.categoryNotPostable;
     case 'business_only':
       return t.business.limits.businessOnly;
+    case 'paused':
+      return messages.post.paused;
     case 'new_account_limit':
       return t.post.newAccountListings(NEW_ACCOUNT_LISTINGS_PER_DAY);
     case 'private_service_limit':

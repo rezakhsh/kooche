@@ -112,9 +112,15 @@ Seeded from files in Git (`seed/`). The app reads them from a Valkey cache, so t
 | `name_local` | `text` | Deutschland |
 | `default_currency` | `text` FK → `currencies` | The currency of every listing in the country; the seller doesn't choose it (decided Oct 17, 2026) |
 | `phone_prefix` | `text` | `+49`. Only for the phone input. Users' phones may be from any country, so there is no FK from phone numbers. |
-| `is_active` | `boolean DEFAULT false` | Countries open for listings |
+| `is_active` | `boolean DEFAULT false` | Countries open for listings. Follows `mode`: `CHECK (is_active = (mode = 'open'))` (migration 0030) |
+| `mode` | `text DEFAULT 'waitlist'` | `hidden`, `waitlist`, `prestart`, `guide`, `open` (migration 0030; `docs/setup.md`, "Country modes"). The owner's state: the seed gives only a new country its first value |
+| `opens_on` | `date null` | The announced opening day of a `prestart` country |
 | `sort_order` | `smallint DEFAULT 0` | |
 | `slug` | `text null UNIQUE` | Web address of the country page: `/germany`, `/austria` (migration 0008). A name, never the two-letter code, which clashes with our own routes (`/my` is Malaysia). Filled by the seed; a seed check keeps it out of the route names. |
+
+### `category_pauses`
+
+Emergency pause (migration 0030; `src/modules/launch/pauses.ts`): no new listings in a category and its subcategories, in a country or one city, until `until`. Insert-only columns plus `category_id` FK → `categories`, `country_code` FK → `countries`, `location_id uuid null` FK → `locations` (null: the whole country), `reason text` (3–500), `until timestamptz`, `created_by_user_id`, `lifted_at`, `lifted_by_user_id` (users, on delete set null). Index `(country_code, until) WHERE lifted_at IS NULL`. The web role selects, inserts and updates; the worker and readonly only select.
 
 ### `locations`
 

@@ -1,6 +1,7 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { countries, locations, postalPlaces, users } from '../../db/schema';
+import { PREPARING } from '../launch/countries';
 import type { Point } from '../../db/types';
 import { foldLatin } from '../../lib/fold-latin';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -220,7 +221,8 @@ export async function setSavedPlace(
   input: { countryCode: string; placeValue: string; place: string; district: string },
 ): Promise<{ ok: true } | { ok: false; errors: Partial<Record<'countryCode' | 'place' | 'district', 'required' | 'invalid' | 'not_found' | 'ambiguous' | 'too_long'>> }> {
   const country = input.countryCode.toUpperCase();
-  const [open] = await db.select({ code: countries.code }).from(countries).where(and(eq(countries.code, country), eq(countries.isActive, true)));
+  // Open and prestart countries (drafts there pre-fill it too; src/modules/launch/countries.ts)
+  const [open] = await db.select({ code: countries.code }).from(countries).where(and(eq(countries.code, country), inArray(countries.mode, [...PREPARING])));
   if (!open) return { ok: false, errors: { countryCode: 'invalid' } };
   const district = input.district.normalize('NFC').replace(/\s+/g, ' ').trim();
   if (district.length > MAX_DISTRICT) return { ok: false, errors: { district: 'too_long' } };

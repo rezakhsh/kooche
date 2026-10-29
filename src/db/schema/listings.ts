@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -52,6 +53,9 @@ export const currencies = pgTable(
   ],
 );
 
+/** A country's mode (wave 2 part 2, src/modules/launch/countries.ts), from closed to open */
+export const COUNTRY_MODES = ['hidden', 'waitlist', 'prestart', 'guide', 'open'] as const;
+
 export const countries = pgTable(
   'countries',
   {
@@ -62,7 +66,16 @@ export const countries = pgTable(
       .notNull()
       .references(() => currencies.code),
     phonePrefix: text('phone_prefix').notNull(),
+    /** Follows `mode`: true exactly when it is 'open' (CHECK below; src/modules/launch/countries.ts) */
     isActive: boolean('is_active').notNull().default(false),
+    /**
+     * Wave 2 part 2 (migration 0030): hidden, waitlist, prestart (businesses and organisers prepare
+     * drafts for `opens_on`), guide, open. Set by the owner in admin; the seed only gives a new
+     * country its first value.
+     */
+    mode: text('mode', { enum: COUNTRY_MODES }).notNull().default('waitlist'),
+    /** The announced opening day (prestart) */
+    opensOn: date('opens_on', { mode: 'string' }),
     sortOrder: smallint('sort_order').notNull().default(0),
     // Latin name in web addresses: /germany, /austria (migration 0008). Filled by the seed; a
     // name, not the code, because two-letter codes clash with our own routes (/my is Malaysia).
@@ -71,6 +84,8 @@ export const countries = pgTable(
   (t) => [
     check('countries_code_check', matches(t.code, '^[A-Z]{2}$')),
     check('countries_slug_check', matches(t.slug, PATTERNS.slug)),
+    check('countries_mode_check', isIn(t.mode, COUNTRY_MODES)),
+    check('countries_is_active_check', sql`${t.isActive} = (${t.mode} = 'open')`),
   ],
 );
 

@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type postgres from 'postgres';
 import type { Queryable } from '../../db/drizzle';
-import { cityWaitlist, locations, type WAITLIST_ROLES } from '../../db/schema';
+import { cityWaitlist, countries, locations, type WAITLIST_ROLES } from '../../db/schema';
 import { linkToken, sha256 } from '../../lib/tokens';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { testOwned } from '../users/test-accounts';
@@ -110,7 +110,7 @@ export async function waitingCountries(db: Queryable): Promise<WaitingCountry[]>
           AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
     FROM countries c
     JOIN locations l ON l.country_code = c.code AND l.kind = 'city' AND l.is_active AND l.launch_with_id IS NULL AND l.launch_status = 'waitlist'
-    WHERE NOT c.is_active AND c.slug IS NOT NULL
+    WHERE c.mode IN ('waitlist', 'prestart', 'guide') AND c.slug IS NOT NULL
     ORDER BY c.code, l.business_goal DESC NULLS LAST, l.population DESC NULLS LAST`);
   return rows
     .map((r) => ({ code: r.code, slug: r.slug, nameFa: r.name_fa, city: { slug: r.city_slug, nameFa: r.city_fa }, goal: r.goal, businesses: r.businesses }))
@@ -280,6 +280,8 @@ export async function openCountry(tx: Queryable, ctx: StaffContext, countryCode:
     .set({ launchStatus: 'open', launchRadiusKm: null, openedAt: sql`coalesce(${locations.openedAt}, now())` })
     .where(and(eq(locations.countryCode, countryCode), eq(locations.kind, 'city')))
     .returning({ id: locations.id });
+  // Opening every city opens the country itself too (its mode, src/modules/launch/countries.ts)
+  await tx.update(countries).set({ mode: 'open', isActive: true, opensOn: null }).where(eq(countries.code, countryCode));
   // audit_log.target_id is a uuid: the country goes into the data
   await staffAudit(tx, ctx, 'country.open', null, { country: countryCode, cities: rows.length });
   return rows.length;

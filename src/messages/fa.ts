@@ -410,6 +410,8 @@ export const messages = {
     tooManyDrafts: 'امروز آگهی زیادی شروع کرده‌اید. فردا دوباره امتحان کنید.',
     categoryNotPostable: 'در این دسته نمی‌توان آگهی ثبت کرد.',
     // New-account limits (first 7 days, docs/setup.md "Bot protection")
+    // An emergency pause on the category in this place (src/modules/launch/pauses.ts)
+    paused: 'انتشار آگهی تازه در این دسته و این شهر موقتاً بسته است. آگهی شما پیش‌نویس می‌ماند و بعداً می‌توانید منتشرش کنید.',
     newAccountListings: (max: number) =>
       `حساب‌های تازه (کمتر از ۷ روز) در هر ۲۴ ساعت حداکثر ${max.toLocaleString('fa-IR')} آگهی منتشر می‌کنند. آگهی را ذخیره کنید و بعداً منتشر کنید.`,
     newAccountPhotos: (minutes: number) =>
@@ -567,6 +569,7 @@ export const messages = {
         'این شهر هنوز برای آگهی باز نیست؛ پیدو شهر به شهر باز می‌شود. آگهی را ذخیره کنید تا وقتی شهر باز شد منتشرش کنید. رویداد و صفحهٔ کسب‌وکار همین حالا همه‌جا آزاد است.',
       outside_area:
         'این محل بیرون از منطقهٔ بازِ نزدیک‌ترین شهر است. آگهی را ذخیره کنید تا وقتی منطقهٔ شما باز شد منتشرش کنید.',
+      country_not_open: 'پیدو در این کشور هنوز باز نشده است. آگهی را ذخیره کنید؛ از روز افتتاح می‌توانید منتشرش کنید.',
       not_found: 'جایی با این کد پستی یا نام در این کشور پیدا نشد.',
       ambiguous: 'چند جا با این نام هست. کد پستی را بنویسید یا از فهرست انتخاب کنید.',
       locked: 'کشور این آگهی قابل تغییر نیست.',
@@ -3377,12 +3380,47 @@ export const admin = {
     export: 'ایمیل‌ها (CSV)',
     country: {
       title: (country: string) => `باز کردن کل ${country}`,
-      body: (country: string) => `همهٔ شهرهای ${country} باز می‌شوند و محدودهٔ کیلومتری برداشته می‌شود. وقتی شهرهای اصلی باز شدند.`,
+      body: (country: string) => `${country} و همهٔ شهرهایش باز می‌شوند و محدودهٔ کیلومتری برداشته می‌شود. وقتی شهرهای اصلی باز شدند.`,
       button: (country: string) => `باز کردن کل ${country}…`,
       confirm: (country: string) => `کل ${country} باز شود؟ این کار همهٔ شهرها را باز می‌کند.`,
     },
     done: 'ذخیره شد.',
     error: 'ذخیره نشد: هدف باید عددی بین ۱ و ۱۰۰۰ باشد.',
+    // Country modes and emergency pauses (wave 2 part 2, src/modules/launch/countries.ts, pauses.ts)
+    modes: { open: 'باز', prestart: 'پیش از افتتاح', waitlist: 'فهرست انتظار', guide: 'راهنما', hidden: 'پنهان' } as Record<string, string>,
+    modeHelp: {
+      open: 'همه‌چیز باز است؛ هر شهر با وضعیت خودش.',
+      prestart: 'برای بازدیدکننده مثل فهرست انتظار. کسب‌وکارها صفحه می‌سازند و همه پیش‌نویس ذخیره می‌کنند؛ انتشار از روز افتتاح.',
+      waitlist: 'صفحهٔ انتظار شهرهای کلیدی و «خبرم کن». کسی آگهی نمی‌گذارد.',
+      guide: 'فقط صفحه‌های راهنما (ترکیه). تا راهنما نوشته شود، مثل فهرست انتظار نشان داده می‌شود.',
+      hidden: 'هیچ صفحه‌ای ندارد و در فهرست کشورها نیست.',
+    } as Record<string, string>,
+    countries: 'کشورها',
+    countryLine: (open: number, cities: number, waiting: number, businesses: number) =>
+      `${open.toLocaleString('fa-IR')} از ${cities.toLocaleString('fa-IR')} شهر باز، ${waiting.toLocaleString('fa-IR')} نفر منتظر، ${businesses.toLocaleString('fa-IR')} کسب‌وکار تأییدشده`,
+    opensOn: (date: string) => `افتتاح: ${date}`,
+    mode: {
+      title: (country: string) => `حالت ${country}`,
+      opensOn: 'روز افتتاح (برای «پیش از افتتاح»)',
+      save: 'ذخیرهٔ حالت',
+      sure: 'مطمئنم: این تغییر فوراً روی سایت دیده می‌شود.',
+      sureRequired: 'برای «باز» و «پنهان» تیک «مطمئنم» را بزنید.',
+    },
+    pauses: {
+      title: (country: string) => `${country}: توقف اضطراری دسته‌ها`,
+      intro: 'آگهی تازه در این دسته و جا تا زمان تعیین‌شده منتشر نمی‌شود؛ آگهی‌های منتشرشده می‌مانند. برای مثال «اتاق در هامبورگ» یک هفته بعد از موجی از کلاهبرداری.',
+      none: 'الان توقفی نیست.',
+      on: 'باز',
+      until: (date: string) => `بسته تا ${date}`,
+      wholeCountry: 'کل کشور',
+      category: 'دسته',
+      city: 'کجا',
+      days: 'چند روز (۱ تا ۳۰)',
+      reason: 'دلیل (برای گزارش کارها)',
+      pause: 'توقف',
+      lift: 'برداشتن توقف',
+      invalid: 'ذخیره نشد: دسته، روز (۱ تا ۳۰) و دلیل را بنویسید.',
+    },
   },
   nav: {
     cities: 'کشورها و شهرها',

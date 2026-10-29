@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
 import { countries, listingImages, listings, users, type PRICE_TYPES } from '../../db/schema';
@@ -14,6 +14,8 @@ import { isNewAccount } from '../users/new-account';
 import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { keepRetired, validateAttributes, type AttributeErrorCode } from './attributes';
 import { listingArea } from '../launch/cities';
+import { PREPARING } from '../launch/countries';
+import { pauseFor } from '../launch/pauses';
 import { cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
@@ -104,6 +106,8 @@ export type FieldError =
   | 'short_link'
   /** City launch (src/modules/launch/cities.ts): only events are published outside open cities */
   | 'city_not_open'
+  /** A prestart country: drafts only until its opening day (src/modules/launch/countries.ts) */
+  | 'country_not_open'
   | 'outside_area'
   /** A listing's country never changes once it has one (decided Oct 17, 2026) */
   | 'locked'
@@ -185,16 +189,18 @@ async function prepare(
   // city centre. The listing joins the city its postal code leads to.
   // The country is fixed (decided Oct 17, 2026): the one the visitor chose, set by the posting
   // page (postingCountry), and once the listing has one, never another.
-  let country: { code: string; defaultCurrency: string } | undefined;
+  let country: { code: string; defaultCurrency: string; mode: string } | undefined;
   const wanted = input.countryCode.toUpperCase();
   if (current.countryCode && wanted && wanted !== current.countryCode) {
     errors.countryCode = 'locked';
   } else if (wanted || current.countryCode) {
+    // Drafts in an open or prestart country; publishing only once it is open (src/modules/launch/countries.ts)
     [country] = await tx
-      .select({ code: countries.code, defaultCurrency: countries.defaultCurrency })
+      .select({ code: countries.code, defaultCurrency: countries.defaultCurrency, mode: countries.mode })
       .from(countries)
-      .where(and(eq(countries.code, wanted || current.countryCode!), eq(countries.isActive, true)));
+      .where(and(eq(countries.code, wanted || current.countryCode!), inArray(countries.mode, [...PREPARING])));
     if (!country) errors.countryCode = 'invalid';
+    else if (publish && country.mode !== 'open') errors.countryCode = 'country_not_open';
   } else if (publish) {
     errors.countryCode = 'required';
   }
@@ -347,7 +353,9 @@ export type Refusal =
   /** "Post as" a business the user isn't a member of */
   | 'not_member'
   /** The business's legal details (Impressum) aren't complete yet (src/modules/organizations/limits.ts) */
-  | 'legal_missing';
+  | 'legal_missing'
+  /** An emergency pause on this category and place (src/modules/launch/pauses.ts) */
+  | 'paused';
 export type Refused = { ok: false; reason: Refusal };
 
 /**
@@ -619,6 +627,10 @@ export async function saveListing(
       return { ok: false, reason: 'invalid', errors };
     }
     const { values, displayName, place } = result.prepared;
+    // Emergency pause (src/modules/launch/pauses.ts): nothing new in this category and place for now
+    if (goingOut && values.countryCode && (await pauseFor(tx, { categoryId: category.id, countryCode: values.countryCode, locationId: values.locationId ?? null }, now))) {
+      return { ok: false, reason: 'paused' };
+    }
 
     if (displayName) {
       await tx

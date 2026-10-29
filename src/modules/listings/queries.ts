@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { countries, currencies, listingImages, listings, locations, moderationDecisions, organizations, postalPlaces, users } from '../../db/schema';
+import { LISTED } from '../launch/countries';
 import { eventPath } from '../events/slug';
 import { lastTakeDown } from '../moderation/history';
 import type { Place } from './places';
@@ -44,7 +45,7 @@ export function activeCountries(db: Queryable): Promise<Country[]> {
   return value;
 }
 
-/** A country that isn't open yet, by its slug: only its waitlist cities have pages (round 12) */
+/** A country that isn't open yet, by its slug: only its waitlist cities have pages (round 12); a hidden one has none */
 export async function closedCountry(db: Queryable, slug: string): Promise<Country | null> {
   const [row] = await db
     .select({
@@ -56,7 +57,7 @@ export async function closedCountry(db: Queryable, slug: string): Promise<Countr
     })
     .from(countries)
     .innerJoin(currencies, eq(currencies.code, countries.defaultCurrency))
-    .where(and(eq(countries.isActive, false), eq(countries.slug, slug)));
+    .where(and(inArray(countries.mode, [...LISTED]), eq(countries.slug, slug)));
   return row ? { ...row, slug: row.slug! } : null;
 }
 

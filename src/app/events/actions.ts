@@ -48,6 +48,8 @@ function refusal(reason: string): string {
       return messages.business.limits.legalMissing;
     case 'too_many_events':
       return messages.events.form.tooManyEvents;
+    case 'paused':
+      return messages.post.paused;
     case 'new_account_limit':
       return messages.events.form.newAccountEvents(NEW_ACCOUNT_EVENTS_PER_DAY);
     default:
