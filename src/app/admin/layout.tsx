@@ -30,7 +30,7 @@ const SECTIONS: Array<{ path: string; key: keyof typeof admin.nav; action: Staff
   { path: '/users', key: 'users', action: 'users.view', icon: 'people' },
   { path: '/view-as', key: 'viewAs', action: 'overview.view', icon: 'globe' },
   { path: '/businesses', key: 'businesses', action: 'businesses.view', icon: 'store' },
-  { path: '/business-queue', key: 'businessQueue', action: 'business.suspicion', icon: 'store' },
+  { path: '/business-queue', key: 'businessQueue', action: 'business.suspicion', icon: 'alert' },
   { path: '/cities', key: 'cities', action: 'cities.manage', icon: 'globe' },
   { path: '/payments', key: 'payments', action: 'payments.view', icon: 'card' },
   { path: '/audit', key: 'audit', action: 'overview.view', icon: 'list' },

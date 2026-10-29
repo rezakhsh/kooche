@@ -1316,3 +1316,20 @@ Approved by the owner ("go 8", moved before part 3 because closed countries had 
 ## Oct 29, 2026: wave 2 part 3 dropped: round 12 wins
 
 Asked before building ("go 3"): part 3 was planned from round 11 ("everyone posts in every city of an open country"), but round 12 (Oct 26, the owner's launch strategy) is newer and says Berlin first, each other city at its number of verified businesses. The owner chose round 12. That is what wave 0 built and the mockups `city-chooser` and `city-waitlist` show, so no code changes; `docs/wave2-plan.md` updated. Decided the same day: part 5 follows the zone rule (Europe, North America, Australia, Turkey); a business keeps 3 free listings without Pro, verified or not. Next: part 4, after the owner's "go 4".
+
+## Oct 29, 2026: wave 2 part 4: private or business
+
+Approved by the owner ("go 4"; answers the same day: a business keeps 3 free listings, verified or not). `docs/setup.md`, "Private or business" and "Private and business limits"; migrations 0032 and 0033.
+
+- **Limits by kind** for private offers (rounds 9 and 11): services and lessons 2 live / 4 new in 30 days, except those open to everyone (tutoring, childcare, cleaning, pet care, help with moving); property 2 live; cars 2 in 12 months; goods 30 live / 40 new in 30 days. New ones count whatever happened since, so deleting and posting again doesn't reset them. Wanted posts are free.
+- **Licensed services** only for verified businesses: tax, legal and immigration, health, estate agents, finance and insurance, driving schools (five new categories) and sworn translation.
+- **Seller filter and label:** «آگهی‌دهنده: همه / شخصی / کسب‌وکار» in the filters and saved searches, «آگهی‌دهندهٔ شخصی» on private listings. The search index rebuilt itself after the deploy.
+- **«آگهی شخصی یا کسب‌وکار؟»** (mockup `private-vs-business`) at `/business/compare`, without what doesn't exist yet (menu, WhatsApp, video, reviews).
+- **Moving one's own listings to a business** from its manage page (live ones only into the plan's room and with the Impressum complete).
+- **«احتمالاً کسب‌وکار»**: a daily check, never for many listings alone; admin asks (14 days, an email), dismisses, or after the deadline restricts private offers in those categories; opening a business closes the case.
+- **Verification levels:** one document from the manage page (private storage, staff view audited, deleted 7 days after the decision), VIES for EU VAT numbers, the register link, level 2 with the sanctions check for Turkey, legal and finance and estate agents. Terms § 14.1 and the privacy policy updated (Oct 29).
+- **Checked on staging** (`4461cb3`) in headless Chromium with a temporary admin, business and test-account case (all deleted), next to the mockup, phone and computer, light and dark: the comparison page, the filter and chip (11 private listings in Berlin), the labels on a private and a business listing, the manage page's verification card and moving a draft, the queue with its badge (ask, then «کسب‌وکار نیست»), admin businesses with «بدون مدرک», VIES, the register link, the level and the sanctions tick; no script errors. **Fixed from the check:** the sample card's badge and line wrapped; the queue had the same icon as businesses. Screenshots in `/root/peydoo-media/wave2/private-business/`.
+- **Not done:** `VIES_URL` is not set on staging (making a Coolify API token was refused in this session); until the owner adds it, admin shows «VIES: بررسی نشد» and checks by hand. The real document upload to R2 is covered by tests with in-memory storage, not tried in the browser.
+- **Disk:** 12 leftover volumes of the throwaway test databases (6.6 GB) were removed; test containers are now removed with their volumes.
+- **Tests:** 975 passing (new: limits by kind and the 30-day window, open services, licensed services and verification, the seller filter, moving listings, the queue's rules and decisions, the document, VIES and level 2); typecheck and `check:rtl` clean.
+- **Next:** part 5, posting across borders (zones), after the owner's approval.

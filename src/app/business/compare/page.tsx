@@ -50,7 +50,7 @@ export default function ComparePage() {
                   <b className="block truncate">{t.sample.businessName}</b>
                   <span className="flex items-center gap-0.5 text-brand-800">
                     <Icon name="verified" className="size-3" />
-                    {messages.business.verified}
+                    {messages.countryPage.starter.verified}
                   </span>
                 </span>
               </span>
