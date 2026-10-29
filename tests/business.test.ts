@@ -296,67 +296,54 @@ describe('posting as a business', () => {
 });
 
 describe('private and business limits', () => {
-  it('private people have 2 live and 4 new service or lesson offers; requests are free; a business has none of that limit', async () => {
+  it('private goods, services and lessons: 100 new in 30 days, deleted ones counting; requests are free; a business has none of that limit (like Kleinanzeigen)', async () => {
     const catalog = await cachedCatalog(db);
     const me = await user();
-    const [translation, beauty, paperwork] = await Promise.all([categoryBySlug('translation'), categoryBySlug('beauty-services'), categoryBySlug('paperwork-help')]);
-    await makeListing(owner, me.id, { categoryId: translation.id });
-    await makeListing(owner, me.id, { categoryId: beauty.id });
-    const third = await makeListing(owner, me.id, { categoryId: paperwork.id, status: 'expired' });
-    expect(await postingRefusal(db, catalog, third)).toBe('private_service_limit');
-    expect(await changeListingStatus(appDb, { userId: me.id, listingId: third.id, action: 'renew' })).toEqual({ ok: false, reason: 'private_service_limit' });
-    expect(await postingRefusal(db, catalog, { ...third, kind: 'wanted' })).toBeNull();
-    // Other categories aren't counted
-    const phone = await makeListing(owner, me.id, { status: 'expired' });
-    expect(await postingRefusal(db, catalog, phone)).toBeNull();
-    const { org } = await business(me.id);
-    expect(await postingRefusal(db, catalog, { ...third, organizationId: org.id })).toBeNull();
-  });
-
-  it('services open to everyone have no limit: tutoring, childcare, cleaning, pet care, help with moving', async () => {
-    const catalog = await cachedCatalog(db);
-    const me = await user();
-    const slugs = ['tutoring', 'childcare', 'cleaning', 'pet-care', 'moving-transport'];
-    for (const slug of slugs) await makeListing(owner, me.id, { categoryId: (await categoryBySlug(slug)).id });
-    const sixth = await makeListing(owner, me.id, { categoryId: (await categoryBySlug('tutoring')).id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, sixth)).toBeNull();
-    // …and don't count towards the others
-    const photo = await makeListing(owner, me.id, { categoryId: (await categoryBySlug('photography')).id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, photo)).toBeNull();
-  });
-
-  it('new ones count for 30 days whatever happened to them, so deleting and posting again doesn’t reset the limit', async () => {
-    const catalog = await cachedCatalog(db);
-    const me = await user();
-    const beauty = await categoryBySlug('beauty-services');
+    const [translation, phones] = await Promise.all([categoryBySlug('translation'), categoryBySlug('mobile-phones')]);
     const day = 86_400_000;
-    for (let i = 0; i < 4; i++) await makeListing(owner, me.id, { categoryId: beauty.id, status: 'deleted', deletedAt: new Date(), publishedAt: new Date(Date.now() - (i + 1) * day) });
-    const fifth = await makeListing(owner, me.id, { categoryId: beauty.id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, fifth)).toBe('private_service_limit');
-    // One of them 31 days ago: room again
-    await db.update(schema.listings).set({ publishedAt: new Date(Date.now() - 31 * day) }).where(and(eq(schema.listings.userId, me.id), eq(schema.listings.status, 'deleted'))).returning();
-    expect(await postingRefusal(db, catalog, fifth)).toBeNull();
+    // 100 within 30 days, some deleted, services and goods together
+    for (let i = 0; i < 100; i++) {
+      await makeListing(owner, me.id, { categoryId: i % 2 ? translation.id : phones.id, status: i % 3 ? 'active' : 'deleted', deletedAt: i % 3 ? null : new Date(), publishedAt: new Date(Date.now() - (i % 29) * day) });
+    }
+    const next = await makeListing(owner, me.id, { categoryId: translation.id, status: 'draft', publishedAt: null });
+    expect(await postingRefusal(db, catalog, next)).toBe('private_goods_limit');
+    expect(await postingRefusal(db, catalog, { ...next, kind: 'wanted' })).toBeNull();
+    // A listing that was out before (renewed) isn't new
+    const old = await makeListing(owner, me.id, { categoryId: phones.id, status: 'expired', publishedAt: new Date(Date.now() - 40 * day) });
+    expect(await changeListingStatus(appDb, { userId: me.id, listingId: old.id, action: 'renew' })).toMatchObject({ ok: true });
+    const { org } = await business(me.id);
+    expect(await postingRefusal(db, catalog, { ...next, organizationId: org.id })).toBeNull();
+    // Older than 30 days: room again
+    await db.update(schema.listings).set({ publishedAt: new Date(Date.now() - 31 * day) }).where(and(eq(schema.listings.userId, me.id), eq(schema.listings.status, 'deleted')));
+    expect(await postingRefusal(db, catalog, next)).toBeNull();
   });
 
-  it('property 2 live, cars 2 in 12 months, goods 30 live and 40 new in 30 days', async () => {
+  it('cars 2 new in 30 days; motorbikes, vans, boats and caravans 5; flats and houses 2 live and 2 new; land, garages and commercial property 1', async () => {
     const catalog = await cachedCatalog(db);
+    const [cars, campers, flat, room, garage] = await Promise.all([categoryBySlug('cars'), categoryBySlug('campers'), categoryBySlug('apartments-rent'), categoryBySlug('shared-rooms'), categoryBySlug('parking-garages')]);
+    const draft = (userId: string, categoryId: string) => makeListing(owner, userId, { categoryId, status: 'draft', publishedAt: null });
     const me = await user();
-    const [flat, room, cars, phones] = await Promise.all([categoryBySlug('apartments-rent'), categoryBySlug('shared-rooms'), categoryBySlug('cars'), categoryBySlug('mobile-phones')]);
-    await makeListing(owner, me.id, { categoryId: flat.id });
-    await makeListing(owner, me.id, { categoryId: room.id });
-    const thirdHome = await makeListing(owner, me.id, { categoryId: room.id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, thirdHome)).toBe('private_property_limit');
-    // Cars: two published this year, even if sold since
-    await makeListing(owner, me.id, { categoryId: cars.id, status: 'sold', publishedAt: new Date(Date.now() - 200 * 86_400_000) });
+    // Cars: two this month, even if sold since; one 40 days ago doesn't count
     await makeListing(owner, me.id, { categoryId: cars.id, status: 'sold' });
-    const thirdCar = await makeListing(owner, me.id, { categoryId: cars.id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, thirdCar)).toBe('private_car_limit');
-    // Goods: 30 live
+    await makeListing(owner, me.id, { categoryId: cars.id });
+    await makeListing(owner, me.id, { categoryId: cars.id, status: 'sold', publishedAt: new Date(Date.now() - 40 * 86_400_000) });
+    expect(await postingRefusal(db, catalog, await draft(me.id, cars.id))).toBe('private_car_limit');
+    // Caravans (with motorbikes, vans and boats): 5
+    for (let i = 0; i < 4; i++) await makeListing(owner, me.id, { categoryId: campers.id });
+    expect(await postingRefusal(db, catalog, await draft(me.id, campers.id))).toBeNull();
+    await makeListing(owner, me.id, { categoryId: campers.id });
+    expect(await postingRefusal(db, catalog, await draft(me.id, campers.id))).toBe('private_vehicle_limit');
+    // Homes: 2 live
+    await makeListing(owner, me.id, { categoryId: flat.id, publishedAt: new Date(Date.now() - 60 * 86_400_000) });
+    await makeListing(owner, me.id, { categoryId: room.id, publishedAt: new Date(Date.now() - 60 * 86_400_000) });
+    expect(await postingRefusal(db, catalog, await draft(me.id, room.id))).toBe('private_home_limit');
+    // Land, garages, commercial: 1
+    await makeListing(owner, me.id, { categoryId: garage.id });
+    expect(await postingRefusal(db, catalog, await draft(me.id, garage.id))).toBe('private_property_limit');
+    // Services count with goods, not on their own any more
     const other = await user();
-    for (let i = 0; i < 30; i++) await makeListing(owner, other.id, { categoryId: phones.id, publishedAt: new Date(Date.now() - 40 * 86_400_000) });
-    const more = await makeListing(owner, other.id, { categoryId: phones.id, status: 'draft', publishedAt: null });
-    expect(await postingRefusal(db, catalog, more)).toBe('private_goods_limit');
-    expect(await postingRefusal(db, catalog, { ...more, kind: 'wanted' })).toBeNull();
+    for (let i = 0; i < 6; i++) await makeListing(owner, other.id, { categoryId: (await categoryBySlug('beauty-services')).id });
+    expect(await postingRefusal(db, catalog, await draft(other.id, (await categoryBySlug('photography')).id))).toBeNull();
   });
 
   it('job offers and licensed services only as a business; licensed ones only once it is verified; job seekers privately', async () => {

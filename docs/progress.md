@@ -1321,7 +1321,7 @@ Asked before building ("go 3"): part 3 was planned from round 11 ("everyone post
 
 Approved by the owner ("go 4"; answers the same day: a business keeps 3 free listings, verified or not). `docs/setup.md`, "Private or business" and "Private and business limits"; migrations 0032 and 0033.
 
-- **Limits by kind** for private offers (rounds 9 and 11): services and lessons 2 live / 4 new in 30 days, except those open to everyone (tutoring, childcare, cleaning, pet care, help with moving); property 2 live; cars 2 in 12 months; goods 30 live / 40 new in 30 days. New ones count whatever happened since, so deleting and posting again doesn't reset them. Wanted posts are free.
+- **Limits by kind** for private offers. First built from rounds 9 and 11 (services 2 live, goods 30 live, cars 2 a year); the owner found them too strict, and after a check of Kleinanzeigen's own pages (private: 100 new in 30 days for goods, services and jobs; cars 2; other vehicles 5; flats and houses 2 live and 2 new; land, garages, commercial 1. Business without PRO since Sep 1: goods 2, services 1, cars 2, jobs and property 0) chose the same private limits the same day. A business keeps 3 in total.
 - **Licensed services** only for verified businesses: tax, legal and immigration, health, estate agents, finance and insurance, driving schools (five new categories) and sworn translation.
 - **Seller filter and label:** «آگهی‌دهنده: همه / شخصی / کسب‌وکار» in the filters and saved searches, «آگهی‌دهندهٔ شخصی» on private listings. The search index rebuilt itself after the deploy.
 - **«آگهی شخصی یا کسب‌وکار؟»** (mockup `private-vs-business`) at `/business/compare`, without what doesn't exist yet (menu, WhatsApp, video, reviews).

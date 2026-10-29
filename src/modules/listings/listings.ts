@@ -346,11 +346,12 @@ export type Refusal =
   | 'category_not_postable'
   | 'business_only'
   | 'new_account_limit'
-  /** A private person's limits (src/modules/organizations/limits.ts): services, property, cars, goods */
-  | 'private_service_limit'
-  | 'private_property_limit'
-  | 'private_car_limit'
+  /** A private person's limits (src/modules/organizations/limits.ts): goods, cars, vehicles, homes, property */
   | 'private_goods_limit'
+  | 'private_car_limit'
+  | 'private_vehicle_limit'
+  | 'private_home_limit'
+  | 'private_property_limit'
   /** A licensed service by a business that isn't verified yet */
   | 'licence_required'
   /** Private offers restricted after «احتمالاً کسب‌وکار» */
