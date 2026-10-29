@@ -111,6 +111,12 @@ export default async function NewListingPage({
               </Link>
             </p>
           )}
+          {!params.listing && !member && (
+            <Link href="/business/compare" className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-bold text-brand-800 hover:underline">
+              <Icon name="store" className="size-4" />
+              {messages.business.compare.link}
+            </Link>
+          )}
         </div>
         {!params.listing && !country && (
           <Alert tone="info">

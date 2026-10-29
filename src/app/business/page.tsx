@@ -38,8 +38,11 @@ export default async function MyBusinessesPage() {
             {t.create}
           </LinkButton>
         )}
-        <p>
-          <Link href="/pro" className="text-sm text-brand-800 hover:underline">
+        <p className="flex flex-wrap gap-x-4">
+          <Link href="/business/compare" className="inline-flex min-h-11 items-center text-sm text-brand-800 hover:underline">
+            {t.compare.link}
+          </Link>
+          <Link href="/pro" className="inline-flex min-h-11 items-center text-sm text-brand-800 hover:underline">
             {messages.pro.title}
           </Link>
         </p>
