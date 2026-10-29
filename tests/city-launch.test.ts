@@ -78,7 +78,7 @@ describe('city launch: seed', () => {
   it('gives each closed country of the plan its first city on a waitlist (city chooser)', async () => {
     const waiting = await waitingCountries(appDb);
     const by = new Map(waiting.map((w) => [w.code, w]));
-    expect([...by.keys()].sort()).toEqual(['AT', 'AU', 'CA', 'GB', 'NL', 'US']);
+    expect([...by.keys()].sort()).toEqual(['AT', 'AU', 'CA', 'FR', 'GB', 'IT', 'NL', 'SE', 'US']);
     expect(by.get('AT')).toMatchObject({ slug: 'austria', city: { slug: 'wien', nameFa: 'وین' }, goal: 15, businesses: 0 });
     expect(by.get('CA')).toMatchObject({ city: { slug: 'toronto' }, goal: 30 });
     expect(by.get('NL')).toMatchObject({ city: { slug: 'amsterdam' }, goal: 15 });

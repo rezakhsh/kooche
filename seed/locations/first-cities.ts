@@ -45,3 +45,30 @@ export const netherlands: LocationsSeed = {
     { slug: 'amsterdam', nameFa: 'آمستردام', nameLocal: 'Amsterdam', geonamesId: 2759794, region: 'noord-holland', lat: 52.37403, lng: 4.88969, population: 741636, timezone: 'Europe/Amsterdam', launch: { status: 'waitlist', goal: 15 } },
   ],
 };
+
+// Italy and Sweden start in April 2027, Paris in May (round 7 calendar); Milan first in Italy
+// (round 5: Milan, Turin, Rome), Stockholm in Sweden (round 4). Added Oct 29, 2026 so their
+// countries have a «به‌زودی» page (wave 2 part 8).
+export const italy: LocationsSeed = {
+  countryCode: 'IT',
+  regions: [{ slug: 'lombardia', nameFa: 'لومباردی', nameLocal: 'Lombardia', geonamesId: 3174618, lat: 45.66667, lng: 9.5, population: 10060574, timezone: 'Europe/Rome' }],
+  cities: [
+    { slug: 'milano', nameFa: 'میلان', nameLocal: 'Milano', geonamesId: 3173435, region: 'lombardia', lat: 45.46427, lng: 9.18951, population: 1236837, timezone: 'Europe/Rome', launch: { status: 'waitlist', goal: 15 } },
+  ],
+};
+
+export const sweden: LocationsSeed = {
+  countryCode: 'SE',
+  regions: [{ slug: 'stockholms-lan', nameFa: 'استان استکهلم', nameLocal: 'Stockholms län', geonamesId: 2673722, lat: 59.5, lng: 18.0, population: 2377081, timezone: 'Europe/Stockholm' }],
+  cities: [
+    { slug: 'stockholm', nameFa: 'استکهلم', nameLocal: 'Stockholm', geonamesId: 2673730, region: 'stockholms-lan', lat: 59.32938, lng: 18.06871, population: 1515017, timezone: 'Europe/Stockholm', launch: { status: 'waitlist', goal: 20 } },
+  ],
+};
+
+export const france: LocationsSeed = {
+  countryCode: 'FR',
+  regions: [{ slug: 'ile-de-france', nameFa: 'ایل‌دوفرانس', nameLocal: 'Île-de-France', geonamesId: 3012874, lat: 48.5, lng: 2.5, population: 11959807, timezone: 'Europe/Paris' }],
+  cities: [
+    { slug: 'paris', nameFa: 'پاریس', nameLocal: 'Paris', geonamesId: 2988507, region: 'ile-de-france', lat: 48.85341, lng: 2.3488, population: 2138551, timezone: 'Europe/Paris', launch: { status: 'waitlist', goal: 20 } },
+  ],
+};

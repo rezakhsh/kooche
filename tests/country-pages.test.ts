@@ -68,9 +68,9 @@ describe('which countries have a «به‌زودی» page', () => {
     await withMode('SE', 'prestart', { opensOn: '2027-04-01' });
     await withMode('NL', 'hidden');
     const soon = await soonCountries(db);
-    expect(soon[0]).toMatchObject({ code: 'SE', mode: 'prestart', opensOn: '2027-04-01', city: null });
+    expect(soon[0]).toMatchObject({ code: 'SE', mode: 'prestart', opensOn: '2027-04-01', city: { slug: 'stockholm' } });
     const codes = soon.map((c) => c.code);
-    expect(codes).toEqual(expect.arrayContaining(['AT', 'CA', 'US', 'TR']));
+    expect(codes).toEqual(expect.arrayContaining(['AT', 'CA', 'US', 'TR', 'IT', 'FR']));
     expect(codes).not.toContain('BE');
     expect(codes).not.toContain('NL');
     expect(codes).not.toContain('DE');
