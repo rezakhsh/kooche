@@ -3396,6 +3396,12 @@ export const admin = {
       hidden: 'هیچ صفحه‌ای ندارد و در فهرست کشورها نیست.',
     } as Record<string, string>,
     countries: 'کشورها',
+    overviewHint: 'پیشرفت هر شهر = کسب‌وکار تأییدشده نسبت به هدف',
+    others: (names: string) => `کشورهای دیگر: ${names}`,
+    allCountries: 'همهٔ کشورها',
+    allPauses: 'توقف‌های اضطراری',
+    cityStats: (businesses: number, goal: number | null, waiting: number) =>
+      `${businesses.toLocaleString('fa-IR')}${goal ? ` از ${goal.toLocaleString('fa-IR')}` : ''} کسب‌وکار، ${waiting.toLocaleString('fa-IR')} نفر منتظر`,
     countryLine: (open: number, cities: number, waiting: number, businesses: number) =>
       `${open.toLocaleString('fa-IR')} از ${cities.toLocaleString('fa-IR')} شهر باز، ${waiting.toLocaleString('fa-IR')} نفر منتظر، ${businesses.toLocaleString('fa-IR')} کسب‌وکار تأییدشده`,
     opensOn: (date: string) => `افتتاح: ${date}`,

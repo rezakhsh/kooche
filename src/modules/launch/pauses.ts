@@ -38,8 +38,8 @@ export async function pauseFor(db: Queryable, input: { categoryId: string; count
   return p ?? null;
 }
 
-/** A country's pauses still running, for admin */
-export async function activePauses(db: Queryable, countryCode: string, now = new Date()): Promise<Pause[]> {
+/** Pauses still running, of one country or (null) all of them, for admin */
+export async function activePauses(db: Queryable, countryCode: string | null, now = new Date()): Promise<Array<Pause & { countryCode: string }>> {
   return db
     .select({
       id: categoryPauses.id,
@@ -49,11 +49,12 @@ export async function activePauses(db: Queryable, countryCode: string, now = new
       locationId: categoryPauses.locationId,
       reason: categoryPauses.reason,
       until: categoryPauses.until,
+      countryCode: categoryPauses.countryCode,
     })
     .from(categoryPauses)
     .innerJoin(categories, eq(categories.id, categoryPauses.categoryId))
     .leftJoin(locations, eq(locations.id, categoryPauses.locationId))
-    .where(and(eq(categoryPauses.countryCode, countryCode), isNull(categoryPauses.liftedAt), gt(categoryPauses.until, now)))
+    .where(and(countryCode ? eq(categoryPauses.countryCode, countryCode) : undefined, isNull(categoryPauses.liftedAt), gt(categoryPauses.until, now)))
     .orderBy(categoryPauses.until);
 }
 

@@ -4,7 +4,8 @@ import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff } from '../../../modules/admin/server';
 import { adminCities } from '../../../modules/launch/waitlist';
-import { adminCountries } from '../../../modules/launch/countries';
+import { adminCountries, type AdminCountry, type CountryMode } from '../../../modules/launch/countries';
+import { Icon } from '../../../components/icons';
 import { activePauses, PAUSE_MAX_DAYS } from '../../../modules/launch/pauses';
 import { cachedCatalog } from '../../../modules/listings/catalog';
 import { Flag } from '../../../components/flag';
@@ -22,38 +23,116 @@ import { COUNTRY_MODES } from '../../../db/schema';
 
 const fa = (n: number) => n.toLocaleString('fa-IR');
 
+const MODE_PILL = { open: 'bg-green-50 text-green-800', prestart: 'bg-brand-50 text-brand-800', waitlist: 'bg-neutral-100 text-neutral-700', guide: 'bg-saffron-50 text-saffron-800', hidden: 'bg-neutral-100 text-neutral-500' } as const;
+
+function ModePill({ mode }: { mode: CountryMode }) {
+  return <span className={`rounded-full px-2.5 text-xs font-bold leading-6 ${MODE_PILL[mode]}`}>{admin.cities.modes[mode]}</span>;
+}
+
+/** The countries with a card of their own: not hidden, and with key cities or past the plain waitlist */
+const mainCountries = (all: AdminCountry[]) => all.filter((c) => c.mode !== 'hidden' && (c.cities > 0 || c.mode !== 'waitlist'));
+
+/**
+ * Every country first (mockup admin-countries): each planned country's mode and its key cities with
+ * their goal, the others in one line, and the running emergency pauses beside.
+ */
+async function Overview({ countries }: { countries: AdminCountry[] }) {
+  const t = admin.cities;
+  const db = appDb();
+  const zone = webEnv().APP_TIME_ZONE;
+  const main = mainCountries(countries);
+  const others = countries.filter((c) => !main.includes(c));
+  const [cities, pauses] = await Promise.all([Promise.all(main.map((c) => adminCities(db, c.code))), activePauses(db, null)]);
+  return (
+    <>
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <h1 className="text-2xl font-extrabold">{t.title}</h1>
+        <span className="text-sm text-neutral-600">{t.overviewHint}</span>
+      </header>
+      <div className="lg:grid lg:grid-cols-[1fr_19rem] lg:gap-4">
+        <ul className="min-w-0 space-y-2">
+          {main.map((c, i) => (
+            <li key={c.code}>
+              <Link href={adminHref(`/cities?country=${c.code}`)} prefetch={false} className="block rounded-2xl border border-neutral-200 bg-white p-3.5 hover:border-brand-300">
+                <span className="flex items-center gap-2.5">
+                  <Flag code={c.code} className="h-4 w-6" />
+                  <b className="text-[15px]">{c.nameFa}</b>
+                  <ModePill mode={c.mode} />
+                  {c.opensOn && <span className="text-xs font-bold text-brand-800">{t.opensOn(formatDate(new Date(`${c.opensOn}T12:00:00Z`), zone))}</span>}
+                  <Icon name="chevronEnd" className="ms-auto size-4 text-neutral-400" />
+                </span>
+                {cities[i]!
+                  .filter((k) => !k.withName && k.status !== 'later')
+                  .map((k) => (
+                    <span key={k.id} className="mt-3 block border-t border-neutral-200 pt-2.5">
+                      <span className="flex items-center justify-between gap-2 text-sm">
+                        <b>{k.nameFa}</b>
+                        <span className="text-xs text-neutral-600">
+                          {k.goal && k.status !== 'open' ? `${fa(Math.min(100, Math.round((k.businesses / k.goal) * 100)))}٪، ` : ''}
+                          {t.status[k.status]}، {t.cityStats(k.businesses, k.status === 'open' ? null : k.goal, k.waiting)}
+                        </span>
+                      </span>
+                      {k.goal && k.status !== 'open' && <Progress value={k.businesses} goal={k.goal} className="mt-1.5" />}
+                    </span>
+                  ))}
+              </Link>
+            </li>
+          ))}
+          {others.length > 0 && (
+            <li className="flex items-start gap-2.5 rounded-2xl border border-dashed border-neutral-300 p-3.5 text-sm leading-7 text-neutral-600">
+              <Icon name="globe" className="mt-1.5 size-4 shrink-0" />
+              <span>
+                {t.others('')}
+                {others.map((c, i) => (
+                  <span key={c.code}>
+                    {i > 0 && '، '}
+                    <Link href={adminHref(`/cities?country=${c.code}`)} prefetch={false} className="hover:underline">{c.nameFa}</Link>
+                    {c.mode !== 'waitlist' && ` (${t.modes[c.mode]})`}
+                  </span>
+                ))}
+              </span>
+            </li>
+          )}
+        </ul>
+        <aside className="mt-4 lg:mt-0">
+          <section className="rounded-2xl border border-neutral-200 bg-white p-4 lg:sticky lg:top-20">
+            <h2 className="font-extrabold">{t.allPauses}</h2>
+            {pauses.length === 0 ? (
+              <p className="mt-2 text-sm text-neutral-600">{t.pauses.none}</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-neutral-200">
+                {pauses.map((p) => (
+                  <li key={p.id} className="py-2.5 text-sm">
+                    <Link href={adminHref(`/cities?country=${p.countryCode}`)} prefetch={false} className="flex items-center justify-between gap-2 hover:underline">
+                      <b>{p.categoryName}</b>
+                      <span className="text-xs font-bold text-saffron-800">{t.pauses.until(formatDate(p.until, zone))}</span>
+                    </Link>
+                    <p className="text-xs text-neutral-600">
+                      {countries.find((c) => c.code === p.countryCode)?.nameFa}، {p.city ?? t.pauses.wholeCountry}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-xs leading-6 text-neutral-600">{t.pauses.intro}</p>
+          </section>
+        </aside>
+      </div>
+    </>
+  );
+}
+
 export default async function CitiesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requireStaff('cities.manage');
   const sp = await searchParams;
   const t = admin.cities;
   const db = appDb();
   const countries = await adminCountries(db);
-  const country = countries.find((c) => c.code === sp.country) ?? countries[0];
-  if (!country) return <AdminTitle title={t.title} intro={t.intro} />;
+  const country = countries.find((c) => c.code === sp.country);
+  // Without a chosen country: the overview of every country (mockup admin-countries)
+  if (!country) return <Overview countries={countries} />;
   const [cities, pauses, catalog] = await Promise.all([adminCities(db, country.code), activePauses(db, country.code), cachedCatalog(db)]);
   const zone = webEnv().APP_TIME_ZONE;
-  const modePill = { open: 'bg-green-50 text-green-800', prestart: 'bg-brand-50 text-brand-800', waitlist: 'bg-neutral-100 text-neutral-700', guide: 'bg-saffron-50 text-saffron-800', hidden: 'bg-neutral-100 text-neutral-500' } as const;
-  const shown = countries.filter((c) => c.mode !== 'hidden');
-  const hidden = countries.filter((c) => c.mode === 'hidden');
-  const countryLink = (c: (typeof countries)[number]) => (
-    <Link
-      key={c.code}
-      href={adminHref(`/cities?country=${c.code}`)}
-      prefetch={false}
-      aria-current={c.code === country.code ? 'page' : undefined}
-      className={`block rounded-2xl border bg-white p-3 hover:border-brand-300 ${c.code === country.code ? 'border-brand-300 ring-2 ring-brand-100' : 'border-neutral-200'}`}
-    >
-      <span className="flex items-center gap-2.5">
-        <Flag code={c.code} className="h-4 w-6" />
-        <b className="text-[15px]">{c.nameFa}</b>
-        <span className={`rounded-full px-2.5 text-xs font-bold leading-6 ${modePill[c.mode]}`}>{t.modes[c.mode]}</span>
-      </span>
-      <span className="mt-1.5 block text-xs text-neutral-600">
-        {t.countryLine(c.openCities, c.cities, c.waiting, c.businesses)}
-        {c.opensOn && <>، <b className="text-brand-800">{t.opensOn(formatDate(new Date(`${c.opensOn}T12:00:00Z`), zone))}</b></>}
-      </span>
-    </Link>
-  );
   // Categories for the pause form: each top category, then its own subcategories
   const pausable = catalog.rootIds.flatMap((id) => {
     const root = catalog.byId.get(id)!;
@@ -74,17 +153,22 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
       {sp.mode === 'sure' && <div className="mb-4"><Alert tone="error">{t.mode.sureRequired}</Alert></div>}
       {sp.pause === 'invalid' && <div className="mb-4"><Alert tone="error">{t.pauses.invalid}</Alert></div>}
 
-      <section aria-label={t.countries} className="mb-6">
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((c) => <li key={c.code}>{countryLink(c)}</li>)}
-        </ul>
-        {hidden.length > 0 && (
-          <details className="mt-2" open={hidden.some((c) => c.code === country.code)}>
-            <summary className="cursor-pointer text-sm font-bold text-neutral-600">{t.modes.hidden} ({hidden.length.toLocaleString('fa-IR')})</summary>
-            <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{hidden.map((c) => <li key={c.code}>{countryLink(c)}</li>)}</ul>
-          </details>
-        )}
-      </section>
+      <nav aria-label={t.countries} className="no-scrollbar mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-neutral-200">
+        <Link href={adminHref('/cities')} prefetch={false} className="shrink-0 rounded-lg px-3 text-sm leading-9 text-neutral-700 hover:bg-neutral-50">
+          {t.allCountries}
+        </Link>
+        {mainCountries(countries).map((c) => (
+          <Link
+            key={c.code}
+            href={adminHref(`/cities?country=${c.code}`)}
+            prefetch={false}
+            aria-current={c.code === country.code ? 'page' : undefined}
+            className={`shrink-0 rounded-lg px-3 text-sm leading-9 ${c.code === country.code ? 'bg-brand-50 font-bold text-brand-800' : 'text-neutral-700 hover:bg-neutral-50'}`}
+          >
+            {c.nameFa}
+          </Link>
+        ))}
+      </nav>
 
       <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:gap-4">
       <div className="min-w-0">
@@ -92,7 +176,9 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
         <h2 className="flex items-center gap-2 font-extrabold">
           <Flag code={country.code} className="h-4 w-6" />
           {t.mode.title(country.nameFa)}
+          <ModePill mode={country.mode} />
         </h2>
+        {country.opensOn && <p className="mt-1 text-sm font-bold text-brand-800">{t.opensOn(formatDate(new Date(`${country.opensOn}T12:00:00Z`), zone))}</p>}
         <form action={countryModeAction} className="mt-3 space-y-3">
           <input type="hidden" name="country" value={country.code} />
           <fieldset className="grid gap-2 sm:grid-cols-2">
