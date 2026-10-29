@@ -21,9 +21,13 @@ export async function ActingBanner() {
     <div data-acting className="bg-saffron-500 text-ink">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-sm font-bold sm:px-6">
         <Icon name="shield" className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">
-          {t.banner(session?.user.name ?? '')}
-          <span className="font-medium">، {acting.writable ? t.writable : t.readOnly} · {t.minutes(minutes)}</span>
+        {/* On phones the mode and the minutes left get their own line */}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate sm:inline">{t.banner(session?.user.name ?? '')}</span>
+          <span className="block text-xs font-medium sm:inline sm:text-sm">
+            <span className="hidden sm:inline">، </span>
+            {acting.writable ? t.writable : t.readOnly} · {t.minutes(minutes)}
+          </span>
         </span>
         <form action={endActingAction}>
           <button type="submit" className={`${button} bg-ink text-snow hover:opacity-90`}>{t.end}</button>
