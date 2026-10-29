@@ -9,7 +9,7 @@ import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
 import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { webEnv } from '../lib/env';
 import { chosenCountry } from '../app/country-choice';
-import { countryBySlug } from '../modules/launch/country-page';
+import { countryByCode, countryBySlug, isPlanned } from '../modules/launch/country-page';
 import { currentTheme } from '../app/theme';
 import { appDb } from '../db/drizzle';
 import { messages } from '../messages/fa';
@@ -30,6 +30,13 @@ import { ThemeSwitch } from './theme-switch';
 // stays one short row with a search button that leads there. Nothing in the row ever wraps: the
 // keyword box gives way first, and below 1280 px chat, my listings and account are icons (with
 // their names as tooltips and for screen readers).
+
+/** The visitor's own country when it is planned but not open (its «به‌زودی» page is their first page) */
+async function visitorsPlannedCountry(code: string) {
+  const db = appDb();
+  const c = await countryByCode(db, code).catch(() => null);
+  return c && c.mode !== 'open' && (await isPlanned(db, c)) ? c : null;
+}
 
 export async function SiteHeader() {
   const requestHeaders = await headers();
@@ -57,8 +64,15 @@ export async function SiteHeader() {
   const place = city ?? (country && !onCountryPages && home?.countryCode === country.code ? { slug: home.citySlug, nameFa: home.city } : null);
   // On a country's own pages before it opens (/austria, /austria/wien; wave 2 part 8, mockup
   // final/home-waitlist) the chip names that country, and there is nothing to search yet
+  // and on the first page for a visitor from a planned country that isn't open (its page shows there)
   const first = /^\/([a-z][a-z-]{1,40})(?:\/|$)/.exec(path)?.[1];
-  const closedHere = first && !open.some((c) => c.slug === first) ? await countryBySlug(appDb(), first).catch(() => null) : null;
+  const closedHere = first
+    ? !open.some((c) => c.slug === first)
+      ? await countryBySlug(appDb(), first).catch(() => null)
+      : null
+    : path === '/' && !chosen && here && !open.some((c) => c.code === here)
+      ? await visitorsPlannedCountry(here)
+      : null;
   const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
   // On the events pages the box searches the events (wave 1, mockup final/events: «جستجو در رویدادهای برلین…»)

@@ -3,6 +3,7 @@ import { Flag } from '../../../components/flag';
 import { Icon } from '../../../components/icons';
 import { appDb } from '../../../db/drizzle';
 import { messages } from '../../../messages/fa';
+import { eventRowOf } from '../../../modules/events/card';
 import { upcomingEvents } from '../../../modules/events/queries';
 import { eventPath } from '../../../modules/events/slug';
 import type { CountryInfo } from '../../../modules/launch/country-page';
@@ -64,6 +65,8 @@ export async function StarterPage({ country, detected = false, remember = false 
   const gate = cities.find((c) => c.status === 'waitlist' && c.goal) ?? null;
   const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
   const nothing = events.items.length === 0 && businesses.length === 0 && jobs.length === 0;
+  // Where (the venue, or «آنلاین») and the price («رایگان», «از ۲۰ $»), as in the events list
+  const row = (e: (typeof events.items)[number]) => eventRowOf(catalog, e, { saved: new Set(), season: null });
   const part = (d: Date, timeZone: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { timeZone, ...o }).format(d);
 
   return (
@@ -115,9 +118,7 @@ export async function StarterPage({ country, detected = false, remember = false 
                       </span>
                       <span className="min-w-0 flex-1">
                         <b className="block text-sm leading-6">{e.title}</b>
-                        <span className="text-xs text-neutral-600">
-                          {e.attendance === 'online' ? messages.events.card.online : [e.venueName, e.cityFa ?? e.placeName].filter(Boolean).join('، ')}
-                        </span>
+                        <span className="text-xs text-neutral-600">{[row(e).where, row(e).price].filter(Boolean).join('، ')}</span>
                       </span>
                       <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                     </Link>

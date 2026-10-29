@@ -85,7 +85,7 @@ export const messages = {
     // The founding places of the first open city (mockup final/home)
     foundingText: (places: number, city: string) => `${places.toLocaleString('fa-IR')} کسب‌وکار اول ${city} ۶ ماه پرو رایگان می‌گیرند.`,
     placesLeft: (n: number) => `${n.toLocaleString('fa-IR')} جا مانده`,
-    chooseCountry: 'کشورت را انتخاب کن',
+    chooseCountry: 'کشورتان را انتخاب کنید',
     yourCountry: 'کشور شما',
     soon: 'به‌زودی',
     soonCity: (city: string) => `اول ${city}`,
@@ -101,7 +101,7 @@ export const messages = {
   // starter-page.tsx; mockups final/home-waitlist, waitlist-announced, us-starter and countries)
   countryPage: {
     title: (country: string) => `پیدو به‌زودی در ${country}`,
-    titleOn: (country: string, date: string) => `پیدو در ${country} ${date} باز می‌شود`,
+    titleOn: (country: string, date: string) => `${country} ${date} باز می‌شود`,
     intro: 'پیدو بازار فارسی‌زبان خانه، کار، خدمات و رویدادها برای ایرانیان خارج از کشور است. هر شهر وقتی باز می‌شود که از روز اول آگهی و کسب‌وکار واقعی داشته باشد.',
     introOn: 'از همین حالا آگهی، رویداد و صفحهٔ کسب‌وکارتان را آماده کنید. پیش‌نویس‌ها می‌مانند و از روز افتتاح با یک دکمه منتشر می‌شوند.',
     formTitle: 'پیشگام شهرتان شوید',
