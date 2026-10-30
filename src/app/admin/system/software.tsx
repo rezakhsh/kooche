@@ -25,7 +25,8 @@ function Row({ item, dismissible, error }: { item: SoftwareItem; dismissible: bo
           <bdi dir="ltr" className="font-mono text-[13px] font-bold">{item.name}</bdi>
           <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[11px] font-bold text-neutral-700">{t.groups[item.group]}</span>
           <bdi dir="ltr" className="font-mono text-[13px] tabular-nums text-neutral-700">
-            {item.ours} → {item.target ?? item.newest}
+            {item.ours}
+            {(item.target ?? item.newest) && ` → ${item.target ?? item.newest}`}
           </bdi>
           {item.target && item.newest && <span className="text-xs text-neutral-600">({t.newest(item.newest)})</span>}
         </div>
@@ -39,7 +40,7 @@ function Row({ item, dismissible, error }: { item: SoftwareItem; dismissible: bo
                     {a.title}
                   </a>
                   {a.fixedIn && (
-                    <span className="ms-2 text-xs text-neutral-600">
+                    <span className="ms-2 whitespace-nowrap text-xs text-neutral-600">
                       {t.fixedIn}{' '}
                       <bdi dir="ltr" className="font-mono">{a.fixedIn}</bdi>
                     </span>
@@ -149,7 +150,8 @@ export function SoftwareCard({ report, dismissed, errorKey, now }: { report: Sof
                 <li key={i.name} className="py-2 text-sm">
                   <bdi dir="ltr" className="font-mono text-[13px] font-bold">{i.name}</bdi>{' '}
                   <bdi dir="ltr" className="font-mono text-[13px] text-neutral-600">
-                    {i.ours} → {i.target ?? i.newest}
+                    {i.ours}
+                    {(i.target ?? i.newest) && ` → ${i.target ?? i.newest}`}
                   </bdi>
                   <span className="block text-neutral-700">«{d.reason}»</span>
                   <span className="block text-xs text-neutral-600">
