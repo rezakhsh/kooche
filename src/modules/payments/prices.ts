@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { productPrices, products } from '../../db/schema';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -91,7 +91,13 @@ export async function changePrice(db: Db, gateway: PaymentGateway | null, ctx: S
     const plans = (await priceList(db)).filter((r) => r.kind === 'subscription' && r.interval === 'month');
     await gateway.setPortalPlans(plans.map((p) => ({ productId: stripeProductId(p.code), priceIds: [p.providerPriceId] })));
   }
-  if (slot.providerPriceId !== providerPriceId) await gateway.archivePrice(slot.providerPriceId);
+  // Every earlier price of this slot is retired at the provider, also one a change that failed
+  // half-way or a change at the same moment left active (code check, Oct 30, 2026)
+  const earlier = await db
+    .selectDistinct({ id: productPrices.providerPriceId })
+    .from(productPrices)
+    .where(and(eq(productPrices.productId, slot.productId), eq(productPrices.currency, PAYMENT_CURRENCY), slot.interval ? eq(productPrices.interval, slot.interval) : isNull(productPrices.interval), eq(productPrices.provider, 'stripe'), ne(productPrices.providerPriceId, providerPriceId)));
+  for (const p of earlier) if (p.id) await gateway.archivePrice(p.id);
   return { ok: true, fromMinor: slot.amountMinor, toMinor: input.amountMinor, changed };
 }
 

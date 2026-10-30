@@ -71,16 +71,18 @@ export async function applyDueBumps(db: Queryable, now: Date = new Date()): Prom
 
 /**
  * Waitlist rewards used on a listing (src/modules/launch/rewards.ts), applied like a paid bump.
- * One whose listing closed before it ran is freed again, so the person can use it on another.
+ * One whose listing isn't live when it runs (closed, paused, in review) is freed again, so the
+ * person can use it on another while it lasts; one past its end is never applied (code check,
+ * Oct 30, 2026: a paused listing used to keep it waiting, even past day 60).
  */
 export async function applyDueRewards(db: Queryable, now: Date = new Date()): Promise<BumpRun> {
   const at = now.toISOString();
   const [row] = await db.execute<{ applied: number; revoked: number }>(sql`
     WITH due AS (
-      SELECT r.id, r.listing_id, l.status
+      SELECT r.id, r.listing_id, CASE WHEN r.ends_at > ${at}::timestamptz THEN l.status ELSE 'ended' END AS status
       FROM waitlist_rewards r
       JOIN listings l ON l.id = r.listing_id
-      WHERE r.used_at IS NOT NULL AND r.applied_at IS NULL AND l.status NOT IN ('paused', 'pending_review')
+      WHERE r.used_at IS NOT NULL AND r.applied_at IS NULL
       ORDER BY r.used_at
       LIMIT ${BATCH}
       FOR UPDATE OF r, l SKIP LOCKED

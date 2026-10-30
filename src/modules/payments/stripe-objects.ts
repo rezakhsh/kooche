@@ -72,6 +72,8 @@ export const invoiceSchema = z.object({
       z.object({
         period: z.object({ start: z.int(), end: z.int() }),
         pricing: z.object({ price_details: z.object({ price: ref }).optional() }).nullable(),
+        /** A plan switch's price differences are proration lines (./apply.ts, periodLine) */
+        parent: z.object({ subscription_item_details: z.object({ proration: z.boolean() }).nullish() }).nullish(),
       }),
     ),
   }),

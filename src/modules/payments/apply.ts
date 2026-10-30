@@ -103,7 +103,7 @@ export async function applyWebhookEvent(db: Db, gateway: PaymentGateway, webhook
   }
 }
 
-type Fetched = { subscription?: Subscription; invoice?: Invoice };
+type Fetched = { subscription?: Subscription; invoice?: Invoice; refund?: Refund };
 
 async function prefetch(gateway: PaymentGateway, type: string, object: Record<string, unknown>): Promise<Fetched> {
   if (type.startsWith('customer.subscription.')) {
@@ -118,6 +118,11 @@ async function prefetch(gateway: PaymentGateway, type: string, object: Record<st
     // The payment intent of a paid invoice is only in its payments list
     const full = type === 'invoice.paid' && invoice.amount_paid > 0 ? invoiceSchema.parse(await gateway.getInvoice(invoice.id)) : invoice;
     return { subscription, invoice: full };
+  }
+  if (type.startsWith('refund.')) {
+    // Its status now, not the event's: an older "pending" must not overwrite a later "failed"
+    const id = refundSchema.shape.id.parse(object.id);
+    return { refund: refundSchema.parse((await gateway.getRefund(id)) ?? object) };
   }
   if (type === 'checkout.session.completed') {
     const session = checkoutSessionSchema.parse(object);
@@ -150,7 +155,7 @@ async function dispatch(tx: Queryable, type: string, object: Record<string, unkn
     case 'refund.created':
     case 'refund.updated':
     case 'refund.failed':
-      return refundChanged(tx, refundSchema.parse(object), ctx);
+      return refundChanged(tx, fetched.refund ?? refundSchema.parse(object), ctx);
     case 'charge.dispute.created':
       return disputed(tx, disputeSchema.parse(object), ctx);
     default:
@@ -225,7 +230,8 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
       .onConflictDoNothing();
   }
   const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
-  await grantForOrder(tx, order, product!, ctx.occurredAt);
+  // From when it is applied, if later: a delayed webhook never costs the buyer paid days (code check, Oct 30, 2026)
+  await grantForOrder(tx, order, product!, new Date(Math.max(ctx.occurredAt.getTime(), ctx.now.getTime())));
   // The buyer gets a receipt with the invoice's link (./notices.ts)
   await queuePaymentNotice(tx, order.id, { kind: 'order_paid', invoiceId: session.invoice });
 }
@@ -342,6 +348,18 @@ async function subscriberOf(tx: Queryable, sub: Subscription): Promise<string> {
   throw new NotOurs(`subscription ${sub.id}: no business found`);
 }
 
+/**
+ * The line of the period an invoice pays for. After a plan switch in the portal, the renewal
+ * invoice first lists the switch's price differences (proration lines, from the switch to the
+ * renewal) and then the new period (seen in Stripe's test mode, Oct 30, 2026): the latest line
+ * that isn't a proration.
+ */
+export function periodLine(invoice: Pick<Invoice, 'lines'>): Invoice['lines']['data'][number] | undefined {
+  const lines = invoice.lines.data;
+  const regular = lines.filter((l) => !l.parent?.subscription_item_details?.proration);
+  return (regular.length ? regular : lines).reduce<(typeof lines)[number] | undefined>((a, l) => (!a || l.period.end > a.period.end ? l : a), undefined);
+}
+
 /** A paid invoice grants its period of Pro (a €0 invoice from the launch coupon too) */
 async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<void> {
   const { invoice, subscription } = fetched;
@@ -349,7 +367,7 @@ async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<v
   const { row, product, ended } = await syncSubscription(tx, subscription, ctx);
 
   // The plan of the invoice's own line (a later upgrade doesn't change what this period bought)
-  const line = invoice.lines.data[0];
+  const line = periodLine(invoice);
   if (!line) throw new Error(`invoice ${invoice.id} has no lines`);
   const linePriceId = line.pricing?.price_details?.price;
   const [linePrice] = linePriceId

@@ -176,6 +176,8 @@ export async function startFoundingCheckout(
   if (!(await confirmBusinessBuyer(db, opts.userId, org.id, opts, 'pro-founding'))) return { ok: false, reason: 'business_required' };
   const [owner] = await db.execute<{ email: string }>(sql`SELECT email FROM users WHERE id = ${opts.userId}`);
   const customerId = await customerFor(db, gateway, { organizationId: org.id }, { email: org.email ?? owner!.email, name: org.legalName ?? org.name });
+  // Started a moment ago, before the webhook arrived: Stripe already has the subscription
+  if (await gateway.hasRunningSubscription(customerId)) return { ok: false, reason: 'already_subscribed' };
   const metadata = { organization_id: org.id, plan: 'pro', interval: 'month', founding: '1' };
   const open = await openPlanCheckout(gateway, customerId, metadata);
   if (open) return { ok: true, url: open };

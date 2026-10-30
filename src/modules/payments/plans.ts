@@ -19,7 +19,10 @@ export type BusinessPlan = {
   endsAt: Date | null;
 };
 
-/** The business's current plan: the active pro_plan entitlement with the most listings, else free */
+/**
+ * The business's current plan: the active pro_plan entitlement with the most listings, else free.
+ * Its limits are those of the subscription's plan now (code check, Oct 30, 2026).
+ */
 export async function businessPlan(db: Queryable, organizationId: string, now: Date = new Date()): Promise<BusinessPlan> {
   const rows = await db
     .select({
@@ -28,6 +31,8 @@ export async function businessPlan(db: Queryable, organizationId: string, now: D
       subscriptionId: entitlements.subscriptionId,
       endsAt: entitlements.endsAt,
       code: products.code,
+      planFeatures: products.features,
+      status: subscriptions.status,
     })
     .from(entitlements)
     .leftJoin(subscriptions, eq(subscriptions.id, entitlements.subscriptionId))
@@ -44,7 +49,9 @@ export async function businessPlan(db: Queryable, organizationId: string, now: D
     );
   let best: BusinessPlan = { code: null, features: FREE_BUSINESS, entitlementId: null, subscriptionId: null, endsAt: null };
   for (const r of rows) {
-    const features = planFeatures(r.features);
+    // A running subscription's limits are its plan's now: a switch in the portal counts at once
+    // (the difference is on the next invoice); otherwise what the period was granted with
+    const features = planFeatures(r.planFeatures && r.status && (HOLDING as readonly string[]).includes(r.status) ? r.planFeatures : r.features);
     if (!best.entitlementId || features.activeListings > best.features.activeListings) {
       best = { code: r.code ?? 'pro', features, entitlementId: r.id, subscriptionId: r.subscriptionId, endsAt: r.endsAt };
     }

@@ -859,6 +859,14 @@ This API version has no fixed `payment_method_types`; Checkout gets `allowed_pay
 - Admin overview: «صفحه‌های پرداخت»: pages opened vs paid per product for the chosen period (`checkoutFunnel()`; admins only). Bumps and featured count orders; plans count businesses that ticked "for my business" and went on, and those that then started that plan (founding Pro: its trial).
 - **No "you didn't finish" emails or messages**: in Germany they are advertising and need prior double-opt-in consent (UWG § 7 (2) no. 1; the existing-customer exception needs a completed sale), and Stripe's own recovery emails require promotional consent.
 
+**Since the code check (Oct 30, 2026):**
+- **A plan switch in the portal** (create_prorations): Stripe adds the difference to the next invoice, whose lines are the two proration lines (switch → renewal) and then the new period (seen with a test clock: Pro → Pro Plus on day 15, renewal lines −12.39 €, +30.45 €, then 59 € for the new month). `invoicePaid` grants the latest line that isn't a proration (`periodLine`). The limits of a running subscription are its plan's now (`businessPlan` reads the subscription's product), so a switch counts at once.
+- **Paying twice:** before a plan or founding checkout, Stripe is asked whether the customer already has a running or incomplete subscription (`hasRunningSubscription`), which our webhook may not have brought in yet; the billing page shows no plan forms after `?done=1`.
+- **Late:** a one-time purchase applied later than it was paid (worker down, retry) starts when it is applied; `orders.paid_at` keeps the payment time (withdrawal window, records).
+- **Refunds** are read again from Stripe before they are applied (`getRefund`), so an older event can't move a failed refund back to pending.
+- **Admin › prices:** after a change, every earlier Stripe price of the slot is archived, so trying again after a failure (or two changes at once) leaves none active.
+- **Waitlist reward:** one used on a listing that isn't live when the minute job runs (paused, in review, closed) is freed again while it lasts; one past its end is never applied.
+
 **CSP.** Hosted Checkout and the hosted Customer Portal: no Stripe script on our pages. `form-action` allows `https://checkout.stripe.com https://billing.stripe.com`, because browsers apply it to the redirect after a form post.
 
 **Right to left outside our pages** (Oct 27, 2026, the owner saw a final «.» on the wrong side): Gmail drops the attributes of `<html>` and `<body>`, so `emailHtml()` and the login-code email put `dir="rtl"` and `direction:rtl` on the message box itself; the mailers prefix every line of the plain-text part and the subject with a Right-to-Left Mark, and `TelegramClient.sendMessage` does the same for Telegram (`src/lib/bidi.ts`; links stay untouched).

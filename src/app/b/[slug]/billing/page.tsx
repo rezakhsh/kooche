@@ -45,6 +45,8 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
     </>
   );
   const processing = running && !plan.code && (running.status === 'incomplete' || running.status === 'active');
+  // Just back from paying, before the webhook arrives: no plan forms, so nobody pays twice (code check, Oct 30, 2026)
+  const offer = !running && !query.done;
 
   return (
     <PageShell title={`${t.title}: ${org.name}`} wide>
@@ -64,7 +66,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {error && <Alert tone="error">{error}</Alert>}
         {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
         {/* Wave 1: the legal details can wait until here; paying needs them (legal_missing) */}
-        {payments && !running && !legalComplete(org) && (
+        {payments && offer && !legalComplete(org) && (
           <Alert tone="info">
             {t.errors.legal_missing}{' '}
             <a href={`/b/${org.slug}/edit`} className="font-bold underline">
@@ -73,7 +75,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
           </Alert>
         )}
 
-        {founding === 'offered' && !running && payments && (
+        {founding === 'offered' && offer && payments && (
           <form id="plans" action={foundingAction} className="scroll-mt-20 space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
             {hidden}
             <h2 className="text-lg font-extrabold">{t.founding.title}</h2>
@@ -141,7 +143,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
           </Card>
         )}
 
-        {!running && payments && (
+        {offer && payments && (
           <section id={founding === 'offered' ? undefined : 'plans'} className="scroll-mt-20 space-y-3">
             <h2 className="font-extrabold">{t.choose}</h2>
             <div className="grid gap-3 sm:grid-cols-2">

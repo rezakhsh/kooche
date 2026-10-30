@@ -61,6 +61,9 @@ export class FakeGateway implements PaymentGateway {
     const open = this.checkouts.filter((c) => c.mode === 'subscription' && c.customerId === customerId && !this.closed.has(c.id));
     return Promise.all(open.map((c) => this.getCheckout(c.id)));
   }
+  async hasRunningSubscription(customerId: string) {
+    return [...this.subscriptions.values()].some((s) => s.customer === customerId && ['active', 'trialing', 'incomplete', 'past_due', 'unpaid', 'paused'].includes(String(s.status)));
+  }
   async expireCheckout(sessionId: string) {
     this.closed.add(sessionId);
   }
@@ -88,6 +91,11 @@ export class FakeGateway implements PaymentGateway {
     const i = this.refunds.findIndex((r) => r.idempotencyKey === input.idempotencyKey);
     if (i < 0) this.refunds.push(input);
     return { id: `re_test_${input.idempotencyKey.replaceAll('-', '').slice(-20)}` };
+  }
+  /** Refunds as Stripe has them now; one the test didn't put in is as its event says */
+  refundsNow = new Map<string, Record<string, unknown>>();
+  async getRefund(refundId: string) {
+    return this.refundsNow.get(refundId) ?? null;
   }
   async getInvoice(invoiceId: string) {
     this.calls.push(`invoice ${invoiceId}`);

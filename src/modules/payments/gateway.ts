@@ -69,6 +69,11 @@ export interface PaymentGateway {
   openSubscriptionCheckouts(customerId: string): Promise<CheckoutState[]>;
   /** Closes an open Checkout page, so it can't be paid any more */
   expireCheckout(id: string): Promise<void>;
+  /**
+   * Whether the customer has a subscription at the provider that still runs or waits for its
+   * first payment, which our webhook may not have brought in yet (code check, Oct 30, 2026)
+   */
+  hasRunningSubscription(customerId: string): Promise<boolean>;
   createPortal(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
   /** Checks the signature and parses the event; null when either fails */
   verifyEvent(rawBody: string, signature: string | null): ProviderEvent | null;
@@ -76,6 +81,8 @@ export interface PaymentGateway {
   getSubscription(id: string): Promise<unknown>;
   /** The invoice with its payments, which webhook payloads leave out */
   getInvoice(id: string): Promise<unknown>;
+  /** The refund as it is now (refund events can arrive out of order; code check, Oct 30, 2026) */
+  getRefund(id: string): Promise<unknown>;
   /** A customer's latest invoices, €0 trial invoices included (the Customer Portal leaves some out) */
   listInvoices(customerId: string, limit?: number): Promise<InvoiceSummary[]>;
   /**
@@ -93,6 +100,9 @@ export interface PaymentGateway {
   /** The Customer Portal's plan switch: the monthly price each plan product offers now */
   setPortalPlans(plans: { productId: string; priceIds: string[] }[]): Promise<void>;
 }
+
+/** Subscription statuses that would charge again, or still wait for a first payment */
+export const RUNNING_SUBSCRIPTION: ReadonlySet<string> = new Set(['active', 'trialing', 'incomplete', 'past_due', 'unpaid', 'paused']);
 
 export type PriceInput = { productId: string; currency: string; amountMinor: number; interval: 'month' | 'year' | null; lookupKey: string; metadata: Record<string, string> };
 
@@ -196,6 +206,11 @@ export class StripeGateway implements PaymentGateway {
     return list.data.filter((s) => s.mode === 'subscription').map(checkoutState);
   }
 
+  async hasRunningSubscription(customerId: string): Promise<boolean> {
+    const list = await this.stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 });
+    return list.data.some((s) => RUNNING_SUBSCRIPTION.has(s.status));
+  }
+
   async expireCheckout(id: string): Promise<void> {
     try {
       await this.stripe.checkout.sessions.expire(id);
@@ -231,6 +246,10 @@ export class StripeGateway implements PaymentGateway {
 
   async getInvoice(id: string): Promise<unknown> {
     return this.stripe.invoices.retrieve(id, { expand: ['payments'] });
+  }
+
+  async getRefund(id: string): Promise<unknown> {
+    return this.stripe.refunds.retrieve(id);
   }
 
   async listInvoices(customerId: string, limit = 24): Promise<InvoiceSummary[]> {
