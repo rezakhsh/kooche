@@ -1429,3 +1429,13 @@ Plan approved by the owner before building. Commit `b36893e`, on staging. Detail
 - **Tests:** 1,032 passing (new `tests/money-fixes.test.ts`).
 - **Checked on staging** with a temporary business owner (removed): the billing page before paying shows the plans and after `?done=1` only «سپاس! اشتراک چند لحظه دیگر فعال می‌شود», on phone and computer, light and dark, no horizontal scroll. Screenshots in `/root/peydoo-media/after-wave2/fix-package-2/`.
 - **Next:** package 3 (people and privacy), after the owner approves its plan.
+
+## Oct 30, 2026: code check fix package 3: people and privacy
+
+Plan approved by the owner before building (email messaging from Iran only). Commit `9c57ba8`, on staging with migration 0037. Details in `docs/setup.md` ("Accounts and phone verification", "People in Iran", the businesses part) and `docs/schema.md` (`banned_identifiers`).
+
+- **Fixed:** deletions whose job gave up are finished hourly, one stuck for a day shows on admin › وضعیت سیستم; a member leaving a business hands its listings, events and buyer chats to an owner; «نمایش شماره» respects blocks and the test/real separation; banned or restricted owners can't edit, upload a logo, invite or ask for verification, and a ban suspends the businesses they own alone; a public name change drops the verified badge (the edit page says so); a banned person's number and Telegram account are kept as fingerprints for 2 years when they delete their account (privacy policy sections 7 and 9, de and fa, dated Oct 30); email accounts can send messages from Iran; the SMS option is hidden until a provider is chosen.
+- **The fingerprints** are made in the database with its own random key (no running role can read it), because the worker (the Telegram bot) has no `PHONE_CODE_SECRET` and adding a setting needs the owner.
+- **Tests:** 1,043 passing (new `tests/people-privacy.test.ts`; the grants test counts 52 tables and the three new functions).
+- **Checked on staging** with temporary accounts and a verified business (removed): the phone page without SMS and with the Telegram-only note, `/account/phone/sms` answers 404, the edit page's badge note; phone and computer, light and dark. Email messaging from Iran isn't checked in the browser (Cloudflare sets the country; the tests cover it). Screenshots in `/root/peydoo-media/after-wave2/fix-package-3/`.
+- **Next:** package 4 (background jobs), after the owner approves its plan.
