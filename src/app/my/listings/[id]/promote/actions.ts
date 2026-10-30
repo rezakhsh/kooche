@@ -10,14 +10,16 @@ import { reportError } from '../../../../../lib/monitoring/server';
 import { isIranRequest } from '../../../../../lib/region';
 import { hit } from '../../../../../lib/rate-limit';
 import { valkey } from '../../../../../lib/valkey';
+import { useReward } from '../../../../../modules/launch/rewards';
 import { requestAllowance } from '../../../../../modules/payments/allowances';
 import { startListingCheckout } from '../../../../../modules/payments/checkout';
 import { PAYMENT_LIMITS } from '../../../../../modules/payments/features';
 import { paymentGateway } from '../../../../../modules/payments/server';
 import { requireSession } from '../../../../../modules/users/server';
 
-// Paying for a bump or featured, or using one included in a business's Pro plan. The order and
-// the Checkout Session are made here; what is bought arrives only through Stripe's webhook.
+// Paying for a bump or featured, or using one included in a business's Pro plan or the waitlist's
+// free bump. The order and the Checkout Session are made here; what is bought arrives only through
+// Stripe's webhook.
 
 const schema = z.object({ listingId: z.uuid(), product: z.string().regex(/^[a-z0-9-]{1,40}$/), waiver: z.literal('on').optional() });
 
@@ -60,4 +62,16 @@ export async function useAllowanceAction(form: FormData): Promise<void> {
   if (!limited.ok) redirect(`${back}?error=rate_limited`);
   const r = await requestAllowance(appDb(), { userId: user.id, listingId: parsed.data.listingId, kind: parsed.data.kind });
   redirect(r.ok ? `${back}?requested=1` : `${back}?plan=${r.reason}`);
+}
+
+/** The waitlist's free bump (wave 2 part 9, src/modules/launch/rewards.ts) on this listing */
+export async function useRewardAction(form: FormData): Promise<void> {
+  const listingId = z.uuid().safeParse(form.get('listingId'));
+  if (!listingId.success) redirect('/my/listings');
+  const back = `/my/listings/${listingId.data}/promote`;
+  const { user } = await requireSession(back);
+  const limited = await hit(valkey(), [[PAYMENT_LIMITS.allowancesPerUserHour, user.id]]);
+  if (!limited.ok) redirect(`${back}?error=rate_limited`);
+  const r = await useReward(appDb(), { userId: user.id, listingId: listingId.data });
+  redirect(`${back}?reward=${r.ok ? 'used' : r.reason}`);
 }

@@ -253,6 +253,13 @@
       "when": 1793356499424,
       "tag": "0035_product_price_function",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793360394511,
+      "tag": "0036_waitlist_rewards",
+      "breakpoints": true
     }
   ]
 }

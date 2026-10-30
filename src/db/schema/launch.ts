@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { check, index, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { bytea } from '../types';
 import { insertOnlyColumns, isIn, tstz } from './_columns';
-import { categories, countries, locations } from './listings';
+import { categories, countries, listings, locations } from './listings';
 import { users } from './users';
 
 // Module: launch (round 12, wave 0; migration 0019). People waiting for a city to open
@@ -62,5 +62,45 @@ export const categoryPauses = pgTable(
   (t) => [
     check('category_pauses_reason_check', sql`char_length(${t.reason}) BETWEEN 3 AND 500`),
     index('category_pauses_country_code_idx').on(t.countryCode, t.until).where(sql`${t.liftedAt} IS NULL`),
+  ],
+);
+
+/**
+ * The waitlist reward (wave 2 part 9, owner Oct 30, 2026; migration 0036;
+ * src/modules/launch/rewards.ts): when the owner opens a city, the first confirmed signups of it
+ * and the cities launching with it (rewardPlaces(), one per email) get one free bump, usable from
+ * day 3 to day 60 on one of their listings by the account with that email. Not an entitlement:
+ * those come only from payments. Using it marks it (the app); the bump job applies it (the worker).
+ * Leaving the waitlist deletes it.
+ */
+export const waitlistRewards = pgTable(
+  'waitlist_rewards',
+  {
+    ...insertOnlyColumns(),
+    waitlistId: uuid('waitlist_id')
+      .notNull()
+      .unique('waitlist_rewards_waitlist_id_key')
+      .references(() => cityWaitlist.id, { onDelete: 'cascade' }),
+    /** The city that opened (the anchor of its launch group) */
+    locationId: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    availableFrom: tstz('available_from').notNull(),
+    endsAt: tstz('ends_at').notNull(),
+    /** The "your free bump is ready" email went out */
+    notifiedAt: tstz('notified_at'),
+    usedAt: tstz('used_at'),
+    userId: uuid('user_id').references(() => users.id),
+    /** Cleared when the listing is purged (the worker deletes deleted listings) */
+    listingId: uuid('listing_id').references(() => listings.id, { onDelete: 'set null' }),
+    /** The bump job moved the listing up */
+    appliedAt: tstz('applied_at'),
+  },
+  (t) => [
+    check('waitlist_rewards_window_check', sql`${t.endsAt} > ${t.availableFrom}`),
+    check('waitlist_rewards_used_check', sql`(${t.usedAt} IS NULL) = (${t.userId} IS NULL) AND (${t.usedAt} IS NOT NULL OR ${t.listingId} IS NULL)`),
+    check('waitlist_rewards_applied_check', sql`${t.appliedAt} IS NULL OR ${t.usedAt} IS NOT NULL`),
+    index('waitlist_rewards_due_idx').on(t.usedAt).where(sql`${t.usedAt} IS NOT NULL AND ${t.appliedAt} IS NULL`),
+    index('waitlist_rewards_notify_idx').on(t.availableFrom).where(sql`${t.notifiedAt} IS NULL`),
   ],
 );

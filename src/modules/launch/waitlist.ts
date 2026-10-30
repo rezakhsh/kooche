@@ -5,6 +5,7 @@ import { cityWaitlist, countries, locations, type WAITLIST_ROLES } from '../../d
 import { linkToken, sha256 } from '../../lib/tokens';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { testOwned } from '../users/test-accounts';
+import { grantWaitlistRewards } from './rewards';
 
 // City waitlists (round 12, docs/wave0-plan.md, item 1). A city that isn't open shows its goal of
 // verified businesses, the people waiting (for information only) and a "notify me" form. Only the
@@ -251,6 +252,8 @@ export async function changeCityLaunch(tx: Queryable, ctx: StaffContext, cityId:
   const group = sql`${locations.id} = ${cityId} OR ${locations.launchWithId} = ${cityId}`;
   let slugs: string[] = [city.slug];
   if (change.kind === 'open') {
+    // The first signups' free bump (./rewards.ts), when it opens now
+    if (city.status !== 'open') await grantWaitlistRewards(tx, [city.id]);
     const rows = await tx
       .update(locations)
       .set({ launchStatus: 'open', openedAt: sql`coalesce(${locations.openedAt}, now())` })
@@ -275,6 +278,10 @@ export async function changeCityLaunch(tx: Queryable, ctx: StaffContext, cityId:
 
 /** Opens every city of the country, without a radius (round 12: after its key cities) */
 export async function openCountry(tx: Queryable, ctx: StaffContext, countryCode: string): Promise<number> {
+  // The first signups' free bump (./rewards.ts) in each city group that opens now
+  const opening = await tx.execute<{ id: string }>(sql`
+    SELECT id FROM locations WHERE country_code = ${countryCode} AND kind = 'city' AND launch_with_id IS NULL AND launch_status <> 'open'`);
+  await grantWaitlistRewards(tx, opening.map((r) => r.id));
   const rows = await tx
     .update(locations)
     .set({ launchStatus: 'open', launchRadiusKm: null, openedAt: sql`coalesce(${locations.openedAt}, now())` })

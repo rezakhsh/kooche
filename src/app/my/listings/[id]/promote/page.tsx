@@ -20,7 +20,8 @@ import { activePrice, EVENT_PRODUCTS, LISTING_PRODUCTS, PAYMENT_CURRENCY } from 
 import { listingPromotions } from '../../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../../modules/payments/server';
 import { requireSession } from '../../../../../modules/users/server';
-import { startPromotionAction, useAllowanceAction } from './actions';
+import { startPromotionAction, useAllowanceAction, useRewardAction } from './actions';
+import { usableRewards } from '../../../../../modules/launch/rewards';
 
 // Paid visibility for one of the user's own live listings or events (roadmap step 6). Works
 // without JavaScript: a radio list, the withdrawal tick and a submit button that goes on to
@@ -28,7 +29,7 @@ import { startPromotionAction, useAllowanceAction } from './actions';
 
 export const metadata = { title: messages.promote.title, robots: { index: false } };
 
-type Params = { error?: string; product?: string; cancelled?: string; requested?: string; plan?: string };
+type Params = { error?: string; product?: string; cancelled?: string; requested?: string; plan?: string; reward?: string };
 
 export default async function PromotePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Params> }) {
   const { id } = await params;
@@ -47,6 +48,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
   const offers = (await Promise.all(codes.map((c) => activePrice(db, c, PAYMENT_CURRENCY)))).filter((o) => !!o);
   const otherMoney = !!listing.currency && listing.currency !== PAYMENT_CURRENCY;
   const running = await listingPromotions(db, listing.id);
+  const rewards = await usableRewards(db, user.id);
   const plan = listing.organizationId ? await allowancesLeft(db, listing.organizationId) : null;
   const live = listing.status === 'active';
   // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
@@ -81,6 +83,8 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
           </Alert>
         )}
         {query.requested && <Alert tone="success">{t.plan.requested}</Alert>}
+        {query.reward === 'used' && <Alert tone="success">{t.reward.used}</Alert>}
+        {(query.reward === 'none' || query.reward === 'not_allowed') && <Alert tone="error">{t.reward[query.reward]}</Alert>}
         {query.plan === 'none_left' && <Alert tone="error">{t.plan.none_left}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {!live && <Alert tone="error">{t.notLive}</Alert>}
@@ -116,6 +120,21 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
               )}
             </div>
           </Card>
+        )}
+
+        {/* The waitlist's free bump (wave 2 part 9): free, so from Iran and without payments too */}
+        {live && !isEvent && rewards[0] && (
+          <div className="rounded-2xl border-2 border-saffron-100 bg-saffron-50 p-4">
+            <h2 className="text-sm font-extrabold">{t.reward.title}</h2>
+            <p className="mt-1 text-sm leading-7 text-neutral-700">{t.reward.text(rewards[0].cityFa, formatDate(rewards[0].endsAt, zone))}</p>
+            <form action={useRewardAction} className="mt-3">
+              <input type="hidden" name="listingId" value={listing.id} />
+              <Button type="submit">
+                <Icon name="arrowUp" className="size-4" />
+                {t.reward.use}
+              </Button>
+            </form>
+          </div>
         )}
 
         {foundingSlug && (

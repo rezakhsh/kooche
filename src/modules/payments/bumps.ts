@@ -4,7 +4,8 @@ import { LISTING_OUTBOX } from '../listings/events';
 
 // Paid bumps (docs/schema.md, decision 4 and section 12): the worker takes bump entitlements that
 // are due and moves their listing's ranked_at to now, with a `bumped` history row and an outbox
-// event (search sync). This is the only code that moves ranked_at after publication.
+// event (search sync). This is the only code that moves ranked_at after publication; the
+// waitlist's free bumps (applyDueRewards, wave 2 part 9) are moved here too.
 //
 // A due bump on a paused listing (or one in review) waits until the listing is live again; on a listing that is
 // sold, expired, rejected, deleted or still a draft it is revoked (`listing_closed`), so a bump
@@ -66,4 +67,50 @@ export async function applyDueBumps(db: Queryable, now: Date = new Date()): Prom
     if ((row?.seen ?? 0) < BATCH) break;
   }
   return { applied, revoked };
+}
+
+/**
+ * Waitlist rewards used on a listing (src/modules/launch/rewards.ts), applied like a paid bump.
+ * One whose listing closed before it ran is freed again, so the person can use it on another.
+ */
+export async function applyDueRewards(db: Queryable, now: Date = new Date()): Promise<BumpRun> {
+  const at = now.toISOString();
+  const [row] = await db.execute<{ applied: number; revoked: number }>(sql`
+    WITH due AS (
+      SELECT r.id, r.listing_id, l.status
+      FROM waitlist_rewards r
+      JOIN listings l ON l.id = r.listing_id
+      WHERE r.used_at IS NOT NULL AND r.applied_at IS NULL AND l.status NOT IN ('paused', 'pending_review')
+      ORDER BY r.used_at
+      LIMIT ${BATCH}
+      FOR UPDATE OF r, l SKIP LOCKED
+    ),
+    live AS (SELECT DISTINCT listing_id FROM due WHERE status = 'active'),
+    moved AS (
+      UPDATE listings l SET ranked_at = ${at}::timestamptz
+      FROM live WHERE l.id = live.listing_id
+      RETURNING l.id, l.revision
+    ),
+    history AS (
+      INSERT INTO listing_events (listing_id, event_type, actor_type, from_status, to_status, revision)
+      SELECT id, 'bumped', 'system', 'active', 'active', revision FROM moved
+    ),
+    outbox AS (
+      INSERT INTO outbox_events (event_type, aggregate_type, aggregate_id, payload)
+      SELECT ${LISTING_OUTBOX.bumped}, 'listing', id, jsonb_build_object('revision', revision)
+      FROM moved
+    ),
+    done AS (
+      UPDATE waitlist_rewards r SET applied_at = ${at}::timestamptz
+      FROM due WHERE r.id = due.id AND due.status = 'active'
+      RETURNING r.id
+    ),
+    freed AS (
+      UPDATE waitlist_rewards r SET used_at = NULL, user_id = NULL, listing_id = NULL
+      FROM due WHERE r.id = due.id AND due.status <> 'active'
+      RETURNING r.id
+    )
+    SELECT (SELECT count(*) FROM done)::int AS applied, (SELECT count(*) FROM freed)::int AS revoked
+  `);
+  return { applied: row?.applied ?? 0, revoked: row?.revoked ?? 0 };
 }

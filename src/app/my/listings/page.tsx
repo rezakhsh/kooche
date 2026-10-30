@@ -22,6 +22,7 @@ import { requireSession } from '../../../modules/users/server';
 import { listingStatusAction } from './actions';
 import { ShareRow } from './share-row';
 import { limitMessage } from './limit-message';
+import { usableRewards } from '../../../modules/launch/rewards';
 
 export const metadata = { title: messages.my.title, robots: { index: false } };
 
@@ -62,6 +63,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
   const cheapest = upPrices.length ? formatPrice(Math.min(...upPrices), PAYMENT_CURRENCY, 2) : null;
   const params = await searchParams;
   const zone = webEnv().APP_TIME_ZONE;
+  const rewards = await usableRewards(db, user.id);
   const t = messages.my;
   const now = new Date();
   const done = params.done && params.done in t.done ? t.done[params.done as keyof typeof t.done] : null;
@@ -83,6 +85,13 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
       </div>
       <div className="mt-4 space-y-3 empty:hidden">
         {done && <Alert tone="success">{done}</Alert>}
+        {/* The waitlist's free bump (wave 2 part 9), from day 3 */}
+        {rewards[0] && (
+          <p className="flex gap-2 rounded-xl bg-saffron-50 p-3 text-sm leading-6 text-saffron-800">
+            <Icon name="arrowUp" className="mt-1 size-4 shrink-0" />
+            {t.reward(rewards[0].cityFa, formatDate(rewards[0].endsAt, zone))}
+          </p>
+        )}
         {params.error && (
           <Alert tone="error">
             {limitMessage(params.error) ?? t.notAllowed}

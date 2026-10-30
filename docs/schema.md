@@ -119,6 +119,22 @@ Seeded from files in Git (`seed/`). The app reads them from a Valkey cache, so t
 | `sort_order` | `smallint DEFAULT 0` | |
 | `slug` | `text null UNIQUE` | Web address of the country page: `/germany`, `/austria` (migration 0008). A name, never the two-letter code, which clashes with our own routes (`/my` is Malaysia). Filled by the seed; a seed check keeps it out of the route names. |
 
+### `waitlist_rewards`
+
+The waitlist's free bump (wave 2 part 9, migration 0036; `docs/setup.md`, "Waitlist reward"). One row per rewarded sign-up, written when the owner opens its city.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id`, `created_at` | | Standard |
+| `waitlist_id` | `uuid` FK → `city_waitlist` CASCADE, unique | The sign-up; leaving the list deletes the reward |
+| `location_id` | `uuid` FK → `locations` | The city that opened (the anchor of its launch group) |
+| `available_from`, `ends_at` | `timestamptz` | Day 3 and day 60 after the opening; `CHECK (ends_at > available_from)` |
+| `notified_at` | `timestamptz null` | The "ready" email went out |
+| `used_at`, `user_id`, `listing_id` | `timestamptz null`, `uuid null` FK → `users`, `uuid null` FK → `listings` SET NULL | Set together when used (`listing_id` is cleared if the listing is purged) |
+| `applied_at` | `timestamptz null` | The bump job moved the listing up; only after `used_at` |
+
+Grants: the app `SELECT, INSERT` and `UPDATE (used_at, user_id, listing_id)`; the worker `SELECT` and `UPDATE (notified_at, applied_at, used_at, user_id, listing_id)`.
+
 ### `category_pauses`
 
 Emergency pause (migration 0030; `src/modules/launch/pauses.ts`): no new listings in a category and its subcategories, in a country or one city, until `until`. Insert-only columns plus `category_id` FK → `categories`, `country_code` FK → `countries`, `location_id uuid null` FK → `locations` (null: the whole country), `reason text` (3–500), `until timestamptz`, `created_by_user_id`, `lifted_at`, `lifted_by_user_id` (users, on delete set null). Index `(country_code, until) WHERE lifted_at IS NULL`. The web role selects, inserts and updates; the worker and readonly only select.

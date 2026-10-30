@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { ALLOWANCE_REQUESTED, grantAllowance, type AllowanceKind } from '../modules/payments/allowances';
 import { applyWebhookEvent, NotReady } from '../modules/payments/apply';
-import { applyDueBumps } from '../modules/payments/bumps';
+import { applyDueBumps, applyDueRewards } from '../modules/payments/bumps';
 import type { PaymentGateway } from '../modules/payments/gateway';
 import { expireStaleOrders } from '../modules/payments/orders';
 import { sendFoundingReminders } from '../modules/payments/founding';
@@ -61,7 +61,10 @@ export async function startPaymentJobs(
         case 'bumps': {
           const run = await applyDueBumps(db);
           if (run.applied || run.revoked) console.log(`payments: bumps: ${run.applied} applied, ${run.revoked} revoked`);
-          return run;
+          // The waitlist's free bumps (wave 2 part 9) run the same way
+          const rewards = await applyDueRewards(db);
+          if (rewards.applied || rewards.revoked) console.log(`payments: waitlist rewards: ${rewards.applied} applied, ${rewards.revoked} freed`);
+          return { ...run, rewards };
         }
         case 'stale-orders': {
           const n = await expireStaleOrders(db);

@@ -739,6 +739,8 @@ export const messages = {
     tabs: 'وضعیت آگهی‌ها',
     daysLeft: (n: number) => (n <= 1 ? 'کمتر از یک روز مانده' : `${n.toLocaleString('fa-IR')} روز مانده`),
     bumpedAgo: (ago: string) => `نردبان: ${ago}`,
+    /** The waitlist reward's box (wave 2 part 9) */
+    reward: (city: string, until: string) => `نردبان رایگان ثبت‌نام زودهنگام ${city}: تا ${until} روی یکی از آگهی‌هایتان. کنار آگهی «ارتقا» را بزنید.`,
     newListing: 'آگهی تازه',
     untitled: 'بی‌عنوان',
     // Wave 1 (mockup final/mylistings): a tab with its count, the numbers under each listing, one
@@ -938,6 +940,15 @@ export const messages = {
       featured: (n: number) => `ویژه ۷ روزه رایگان (${n.toLocaleString('fa-IR')} مانده)`,
       requested: 'درخواست ثبت شد؛ تا یک دقیقه دیگر اعمال می‌شود.',
       none_left: 'سهم این دوره تمام شده است.',
+    },
+    /** The waitlist reward (wave 2 part 9, src/modules/launch/rewards.ts) */
+    reward: {
+      title: 'نردبان رایگان ثبت‌نام زودهنگام',
+      text: (city: string, until: string) => `چون جزو نخستین ثبت‌نام‌های ${city} بودید، یک نردبان رایگان دارید، تا ${until}.`,
+      use: 'استفاده از نردبان رایگان',
+      used: 'نردبان رایگان ثبت شد؛ تا یک دقیقه دیگر آگهی به بالای فهرست می‌رود.',
+      none: 'نردبان رایگانی برای استفاده ندارید (شاید قبلاً استفاده شده یا مهلتش تمام شده است).',
+      not_allowed: 'نردبان رایگان فقط روی آگهی فعال خودتان است، نه رویداد.',
     },
   },
   featured: {
@@ -2048,6 +2059,16 @@ export const messages = {
     help: 'این ربات فقط برای تأیید شماره تلفن است. در سایت به «تأیید شماره تلفن» بروید.',
   },
   email: {
+    // The waitlist reward is ready (wave 2 part 9, src/modules/launch/rewards.ts), from day 3
+    waitlistReward: {
+      subject: 'نردبان رایگان شما در پیدو آماده است',
+      intro: (city: string) => `${city} در پیدو باز شد. چون جزو نخستین کسانی بودید که در فهرست انتظار ثبت‌نام کردند، یک نردبان رایگان دارید.`,
+      body: (until: string) => `نردبان آگهی را به بالای فهرست می‌برد. تا ${until} روی یکی از آگهی‌هایتان از آن استفاده کنید: با همین ایمیل وارد شوید، در «آگهی‌های من» کنار آگهی «ارتقا» را بزنید و «استفاده از نردبان رایگان» را انتخاب کنید.`,
+      button: 'آگهی‌های من',
+      footer: (city: string) => `این ایمیل را چون در فهرست انتظار ${city} بودید و پاداش ثبت‌نام زودهنگام گرفتید دریافت می‌کنید. ایمیل دیگری دربارهٔ آن نمی‌فرستیم.`,
+      text: (city: string, until: string, link: string) =>
+        `${city} در پیدو باز شد. چون جزو نخستین کسانی بودید که در فهرست انتظار ثبت‌نام کردند، یک نردبان رایگان دارید.\n\nنردبان آگهی را به بالای فهرست می‌برد. تا ${until} روی یکی از آگهی‌هایتان از آن استفاده کنید: با همین ایمیل وارد شوید، در «آگهی‌های من» کنار آگهی «ارتقا» را بزنید و «استفاده از نردبان رایگان» را انتخاب کنید:\n${link}`,
+    },
     expiryReminder: {
       subject: (n: number) => (n === 1 ? 'آگهی شما ۳ روز دیگر منقضی می‌شود' : `${n.toLocaleString('fa-IR')} آگهی شما ۳ روز دیگر منقضی می‌شوند`),
       intro: (n: number) =>
@@ -3606,7 +3627,7 @@ export const admin = {
     openedOn: (date: string) => `از ${date}`,
     reward: {
       title: 'پاداش ثبت‌نام زودهنگام',
-      body: 'نخستین ثبت‌نام‌های تأییدشدهٔ هر شهر یک نردبان رایگان می‌گیرند، روز باز شدن شهر روی اولین آگهی‌شان. تعدادش با جمعیت شهر است (۲۰۰، ۱۰۰ یا ۵۰).',
+      body: 'نخستین ثبت‌نام‌های تأییدشدهٔ هر شهر (یک بار برای هر ایمیل) با باز کردن شهر یک نردبان رایگان می‌گیرند، از روز سوم تا شصتم روی یکی از آگهی‌هایشان؛ روز سوم یک ایمیل خبرشان می‌کند. تعدادش با جمعیت شهر است (۲۰۰، ۱۰۰ یا ۵۰).',
       city: (city: string, n: number) => `${city}: ${n.toLocaleString('fa-IR')} نفر اول`,
     },
     ready: (city: string, n: number, goal: number) => `آمادهٔ تصمیم: ${city} ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار دارد.`,

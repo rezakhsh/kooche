@@ -109,6 +109,8 @@ Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved 
 - The weekly digest and new verified businesses are posted to the country's Telegram channel by n8n (the queue is written today, nothing posts it).
 - The waitlist reward (free bumps for early sign-ups who post) promised on the waitlist pages, granted when the city launches.
 
+**Oct 30, 2026:** the owner **postponed the Telegram channel posting** to think about it in a bigger picture (a channel that repeats the site can become its competitor; a country is the wrong size for the US, Canada or Australia). Suggested for later: grow the bot's personal subscriptions by city and interest, and keep @peydooapp for announcements (a city opens, a safety warning), never a feed of listings. The digest's outbox events are still written and nothing posts them. **The waitlist reward was built** the same day (docs/setup.md, "Waitlist reward"): the public pages' promise (day 3 to day 60, on one of their listings) wins over the admin page's older wording, which was corrected; one email on day 3 and a box on «آگهی‌های من» (the owner's choice).
+
 ## 10. Final check (1.5 days)
 
 Every new page at phone size and on a computer, light and dark; tests for every permission (test accounts, sign in as, view as, founders, modes, pauses, cross-border, private limits); `docs/setup.md`, `docs/schema.md`, `docs/progress.md`.
