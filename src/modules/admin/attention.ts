@@ -11,7 +11,7 @@ export type Live = {
   meili: number | null | undefined;
 };
 
-export type ProblemKey = 'database' | 'valkey' | 'meili' | 'worker' | 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure';
+export type ProblemKey = 'database' | 'valkey' | 'meili' | 'worker' | 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure' | 'updates';
 
 export type Problem = { key: ProblemKey; count?: number; queues?: string[]; since?: string | null };
 
@@ -20,7 +20,7 @@ export const OUTBOX_LATE_MS = 15 * 60_000;
 /** The backup runs nightly; a day and a bit more without one is a problem */
 export const BACKUP_LATE_MS = 30 * 3_600_000;
 
-export function systemProblems(live: Live, status: { snapshot: StatusSnapshot | null; backupAt: string | null }, ttlSeconds: number, now = new Date()): Problem[] {
+export function systemProblems(live: Live, status: { snapshot: StatusSnapshot | null; backupAt: string | null; securityFixes?: number }, ttlSeconds: number, now = new Date()): Problem[] {
   const out: Problem[] = [];
   if (live.database === null) out.push({ key: 'database' });
   if (live.valkey === null) out.push({ key: 'valkey' });
@@ -35,6 +35,8 @@ export function systemProblems(live: Live, status: { snapshot: StatusSnapshot | 
     if (s.outbox.oldest && now.getTime() - new Date(s.outbox.oldest).getTime() > OUTBOX_LATE_MS) out.push({ key: 'outbox', count: s.outbox.backlog, since: s.outbox.oldest });
     if (s.stuckErasures) out.push({ key: 'erasure', count: s.stuckErasures });
   }
+  // Security fixes for the live site that nobody marked «لازم نیست» (src/modules/admin/software.ts)
+  if (status.securityFixes) out.push({ key: 'updates', count: status.securityFixes });
   if (status.backupAt && now.getTime() - new Date(status.backupAt).getTime() > BACKUP_LATE_MS) out.push({ key: 'backup', since: status.backupAt });
   return out;
 }

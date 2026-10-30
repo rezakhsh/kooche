@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, inet, pgTable, smallint, text, uuid } from 'drizzle-orm/pg-core';
+import { check, index, inet, pgTable, smallint, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { PATTERNS, createdAt, id, isIn, isObject, jsonObject, matches, tstz } from './_columns';
 import { users } from './users';
 
@@ -65,5 +65,27 @@ export const auditLog = pgTable(
       .where(sql`actor_user_id IS NOT NULL`),
     index('audit_log_target_idx').on(t.targetType, t.targetId, t.createdAt.desc().nullsFirst()),
     index('audit_log_created_at_idx').using('brin', t.createdAt),
+  ],
+);
+
+/**
+ * Software updates an admin marked «لازم نیست» (owner, Oct 30, 2026; src/modules/admin/software.ts).
+ * The key names the package, the version on offer and its security warnings, so the update comes
+ * back on the admin page when a newer version or another warning appears.
+ */
+export const softwareDismissals = pgTable(
+  'software_dismissals',
+  {
+    id: id(),
+    createdAt: createdAt(),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    reason: text('reason').notNull(),
+    userId: uuid('user_id').references(() => users.id),
+  },
+  (t) => [
+    uniqueIndex('software_dismissals_key_key').on(t.key),
+    check('software_dismissals_key_check', sql`char_length(${t.key}) BETWEEN 3 AND 600`),
+    check('software_dismissals_reason_check', sql`char_length(${t.reason}) BETWEEN 3 AND 300`),
   ],
 );

@@ -53,6 +53,8 @@ COPY --from=deps /app/node_modules/sharp ./node_modules/sharp
 COPY --from=deps /app/node_modules/@img ./node_modules/@img
 COPY --from=deps /app/node_modules/detect-libc ./node_modules/detect-libc
 COPY --from=deps /app/node_modules/semver ./node_modules/semver
+# What we run, for the software update check (src/modules/admin/software.ts)
+COPY package-lock.json ./package-lock.json
 USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node", "-e", "const s = require('node:fs').statSync('/tmp/worker-heartbeat'); process.exit(Date.now() - s.mtimeMs < 30000 ? 0 : 1)"]

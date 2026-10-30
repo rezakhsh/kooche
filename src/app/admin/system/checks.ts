@@ -7,6 +7,7 @@ import { systemProblems, type Live, type Problem, type ProblemKey } from '../../
 import { formatAgo } from '../../../lib/format';
 import { admin } from '../../../messages/fa';
 import { adminHref } from '../../../modules/admin/server';
+import { listDismissals, openSecurityFixes, readSoftwareReport } from '../../../modules/admin/software';
 import { readStatus, STATUS_TTL_SECONDS } from '../../../modules/admin/system';
 
 // The web's own live checks and the worker's snapshot, once per request: the system page, the
@@ -24,7 +25,7 @@ async function timed(check: () => Promise<unknown>): Promise<number | null> {
 
 export const systemState = cache(async () => {
   const env = webEnv();
-  const [database, vk, meili, status] = await Promise.all([
+  const [database, vk, meili, status, software] = await Promise.all([
     timed(() => appDb().execute(sql`SELECT 1`)),
     timed(() => valkey().ping()),
     env.MEILI_URL
@@ -34,9 +35,12 @@ export const systemState = cache(async () => {
         })
       : Promise.resolve(undefined),
     readStatus(valkey()).catch(() => ({ snapshot: null, backupAt: null })),
+    Promise.all([readSoftwareReport(valkey()), listDismissals(appDb())]).catch(() => [null, new Map()] as const),
   ]);
   const live: Live = { database, valkey: vk, meili };
-  return { live, status, problems: systemProblems(live, status, STATUS_TTL_SECONDS) };
+  const [report, dismissed] = software;
+  const problems = systemProblems(live, { ...status, securityFixes: openSecurityFixes(report, dismissed) }, STATUS_TTL_SECONDS);
+  return { live, status, problems, software: { report, dismissed } };
 });
 
 /** A problem's title, what to do, and where to look */
@@ -54,7 +58,9 @@ export function problemText(p: Problem, timeZone: string): { title: string; what
       return { title: t.backup.title, what: t.backup.what(ago(p.since)) };
     case 'erasure':
       return { title: t.erasure.title(p.count ?? 0), what: t.erasure.what };
+    case 'updates':
+      return { title: t.updates.title(p.count ?? 0), what: t.updates.what, action: { label: t.updates.action, href: `${adminHref('/system')}#software` } };
     default:
-      return t[p.key as Exclude<ProblemKey, 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure'>];
+      return t[p.key as Exclude<ProblemKey, 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure' | 'updates'>];
   }
 }

@@ -1,7 +1,8 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
-import { alertPayload, queueSummary, sendAlert } from '../modules/admin/alert';
+import { alertPayload, queueSummary, sendAlert, softwarePayload } from '../modules/admin/alert';
+import { checkSoftware, claimNewWarnings, writeSoftwareReport } from '../modules/admin/software';
 import { listingBrowseUrls, purgeUrls } from '../modules/admin/purge';
 import { collectStatus, writeStatus } from '../modules/admin/system';
 import type { Meili } from '../modules/search/meili';
@@ -23,6 +24,8 @@ import { reportJobFailure } from './monitoring';
 //   Cloudflare (when configured) and rebuild the sitemaps a minute later;
 // - every 15 minutes: listings of suspensions that ran out come back;
 // - every minute: the system status snapshot for the admin page;
+// - Mondays at 05:00 UTC and a few minutes after each start: the software update check
+//   (src/modules/admin/software.ts) and the owner's alert for new security fixes;
 // - daily at 03:40 UTC: «احتمالاً کسب‌وکار» cases found, and closed for those who opened a business
 //   (src/modules/organizations/suspicions.ts); `user.business_*`: the person's email about their case.
 // Emails and Telegram messages go through the chat's send queues (one limiter for the bot).
@@ -48,6 +51,8 @@ export type ModerationJobOptions = {
   fetchFn?: typeof fetch;
   prefix?: string;
   gatherMs?: number;
+  /** The software update check; off in tests */
+  software?: { lockfile?: string } | null;
 };
 
 export async function startModerationJobs(db: Db, connection: Redis, opts: ModerationJobOptions) {
@@ -57,6 +62,11 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
   // The admin page's system status (src/modules/admin/system.ts)
   await queue.upsertJobScheduler('system-status', { every: 60_000 }, { name: 'system_status', opts: { removeOnComplete: 5, removeOnFail: 20, attempts: 1 } });
   await queue.upsertJobScheduler('business-scan', { pattern: '40 3 * * *', tz: 'UTC' }, { name: 'business_scan', opts: { removeOnComplete: 20, removeOnFail: 50 } });
+  if (opts.software) {
+    await queue.upsertJobScheduler('software-check', { pattern: '0 5 * * 1', tz: 'UTC' }, { name: 'software_check', opts: { removeOnComplete: 10, removeOnFail: 20, attempts: 3, backoff: { type: 'exponential', delay: 60_000 } } });
+    // After a deploy the versions changed: check again, at most once an hour
+    await queue.add('software_check', {}, { jobId: `software_check_start_${Math.floor(Date.now() / 3_600_000)}`, delay: 3 * 60_000, removeOnComplete: 10, removeOnFail: 20, attempts: 1 });
+  }
   const gather = opts.gatherMs ?? ALERT_GATHER_MS;
 
   /** One alert job per ten-minute slot, after a short wait so a burst goes out as one message */
@@ -143,6 +153,22 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
         case 'system_status': {
           await writeStatus(connection, await collectStatus(db, connection, opts.meili ?? null, opts.prefix));
           return 'written';
+        }
+        case 'software_check': {
+          const report = await checkSoftware(db, connection, { lockfile: opts.software?.lockfile, fetchFn: opts.fetchFn });
+          await writeSoftwareReport(connection, report);
+          if (report.errors.length) console.log(`moderation: software check, not reached: ${report.errors.join('; ')}`);
+          if (!opts.alert) return { updates: report.items.length, alert: 'off' };
+          const fresh = await claimNewWarnings(connection, report.items);
+          if (fresh.items.length) {
+            try {
+              await sendAlert(opts.alert.url, opts.alert.secret, softwarePayload(fresh.items, opts.appUrl, opts.adminPath), opts.fetchFn);
+            } catch (e) {
+              await fresh.release();
+              throw e;
+            }
+          }
+          return { updates: report.items.length, alerted: fresh.items.length };
         }
         case 'business_scan': {
           const closed = await closeSwitched(db);

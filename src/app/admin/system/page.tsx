@@ -6,6 +6,7 @@ import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff } from '../../../modules/admin/server';
 import { AdminTitle, Ago } from '../ui';
 import { problemText, systemState } from './checks';
+import { SoftwareCard } from './software';
 
 // The system status (roadmap step 8): live checks from the web, and the worker's snapshot.
 // Wave 1 (mockup admin-system): problems first, in red, each with what to do; the healthy parts
@@ -13,9 +14,10 @@ import { problemText, systemState } from './checks';
 
 const fa = (n: number) => n.toLocaleString('fa-IR');
 
-export default async function SystemPage() {
+export default async function SystemPage({ searchParams }: { searchParams: Promise<{ dismiss?: string }> }) {
   await requireStaff('system.view');
-  const { live, status, problems } = await systemState();
+  const { live, status, problems, software } = await systemState();
+  const { dismiss } = await searchParams;
   const tz = webEnv().APP_TIME_ZONE;
   const t = admin.system;
   const s = status.snapshot;
@@ -111,6 +113,8 @@ export default async function SystemPage() {
           <p className="mt-2 text-sm text-neutral-600">{t.stale}</p>
         )}
       </section>
+
+      <SoftwareCard report={software.report} dismissed={software.dismissed} errorKey={typeof dismiss === 'string' ? dismiss : null} now={new Date()} />
     </>
   );
 }

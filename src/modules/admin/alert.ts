@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { admin } from '../../messages/fa';
 import { adminAddress } from './gate';
+import { SEVERITIES, type SoftwareItem } from './software';
 
 // The owner's Telegram alert for new reports and appeals (roadmap step 8): the worker sends one
 // summary at most every ten minutes to the n8n workflow "Peydoo – admin alerts", which checks the
@@ -42,6 +43,17 @@ export async function queueSummary(db: Queryable, since: Date): Promise<QueueSum
 export function alertPayload(s: QueueSummary, appUrl: string, adminPath: string | undefined) {
   const url = adminPath ? `${appUrl}${adminAddress(adminPath, '/queue')}` : null;
   return { kind: 'admin_queue', text: admin.alert(s), url, ...s };
+}
+
+/** Security fixes for the owner (src/modules/admin/software.ts); n8n accepts this kind on production only */
+export function softwarePayload(items: SoftwareItem[], appUrl: string, adminPath: string | undefined) {
+  const url = adminPath ? `${appUrl}${adminAddress(adminPath, '/system')}#software` : null;
+  const worst = (i: SoftwareItem) => i.advisories.map((a) => a.severity).filter((v) => v !== null).sort((a, b) => SEVERITIES.indexOf(b) - SEVERITIES.indexOf(a))[0] ?? null;
+  const lines = items.map((i) => {
+    const w = worst(i);
+    return { name: i.name, ours: i.ours, target: i.target, severity: w ? admin.system.software.severity[w]! : null };
+  });
+  return { kind: 'software_updates', text: admin.softwareAlert(lines), url, count: items.length };
 }
 
 export async function sendAlert(url: string, secret: string, payload: object, fetchFn: typeof fetch = fetch, now = Date.now()): Promise<void> {

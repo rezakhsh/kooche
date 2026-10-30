@@ -121,6 +121,7 @@ async function main(): Promise<void> {
     purge: env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_PURGE_TOKEN ? { zoneId: env.CLOUDFLARE_ZONE_ID, token: env.CLOUDFLARE_PURGE_TOKEN } : null,
     seo: seoQueue,
     meili,
+    software: {},
   });
   handlers = mergeHandlers(listingJobs.handlers, eventJobs.handlers, chatJobs.handlers, accountJobs.handlers, searchJobs.handlers, paymentJobs.handlers, moderationJobs.handlers);
   const done = pollOutbox();

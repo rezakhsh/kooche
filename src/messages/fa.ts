@@ -4299,6 +4299,38 @@ export const admin = {
       outbox: { title: (n: number) => `${n.toLocaleString('fa-IR')} رویداد در outbox مانده`, what: (ago: string) => `قدیمی‌ترین: ${ago}. worker آن‌ها را جلو نمی‌برد؛ لاگ آن را ببینید.` },
       backup: { title: 'پشتیبان‌گیری عقب افتاده', what: (ago: string) => `آخرین پشتیبان موفق: ${ago}. اسکریپت classifieds-backup و لاگ آن را روی سرور ببینید.` },
       erasure: { title: (n: number) => `${n.toLocaleString('fa-IR')} حذف حساب انجام نشده`, what: 'درخواست حذف بیش از یک روز مانده است (مثلاً صاحب حساب تنها مالک یک کسب‌وکار شده). لاگ worker را ببینید و مانع را بردارید؛ طبق GDPR داده‌ها باید پاک شوند. worker هر ساعت دوباره امتحان می‌کند.' },
+      updates: { title: (n: number) => `${n.toLocaleString('fa-IR')} به‌روزرسانی امنیتی منتظر است`, what: 'یک هشدار امنیتی به نسخه‌ای که اجرا می‌کنیم مربوط است. طبق برنامه ظرف یک هفته به‌روز شود: اول روی staging با همهٔ آزمایش‌ها، بعد production.', action: 'دیدن به‌روزرسانی‌ها' },
+    },
+    // Software updates (owner, Oct 30, 2026; src/modules/admin/software.ts)
+    software: {
+      title: 'به‌روزرسانی نرم‌افزار',
+      intro: 'هر هفته و بعد از هر استقرار، نسخه‌های ما با تازه‌ترین نسخه‌ها و هشدارهای امنیتی مقایسه می‌شوند. چیزی خودکار به‌روز نمی‌شود.',
+      checked: 'آخرین بررسی:',
+      notYet: 'هنوز بررسی نشده؛ worker چند دقیقه پس از شروع بررسی می‌کند.',
+      late: 'بیش از ۹ روز بررسی نشده؛ لاگ worker (کار software_check) را ببینید.',
+      allCurrent: 'همه‌چیز به‌روز است.',
+      kinds: {
+        security: { title: 'رفع امنیتی', rule: 'ظرف یک هفته (بحرانی: ۲ روز)، اول روی staging با آزمایش‌ها.' },
+        fix: { title: 'اصلاح کوچک', rule: 'همه با هم، ماهی یک بار در «روز به‌روزرسانی».' },
+        major: { title: 'نسخهٔ بزرگ تازه', rule: 'فقط به‌عنوان یک بخش برنامه‌ریزی‌شده؛ ممکن است چیزی را عوض کند یا خراب کند.' },
+      } as Record<string, { title: string; rule: string }>,
+      groups: { app: 'برنامه', server: 'سرور', dev: 'ابزار برنامه‌نویسی' } as Record<string, string>,
+      severity: { low: 'کم', moderate: 'متوسط', high: 'زیاد', critical: 'بحرانی' } as Record<string, string>,
+      securityUnrated: 'امنیتی',
+      fixedIn: 'رفع در',
+      newest: (v: string) => `نسخهٔ بزرگ: ${v}`,
+      notes: 'یادداشت‌های انتشار',
+      devTitle: (n: number) => `ابزارهای برنامه‌نویسی (${n.toLocaleString('fa-IR')})`,
+      devNote: 'فقط روی کامپیوتر برنامه‌نویس و هنگام ساخت اجرا می‌شوند، نه روی سایت. هشدار تلگرام ندارند.',
+      support: 'پایان پشتیبانی',
+      supportLine: (name: string, line: string, ends: string) => `${name} ${line}: ${ends}`,
+      errors: 'بعضی منبع‌ها جواب ندادند (دفعهٔ بعد دوباره امتحان می‌شود):',
+      dismiss: 'لازم نیست',
+      dismissReason: 'چرا؟ (مثلاً «از این بخش استفاده نمی‌کنیم»)',
+      dismissSave: 'ثبت',
+      dismissInvalid: 'دلیل را بنویسید (۳ تا ۳۰۰ حرف).',
+      dismissedTitle: (n: number) => `علامت «لازم نیست» (${n.toLocaleString('fa-IR')})`,
+      dismissedNote: 'وقتی نسخه یا هشدار تازه‌ای بیاید، دوباره در فهرست بالا نشان داده می‌شود.',
     },
   },
   staffPage: {
@@ -4349,6 +4381,12 @@ export const admin = {
     funnelEmpty: 'در این دوره صفحهٔ پرداختی باز نشد.',
   },
   // The owner's Telegram alert through n8n (src/modules/admin/alert.ts)
+  softwareAlert: (items: Array<{ name: string; ours: string; target: string | null; severity: string | null }>) =>
+    [
+      `🛡 پیدو: ${items.length.toLocaleString('fa-IR')} به‌روزرسانی امنیتی`,
+      ...items.map((i) => `• ${i.name} ${i.ours} → ${i.target ?? '؟'}${i.severity ? ` (${i.severity})` : ''}`),
+      'طبق برنامه ظرف یک هفته: اول روی staging با آزمایش‌ها، بعد production.',
+    ].join('\n'),
   alert: (s: { newReports: number; newAppeals: number; illegal: number; open: number; oldestMinutes: number | null }) =>
     [
       `🚩 پیدو: ${s.newReports.toLocaleString('fa-IR')} گزارش تازه${s.newAppeals ? ` و ${s.newAppeals.toLocaleString('fa-IR')} اعتراض` : ''}.`,
