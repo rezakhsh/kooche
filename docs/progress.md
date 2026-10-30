@@ -1420,3 +1420,12 @@ Approved by the owner ("All 4 packages"; package 1's plan approved before buildi
 - **Tests:** 1,024 passing (new `tests/staff-powers.test.ts`; the proxy test now expects the signed method).
 - **Checked on staging** with a temporary moderator, admin and person (all removed): an expired read-only sign-in-as session was closed by the worker within a minute (`staff.acting_ended`, `expired: true`); the overview as moderator (no revenue) and admin (revenue) on phone and computer, light and dark, no horizontal scroll, no console errors. Screenshots in `/root/peydoo-media/after-wave2/fix-package-1/`.
 - **Next:** package 2 (money), after the owner approves its plan.
+
+## Oct 30, 2026: code check fix package 2: money
+
+Plan approved by the owner before building. Commit `b36893e`, on staging. Details in `docs/setup.md` ("Payments and Pro", "Since the code check").
+
+- **Fixed:** the renewal after a portal plan switch grants the new period (Stripe's line order confirmed with a test clock in test mode: two proration lines first, then the new month; the test clock and its customer were deleted) and a running subscription's limits are its plan's now; no second plan or founding checkout while Stripe already has a subscription, and no plan forms right after paying; a one-time purchase applied late starts when applied; refunds are read again from Stripe; a price change retires every earlier Stripe price of its slot; a waitlist reward on a listing that isn't live is freed, never applied after its end.
+- **Tests:** 1,032 passing (new `tests/money-fixes.test.ts`).
+- **Checked on staging** with a temporary business owner (removed): the billing page before paying shows the plans and after `?done=1` only «سپاس! اشتراک چند لحظه دیگر فعال می‌شود», on phone and computer, light and dark, no horizontal scroll. Screenshots in `/root/peydoo-media/after-wave2/fix-package-2/`.
+- **Next:** package 3 (people and privacy), after the owner approves its plan.
