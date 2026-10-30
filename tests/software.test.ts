@@ -25,6 +25,7 @@ import {
   SOFTWARE_KEY,
   type SoftwareItem,
   type SoftwareReport,
+  valkeyVersion,
 } from '../src/modules/admin/software';
 import { startModerationJobs } from '../src/worker/moderation';
 import { appDb, redis, workerDb } from './accounts';
@@ -63,6 +64,11 @@ describe('what kind of update', () => {
     expect(repoAdvisoryHit('4.0.16', { vulnerable_version_range: '>= 4.0.0, <= 4.0.15', patched_versions: '>= 4.0.16' }).hit).toBe(false);
     // Coolify's old beta warnings don't touch 4.5
     expect(repoAdvisoryHit('4.5.0', { vulnerable_version_range: '<= 4.0.0-beta.473', patched_versions: 'v4.0.0-beta.474' }).hit).toBe(false);
+  });
+
+  it('Valkey’s own version, not the one it reports for old Redis clients', () => {
+    expect(valkeyVersion('# Server\r\nredis_version:7.2.4\r\nserver_name:valkey\r\nvalkey_version:9.0.6\r\n')).toBe('9.0.6');
+    expect(valkeyVersion('redis_version:7.2.4\r\n')).toBe('7.2.4');
   });
 
   it('the lockfile: our own packages, and every package with whether it is a developer tool', () => {
@@ -151,7 +157,7 @@ beforeAll(async () => {
   const [row] = await db.execute<{ server_version: string }>(sql`SHOW server_version`);
   const m = /^(\d+)\.(\d+)/.exec(row!.server_version)!;
   pg = { major: Number(m[1]), minor: Number(m[2]) };
-  valkey = /(?:valkey|redis)_version:([\d.]+)/.exec(await redis.info('server'))![1]!;
+  valkey = valkeyVersion(await redis.info('server'))!;
 });
 
 beforeEach(async () => {

@@ -1376,3 +1376,7 @@ When a person whose ban is running asks to delete their account, `record_banned_
 
 `visit_stats` (`day date`, `dimension` `total`/`source`/`country`/`page`/`device`, `key text` 1–120, `views int`, `visitors int`; primary key `(day, dimension, key)`): daily totals of the visitor counter, written as absolute numbers by the worker; no visitor, IP or cookie in it. Grants: worker `SELECT, INSERT, UPDATE`, app and readonly `SELECT`. `ref_codes` (`id`, `created_at`, `code text UNIQUE` `^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$`, `label text` 1–80, `created_by_user_id` FK → `users`, `archived_at`): the owner's links; app `SELECT, INSERT, UPDATE (label, archived_at)`, worker and readonly `SELECT`. `users.signup_source text null` (`^(ref:)?[a-z0-9.-]{1,40}$`) and `users.signup_answer text null` (`friend`, `instagram`, `telegram`, `google`, `shop`, `event`, `other`, `skipped`). docs/setup.md, "Visitor numbers".
 
+### `software_dismissals` (migration 0039, Oct 30, 2026)
+
+`software_dismissals` (`id`, `created_at`, `key text UNIQUE` 3–600, `name text`, `reason text` 3–300, `user_id` FK → `users`): software updates an admin marked «لازم نیست». The key is `<name>@<version on offer>` plus the sorted ids of its security warnings, so anything new brings the update back. App `SELECT, INSERT` (no delete), worker and readonly `SELECT`. docs/setup.md, "Software updates".
+

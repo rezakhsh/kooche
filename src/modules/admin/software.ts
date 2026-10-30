@@ -310,6 +310,11 @@ export type CheckOptions = {
 const KIND_ORDER: Record<Kind, number> = { security: 0, fix: 1, major: 2 };
 const GROUP_ORDER: Record<Group, number> = { server: 0, app: 1, dev: 2 };
 
+/** Valkey also reports `redis_version:7.2.4` for old clients; its own number is `valkey_version` */
+export function valkeyVersion(info: string): string | undefined {
+  return /valkey_version:([\d.]+)/.exec(info)?.[1] ?? /redis_version:([\d.]+)/.exec(info)?.[1];
+}
+
 export async function checkSoftware(db: Queryable, redis: Redis, opts: CheckOptions = {}): Promise<SoftwareReport> {
   const fetchFn = opts.fetchFn ?? fetch;
   const errors: string[] = [];
@@ -330,7 +335,7 @@ export async function checkSoftware(db: Queryable, redis: Redis, opts: CheckOpti
   await attempt('PostgreSQL', () => postgresItem(db, fetchFn, support));
 
   const hostVersions = await redis.get(SERVER_VERSIONS_KEY).then((v) => (v ? (JSON.parse(v) as Record<string, string>) : {}), () => ({}) as Record<string, string>);
-  const valkey = /(?:valkey|redis)_version:([\d.]+)/.exec(await redis.info('server').catch(() => ''))?.[1];
+  const valkey = valkeyVersion(await redis.info('server').catch(() => ''));
   for (const s of GITHUB_SERVERS) {
     const ours = clean(s.from === 'valkey' ? valkey : hostVersions[s.from]);
     if (!ours) {
