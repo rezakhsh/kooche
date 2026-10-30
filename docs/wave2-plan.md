@@ -115,6 +115,8 @@ Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved 
 
 Every new page at phone size and on a computer, light and dark; tests for every permission (test accounts, sign in as, view as, founders, modes, pauses, cross-border, private limits); `docs/setup.md`, `docs/schema.md`, `docs/progress.md`.
 
+**Done Oct 30, 2026** (`docs/progress.md`): every wave 2 page checked next to its mockup and in dark; every permission rule has a test; a bump paid in Stripe's test mode by a buyer "in the UK" (£1.73 or €1.99 on Stripe's page; we got €1.99); the stale `seo` failure explained and cleared; wave 2's items added to the owner's launch checklist (`docs/setup.md`). **Wave 2 is complete on staging, except the Telegram channel posting the owner postponed.**
+
 ## Decisions for the owner
 
 1. **Test accounts:** fixed code `123456` on staging only (codes have 6 digits), none on production, where admin «ورود به‌جای این حساب» opens them. Email names as above. Recommended.

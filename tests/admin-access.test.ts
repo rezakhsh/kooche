@@ -75,7 +75,7 @@ describe('roles', () => {
   it('moderators may not do what is for admins', () => {
     const adminOnly = Object.entries(PERMISSIONS).filter(([, r]) => r === 'admin').map(([a]) => a);
     expect(adminOnly).toEqual(
-      expect.arrayContaining(['user.ban', 'user.contact', 'user.sessions', 'user.release_phone', 'sanction.lift', 'organization.verify', 'organization.suspend', 'payments.view', 'audit.all', 'system.view', 'staff.manage']),
+      expect.arrayContaining(['user.ban', 'user.contact', 'user.sessions', 'user.release_phone', 'sanction.lift', 'organization.verify', 'organization.suspend', 'payments.view', 'audit.all', 'system.view', 'staff.manage', 'cities.manage', 'prices.manage']),
     );
     for (const a of adminOnly) expect(can('moderator', a as keyof typeof PERMISSIONS)).toBe(false);
     for (const a of Object.keys(PERMISSIONS)) expect(can('admin', a as keyof typeof PERMISSIONS)).toBe(true);

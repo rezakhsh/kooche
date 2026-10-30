@@ -322,6 +322,10 @@ Everything that only the owner can do before or at launch, in one place (details
 - [ ] **restic password** of production (`/root/.secrets/restic.env` on production) in the password manager, next to staging's.
 - [x] **Telegram bot** @peydoobot: created, token on production, phone verification tried (Oct 24, 2026).
 - [ ] **Strategy decisions** (`docs/strategy.md`): launch date (before Yalda, Dec 21), first seeding city (Berlin as planned), free-Pro length for founding businesses (12 months suggested), offering the @berlin_online family a partnership, filing the EU trademark before launch.
+- [ ] **`VIES_URL`** on classifieds-web, staging and production: `https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number` (wave 2 part 4, business verification).
+- [ ] **Telegram channel posting** (wave 2 part 9, postponed Oct 30, 2026): decide the strategy (a channel per city, the bot's personal messages, or announcements only on @peydooapp) before anything is posted.
+- [ ] **Prices** (wave 2 part 7): every price is in euros; buyers abroad see their own money on Stripe's page (Adaptive Pricing, their 2–4% fee; seen in test mode Oct 30: "£1.73 or €1.99, includes 4% conversion fee"). After the Stripe activation, check Dashboard › Settings › Adaptive Pricing is allowed in live mode, and change prices in admin › «قیمت‌ها» if wanted (new buyers only).
+- [ ] **Promote wave 2:** with `peydoo-promote` when you say so; it carries migrations 0030–0036 (country modes, opened-at, business suspicions, verification levels, number country, the price function, waitlist rewards) and the hourly jobs. The WAF rule `iran_read_only` is deleted at the same time if wave 0 hasn't been promoted yet ("Iran").
 - [ ] **Go-live:** say go; the steps are in "Production" → "Go-live".
 
 ## Accounts and phone verification
