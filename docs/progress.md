@@ -1395,3 +1395,13 @@ Planned with the owner first ("Yes, do part 10", test-mode payments allowed). No
 - **The `seo` failure:** the sitemap job of Oct 28, 19:07 UTC, when staging's disk was full; every hourly run since has worked. The admin page counts every failed job still kept, so this one was removed from the queue and the badge is gone.
 - **Launch checklist** (`docs/setup.md`): `VIES_URL`, the Telegram channel decision, prices and Adaptive Pricing in live mode, promoting wave 2 (migrations 0030–0036).
 - **Wave 2 is complete on staging** (parts 1, 2, 4–10; part 3 dropped for round 12; part 9's channel posting postponed). Production has none of it until the owner asks for `peydoo-promote`.
+
+## Oct 30, 2026: agreed next steps (after wave 2)
+
+The owner's choices, each to be planned and approved before any app change:
+
+- **Code check, the fast way:** automatic scanners first (dependency audit, a security pattern scan), then 5 parallel reviewers on the high-risk areas (payments, Pro, prices and rewards; sign-in, sessions and phone checks; admin powers, view as and sign in as; the worker and outbox; site security and database permissions), findings proven together with tests, then a findings page for the owner. About 2–3 hours, roughly 1.5–2.5 million tokens. No fixes until the owner approves them. Starts after the owner's compact.
+- **Who to contact in Berlin:** research a starting list of public Persian businesses, event organisers and community groups in Berlin (name, website, public contact, source). First contacts in person, by phone or a personal message: unsolicited advertising emails need consent (UWG §7).
+- **Tracking contacts:** a spreadsheet for now (the admin tracker maybe later).
+- **Visitor numbers:** our own counter (no cookies, no consent banner, data on our server: daily visitors, pages, sources, phone or computer) plus personal ref links and QR codes (`?ref=…`) to see visitors and sign-ups per contact; returning visitors counted among signed-in people. Not Google Analytics (consent banner, missing counts, data at Google). Plan first.
+- **Business topics still to discuss:** the launch growth plan without Telegram channels; risks and paperwork (a second payment provider, data-processing agreements, the GDPR Art. 30 record, insurance, the EU trademark, moderation staffing); a support address people can reply to (`support@peydoo.com` as reply-to).
