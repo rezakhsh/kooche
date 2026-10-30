@@ -143,7 +143,8 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
         if ('skip' in decision) return decision.skip;
         if ('later' in decision) {
           // Quiet hours: checked again in the morning (read by then, nothing goes out)
-          await notify.add('notice_deliver', n, { delay: decision.later, jobId: `deliver_${n.messageId}_morning` });
+          // Its own id each time: re-adding the running job's id would add nothing and lose the notice
+          await notify.add('notice_deliver', n, { delay: decision.later, jobId: `deliver_${n.messageId}_morning_${Date.now() + decision.later}` });
           return 'morning';
         }
         const email = decision.channels.includes('email');

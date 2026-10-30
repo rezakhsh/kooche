@@ -25,7 +25,9 @@ export async function sendExpiryReminders(
   now: Date = new Date(),
   opts: { localHour?: number } = {},
 ): Promise<{ emails: number; listings: number }> {
-  const from = new Date(now.getTime() + 2 * 86_400_000).toISOString();
+  // An hour wider than a day: the 25-hour day of the clock change leaves no listing out (code
+  // check, Oct 30, 2026); the guard per listing keeps a reminder from going twice
+  const from = new Date(now.getTime() + 2 * 86_400_000 - 3_600_000).toISOString();
   const to = new Date(now.getTime() + 3 * 86_400_000).toISOString();
   const rows = await db.execute<Row>(sql`
     SELECT l.id, l.title, l.expires_at, u.id AS user_id, u.email, u.display_name

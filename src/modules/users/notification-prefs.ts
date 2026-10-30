@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { users } from '../../db/schema';
+import { addDays, localParts, zonedToUtc } from '../events/time';
 
 // users.notification_prefs (jsonb, docs/schema.md section 6), validated here on every read and
 // write. Since wave 1 (mockup final/notifications) each kind of notice has a Telegram and an email
@@ -114,12 +115,18 @@ function localTime(now: Date, timeZone: string): { h: number; m: number } {
   return { h: Number(parts.find((x) => x.type === 'hour')?.value ?? 0), m: Number(parts.find((x) => x.type === 'minute')?.value ?? 0) };
 }
 
-/** During quiet hours, how long until they end (ms); 0 outside them */
+/**
+ * During quiet hours, how long until they end (ms); 0 outside them. Counted to the real 8:00 on
+ * that clock, so the night of a clock change ends at 8:00 too (code check, Oct 30, 2026: on the
+ * 25-hour night it woke at 7:00 and the notice was lost).
+ */
 export function quietDelay(now: Date, timeZone: string): number {
-  const { h, m } = localTime(now, timeZone);
+  const { h } = localTime(now, timeZone);
   if (h >= QUIET_UNTIL && h < QUIET_FROM) return 0;
-  const minutes = h >= QUIET_FROM ? (24 - h + QUIET_UNTIL) * 60 - m : (QUIET_UNTIL - h) * 60 - m;
-  return minutes * 60_000 - now.getSeconds() * 1_000 - now.getMilliseconds();
+  const today = localParts(now, timeZone);
+  const day = h >= QUIET_FROM ? addDays(today, 1) : today;
+  const end = zonedToUtc({ ...day, h: QUIET_UNTIL, mi: 0 }, timeZone);
+  return Math.max(0, end.getTime() - now.getTime());
 }
 
 /** The whole settings form at once (every switch is sent, so absent means off) */

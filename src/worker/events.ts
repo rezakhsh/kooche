@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { writeWeeklyDigests } from '../modules/events/digest';
 import { EVENT_OUTBOX } from '../modules/events/events';
-import { DEFAULT_ZONE, EVERY_HOUR, isLocalHour, MONDAY } from '../modules/notifications/local-hour';
+import { anyCityAtHour, DEFAULT_ZONE, EVERY_HOUR, isLocalHour, localDate, MONDAY, scheduledTime } from '../modules/notifications/local-hour';
 import {
   channelsFor,
   cityZones,
@@ -96,15 +96,24 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
         await queue.add('event_follow_one', { listingId, userId: r.userId }, { jobId: `follow_${listingId}_${r.userId}`, delay: quietDelay(at, r.timeZone) });
         continue;
       }
+      // Each follower once, so a retry after a failure half-way reaches the rest (code check, Oct 30, 2026)
+      const claim = `event-follow:${listingId}:${r.userId}`;
+      if ((await connection.set(claim, '1', 'EX', FOLLOW_GUARD_SECONDS, 'NX')) !== 'OK') continue;
       if (!(await takeFollowSlot(connection, r.userId, at, r.timeZone))) continue;
-      await deliver(followMessage(news, r, channels, opts.appUrl), `follow_${listingId}_${r.userId}`);
+      try {
+        await deliver(followMessage(news, r, channels, opts.appUrl), `follow_${listingId}_${r.userId}`);
+      } catch (e) {
+        await connection.del(claim);
+        throw e;
+      }
       sent++;
     }
     return sent;
   };
 
-  const weekly = async () => {
-    const at = now();
+  const weekly = async (at: Date) => {
+    // Most hours it is Monday 9:00 nowhere: then nobody is loaded (code check, Oct 30, 2026)
+    if (!(await anyCityAtHour(db, at, 9, MONDAY))) return 0;
     const byCity = new Map<string, Awaited<ReturnType<typeof weeklyMessageFor>>>();
     let sent = 0;
     const recipients = await weeklyRecipients(db);
@@ -117,8 +126,17 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
       if (!message) continue;
       const channels = await channelsFor(connection, r, 'events');
       if (!channels.length) continue;
-      const week = at.toISOString().slice(0, 10);
-      await deliver(message.build(r, channels), `weekly_${r.userId}_${week}`);
+      // Once per person and week, also when a retry starts the list again (the send queues
+      // forget finished jobs after 200): claimed before sending, freed if sending fails
+      const week = localDate(at, zones.get(r.cityId) ?? DEFAULT_ZONE);
+      const claim = `weekly-sent:${r.userId}:${week}`;
+      if ((await connection.set(claim, '1', 'EX', 8 * 86_400, 'NX')) !== 'OK') continue;
+      try {
+        await deliver(message.build(r, channels), `weekly_${r.userId}_${week}`);
+      } catch (e) {
+        await connection.del(claim);
+        throw e;
+      }
       sent++;
     }
     return sent;
@@ -130,20 +148,23 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     async (job: Job) => {
       switch (job.name) {
         case 'event-digest': {
-          const n = await writeWeeklyDigests(db, now(), { localHour: 8 });
+          const n = await writeWeeklyDigests(db, opts.now ? now() : scheduledTime(job), { localHour: 8 });
           return `digest for ${n} countries`;
         }
         case 'event-reminders':
           return `${await reminders()} reminders`;
         case 'event-weekly':
-          return `${await weekly()} weekly messages`;
+          return `${await weekly(opts.now ? now() : scheduledTime(job))} weekly messages`;
         case 'event_follow': {
           const listingId = (job.data as OutboxJobData).aggregateId;
           // Most published listings are no business's event
           const news = await followNews(db, listingId, opts.appUrl, now());
           if (!news) return 'not a business event';
-          if ((await connection.set(`event-follow:${listingId}`, '1', 'EX', FOLLOW_GUARD_SECONDS, 'NX')) !== 'OK') return 'done before';
-          return `${await followOne(news, null)} followers`;
+          if (await connection.exists(`event-follow:${listingId}`)) return 'done before';
+          const n = await followOne(news, null);
+          // Done for everyone: a second event (event.published and listing.published) stops here
+          await connection.set(`event-follow:${listingId}`, '1', 'EX', FOLLOW_GUARD_SECONDS);
+          return `${n} followers`;
         }
         case 'event_follow_one': {
           const d = job.data as { listingId: string; userId: string };

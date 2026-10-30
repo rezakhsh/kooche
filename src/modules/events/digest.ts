@@ -3,7 +3,8 @@ import type { Queryable } from '../../db/drizzle';
 import { hideTestRaw } from '../users/test-accounts';
 import { EVENT_OUTBOX } from './events';
 import { whenWindow } from './queries';
-import { countryZoneSql, isLocalHour, MONDAY } from '../notifications/local-hour';
+import { countryZoneSql, isLocalHour, localDate, MONDAY } from '../notifications/local-hour';
+import { addDays, dayNumber, localParts } from './time';
 
 // The weekly digest: every Monday morning one outbox event per open country with events in the
 // coming week (Monday to Sunday), for the planned channel posting (n8n to Telegram). The payload
@@ -21,6 +22,8 @@ export async function writeWeeklyDigests(db: Queryable, now = new Date(), opts: 
   for (const { code, zone } of zones) {
     if (opts.localHour !== undefined && !isLocalHour(now, zone, opts.localHour, MONDAY)) continue;
     const { from, to } = whenWindow('week', now, zone);
+    // The week, by its Monday on the country's clock: one digest per week (`from` is the run's own time)
+    const week = mondayOf(now, zone);
     const [r] = await db.execute<{ ids: string[]; n: number }>(sql`
       WITH due AS (
         SELECT DISTINCT ON (d.listing_id) d.listing_id, d.starts_at
@@ -34,11 +37,19 @@ export async function writeWeeklyDigests(db: Queryable, now = new Date(), opts: 
     if (!r || r.n === 0) continue;
     const inserted = await db.execute(sql`
       INSERT INTO outbox_events (event_type, aggregate_type, aggregate_id, payload)
-      SELECT ${EVENT_OUTBOX.weeklyDigest}, 'event_digest', uuidv7(), ${JSON.stringify({ country: code, from: from.toISOString(), to: to!.toISOString(), total: r.n, listingIds: r.ids })}::jsonb
+      SELECT ${EVENT_OUTBOX.weeklyDigest}, 'event_digest', uuidv7(), ${JSON.stringify({ country: code, week, from: from.toISOString(), to: to!.toISOString(), total: r.n, listingIds: r.ids })}::jsonb
       WHERE NOT EXISTS (SELECT 1 FROM outbox_events o WHERE o.event_type = ${EVENT_OUTBOX.weeklyDigest}
-                          AND o.payload ->> 'country' = ${code} AND o.payload ->> 'from' = ${from.toISOString()})
+                          AND o.payload ->> 'country' = ${code} AND o.payload ->> 'week' = ${week})
       RETURNING 1`);
     written += inserted.length;
   }
   return written;
+}
+
+/** The Monday of the week `now` is in, on that clock, `YYYY-MM-DD` */
+function mondayOf(now: Date, zone: string): string {
+  const p = localParts(now, zone);
+  const back = (dayNumber(p) + 3) % 7;
+  const m = addDays(p, -back);
+  return localDate(new Date(Date.UTC(m.y, m.m - 1, m.d, 12)), 'UTC');
 }

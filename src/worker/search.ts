@@ -116,9 +116,18 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
         const data = job.data as OutboxJobData;
         const published = data.eventType === LISTING_OUTBOX.published;
         if (meili) {
-          const r = await syncListings(db, meili, index, await cachedCatalog(db), [data.aggregateId]);
-          // Matching asks the index about this listing, so it must be in it first
-          if (published && r.upserted.length) for (const t of r.tasks) await meili.wait(t);
+          try {
+            const r = await syncListings(db, meili, index, await cachedCatalog(db), [data.aggregateId]);
+            // Matching asks the index about this listing, so it must be in it first
+            if (published && r.upserted.length) for (const t of r.tasks) await meili.wait(t);
+          } catch (e) {
+            // Search down for the job's whole life: saved searches still hear about the listing
+            // (matching falls back to PostgreSQL); the nightly reindex adds it to the index (code
+            // check, Oct 30, 2026)
+            const last = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+            if (last && published && opts.afterPublish) await opts.afterPublish(data.aggregateId);
+            throw e;
+          }
           // Already waiting (same job id): this change joins it
           await queue.add('suggest-rebuild', { reason: 'changes' }, soon);
         }

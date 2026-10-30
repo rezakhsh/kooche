@@ -177,8 +177,11 @@ export async function claimAlert(
       await drop();
       return { skip: 'nothing' };
     }
-    // The daily cap is counted per notice; over it, the matches stay pending for tomorrow
-    if (!(await hit(redis, [[ALERTS_PER_USER, s.user_id]])).ok) return { skip: 'capped' };
+    // The daily cap is counted per notice; over it, the matches stay pending for tomorrow. A
+    // bundling person's daily run is one message, whatever number of searches it carries (code
+    // check, Oct 30, 2026: searches 11 and up never got through)
+    const bundled = mode === 'daily' && bundleOn(s.prefs);
+    if (!bundled && !(await hit(redis, [[ALERTS_PER_USER, s.user_id]])).ok) return { skip: 'capped' };
 
     const tg = s.telegram_user_id === null ? null : Number(s.telegram_user_id);
     const channels = noticeChannels(s.prefs, 'searches', tg !== null && !(await isUnreachableMarked(redis, tg)));
@@ -189,7 +192,10 @@ export async function claimAlert(
   });
 }
 
-/** Searches whose matches go out with the daily run: daily ones, all of a bundling person's, and instant ones left waiting */
+/**
+ * Searches whose matches go out with the daily run: daily ones, all of a bundling person's, and
+ * instant ones left waiting; per person, the one that waited longest first
+ */
 export async function dueForDaily(db: Queryable, now: Date, opts: { localHour?: number } = {}): Promise<string[]> {
   // With `localHour` (the worker, hourly): only where it is that hour on the person's clock, their
   // saved city's, else the search's city's, else its country's (wave 2 part 7)
@@ -204,8 +210,22 @@ export async function dueForDaily(db: Queryable, now: Date, opts: { localHour?: 
         SELECT 1 FROM saved_search_hits h WHERE h.saved_search_id = s.id AND h.notified_at IS NULL
           AND (s.notify_frequency = 'daily' OR u.notification_prefs @> '{"bundle": true}'::jsonb
             OR h.created_at < ${new Date(now.getTime() - STUCK_MS).toISOString()}::timestamptz))
-    ORDER BY s.user_id, s.id`);
+    ORDER BY s.user_id, s.last_notified_at NULLS FIRST, s.id`);
   return rows.map((r) => r.id);
+}
+
+/**
+ * A claimed notice that couldn't be queued: its matches wait again, so the next run sends them
+ * (code check, Oct 30, 2026: they were marked sent before the message was on its way)
+ */
+export async function unclaimAlert(db: Queryable, job: AlertJob, claimedAt: Date): Promise<void> {
+  for (const j of [job, ...(job.more ?? [])]) {
+    if (!j.listingIds.length) continue;
+    await db.execute(sql`
+      UPDATE saved_search_hits SET notified_at = NULL
+      WHERE saved_search_id = ${j.savedSearchId}::uuid AND notified_at = ${claimedAt.toISOString()}::timestamptz
+        AND listing_id IN (${sql.join(j.listingIds.map((id) => sql`${id}::uuid`), sql`, `)})`);
+  }
 }
 
 /** Deletes matches older than HITS_KEPT_DAYS, in batches; returns how many */

@@ -15,8 +15,9 @@ import { notificationMailer } from '../modules/notifications/mailer';
 import { testInbox } from '../modules/users/test-accounts';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
-import { EVERY_HOUR } from '../modules/notifications/local-hour';
+import { EVERY_HOUR, scheduledTime } from '../modules/notifications/local-hour';
 import { sendRewardNotices } from '../modules/launch/rewards';
+import { purgeDeletedListings } from '../modules/listings/purge';
 
 // Worker jobs of the posting feature:
 // - queue `media` (from the outbox): process an uploaded photo or business logo, delete a removed
@@ -27,7 +28,8 @@ import { sendRewardNotices } from '../modules/launch/rewards';
 // - queue `listings` (job schedulers): expiry every 15 minutes, the expiry reminder daily at
 //   09:00 on the seller's clock (run hourly, wave 2 part 7), the waitlist reward's "ready" email
 //   at 09:00 on the city's clock (wave 2 part 9), the cleanup of abandoned uploads (and of verification documents 7 days after
-//   the decision) daily at 02:45 UTC, the listing views
+//   the decision) daily at 02:45 UTC, the purge of listings deleted 12 months ago daily at 02:50
+//   UTC, the listing views
 //   counted in Valkey written to PostgreSQL every 5 minutes.
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
@@ -38,6 +40,7 @@ const SCHEDULES = {
   'expiry-reminder': EVERY_HOUR,
   'reward-notices': EVERY_HOUR,
   'upload-cleanup': { pattern: '45 2 * * *', tz: 'UTC' },
+  'listing-purge': { pattern: '50 2 * * *', tz: 'UTC' },
   'view-flush': { pattern: '*/5 * * * *', tz: 'UTC' },
 } as const;
 
@@ -97,11 +100,15 @@ export async function startListingJobs(
           const n = await expireDueListings(db);
           if (n) console.log(`listings: expired ${n} listings`);
         } else if (job.name === 'expiry-reminder') {
-          const n = await sendExpiryReminders(db, connection, mailer, env.APP_URL, new Date(), { localHour: 9 });
+          const n = await sendExpiryReminders(db, connection, mailer, env.APP_URL, scheduledTime(job), { localHour: 9 });
           if (n.emails) console.log(`listings: expiry reminders: ${n.emails} emails about ${n.listings} listings`);
         } else if (job.name === 'reward-notices') {
-          const n = await sendRewardNotices(db, mailer, env.APP_URL);
+          const n = await sendRewardNotices(db, mailer, env.APP_URL, scheduledTime(job));
           if (n) console.log(`listings: ${n} waitlist reward emails`);
+        } else if (job.name === 'listing-purge') {
+          // Deleted listings after 12 months, with their photos (src/modules/listings/purge.ts)
+          const n = await purgeDeletedListings(db, storage);
+          console.log(`listings: purged ${n.purged} deleted listings, ${n.photos} photos`);
         } else if (job.name === 'view-flush') {
           await flushViews(connection, db);
         } else if (job.name === 'upload-cleanup') {

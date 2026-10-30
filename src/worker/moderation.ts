@@ -83,11 +83,23 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           return 'alert';
         case 'notify': {
           const n = await decisionNotices(db, connection, data.aggregateId, opts.appUrl, data.payload.notifyUser !== false);
+          // Each message once, also when a retry starts again after the send queues forgot the
+          // first (they keep 200 finished jobs; code check, Oct 30, 2026)
+          const once = async (key: string, add: () => Promise<unknown>) => {
+            if ((await connection.set(`notice-sent:${key}`, '1', 'EX', 30 * 86_400, 'NX')) !== 'OK') return;
+            try {
+              await add();
+            } catch (e) {
+              await connection.del(`notice-sent:${key}`);
+              throw e;
+            }
+          };
           if (n.user) {
-            await opts.send.email.add('plain_email', { mail: n.user.mail } satisfies PlainEmailJob, { jobId: `mail_decision_${data.aggregateId}` });
-            if (n.user.telegram) await opts.send.telegram.add('plain_telegram', n.user.telegram satisfies PlainTelegramJob, { jobId: `tg_decision_${data.aggregateId}` });
+            const user = n.user;
+            await once(`mail_decision_${data.aggregateId}`, () => opts.send.email.add('plain_email', { mail: user.mail } satisfies PlainEmailJob, { jobId: `mail_decision_${data.aggregateId}` }));
+            if (user.telegram) await once(`tg_decision_${data.aggregateId}`, () => opts.send.telegram.add('plain_telegram', user.telegram! satisfies PlainTelegramJob, { jobId: `tg_decision_${data.aggregateId}` }));
           }
-          for (const [i, mail] of n.reporters.entries()) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_outcome_${data.aggregateId}_${i}` });
+          for (const [i, mail] of n.reporters.entries()) await once(`mail_outcome_${data.aggregateId}_${i}`, () => opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_outcome_${data.aggregateId}_${i}` }));
           return `${n.user ? 1 : 0} notice, ${n.reporters.length} reporters`;
         }
         case 'listing_changed': {

@@ -2,11 +2,14 @@ import { Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { cachedCatalog } from '../modules/listings/catalog';
-import { claimAlert, dueForDaily, matchListing, noticeDelay, purgeHits, type AlertJob, type Channel } from '../modules/search/alerts';
+import { claimAlert, dueForDaily, matchListing, noticeDelay, purgeHits, unclaimAlert, type AlertJob, type Channel } from '../modules/search/alerts';
 import { LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
 import { reportJobFailure } from './monitoring';
-import { EVERY_HOUR } from '../modules/notifications/local-hour';
+import { EVERY_HOUR, scheduledTime } from '../modules/notifications/local-hour';
+
+/** A bundling person's claimed searches in the daily run, each with when it was claimed */
+type Bundle = { claims: Array<{ job: AlertJob; at: Date }>; channels: Channel[] };
 
 // Saved-search notices (src/modules/search/alerts.ts), on queue `search-alerts`:
 // - `match`: a listing was published and indexed (handed over by ./search.ts); records the
@@ -65,21 +68,38 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
   };
 
   /** `bundles`: the daily run collects bundling people's notices here and sends one per person */
-  const send = async (savedSearchId: string, mode: 'instant' | 'daily', bundles?: Map<string, { jobs: AlertJob[]; channels: Channel[] }>) => {
-    const claim = await claimAlert(db, connection, savedSearchId, now(), mode, opts.timeZone);
+  const send = async (savedSearchId: string, mode: 'instant' | 'daily', bundles?: Map<string, Bundle>) => {
+    const at = now();
+    const claim = await claimAlert(db, connection, savedSearchId, at, mode, opts.timeZone);
     if ('later' in claim) {
       await schedule(savedSearchId, claim.later, `_${now().getTime()}`);
       return 'later';
     }
     if ('skip' in claim) return claim.skip;
     if (claim.bundle && bundles) {
-      const b = bundles.get(claim.job.userId) ?? { jobs: [], channels: claim.send };
-      b.jobs.push(claim.job);
+      const b = bundles.get(claim.job.userId) ?? { claims: [], channels: claim.send };
+      b.claims.push({ job: claim.job, at });
       bundles.set(claim.job.userId, b);
       return claim.send.join('+');
     }
-    await enqueue(claim.job, claim.send, `${savedSearchId}_${now().getTime()}`);
+    try {
+      await enqueue(claim.job, claim.send, `${savedSearchId}_${at.getTime()}`);
+    } catch (e) {
+      await unclaimAlert(db, claim.job, at);
+      throw e;
+    }
     return claim.send.join('+');
+  };
+
+  /** One bundling person's daily message; if it can't be queued, their matches wait again */
+  const flush = async (userId: string, b: Bundle) => {
+    const [first, ...more] = b.claims.map((c) => c.job);
+    try {
+      await enqueue({ ...first!, more }, b.channels, `digest_${userId}_${now().getTime()}`);
+    } catch (e) {
+      for (const c of b.claims) await unclaimAlert(db, c.job, c.at);
+      throw e;
+    }
   };
 
   const own = connection.duplicate();
@@ -93,17 +113,21 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
       }
       if (job.name === 'notify') return send(job.data.savedSearchId, 'instant');
       if (job.name === 'daily') {
-        const due = await dueForDaily(db, now(), { localHour: 18 });
-        const bundles = new Map<string, { jobs: AlertJob[]; channels: Channel[] }>();
+        const due = await dueForDaily(db, opts.now ? now() : scheduledTime(job), { localHour: 18 });
+        const bundles = new Map<string, Bundle>();
         let sent = 0;
         for (const id of due) {
           const r = await send(id, 'daily', bundles);
           if (r.includes('telegram') || r.includes('email')) sent++;
+          // The list is by person: once the next person's bundle starts, the earlier one is whole
+          // and goes out now, so a stop half-way loses nobody's claimed matches
+          while (bundles.size > 1) {
+            const [userId, b] = bundles.entries().next().value!;
+            await flush(userId, b);
+            bundles.delete(userId);
+          }
         }
-        for (const [userId, b] of bundles) {
-          const [first, ...more] = b.jobs;
-          await enqueue({ ...first!, more }, b.channels, `digest_${userId}_${now().getTime()}`);
-        }
+        for (const [userId, b] of bundles) await flush(userId, b);
         const purged = await purgeHits(db, now());
         console.log(`search: daily alerts: ${sent} of ${due.length} searches notified, ${purged} old matches deleted`);
         return sent;

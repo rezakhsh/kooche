@@ -1,4 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import { Queue, QueueEvents } from 'bullmq';
+import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
@@ -21,6 +23,8 @@ import { seasonByKey } from '../src/modules/events/seasons';
 import { addFavorite } from '../src/modules/listings/favorites';
 import { listingInputSchema, type ListingInput } from '../src/modules/listings/listings';
 import { setWeeklyEvents } from '../src/modules/users/notification-prefs';
+import { writeWeeklyDigests } from '../src/modules/events/digest';
+import { startEventJobs } from '../src/worker/events';
 import { appDb, redis, workerDb } from './accounts';
 import { db, publicToken } from './db';
 import { categoryBySlug, city, listing, openEverywhereForTests, user } from './listings-fixtures';
@@ -277,5 +281,55 @@ describe('«رویدادهای این هفته در شهر»', () => {
     expect(out.mail?.text).toContain('/germany/berlin/events');
     await setWeeklyEvents(appDb, fan.id, 'off');
     expect((await weeklyRecipients(workerDb)).filter((x) => x.userId === fan.id)).toHaveLength(0);
+  });
+});
+
+describe('once a week, also on a retry (code check, Oct 30, 2026)', () => {
+  it('the weekly message goes once per person, even when the send queues forgot the first', async () => {
+    const owner = await user(SETTLED);
+    const fan = await user();
+    const berlin = await city('berlin');
+    await publish(owner.id, { listing: { title: `شب شعر ${publicToken()}` }, event: { startDate: '2026-10-21' } });
+    await setWeeklyEvents(appDb, fan.id, { cityId: berlin.id, telegramReady: false });
+    const prefix = `test-${publicToken()}`;
+    const connection = new Redis(process.env.TEST_REDIS_URL!, { maxRetriesPerRequest: null });
+    const send = { email: new Queue('email-send', { connection, prefix }), telegram: new Queue('telegram-send', { connection, prefix }) };
+    // Monday Oct 19, 2026, 9:00 in Berlin
+    const monday = new Date('2026-10-19T07:00:00Z');
+    const jobs = await startEventJobs(workerDb, connection, { appUrl: APP, send, prefix, schedules: false, now: () => monday });
+    const events = new QueueEvents('events', { connection: connection.duplicate(), prefix });
+    const mine = async () => (await send.email.getJobs(['waiting', 'delayed'])).filter((j) => (j.data as { mail: { to: string } }).mail.to === fan.email);
+    try {
+      await (await jobs.queue.add('event-weekly', {})).waitUntilFinished(events, 30_000);
+      expect(await mine()).toHaveLength(1);
+      // The send queue finished and forgot it; a second run (a retry) sends nothing more
+      await send.email.obliterate({ force: true });
+      await (await jobs.queue.add('event-weekly', {})).waitUntilFinished(events, 30_000);
+      expect(await mine()).toHaveLength(0);
+      // Not Monday 9:00 anywhere: nobody is even loaded
+      const tuesday = await startEventJobs(workerDb, connection, { appUrl: APP, send, prefix: `${prefix}-b`, schedules: false, now: () => new Date('2026-10-20T10:00:00Z') });
+      const tEvents = new QueueEvents('events', { connection: connection.duplicate(), prefix: `${prefix}-b` });
+      expect(await (await tuesday.queue.add('event-weekly', {})).waitUntilFinished(tEvents, 30_000)).toBe('0 weekly messages');
+      await tEvents.close();
+      await tuesday.close();
+    } finally {
+      await events.close();
+      await jobs.close();
+      await send.email.close();
+      await send.telegram.close();
+      await connection.quit();
+    }
+  });
+
+  it('the weekly digest is written once per country and week, however often the hour runs', async () => {
+    const owner = await user(SETTLED);
+    await publish(owner.id, { listing: { title: `دورهمی ${publicToken()}` }, event: { startDate: '2026-10-22' } });
+    // Monday Oct 19, 2026, 8:00 in Berlin, and a retry ten seconds later
+    const at = new Date('2026-10-19T06:00:00Z');
+    await workerDb.execute(sql`DELETE FROM outbox_events WHERE event_type = 'event_digest.weekly' AND payload ->> 'week' = '2026-10-19'`);
+    expect(await writeWeeklyDigests(workerDb, at, { localHour: 8 })).toBeGreaterThanOrEqual(1);
+    expect(await writeWeeklyDigests(workerDb, new Date(at.getTime() + 10_000), { localHour: 8 })).toBe(0);
+    const [row] = await db.select().from(schema.outboxEvents).where(sql`event_type = 'event_digest.weekly' AND payload ->> 'country' = 'DE' AND payload ->> 'week' = '2026-10-19'`);
+    expect(row).toBeTruthy();
   });
 });
