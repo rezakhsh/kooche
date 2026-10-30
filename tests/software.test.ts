@@ -241,7 +241,7 @@ describe('the owner’s alert', () => {
       seo: null,
       fetchFn: sources(calls),
       prefix,
-      software: { lockfile },
+      software: { lockfile, nodeVersion: 'v24.22.0' },
     });
     const events = new QueueEvents('moderation', { connection: bull.duplicate(), prefix });
     try {

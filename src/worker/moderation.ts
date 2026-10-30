@@ -52,7 +52,7 @@ export type ModerationJobOptions = {
   prefix?: string;
   gatherMs?: number;
   /** The software update check; off in tests */
-  software?: { lockfile?: string } | null;
+  software?: { lockfile?: string; nodeVersion?: string } | null;
 };
 
 export async function startModerationJobs(db: Db, connection: Redis, opts: ModerationJobOptions) {
@@ -155,7 +155,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           return 'written';
         }
         case 'software_check': {
-          const report = await checkSoftware(db, connection, { lockfile: opts.software?.lockfile, fetchFn: opts.fetchFn });
+          const report = await checkSoftware(db, connection, { ...opts.software, fetchFn: opts.fetchFn });
           await writeSoftwareReport(connection, report);
           if (report.errors.length) console.log(`moderation: software check, not reached: ${report.errors.join('; ')}`);
           if (!opts.alert) return { updates: report.items.length, alert: 'off' };

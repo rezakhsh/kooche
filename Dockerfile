@@ -6,7 +6,7 @@
 # Both run as the image's unprivileged `node` user. No secrets at build time: every setting is
 # read from the environment when the process starts.
 
-ARG NODE_IMAGE=node:24.22.0-bookworm-slim
+ARG NODE_IMAGE=node:24.22.2-bookworm-slim
 
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
