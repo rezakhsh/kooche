@@ -1439,3 +1439,12 @@ Plan approved by the owner before building (email messaging from Iran only). Com
 - **Tests:** 1,043 passing (new `tests/people-privacy.test.ts`; the grants test counts 52 tables and the three new functions).
 - **Checked on staging** with temporary accounts and a verified business (removed): the phone page without SMS and with the Telegram-only note, `/account/phone/sms` answers 404, the edit page's badge note; phone and computer, light and dark. Email messaging from Iran isn't checked in the browser (Cloudflare sets the country; the tests cover it). Screenshots in `/root/peydoo-media/after-wave2/fix-package-3/`.
 - **Next:** package 4 (background jobs), after the owner approves its plan.
+
+## Oct 30, 2026: code check fix package 4: background jobs — all four packages on staging
+
+Plan approved by the owner before building. Commit `3981272`, on staging. Details in `docs/setup.md` ("Background jobs since the code check") and `docs/schema.md` (section 14, the purge).
+
+- **Fixed:** the weekly city message, moderation notices and follower notices are claimed once per person (a retry repeats nothing); the weekly message loads people only in a Monday-9:00 hour; the digest is deduplicated by week; hourly jobs serve their scheduled hour and the expiry reminder covers the 25-hour day; saved searches: a bundle counts once against the limit, the longest-waiting go first, an unqueued notice gives its matches back, bundles go out per person; quiet hours end at the real 8:00 on the clock-change night; a new listing reaches saved-search matching when search was down; deleted listings are purged after 12 months with their photos (`listing-purge`, daily 02:50 UTC), as the privacy policy says.
+- **Tests:** 1,053 passing (new `tests/job-fixes.test.ts`; the weekly message and digest in `tests/events-wave1.test.ts`).
+- **Checked on staging:** web and worker healthy after the deploy; the new schedules (`listing-purge`, `erase-stuck`, `acting-ended`) registered; no failed job in any queue; the status snapshot carries the stuck-deletion count (0).
+- **The code check is done:** 35 findings, the 8 "fix first" and 13 "fix soon" all fixed in packages 1–4, plus most small ones. Left on purpose or for later: the nodemailer update (with the software-update plan), the view-as pass tied to the role (no gain), staging test accounts' shared code (staging only), the SMS form's number check and double tap (the SMS option is hidden). Production has none of it until the owner asks for `peydoo-promote` (migration 0037 comes with it).
