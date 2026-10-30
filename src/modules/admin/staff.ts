@@ -1,13 +1,14 @@
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { auditLog, sessions, twoFactors, users } from '../../db/schema';
+import { auditLog, outboxEvents, sessions, twoFactors, users } from '../../db/schema';
 import type { StaffRole } from './access';
 import { staffAudit, type StaffContext } from './audit';
 
 // Who is staff (users.staff_role). The first admin, and any later admin, is made with
 // scripts/make-staff.ts as classifieds_owner; admins appoint and remove moderators on the admin
 // page. Every change writes staff.role_changed. Removing a role ends the admin page for that
-// person at their next request; their TOTP set-up stays for a later return.
+// person at their next request; their TOTP set-up stays for a later return. The person is told
+// by email (outbox `user.staff_role_changed`).
 
 export type RoleChange =
   | { ok: true; userId: string; from: StaffRole | null; to: StaffRole | null }
@@ -31,6 +32,8 @@ export async function setStaffRole(
   const data = { from: user.role, to: opts.role };
   if (opts.by) await staffAudit(tx, opts.by, 'staff.role_changed', { type: 'user', id: user.id }, data);
   else await tx.insert(auditLog).values({ actorType: 'system', action: 'staff.role_changed', targetType: 'user', targetId: user.id, data: { ...data, by: 'make-staff' } });
+  // The person is told (the owner's rule: staff changes are always told)
+  await tx.insert(outboxEvents).values({ eventType: 'user.staff_role_changed', aggregateType: 'user', aggregateId: user.id, payload: data });
   return { ok: true, userId: user.id, from: user.role, to: opts.role };
 }
 

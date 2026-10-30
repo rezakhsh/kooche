@@ -199,6 +199,8 @@ export async function restoreListing(db: Db, staff: StaffContext, listingId: str
   return db.transaction(async (tx) => {
     const l = await lockListing(tx, listingId);
     if (!l) return { ok: false, reason: 'not_found' };
+    // Never one's own listing
+    if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
     if (l.status !== 'rejected' && l.status !== 'pending_review') return { ok: false, reason: 'not_allowed' };
     // A listing of a suspended seller or business stays down until the suspension ends
     const [owner] = await tx.execute<{ blocked: boolean }>(sql`
@@ -261,6 +263,7 @@ export async function approveListing(db: Db, staff: StaffContext, listingId: str
   return db.transaction(async (tx) => {
     const l = await lockListing(tx, listingId);
     if (!l) return { ok: false, reason: 'not_found' };
+    if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
     const [d] = await tx
       .insert(moderationDecisions)
       .values({ listingId: l.id, listingRevision: l.revision, decision: 'approve', decidedBy: 'staff', moderatorUserId: staff.userId, contentSnapshot: await snapshot(tx, l) })
@@ -293,9 +296,11 @@ export async function sanctionUser(
   if (fixed ? input.days !== null : input.kind === 'suspended' && input.days === null) return { ok: false, reason: 'invalid' };
   const now = opts.now ?? new Date();
   return db.transaction(async (tx) => {
-    const [u] = await tx.select({ id: users.id, status: users.status }).from(users).where(eq(users.id, input.userId)).for('update');
+    const [u] = await tx.select({ id: users.id, status: users.status, staffRole: users.staffRole }).from(users).where(eq(users.id, input.userId)).for('update');
     if (!u || u.status === 'deleted') return { ok: false, reason: 'not_found' };
     if (u.id === staff.userId) return { ok: false, reason: 'not_allowed' };
+    // Rank: only an admin sanctions a moderator, and no one an admin from here
+    if (u.staffRole && (u.staffRole === 'admin' || staff.role !== 'admin')) return { ok: false, reason: 'not_allowed' };
     const endsAt = input.days ? new Date(now.getTime() + input.days * 86_400_000) : null;
     const listingTargets: Target[] = input.alsoListingId ? [{ listingId: input.alsoListingId }] : [];
     const onReport = await hasOpenReports(tx, [{ reportedUserId: u.id }, ...listingTargets]);
@@ -363,6 +368,7 @@ export async function liftSanction(db: Db, staff: StaffContext, sanctionId: stri
   return db.transaction(async (tx) => {
     const [s] = await tx.select().from(userSanctions).where(eq(userSanctions.id, sanctionId)).for('update');
     if (!s || s.revokedAt || (s.endsAt && s.endsAt <= now)) return { ok: false, reason: 'not_found' };
+    if (s.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
     await tx.update(userSanctions).set({ revokedAt: now, revokedByUserId: staff.userId, revokeNote: note.trim() || null }).where(eq(userSanctions.id, s.id));
     const t = messages_.moderation.staff;
     const [d] = await tx

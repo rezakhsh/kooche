@@ -1,12 +1,10 @@
-import { eq } from 'drizzle-orm';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { appDb } from '../../db/drizzle';
-import { sessions } from '../../db/schema';
 import { webEnv } from '../../lib/env';
 import { ACTING_BLOCKED_COOKIE, actingGate, actingState, recordActingChange, type ActingState } from '../admin/acting';
-import { METHOD_HEADER } from '../admin/gate';
+import { markedMethod, METHOD_HEADER } from '../admin/gate';
 import { viewAsCountry } from '../admin/view-as';
 import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
@@ -67,12 +65,12 @@ export const currentSession = cache(async (): Promise<CurrentSession | null> => 
   // A session an admin opened for this user (src/modules/admin/acting.ts)
   const acting = await actingState(appDb(), session.session.id);
   if (!acting) return session;
-  if (acting === 'ended') {
-    await appDb().delete(sessions).where(eq(sessions.id, session.session.id));
-    return null;
-  }
+  // Ended: no longer accepted; the worker closes it within a minute, with its audit row and email
+  if (acting === 'ended') return null;
   const path = h.get('x-pathname') ?? '/';
-  const gate = actingGate(acting, { method: h.get(METHOD_HEADER) ?? 'GET', action: h.has('next-action') });
+  // The proxy's signed method; without it (a prefetch header skips the proxy) it counts as a change
+  const method = markedMethod(h.get(METHOD_HEADER), webEnv().AUTH_SECRET) ?? 'POST';
+  const gate = actingGate(acting, { method, action: h.has('next-action') });
   if (gate === 'record') await recordActingChange(appDb(), acting, session.session.id, path);
   if (gate === 'block') {
     // In a server action: back to the page, where the banner says why. Anything else: no account.

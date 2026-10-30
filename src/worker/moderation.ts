@@ -6,7 +6,7 @@ import { listingBrowseUrls, purgeUrls } from '../modules/admin/purge';
 import { collectStatus, writeStatus } from '../modules/admin/system';
 import type { Meili } from '../modules/search/meili';
 import { restoreAfterSuspensions } from '../modules/moderation/decide';
-import { businessCaseMail, decisionNotices, phoneReleasedMail, staffActedMail, reportReceipt } from '../modules/moderation/notices';
+import { businessCaseMail, decisionNotices, phoneReleasedMail, reportReceipt, signedOutMail, staffActedMail, staffRoleMail } from '../modules/moderation/notices';
 import { cachedCatalog } from '../modules/listings/catalog';
 import { closeSwitched, findSuspicions } from '../modules/organizations/suspicions';
 import { LISTING_OUTBOX } from '../modules/listings/events';
@@ -112,6 +112,17 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_acted_${data.outboxId}` });
           return mail ? 'sent' : 'gone';
         }
+        case 'staff_role_changed': {
+          const change = (data.payload ?? {}) as { from: string | null; to: string | null };
+          const mail = await staffRoleMail(db, data.aggregateId, { from: change.from ?? null, to: change.to ?? null }, opts.appUrl);
+          if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_role_${data.outboxId}` });
+          return mail ? 'sent' : 'gone';
+        }
+        case 'signed_out': {
+          const mail = await signedOutMail(db, data.aggregateId, opts.appUrl);
+          if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_signed_out_${data.outboxId}` });
+          return mail ? 'sent' : 'gone';
+        }
         case 'phone_released': {
           const mail = await phoneReleasedMail(db, data.aggregateId, opts.appUrl);
           if (mail) await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_phone_${data.outboxId}` });
@@ -155,6 +166,8 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     'moderation.decided': [{ name: 'notify', queue }],
     'user.phone_released': [{ name: 'phone_released', queue }],
     'user.staff_acted': [{ name: 'staff_acted', queue }],
+    'user.staff_role_changed': [{ name: 'staff_role_changed', queue }],
+    'user.signed_out': [{ name: 'signed_out', queue }],
     'user.business_asked': [{ name: 'business_case', queue }],
     'user.business_restricted': [{ name: 'business_case', queue }],
     'user.business_cleared': [{ name: 'business_case', queue }],

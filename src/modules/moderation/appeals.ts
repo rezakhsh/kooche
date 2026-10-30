@@ -93,3 +93,35 @@ export async function appealDecision(db: Db, redis: Redis, userId: string, decis
     return { ok: true };
   });
 }
+
+/** Operations that grant or answer an appeal (from the item page's appeal choices) */
+const APPEAL_OPS = ['restore', 'unhide_message', 'lift_sanction', 'keep'] as const;
+
+/**
+ * Whether an appeal sent with a staff decision is a real, open appeal about this item, not the
+ * staff member's own (code check, Oct 30, 2026: a made-up appeal id let a moderator lift any
+ * sanction but a ban). Its sanction for a lift must be the appealed decision's.
+ */
+export async function appealFits(
+  db: Queryable,
+  a: { appealId: string; staffUserId: string; op: string; kind: string; itemId: string; sanctionId?: string },
+): Promise<boolean> {
+  if (!(APPEAL_OPS as readonly string[]).includes(a.op)) return false;
+  const [row] = await db.execute<{ user_id: string; decision_id: string; listing_id: string | null; message_id: string | null; decision_user_id: string | null; organization_id: string | null; sanction_ok: boolean }>(sql`
+    SELECT ap.user_id, d.id AS decision_id, d.listing_id, d.message_id, d.user_id AS decision_user_id, d.organization_id,
+           EXISTS (SELECT 1 FROM user_sanctions s WHERE s.id = ${a.sanctionId ?? null}::uuid AND s.moderation_decision_id = d.id) AS sanction_ok
+    FROM moderation_appeals ap JOIN moderation_decisions d ON d.id = ap.decision_id
+    WHERE ap.id = ${a.appealId}::uuid AND ap.status = 'open'`);
+  if (!row || row.user_id === a.staffUserId) return false;
+  switch (a.op) {
+    case 'restore':
+      return a.kind === 'listing' && row.listing_id === a.itemId;
+    case 'unhide_message':
+      return a.kind === 'message' && row.message_id === a.itemId;
+    case 'lift_sanction':
+      return row.sanction_ok;
+    default:
+      // «نگه داشتن تصمیم»: the appeal must belong to the item the page shows
+      return [row.listing_id, row.message_id, row.decision_user_id, row.organization_id].includes(a.itemId);
+  }
+}

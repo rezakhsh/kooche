@@ -3,17 +3,18 @@ import { Icon } from '../../../components/icons';
 import { Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
-import { searchUsers } from '../../../modules/admin/users';
+import { contactsListed, searchUsers } from '../../../modules/admin/users';
 import { adminHref, requireStaff, staffCan } from '../../../modules/admin/server';
 import { AdminTitle, Ago, SearchForm, selectClass, StatusPill } from '../ui';
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  await requireStaff('users.view');
+  const staff = await requireStaff('users.view');
   const sp = await searchParams;
   const q = (sp.q ?? '').slice(0, 100);
   const testOnly = sp.test === '1';
   const contact = await staffCan('user.contact');
   const rows = await searchUsers(appDb(), q, { withContact: contact, testOnly });
+  if (contact) await contactsListed(appDb(), staff.ctx, 'users', rows.map((u) => u.id));
   const t = admin.users;
   return (
     <>

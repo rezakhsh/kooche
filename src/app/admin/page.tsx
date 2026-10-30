@@ -63,6 +63,10 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     ...(system?.problems ?? []).map((p) => ({ icon: 'alert' as const, title: problemText(p, tz).title, sub: t.systemLink, href: adminHref('/system'), red: true })),
     ...(waiting.length ? [{ icon: 'store' as const, title: t.businessesWaiting(waiting.length), sub: formatAgo(waiting[0]!.updatedAt, tz), href: adminHref('/businesses'), red: false }] : []),
   ];
+  // Revenue is payment data: admins only (code check, Oct 30, 2026)
+  const money = can(staff.role, 'payments.view');
+  const stats = STATS.filter((m) => money || m !== 'revenue');
+  const metrics = METRICS.filter((m) => money || m !== 'revenue');
   const top = cities[0];
   const chatPct = top?.cohort ? Math.round((top.withChat / top.cohort) * 100) : 0;
   const maxActive = Math.max(1, ...cities.map((c) => c.active));
@@ -107,8 +111,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         </p>
       )}
 
-      <section className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
-        {STATS.map((m) => {
+      <section className={`mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 ${money ? 'xl:grid-cols-6' : 'xl:grid-cols-5'}`}>
+        {stats.map((m) => {
           const v = totals[m];
           const d = change(v.period, v.previous);
           return (
@@ -147,7 +151,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
 
       <h2 className="mt-8 mb-3 font-extrabold">{t.charts}</h2>
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {METRICS.map((m) => (
+        {metrics.map((m) => (
           <LineChart key={m} title={`${t.metrics[m]}، ${period}`} points={series[m]} money={m === 'revenue'} />
         ))}
       </div>

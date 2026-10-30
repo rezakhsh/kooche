@@ -6,6 +6,7 @@ import { userSanctions } from '../../../../../db/schema';
 import { webEnv } from '../../../../../lib/env';
 import { admin, faDigits } from '../../../../../messages/fa';
 import { staffAudit } from '../../../../../modules/admin/audit';
+import { contactsListed } from '../../../../../modules/admin/users';
 import { businessForReview, decisionsOn, duplicateOf, listingForReview, messageInContext, personHistory, reportsOn, sameTextCount, type DecisionRow } from '../../../../../modules/admin/items';
 import { HELD_RESUBMISSIONS, moderationQueue } from '../../../../../modules/admin/queue';
 import { adminHref, requireStaff } from '../../../../../modules/admin/server';
@@ -117,6 +118,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
       cachedCatalog(db),
       db.execute(sql`SELECT 1 FROM (${HELD_RESUBMISSIONS}) h WHERE h.id = ${id}`),
     ]);
+    if (contact) await contactsListed(db, staff.ctx, 'reports', reportRows.map((r) => (r.reporterEmail ? (r.reporterUserId ?? r.id) : null)));
     const escalation = decisionRows.find((d) => d.decision === 'escalate');
     const dup = escalation ? await duplicateOf(db, escalation.aiOutput) : null;
     const appeals = await appealOps(decisionRows);
@@ -230,6 +232,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
     const p = await personHistory(db, id);
     if (!p) notFound();
     const [reportRows, decisionRows] = await Promise.all([reportsOn(db, { userId: id }), decisionsOn(db, { userId: id })]);
+    if (contact) await contactsListed(db, staff.ctx, 'reports', reportRows.map((r) => (r.reporterEmail ? (r.reporterUserId ?? r.id) : null)));
     const appeals = await appealOps(decisionRows);
     const active = p.sanctions.filter((s) => s.active);
     const ops: OpChoice[] = [
@@ -272,6 +275,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
     const b = await businessForReview(db, id);
     if (!b) notFound();
     const [reportRows, decisionRows] = await Promise.all([reportsOn(db, { organizationId: id }), decisionsOn(db, { organizationId: id })]);
+    if (contact) await contactsListed(db, staff.ctx, 'reports', reportRows.map((r) => (r.reporterEmail ? (r.reporterUserId ?? r.id) : null)));
     const appeals = await appealOps(decisionRows);
     const ops: OpChoice[] = [
       ...(reportRows.some((r) => r.status === 'open') ? [op('no_violation')] : []),
@@ -329,6 +333,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
   if (!m) notFound();
   await db.transaction((tx) => staffAudit(tx, staff.ctx, 'staff.chat_viewed', { type: 'message', id }, { conversationId: m.conversation.id }));
   const [reportRows, decisionRows, sender] = await Promise.all([reportsOn(db, { messageId: id }), decisionsOn(db, { messageId: id }), m.senderId ? personHistory(db, m.senderId) : null]);
+  if (contact) await contactsListed(db, staff.ctx, 'reports', reportRows.map((r) => (r.reporterEmail ? (r.reporterUserId ?? r.id) : null)));
   const appeals = await appealOps(decisionRows);
   const reported = m.messages.find((x) => x.reported);
   const ops: OpChoice[] = [

@@ -24,6 +24,7 @@ import {
   type DecideResult,
   type Grounds,
 } from '../../modules/moderation/decide';
+import { appealFits } from '../../modules/moderation/appeals';
 import { REASON_SECTIONS } from '../../modules/moderation/reasons';
 
 // The decision form on an item page (src/app/admin/items). One action for every operation: the
@@ -39,6 +40,8 @@ export async function decideAction(_prev: DecideState, form: FormData): Promise<
   if (!parsed.success) return { error: t.errors.invalid };
   const i = parsed.data;
   const db = appDb();
+  // An appeal must be real, open, about this item and not the staff member's own
+  if (i.appealId && !(await appealFits(db, { appealId: i.appealId, staffUserId: staff.ctx.userId, op: i.op, kind: i.kind, itemId: i.id, sanctionId: i.sanctionId }))) return { error: t.errors.invalid };
   const sanctionType = i.sanctionId ? (await db.select({ type: userSanctions.type }).from(userSanctions).where(eq(userSanctions.id, i.sanctionId)))[0]?.type : null;
   if (!can(staff.role, opPermission(i, sanctionType))) return { error: admin.common.forbidden };
 

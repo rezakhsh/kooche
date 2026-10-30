@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { listings, messages as chatMessages, moderationDecisions, organizationMembers, organizations, reports, users } from '../../db/schema';
-import { faDigits, messages } from '../../messages/fa';
+import { admin, faDigits, messages } from '../../messages/fa';
 import { reportMailDe } from '../../messages/legal-de';
 import { operator } from '../../messages/operator';
 import { emailHtml, escapeHtml, type Mail } from '../notifications/mailer';
@@ -172,6 +172,26 @@ export async function staffActedMail(db: Queryable, userId: string, appUrl: stri
   const t = messages.moderationMail;
   const url = `${appUrl}/contact`;
   return { to: u.email, subject: t.staffActedSubject, text: `${t.staffActed}\n\n${t.staffActedLink}: ${url}`, html: html([t.staffActed], { url, label: t.staffActedLink }) };
+}
+
+/** A staff role given or taken away (src/modules/admin/staff.ts) */
+export async function staffRoleMail(db: Queryable, userId: string, change: { from: string | null; to: string | null }, appUrl: string): Promise<Mail | null> {
+  const [u] = await db.select({ email: users.email, status: users.status, test: users.testAccount }).from(users).where(eq(users.id, userId));
+  if (!u || u.status === 'deleted' || u.test) return null;
+  const t = messages.moderationMail;
+  const role = (r: string | null) => (r ? (admin.roles[r as 'moderator' | 'admin'] ?? r) : '');
+  const url = `${appUrl}/contact`;
+  const [subject, body] = change.to ? [t.staffRoleGivenSubject(role(change.to)), t.staffRoleGiven(role(change.to))] : [t.staffRoleRemovedSubject(role(change.from)), t.staffRoleRemoved(role(change.from))];
+  return { to: u.email, subject, text: `${body}\n\n${t.staffActedLink}: ${url}`, html: html([body], { url, label: t.staffActedLink }) };
+}
+
+/** Support signed the person out on every device (src/modules/admin/users.ts) */
+export async function signedOutMail(db: Queryable, userId: string, appUrl: string): Promise<Mail | null> {
+  const [u] = await db.select({ email: users.email, status: users.status, test: users.testAccount }).from(users).where(eq(users.id, userId));
+  if (!u || u.status === 'deleted' || u.test) return null;
+  const t = messages.moderationMail;
+  const url = `${appUrl}/login`;
+  return { to: u.email, subject: t.signedOutSubject, text: `${t.signedOut}\n\n${t.signedOutLink}: ${url}`, html: html([t.signedOut], { url, label: t.signedOutLink }) };
 }
 
 /** «احتمالاً کسب‌وکار» (src/modules/organizations/suspicions.ts): asked, restricted, or cleared after being asked */

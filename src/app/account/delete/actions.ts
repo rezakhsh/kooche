@@ -5,13 +5,15 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
 import { requestErasure } from '../../../modules/users/erasure';
-import { auth, requireSession } from '../../../modules/users/server';
+import { auth, currentActing, requireSession } from '../../../modules/users/server';
 
 const input = z.object({ email: z.string().max(320), confirm: z.literal('on') });
 
 /** Deletes the signed-in user's own account; there is no user id in the form */
 export async function deleteAccountAction(form: FormData): Promise<void> {
   const { user } = await requireSession('/account/delete');
+  // Only the person themself, never an admin signed in as them (code check, Oct 30, 2026)
+  if (await currentActing()) redirect('/account/delete?error=acting');
   const parsed = input.safeParse({ email: form.get('email') ?? '', confirm: form.get('confirm') });
   if (!parsed.success) redirect('/account/delete?error=not_confirmed');
   const result = await requestErasure(appDb(), user.id, parsed.data.email);

@@ -57,6 +57,8 @@ export async function signOutEverywhere(db: Db, staff: StaffContext, userId: str
   return db.transaction(async (tx) => {
     const gone = await tx.delete(sessions).where(eq(sessions.userId, userId)).returning({ id: sessions.id });
     await staffAudit(tx, staff, 'user.signed_out', { type: 'user', id: userId }, { sessions: gone.length });
+    // The person is told by email (outbox `user.signed_out`)
+    await tx.insert(outboxEvents).values({ eventType: 'user.signed_out', aggregateType: 'user', aggregateId: userId, payload: { sessions: gone.length } });
     return gone.length;
   });
 }
@@ -72,6 +74,16 @@ export async function releasePhone(db: Db, staff: StaffContext, userId: string, 
     await tx.insert(outboxEvents).values({ eventType: 'user.phone_released', aggregateType: 'user', aggregateId: userId, payload: {} });
     return true;
   });
+}
+
+/**
+ * A list that shows several people's email or phone (the users list, reporters on an item page) is
+ * written down too, once per page view, with whose (code check, Oct 30, 2026)
+ */
+export async function contactsListed(db: Db, staff: StaffContext, list: 'users' | 'reports', ids: Array<string | null>): Promise<void> {
+  const shown = [...new Set(ids.filter((x): x is string => !!x))];
+  if (shown.length === 0) return;
+  await db.transaction((tx) => staffAudit(tx, staff, 'staff.contacts_listed', null, { list, ids: shown.slice(0, 100) }));
 }
 
 /** Viewing someone's email and phone is written down (staff.contact_viewed) */

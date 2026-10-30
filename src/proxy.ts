@@ -3,7 +3,7 @@ import { COUNTRY_COOKIE } from './app/country-cookie-name';
 import { webEnv, type WebEnv } from './lib/env';
 import { isIranRequest } from './lib/region';
 import { OWN_COOKIE_DAYS, readReturn, sessionCookieName, STAFF_RETURN_COOKIE } from './modules/admin/acting-cookies';
-import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath, METHOD_HEADER } from './modules/admin/gate';
+import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath, METHOD_HEADER, methodMark } from './modules/admin/gate';
 import { readViewAs, VIEW_AS_COOKIE, VIEW_AS_HEADER } from './modules/admin/view-as';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
@@ -141,7 +141,7 @@ export function proxy(request: NextRequest) {
   requestHeaders.delete(ADMIN_GATE_HEADER);
   requestHeaders.delete(VIEW_AS_HEADER);
   if (viewing) requestHeaders.set(VIEW_AS_HEADER, viewAs!);
-  requestHeaders.set(METHOD_HEADER, request.method);
+  requestHeaders.set(METHOD_HEADER, methodMark(request.method, env.AUTH_SECRET));
 
   // The admin page (src/modules/admin/gate.ts): /<ADMIN_PATH>/… becomes /admin/… with the mark.
   // Never indexed, never kept by any cache; /admin itself goes on unmarked and answers 404.

@@ -19,7 +19,7 @@ import {
   STAFF_RETURN_COOKIE,
 } from '../src/modules/admin/acting';
 import type { StaffContext } from '../src/modules/admin/audit';
-import { METHOD_HEADER } from '../src/modules/admin/gate';
+import { markedMethod, METHOD_HEADER } from '../src/modules/admin/gate';
 import { staffActedMail } from '../src/modules/moderation/notices';
 import { appDb, signIn, testAuth, visitor } from './accounts';
 import { db, publicToken } from './db';
@@ -237,7 +237,9 @@ describe('the proxy', () => {
     expect(proxy(req('/api/auth/sign-out', later, 'POST')).status).toBe(403);
     expect(proxy(req('/api/auth/get-session', later)).status).not.toBe(403);
     const action = proxy(req('/my/listings', later, 'POST', { [METHOD_HEADER]: 'GET' }));
-    expect(action.headers.get(`x-middleware-request-${METHOD_HEADER}`)).toBe('POST');
+    // Signed by the proxy: a client's own header can't pass for a read (code check, Oct 30, 2026)
+    expect(markedMethod(action.headers.get(`x-middleware-request-${METHOD_HEADER}`), SECRET)).toBe('POST');
+    expect(markedMethod('GET', SECRET)).toBeNull();
   });
 
   it('drops a return cookie without our signature', async () => {

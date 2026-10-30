@@ -86,7 +86,8 @@ export function opPermission(i: Pick<OpInput, 'op' | 'days' | 'appealId'>, sanct
       return 'user.warn';
     case 'posting_restricted':
     case 'messaging_restricted':
-      return i.days === 'none' ? 'user.ban' : 'user.restrict';
+      // Only 7 or 30 days are a moderator's; anything else is "until further notice" (admins)
+      return i.days === '7' || i.days === '30' ? 'user.restrict' : 'user.ban';
     case 'suspended':
       return 'user.suspend';
     case 'banned':

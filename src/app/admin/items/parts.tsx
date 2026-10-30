@@ -32,9 +32,9 @@ export function reasonChoices(): ReasonChoice[] {
   }));
 }
 
-/** The operations this staff member may pick, from mild to severe */
+/** The operations this staff member may pick, from mild to severe (a restriction if its shortest length is theirs) */
 export function allowedOps(role: StaffRole, ops: OpChoice[], sanctionTypes: Record<string, string> = {}): OpChoice[] {
-  return bySeverity(ops).filter((o) => can(role, opPermission({ op: o.op, days: undefined, appealId: o.appealId }, o.sanctionId ? sanctionTypes[o.sanctionId] : null)));
+  return bySeverity(ops).filter((o) => can(role, opPermission({ op: o.op, days: '7', appealId: o.appealId }, o.sanctionId ? sanctionTypes[o.sanctionId] : null)));
 }
 
 export const op = (o: Op, extra: Partial<OpChoice> = {}): OpChoice => ({ op: o, label: admin.decide.ops[o] ?? o, ...extra });

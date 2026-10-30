@@ -86,6 +86,11 @@ export async function staffState(db: Queryable, userId: string, sessionId: strin
     .leftJoin(sessions, and(eq(sessions.id, sessionId), eq(sessions.userId, users.id), gt(sessions.expiresAt, now)))
     .where(eq(users.id, userId));
   if (!row?.role || row.status !== 'active') return { kind: 'none' };
+  // A suspended or banned staff member loses the admin page at once (code check, Oct 30, 2026)
+  const [sanctioned] = await db.execute<{ yes: boolean }>(sql`
+    SELECT EXISTS (SELECT 1 FROM user_sanctions s WHERE s.user_id = ${userId} AND s.revoked_at IS NULL AND s.type IN ('suspended', 'banned')
+      AND s.starts_at <= ${now.toISOString()}::timestamptz AND (s.ends_at IS NULL OR s.ends_at > ${now.toISOString()}::timestamptz)) AS yes`);
+  if (sanctioned?.yes) return { kind: 'none' };
   const base = { role: row.role, name: row.name, email: row.email };
   if (!row.twoFactor) return { kind: 'setup', ...base };
   const fresh = row.verifiedAt && now.getTime() - row.verifiedAt.getTime() < STEP_UP_HOURS * 3_600_000;

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { and, eq, gt, isNull, sql } from 'drizzle-orm';
-import type { Queryable } from '../../db/drizzle';
+import { and, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
+import type { Db, Queryable } from '../../db/drizzle';
 import { outboxEvents, sessions, users } from '../../db/schema';
 import { ACTING_MINUTES, readReturn, sessionTokenOf } from './acting-cookies';
 import { staffAudit, type StaffContext } from './audit';
@@ -88,6 +88,9 @@ export async function actingState(db: Queryable, sessionId: string, now = new Da
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(eq(sessions.id, sessionId));
   if (!s?.openedBy) return null;
+  // The admin who opened it must still be an active admin (code check, Oct 30, 2026)
+  const [opener] = await db.select({ role: users.staffRole, status: users.status }).from(users).where(eq(users.id, s.openedBy));
+  if (opener?.role !== 'admin' || opener.status !== 'active') return 'ended';
   // Better Auth may push expires_at forward while the session is used; the 30 minutes count from its start
   const until = new Date(s.createdAt.getTime() + ACTING_MINUTES * 60_000);
   if (until <= now) return 'ended';
@@ -138,23 +141,61 @@ export async function allowActingChanges(tx: Queryable, ctx: StaffContext, actin
 
 /**
  * «پایان»: the session is deleted and the end written to audit_log. A real person whose account
- * could be changed is told by email (the owner's rule: staff changes are always told).
+ * could be changed is told by email (the owner's rule: staff changes are always told). Without a
+ * valid return cookie (`ctx` null) this browser's session still ends, recorded under the admin who
+ * opened it.
  */
-export async function closeActingSession(tx: Queryable, ctx: StaffContext, actingToken: string | null): Promise<{ userId: string } | null> {
+export async function closeActingSession(tx: Queryable, ctx: StaffContext | null, actingToken: string | null): Promise<{ userId: string } | null> {
   if (!actingToken) return null;
   const [s] = await tx
     .delete(sessions)
-    .where(and(eq(sessions.token, actingToken), eq(sessions.openedByUserId, ctx.userId)))
-    .returning({ userId: sessions.userId, writableAt: sessions.writableAt, reason: sessions.openedReason });
+    .where(and(eq(sessions.token, actingToken), ctx ? eq(sessions.openedByUserId, ctx.userId) : isNotNull(sessions.openedByUserId)))
+    .returning({ id: sessions.id, userId: sessions.userId, openedBy: sessions.openedByUserId, writableAt: sessions.writableAt });
   if (!s) return null;
+  await recordEnd(tx, ctx ?? openerCtx(s), s, {});
+  return { userId: s.userId };
+}
+
+/**
+ * Worker, every minute (code check, Oct 30, 2026): ends the sessions whose 30 minutes ran out
+ * without «پایان», or whose admin is no longer an active admin, the same way «پایان» does: the end
+ * in audit_log and, when changes were allowed, the email. Until then currentSession() already
+ * refuses them.
+ */
+export async function closeEndedActingSessions(db: Db, now: Date = new Date()): Promise<number> {
+  return db.transaction(async (tx) => {
+    const rows = await tx.execute<{ id: string; user_id: string; opened_by: string; writable_at: Date | null; expired: boolean }>(sql`
+      DELETE FROM sessions s USING (
+        SELECT s2.id, s2.created_at <= ${now.toISOString()}::timestamptz - make_interval(mins => ${ACTING_MINUTES}) AS expired
+        FROM sessions s2 LEFT JOIN users a ON a.id = s2.opened_by_user_id
+        WHERE s2.opened_by_user_id IS NOT NULL
+          AND (s2.created_at <= ${now.toISOString()}::timestamptz - make_interval(mins => ${ACTING_MINUTES})
+               OR a.staff_role IS DISTINCT FROM 'admin' OR a.status <> 'active')
+        ORDER BY s2.created_at LIMIT 200
+        FOR UPDATE OF s2 SKIP LOCKED
+      ) due
+      WHERE s.id = due.id
+      RETURNING s.id, s.user_id, s.opened_by_user_id AS opened_by, s.writable_at, due.expired`);
+    for (const r of rows) {
+      const s = { id: r.id, userId: r.user_id, openedBy: r.opened_by, writableAt: r.writable_at };
+      await recordEnd(tx, openerCtx(s), s, r.expired ? { expired: true } : { adminGone: true });
+    }
+    return rows.length;
+  });
+}
+
+type ClosedSession = { id: string; userId: string; openedBy: string | null; writableAt: Date | null };
+
+const openerCtx = (s: ClosedSession): StaffContext => ({ userId: s.openedBy!, sessionId: s.id, role: 'admin', ip: null, userAgent: null });
+
+async function recordEnd(tx: Queryable, ctx: StaffContext, s: ClosedSession, extra: Record<string, boolean>): Promise<void> {
   const [u] = await tx.select({ test: users.testAccount }).from(users).where(eq(users.id, s.userId));
   const changes = await tx.execute<{ n: number }>(sql`
     SELECT count(*)::int AS n FROM audit_log
     WHERE action = 'staff.acting_change' AND actor_user_id = ${ctx.userId} AND target_id = ${s.userId}::uuid
       AND created_at >= now() - make_interval(mins => ${ACTING_MINUTES + 5})`);
-  await staffAudit(tx, ctx, 'staff.acting_ended', { type: 'user', id: s.userId }, { writable: !!s.writableAt, changes: changes[0]?.n ?? 0 });
+  await staffAudit(tx, ctx, 'staff.acting_ended', { type: 'user', id: s.userId }, { writable: !!s.writableAt, changes: changes[0]?.n ?? 0, ...extra });
   if (s.writableAt && !u?.test) {
     await tx.insert(outboxEvents).values({ eventType: 'user.staff_acted', aggregateType: 'user', aggregateId: s.userId, payload: { changes: changes[0]?.n ?? 0 } });
   }
-  return { userId: s.userId };
 }

@@ -17,6 +17,23 @@ export function adminGateValue(secret: string): string {
   return createHmac('sha256', secret).update('peydoo-admin-gate-v1').digest('base64url');
 }
 
+/**
+ * The method as the proxy marks it: a client can't send a mark of its own (prefetch headers skip
+ * the proxy), so a missing or wrong one counts as a change (code check, Oct 30, 2026).
+ */
+export function methodMark(method: string, secret: string): string {
+  return `${method}.${createHmac('sha256', secret).update(`peydoo-method-v1:${method}`).digest('base64url')}`;
+}
+
+/** The method the proxy marked, or null */
+export function markedMethod(header: string | null | undefined, secret: string): string | null {
+  const method = header?.split('.')[0];
+  if (!header || !method) return null;
+  const a = Buffer.from(header);
+  const b = Buffer.from(methodMark(method, secret));
+  return a.length === b.length && timingSafeEqual(a, b) ? method : null;
+}
+
 /** Whether the request carries the proxy's mark */
 export function gateOpen(header: string | null | undefined, secret: string): boolean {
   if (!header) return false;

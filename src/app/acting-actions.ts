@@ -1,11 +1,9 @@
 'use server';
 
-import { and, eq, isNotNull } from 'drizzle-orm';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { appDb } from '../db/drizzle';
-import { sessions } from '../db/schema';
 import { clientIp } from '../lib/client-ip';
 import { webEnv } from '../lib/env';
 import { allowActingChanges, closeActingSession, returningAdmin, sessionCookieName, sessionTokenOf, STAFF_RETURN_COOKIE } from '../modules/admin/acting';
@@ -30,9 +28,8 @@ async function context() {
 /** «پایان»: the user's session is deleted and the admin's own comes back, on the user's admin page */
 export async function endActingAction(): Promise<void> {
   const { env, jar, admin, actingToken, ctx } = await context();
-  const ended = ctx ? await appDb().transaction((tx) => closeActingSession(tx, ctx, actingToken)) : null;
-  // Without a valid return cookie: still end this browser's opened session, then signed out
-  if (!ctx && actingToken) await appDb().delete(sessions).where(and(eq(sessions.token, actingToken), isNotNull(sessions.openedByUserId)));
+  // Without a valid return cookie this browser's opened session still ends (recorded), then signed out
+  const ended = await appDb().transaction((tx) => closeActingSession(tx, ctx, actingToken));
   jar.delete(STAFF_RETURN_COOKIE);
   if (!admin || !env.ADMIN_PATH) {
     jar.delete(sessionCookieName(env.APP_URL));
