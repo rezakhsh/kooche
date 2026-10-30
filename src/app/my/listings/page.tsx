@@ -16,7 +16,7 @@ import { hasOwnEvents } from '../../../modules/events/queries';
 import { formatPrice } from '../../../modules/listings/price';
 import { safetyKind } from '../../../modules/listings/safety-kind';
 import { listingPath } from '../../../modules/listings/slug';
-import { activePrice, LISTING_PRODUCTS } from '../../../modules/payments/checkout';
+import { activePrice, LISTING_PRODUCTS, PAYMENT_CURRENCY } from '../../../modules/payments/checkout';
 import { imageUrl } from '../../../modules/media/server';
 import { requireSession } from '../../../modules/users/server';
 import { listingStatusAction } from './actions';
@@ -57,16 +57,9 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
   const ids = rows.map((r) => r.listing.id);
   // How many people saved each listing and wrote about it: only the seller sees it
   const [saves, chats, catalog, hasEvents] = await Promise.all([favoriteCounts(db, user.id, ids), conversationCounts(db, user.id, ids), cachedCatalog(db), hasOwnEvents(db, user.id)]);
-  // «از ۱٫۹۹ €»: the cheapest way up, in each currency of a live listing
-  const currencies = [...new Set(rows.filter((r) => r.listing.status === 'active').map((r) => r.listing.currency ?? 'EUR'))];
-  const cheapest = new Map(
-    await Promise.all(
-      currencies.map(async (c) => {
-        const prices = (await Promise.all(LISTING_PRODUCTS.map((p) => activePrice(db, p, c)))).filter((o) => !!o).map((o) => o.price.amountMinor);
-        return [c, prices.length ? formatPrice(Math.min(...prices), c, 2) : null] as const;
-      }),
-    ),
-  );
+  // «از ۱٫۹۹ €»: the cheapest way up (in euros, wherever the listing is)
+  const upPrices = (await Promise.all(LISTING_PRODUCTS.map((p) => activePrice(db, p, PAYMENT_CURRENCY)))).filter((o) => !!o).map((o) => o.price.amountMinor);
+  const cheapest = upPrices.length ? formatPrice(Math.min(...upPrices), PAYMENT_CURRENCY, 2) : null;
   const params = await searchParams;
   const zone = webEnv().APP_TIME_ZONE;
   const t = messages.my;
@@ -136,7 +129,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
           const title = l.title || t.untitled;
           const path = l.status === 'draft' ? null : listingPath(l.title, l.publicToken);
           const stats = l.status === 'draft' ? [] : [[l.viewCount, t.views], [saves.get(l.id) ?? 0, t.saves], [chats.get(l.id) ?? 0, t.chats]] as const;
-          const promoteFrom = l.status === 'active' ? cheapest.get(l.currency ?? 'EUR') : null;
+          const promoteFrom = l.status === 'active' ? cheapest : null;
           return (
             <li key={l.id} className="flex gap-3 border-b border-neutral-200 py-3.5">
               {thumb ? (

@@ -41,6 +41,13 @@ export const EVENT_PRODUCTS = ['featured-event'] as const;
 export const PLAN_PRODUCTS = ['pro', 'pro-plus'] as const;
 export type PlanCode = (typeof PLAN_PRODUCTS)[number];
 
+/**
+ * Every price is in euros, wherever the buyer is (owner, Oct 30, 2026: the business is in Germany).
+ * Stripe's Adaptive Pricing offers the buyer's own money on the Checkout page (./gateway.ts); we
+ * are always paid in euros.
+ */
+export const PAYMENT_CURRENCY = 'EUR';
+
 /** The active price of a product in a currency (and interval, for plans) */
 export async function activePrice(db: Queryable, code: string, currency: string, interval: 'month' | 'year' | null = null) {
   const [row] = await db
@@ -113,7 +120,7 @@ export async function startListingCheckout(
   if (user.status !== 'active') return { ok: false, reason: 'account_disabled' };
 
   const [listing] = await db
-    .select({ id: listings.id, status: listings.status, currency: listings.currency, countryCurrency: sql<string | null>`(SELECT default_currency FROM countries c WHERE c.code = ${listings.countryCode})` })
+    .select({ id: listings.id, status: listings.status })
     .from(listings)
     // Own listings, and a business's for its owners and managers
     .where(and(eq(listings.id, opts.listingId), manageableBy(opts.userId)));
@@ -124,9 +131,7 @@ export async function startListingCheckout(
   if (!allowed.includes(opts.productCode)) return { ok: false, reason: 'not_allowed' };
   if (!opts.waiver) return { ok: false, reason: 'waiver_required' };
 
-  // Prices are in the listing country's currency (EUR in Germany and Austria)
-  const currency = listing.currency ?? listing.countryCurrency ?? 'EUR';
-  const found = await activePrice(db, opts.productCode, currency);
+  const found = await activePrice(db, opts.productCode, PAYMENT_CURRENCY);
   if (!found) return { ok: false, reason: 'not_allowed' };
 
   const open = await openOrderCheckout(db, gateway, { userId: user.id, listingId: listing.id, productId: found.product.id });
@@ -265,7 +270,7 @@ export async function startPlanCheckout(
     .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
-  const found = await activePrice(db, opts.plan, 'EUR', opts.interval);
+  const found = await activePrice(db, opts.plan, PAYMENT_CURRENCY, opts.interval);
   if (!org || !found) return { ok: false, reason: 'not_allowed' };
   if (!legalComplete(org)) return { ok: false, reason: 'legal_missing' };
   if (!(await confirmBusinessBuyer(db, user.id, org.id, opts, opts.plan))) return { ok: false, reason: 'business_required' };

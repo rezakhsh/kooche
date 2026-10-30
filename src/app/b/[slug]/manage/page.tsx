@@ -19,6 +19,7 @@ import { foundingAction, moveListingsAction } from '../../../business/actions';
 import { movableListings } from '../../../../modules/organizations/move';
 import { memberOf } from '../member';
 import { VerifyForm } from './verify-form';
+import { proMonthlyText } from '../../../../modules/payments/prices';
 
 // The business's own dashboard (members only; wave 1, mockup final/business-dashboard): the
 // founding offer where it was given, as steps (verified, place kept, start), with the real places
@@ -129,7 +130,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
           </ol>
           {places && (
             <p className="mt-4 text-xs leading-6 text-saffron-800">
-              {d.foundingNote(Math.max(0, places.places - places.used), places.places)}{' '}
+              {d.foundingNote(Math.max(0, places.places - places.used), places.places, await proMonthlyText(db))}{' '}
               <Link href="/pro" className="font-bold underline">
                 {d.terms}
               </Link>

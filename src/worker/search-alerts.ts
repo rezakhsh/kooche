@@ -6,6 +6,7 @@ import { claimAlert, dueForDaily, matchListing, noticeDelay, purgeHits, type Ale
 import { LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
 import { reportJobFailure } from './monitoring';
+import { EVERY_HOUR } from '../modules/notifications/local-hour';
 
 // Saved-search notices (src/modules/search/alerts.ts), on queue `search-alerts`:
 // - `match`: a listing was published and indexed (handed over by ./search.ts); records the
@@ -15,12 +16,12 @@ import { reportJobFailure } from './monitoring';
 // - `notify`: takes the search's waiting matches and queues the message on the shared send queues
 //   (./chat.ts): Telegram, email or both, as the person's switches say (wave 1). During their
 //   quiet hours it waits for the morning.
-// - `daily` (18:00 Berlin time): the daily searches' notices, instant ones whose job was lost,
-//   and the purge of matches older than 30 days. A person who bundles gets one message for all
-//   their searches.
+// - `daily` (18:00 on each person's clock; run hourly, wave 2 part 7): the daily searches'
+//   notices, instant ones whose job was lost, and the purge of matches older than 30 days. A
+//   person who bundles gets one message for all their searches.
 
 const SCHEDULES = {
-  daily: { pattern: '0 18 * * *', tz: 'Europe/Berlin' },
+  daily: EVERY_HOUR,
 } as const;
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
@@ -92,7 +93,7 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
       }
       if (job.name === 'notify') return send(job.data.savedSearchId, 'instant');
       if (job.name === 'daily') {
-        const due = await dueForDaily(db, now());
+        const due = await dueForDaily(db, now(), { localHour: 18 });
         const bundles = new Map<string, { jobs: AlertJob[]; channels: Channel[] }>();
         let sent = 0;
         for (const id of due) {

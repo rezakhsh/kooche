@@ -16,7 +16,7 @@ import { eq } from 'drizzle-orm';
 import { organizations } from '../../../../../db/schema';
 import { allowancesLeft } from '../../../../../modules/payments/allowances';
 import { foundingState } from '../../../../../modules/payments/founding';
-import { activePrice, EVENT_PRODUCTS, LISTING_PRODUCTS } from '../../../../../modules/payments/checkout';
+import { activePrice, EVENT_PRODUCTS, LISTING_PRODUCTS, PAYMENT_CURRENCY } from '../../../../../modules/payments/checkout';
 import { listingPromotions } from '../../../../../modules/payments/plans';
 import { paymentGateway } from '../../../../../modules/payments/server';
 import { requireSession } from '../../../../../modules/users/server';
@@ -42,9 +42,10 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
   const t = messages.promote;
   const zone = webEnv().APP_TIME_ZONE;
   const isEvent = await isEventListing(db, listing.id);
-  const currency = listing.currency ?? 'EUR';
   const codes = isEvent ? EVENT_PRODUCTS : LISTING_PRODUCTS;
-  const offers = (await Promise.all(codes.map((c) => activePrice(db, c, currency)))).filter((o) => !!o);
+  // Euros everywhere; a listing priced in another money gets a word on paying in it
+  const offers = (await Promise.all(codes.map((c) => activePrice(db, c, PAYMENT_CURRENCY)))).filter((o) => !!o);
+  const otherMoney = !!listing.currency && listing.currency !== PAYMENT_CURRENCY;
   const running = await listingPromotions(db, listing.id);
   const plan = listing.organizationId ? await allowancesLeft(db, listing.organizationId) : null;
   const live = listing.status === 'active';
@@ -152,6 +153,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
               ))}
             </fieldset>
             <p className="text-xs text-neutral-500">{t.noVat}</p>
+            {otherMoney && <p className="text-xs text-neutral-500">{t.inEuros}</p>}
             <label className="flex gap-2 text-sm">
               <input type="checkbox" name="waiver" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
               <span>

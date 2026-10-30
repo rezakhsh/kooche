@@ -15,6 +15,7 @@ import { notificationMailer } from '../modules/notifications/mailer';
 import { testInbox } from '../modules/users/test-accounts';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
+import { EVERY_HOUR } from '../modules/notifications/local-hour';
 
 // Worker jobs of the posting feature:
 // - queue `media` (from the outbox): process an uploaded photo or business logo, delete a removed
@@ -23,7 +24,7 @@ import { reportJobFailure } from './monitoring';
 // - queue `listing-checks` (from the outbox): the post-checks after publish, edit, photo change
 //   and resubmission (src/modules/moderation/checks.ts).
 // - queue `listings` (job schedulers): expiry every 15 minutes, the expiry reminder daily at
-//   09:00 Berlin time, the cleanup of abandoned uploads (and of verification documents 7 days after
+//   09:00 on the seller's clock (run hourly, wave 2 part 7), the cleanup of abandoned uploads (and of verification documents 7 days after
 //   the decision) daily at 02:45 UTC, the listing views
 //   counted in Valkey written to PostgreSQL every 5 minutes.
 
@@ -32,7 +33,7 @@ const KEEP = { removeOnComplete: 100, removeOnFail: 500 };
 
 const SCHEDULES = {
   'listing-expiry': { pattern: '*/15 * * * *', tz: 'UTC' },
-  'expiry-reminder': { pattern: '0 9 * * *', tz: 'Europe/Berlin' },
+  'expiry-reminder': EVERY_HOUR,
   'upload-cleanup': { pattern: '45 2 * * *', tz: 'UTC' },
   'view-flush': { pattern: '*/5 * * * *', tz: 'UTC' },
 } as const;
@@ -93,7 +94,7 @@ export async function startListingJobs(
           const n = await expireDueListings(db);
           if (n) console.log(`listings: expired ${n} listings`);
         } else if (job.name === 'expiry-reminder') {
-          const n = await sendExpiryReminders(db, connection, mailer, env.APP_URL);
+          const n = await sendExpiryReminders(db, connection, mailer, env.APP_URL, new Date(), { localHour: 9 });
           console.log(`listings: expiry reminders: ${n.emails} emails about ${n.listings} listings`);
         } else if (job.name === 'view-flush') {
           await flushViews(connection, db);

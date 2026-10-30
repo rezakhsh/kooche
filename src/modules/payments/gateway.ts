@@ -83,7 +83,18 @@ export interface PaymentGateway {
    * retried job ask once. What the refund ends is applied from its webhook, never from here.
    */
   createRefund(input: RefundInput): Promise<{ id: string }>;
+  /**
+   * Admin › prices (./prices.ts): the provider's price for an amount, found by its lookup key
+   * (switched on again if it was retired) or created. Returns its id.
+   */
+  ensurePrice(input: PriceInput): Promise<string>;
+  /** The old price after a change: no new Checkout can use it; subscriptions on it go on */
+  archivePrice(priceId: string): Promise<void>;
+  /** The Customer Portal's plan switch: the monthly price each plan product offers now */
+  setPortalPlans(plans: { productId: string; priceIds: string[] }[]): Promise<void>;
 }
+
+export type PriceInput = { productId: string; currency: string; amountMinor: number; interval: 'month' | 'year' | null; lookupKey: string; metadata: Record<string, string> };
 
 export type RefundInput = { paymentIntentId: string; amountMinor: number; metadata: Record<string, string>; idempotencyKey: string };
 
@@ -101,6 +112,10 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
     // The name and address typed in Checkout go onto the customer (and so the invoice)
     customer_update: { name: 'auto', address: 'auto' },
     expires_at: Math.floor((input.expiresAt?.getTime() ?? Date.now() + CHECKOUT_OPEN_MS) / 1000),
+    // Prices are in euros only (./checkout.ts, PAYMENT_CURRENCY); Adaptive Pricing offers the
+    // buyer's own money at about today's rate, its 2–4% paid by the buyer, and we get euros. For
+    // subscriptions from abroad it covers cards and the wallets only (Stripe's docs, Oct 2026).
+    adaptive_pricing: { enabled: true },
   } satisfies Stripe.Checkout.SessionCreateParams;
   // No automatic tax and no tax rates: small-business VAT exemption (§19 UStG)
   if (input.mode === 'payment') {
@@ -231,6 +246,36 @@ export class StripeGateway implements PaymentGateway {
         status: i.status ?? null,
         url: i.hosted_invoice_url ?? null,
       }));
+  }
+
+  async ensurePrice(input: PriceInput): Promise<string> {
+    const found = (await this.stripe.prices.list({ lookup_keys: [input.lookupKey], limit: 1 })).data[0];
+    if (found) {
+      if (!found.active) await this.stripe.prices.update(found.id, { active: true });
+      return found.id;
+    }
+    const price = await this.stripe.prices.create({
+      product: input.productId,
+      currency: input.currency.toLowerCase(),
+      unit_amount: input.amountMinor,
+      lookup_key: input.lookupKey,
+      ...(input.interval ? { recurring: { interval: input.interval } } : {}),
+      metadata: input.metadata,
+    });
+    return price.id;
+  }
+
+  async archivePrice(priceId: string): Promise<void> {
+    await this.stripe.prices.update(priceId, { active: false });
+  }
+
+  async setPortalPlans(plans: { productId: string; priceIds: string[] }[]): Promise<void> {
+    // The default configuration, made by scripts/stripe-setup.ts; without one there is nothing to change
+    const [config] = (await this.stripe.billingPortal.configurations.list({ is_default: true, limit: 1 })).data;
+    if (!config) return;
+    await this.stripe.billingPortal.configurations.update(config.id, {
+      features: { subscription_update: { products: plans.map((p) => ({ product: p.productId, prices: p.priceIds })) } },
+    });
   }
 
   async createRefund(input: RefundInput): Promise<{ id: string }> {

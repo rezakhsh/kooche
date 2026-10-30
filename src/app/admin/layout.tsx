@@ -33,6 +33,7 @@ const SECTIONS: Array<{ path: string; key: keyof typeof admin.nav; action: Staff
   { path: '/business-queue', key: 'businessQueue', action: 'business.suspicion', icon: 'alert' },
   { path: '/cities', key: 'cities', action: 'cities.manage', icon: 'globe' },
   { path: '/payments', key: 'payments', action: 'payments.view', icon: 'card' },
+  { path: '/prices', key: 'prices', action: 'prices.manage', icon: 'ticket' },
   { path: '/audit', key: 'audit', action: 'overview.view', icon: 'list' },
   { path: '/system', key: 'system', action: 'system.view', icon: 'gear' },
   { path: '/staff', key: 'staff', action: 'staff.manage', icon: 'shield' },

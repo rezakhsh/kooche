@@ -385,6 +385,24 @@ describe('expiry reminder', () => {
     await sendExpiryReminders(workerDb, redis, mail, 'https://staging.example.test', now);
     expect(sent.filter((m) => m.to === u.email)).toHaveLength(0);
   });
+
+  it('the hourly run sends at 9:00 on the seller’s clock (wave 2 part 7)', async () => {
+    const u = await user();
+    const id = await draft(u.id);
+    await publish(u.id, id);
+    const [toronto] = await db.select().from(schema.locations).where(and(eq(schema.locations.slug, 'toronto'), eq(schema.locations.kind, 'city')));
+    await db.update(schema.users).set({ homeLocationId: toronto!.id }).where(eq(schema.users.id, u.id));
+    // 9:00 in Berlin, then 9:00 in Toronto (UTC−5 in November), the listing 2–3 days from expiry at both
+    const berlin9 = new Date('2029-11-05T08:00:00Z');
+    const toronto9 = new Date('2029-11-05T14:00:00Z');
+    await db.update(schema.listings).set({ expiresAt: new Date(toronto9.getTime() + 2.5 * 86_400_000) }).where(eq(schema.listings.id, id));
+    const sent: Mail[] = [];
+    const mail = async (m: Mail) => void sent.push(m);
+    await sendExpiryReminders(workerDb, redis, mail, 'https://staging.example.test', berlin9, { localHour: 9 });
+    expect(sent.filter((m) => m.to === u.email)).toHaveLength(0);
+    await sendExpiryReminders(workerDb, redis, mail, 'https://staging.example.test', toronto9, { localHour: 9 });
+    expect(sent.filter((m) => m.to === u.email)).toHaveLength(1);
+  });
 });
 
 describe('imgproxy URLs', () => {

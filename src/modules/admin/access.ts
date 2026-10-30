@@ -43,6 +43,8 @@ export const PERMISSIONS = {
   'organization.verify': 'admin',
   'organization.suspend': 'admin',
   'payments.view': 'admin',
+  /** Admin › prices (wave 2 part 7): a product's euro price */
+  'prices.manage': 'admin',
   /** Everyone's audit rows (moderators see their own) */
   'audit.all': 'admin',
   'system.view': 'admin',

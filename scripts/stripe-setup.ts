@@ -3,7 +3,8 @@
 // found by a fixed id or lookup key first.
 //
 //  1. Products and prices from seed/products.ts (product id `peydoo_<code>`, price lookup key from
-//     priceKey()); then `products` and `product_prices` as classifieds_owner (syncCatalog()).
+//     priceKey()); then `products` and `product_prices` as classifieds_owner (syncCatalog()). A
+//     price changed in admin › prices (wave 2 part 7) is kept: the seed's amounts are the start.
 //  2. The launch coupon (100% off for 6 months, Pro and Pro Plus only).
 //  3. The Customer Portal's default configuration: invoices, payment method, address, cancel at
 //     period end, switching between Pro and Pro Plus (monthly prices only, see planPrices).
@@ -22,10 +23,10 @@ import postgres from 'postgres';
 import Stripe from 'stripe';
 import * as schema from '../src/db/schema';
 import { isLiveStripeKey } from '../src/lib/env';
-import { priceKey, syncCatalog } from '../src/modules/payments/catalog-sync';
+import { priceKey, stripeProductId, syncCatalog, withCurrentPrices } from '../src/modules/payments/catalog-sync';
 import { INVOICE_FOOTER, STRIPE_API_VERSION } from '../src/modules/payments/gateway';
 import { HANDLED_EVENTS } from '../src/modules/payments/stripe-objects';
-import { launchCoupon, products } from '../seed/products';
+import { launchCoupon, products as seeds } from '../seed/products';
 
 const key = process.env.STRIPE_SECRET_KEY;
 const dbUrl = process.env.MIGRATION_DATABASE_URL;
@@ -42,13 +43,20 @@ const stripe = new Stripe(key, { apiVersion: STRIPE_API_VERSION });
 const mode = isLiveStripeKey(key) ? 'live' : 'test';
 console.log(`stripe-setup: ${mode} mode, ${appUrl}`);
 
-// 1. Products and prices
+const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
+
+// 1. Products and prices: the seed's, with the prices changed since in admin › prices
+const current = await sql<{ code: string; currency: string; interval: string | null; amountMinor: number }[]>`
+  SELECT p.code, pp.currency, pp.interval, pp.amount_minor::int AS "amountMinor"
+  FROM product_prices pp JOIN products p ON p.id = pp.product_id
+  WHERE pp.is_active`;
+const products = withCurrentPrices(seeds, current);
 const priceIds = new Map<string, string>();
 // The Customer Portal switches only between monthly prices: a switch to yearly during the launch
 // coupon's 6 free months would make a whole year free. Yearly plans are taken through Checkout.
 const planPrices: Array<{ product: string; prices: string[] }> = [];
 for (const seed of products) {
-  const productId = `peydoo_${seed.code.replace(/-/g, '_')}`;
+  const productId = stripeProductId(seed.code);
   const fields = { name: `Peydoo ${seed.nameFa}`, description: seed.descriptionFa, metadata: { code: seed.code } };
   try {
     await stripe.products.update(productId, { ...fields, active: true });
@@ -80,7 +88,6 @@ for (const seed of products) {
   if (seed.kind === 'subscription') planPrices.push({ product: productId, prices: monthly });
 }
 
-const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
 try {
   const result = await drizzle(sql, { schema }).transaction((tx) => syncCatalog(tx, products, priceIds));
   console.log(`  database: ${result.products} products, ${result.pricesAdded} prices added, ${result.pricesRetired} retired`);

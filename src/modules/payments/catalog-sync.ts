@@ -14,6 +14,25 @@ export function priceKey(code: string, p: ProductPriceSeed): string {
   return `peydoo_${code}_${p.currency.toLowerCase()}_${p.interval ?? 'once'}_${p.amountMinor}`.replace(/-/g, '_');
 }
 
+/** The provider's product id of a product: `peydoo_bump_1` */
+export function stripeProductId(code: string): string {
+  return `peydoo_${code.replace(/-/g, '_')}`;
+}
+
+/**
+ * The seed with today's prices: a price changed in admin › prices (./prices.ts) stays when
+ * scripts/stripe-setup.ts runs again; the seed's amounts are only the starting prices.
+ */
+export function withCurrentPrices(seeds: readonly ProductSeed[], current: readonly { code: string; currency: string; interval: string | null; amountMinor: number }[]): ProductSeed[] {
+  return seeds.map((seed) => ({
+    ...seed,
+    prices: seed.prices.map((p) => {
+      const now = current.find((c) => c.code === seed.code && c.currency === p.currency && (c.interval ?? null) === p.interval);
+      return now ? { ...p, amountMinor: now.amountMinor } : p;
+    }),
+  }));
+}
+
 export type SyncResult = { products: number; pricesAdded: number; pricesRetired: number };
 
 export async function syncCatalog(

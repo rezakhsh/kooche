@@ -216,7 +216,7 @@ describe('grants', () => {
     });
   });
 
-  it('let only the worker call the retention functions', async () => {
+  it('let only the worker call the retention functions, and only the app change a price (wave 2 part 7)', async () => {
     const rows = await db.execute(sql`
       SELECT p.proname,
              has_function_privilege('classifieds_worker', p.oid, 'EXECUTE') AS worker,
@@ -230,6 +230,7 @@ describe('grants', () => {
       { proname: 'purge_audit_log', worker: true, app: false, readonly: false },
       { proname: 'purge_moderation_records', worker: true, app: false, readonly: false },
       { proname: 'scrub_audit_ip', worker: true, app: false, readonly: false },
+      { proname: 'set_product_price', worker: false, app: true, readonly: false },
     ]);
   });
 

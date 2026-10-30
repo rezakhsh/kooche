@@ -3,11 +3,13 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { reportError } from '../../lib/monitoring/server';
 import { messages } from '../../messages/fa';
+import { DEFAULT_ZONE, localHourSql } from './local-hour';
 import { emailHtml, escapeHtml, type Mailer } from './mailer';
 
 // "Your listing expires in 3 days, renew?" (decided Oct 17, 2026: 30 days, renewable with one
-// tap). A daily worker job emails each seller once about their listings that expire between 2
-// and 3 days from now. A daily run sees each listing in that window once; a Valkey key per
+// tap). Each seller gets one email at 9:00 on their clock (their saved city's, else the listing's
+// city's; wave 2 part 7) about their listings that expire between 2 and 3 days from now: the
+// worker runs it hourly with `localHour`, so each listing meets that hour once; a Valkey key per
 // listing and expiry stops a retried or doubled run from sending twice. Non-critical: a run that
 // fails is not repeated for the same window, and renewing is still possible after expiry.
 
@@ -21,14 +23,18 @@ export async function sendExpiryReminders(
   mail: Mailer,
   appUrl: string,
   now: Date = new Date(),
+  opts: { localHour?: number } = {},
 ): Promise<{ emails: number; listings: number }> {
   const from = new Date(now.getTime() + 2 * 86_400_000).toISOString();
   const to = new Date(now.getTime() + 3 * 86_400_000).toISOString();
   const rows = await db.execute<Row>(sql`
     SELECT l.id, l.title, l.expires_at, u.id AS user_id, u.email, u.display_name
     FROM listings l JOIN users u ON u.id = l.user_id
+    LEFT JOIN locations h ON h.id = u.home_location_id
+    LEFT JOIN locations lc ON lc.id = l.location_id
     WHERE l.status = 'active' AND l.expires_at > ${from}::timestamptz AND l.expires_at <= ${to}::timestamptz
       AND u.status = 'active'
+      ${opts.localHour !== undefined ? sql`AND ${localHourSql(sql`coalesce(h.timezone, lc.timezone, ${DEFAULT_ZONE})`, now, opts.localHour)}` : sql``}
       -- An event ends with its last date; there is nothing to renew
       AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)
     ORDER BY u.id, l.expires_at

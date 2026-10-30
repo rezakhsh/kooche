@@ -10,6 +10,7 @@ import { searchesShowing, type SearchFilters } from './browse';
 import { keywordMatches } from './keyword';
 import type { Meili } from './meili';
 import { searchFiltersOf } from './saved';
+import { countryZoneSql, localHourSql } from '../notifications/local-hour';
 
 // New listings for saved searches (approved Oct 22, 2026; docs/setup.md, "Keyword search and
 // saved searches"). When a listing is published and indexed, the worker finds the saved searches
@@ -189,10 +190,16 @@ export async function claimAlert(
 }
 
 /** Searches whose matches go out with the daily run: daily ones, all of a bundling person's, and instant ones left waiting */
-export async function dueForDaily(db: Queryable, now: Date): Promise<string[]> {
+export async function dueForDaily(db: Queryable, now: Date, opts: { localHour?: number } = {}): Promise<string[]> {
+  // With `localHour` (the worker, hourly): only where it is that hour on the person's clock, their
+  // saved city's, else the search's city's, else its country's (wave 2 part 7)
+  const zone = sql`coalesce(h.timezone, sl.timezone, ${countryZoneSql(sql`s.country_code`)})`;
   const rows = await db.execute<{ id: string }>(sql`
     SELECT s.id FROM saved_searches s JOIN users u ON u.id = s.user_id
+    LEFT JOIN locations h ON h.id = u.home_location_id
+    LEFT JOIN locations sl ON sl.id = s.location_id
     WHERE s.notify_frequency <> 'off'
+      ${opts.localHour !== undefined ? sql`AND ${localHourSql(zone, now, opts.localHour)}` : sql``}
       AND EXISTS (
         SELECT 1 FROM saved_search_hits h WHERE h.saved_search_id = s.id AND h.notified_at IS NULL
           AND (s.notify_frequency = 'daily' OR u.notification_prefs @> '{"bundle": true}'::jsonb

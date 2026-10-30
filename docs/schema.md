@@ -959,7 +959,7 @@ What can be bought. Standard columns, plus:
 
 ### `product_prices`
 
-One row per price and currency. Prices are never edited: a new price is a new row, and the old one is set inactive, so orders always point to what was actually charged.
+One row per price and currency. Prices are never edited: a new price is a new row, and the old one is set inactive, so orders always point to what was actually charged. Since wave 2 part 7 every price is in euros (Stripe's Adaptive Pricing shows other money at payment). Running code only reads the table; admin › prices changes a price through `set_product_price(product_id, currency, interval, amount_minor, provider, provider_price_id)` (migration 0035, SECURITY DEFINER, `EXECUTE` for `classifieds_app` only), which retires the active row and adds the new one, or switches an earlier row with the same provider price on again.
 
 | Column | Type | Notes |
 | --- | --- | --- |

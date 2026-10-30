@@ -205,6 +205,16 @@ describe('when a notice goes out', () => {
     const now = new Date();
     expect(await dueForDaily(workerDb, now)).toContain(daily);
     expect(await dueForDaily(workerDb, now)).not.toContain(instant);
+    // The hourly run (wave 2 part 7): 18:00 on the person's clock, here Germany's (Berlin, UTC+1
+    // in November); with a saved city in Toronto, Toronto's
+    const at = (iso: string) => dueForDaily(workerDb, new Date(iso), { localHour: 18 });
+    expect(await at('2029-11-05T17:00:00Z')).toContain(daily);
+    expect(await at('2029-11-05T16:00:00Z')).not.toContain(daily);
+    const [toronto] = await db.select().from(schema.locations).where(and(eq(schema.locations.slug, 'toronto'), eq(schema.locations.kind, 'city')));
+    await db.update(schema.users).set({ homeLocationId: toronto!.id }).where(eq(schema.users.id, searcher.id));
+    expect(await at('2029-11-05T17:00:00Z')).not.toContain(daily);
+    expect(await at('2029-11-05T23:00:00Z')).toContain(daily);
+    await db.update(schema.users).set({ homeLocationId: null }).where(eq(schema.users.id, searcher.id));
     expect(await dueForDaily(workerDb, new Date(now.getTime() + 61 * 60_000))).toContain(instant);
     expect(await claimAlert(workerDb, redis, daily, now, 'daily')).toMatchObject({ send: ['email'], job: { listingIds: [id] } });
     expect(await dueForDaily(workerDb, now)).not.toContain(daily);

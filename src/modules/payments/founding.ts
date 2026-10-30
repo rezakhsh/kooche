@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, organizations, subscriptions } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
-import { activePrice, confirmBusinessBuyer, customerFor, isOwner, openPlanCheckout, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
+import { activePrice, confirmBusinessBuyer, PAYMENT_CURRENCY, customerFor, isOwner, openPlanCheckout, type BusinessBuyer, type CheckoutResult, type Where } from './checkout';
 import { formatDate } from '../../lib/format';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
@@ -12,6 +12,7 @@ import { legalComplete } from '../organizations/organizations';
 import { checkVerifiedNumber } from '../users/phone-number';
 import type { PaymentGateway } from './gateway';
 import { activeSubscription } from './plans';
+import { euros, proMonthlyText } from './prices';
 
 // Founding Pro (round 12, wave 0, docs/wave0-plan.md item 4). The owner marks a verified business
 // as founding in admin; its owner then starts 6 months of Pro as a Stripe trial without a card.
@@ -169,7 +170,7 @@ export async function startFoundingCheckout(
     .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
-  const price = await activePrice(db, 'pro', 'EUR', 'month');
+  const price = await activePrice(db, 'pro', PAYMENT_CURRENCY, 'month');
   if (!org || !price) return { ok: false, reason: 'not_allowed' };
   if (!legalComplete(org)) return { ok: false, reason: 'legal_missing' };
   if (!(await confirmBusinessBuyer(db, opts.userId, org.id, opts, 'pro-founding'))) return { ok: false, reason: 'business_required' };
@@ -192,7 +193,7 @@ export async function startFoundingCheckout(
   return { ok: true, url: session.url };
 }
 
-export type FoundingReminder = { subscriptionId: string; days: 14 | 3; trialEndsAt: Date; email: string; name: string; slug: string; timeZone: string };
+export type FoundingReminder = { subscriptionId: string; days: 14 | 3; trialEndsAt: Date; email: string; name: string; slug: string; timeZone: string; /** What the subscription goes on at (minor units, euros) */ priceMinor: number | null };
 
 /**
  * Trials ending in 14 or 3 days (one day wide, so a daily run finds each once), with the owner's
@@ -201,8 +202,9 @@ export type FoundingReminder = { subscriptionId: string; days: 14 | 3; trialEnds
 export async function dueFoundingReminders(db: Queryable, now: Date): Promise<FoundingReminder[]> {
   const out: FoundingReminder[] = [];
   for (const days of [14, 3] as const) {
-    const rows = await db.execute<{ id: string; trial_ends_at: Date; email: string; name: string; slug: string; time_zone: string }>(sql`
+    const rows = await db.execute<{ id: string; trial_ends_at: Date; email: string; name: string; slug: string; time_zone: string; price_minor: string | null }>(sql`
       SELECT s.id, s.trial_ends_at, u.email, o.name, o.slug,
+        (SELECT pp.amount_minor FROM product_prices pp WHERE pp.id = s.product_price_id) AS price_minor,
         coalesce((SELECT c.timezone FROM locations c WHERE c.id = o.location_id), 'Europe/Berlin') AS time_zone
       FROM subscriptions s
       JOIN organizations o ON o.id = s.organization_id AND o.status = 'active'
@@ -211,7 +213,7 @@ export async function dueFoundingReminders(db: Queryable, now: Date): Promise<Fo
       WHERE s.status = 'trialing'
         AND s.trial_ends_at > ${now.toISOString()}::timestamptz + make_interval(days => ${days - 1})
         AND s.trial_ends_at <= ${now.toISOString()}::timestamptz + make_interval(days => ${days})`);
-    for (const r of rows) out.push({ subscriptionId: r.id, days, trialEndsAt: new Date(r.trial_ends_at), email: r.email, name: r.name, slug: r.slug, timeZone: r.time_zone });
+    for (const r of rows) out.push({ subscriptionId: r.id, days, trialEndsAt: new Date(r.trial_ends_at), email: r.email, name: r.name, slug: r.slug, timeZone: r.time_zone, priceMinor: r.price_minor === null ? null : Number(r.price_minor) });
   }
   return out;
 }
@@ -225,12 +227,14 @@ export async function sendFoundingReminders(db: Queryable, redis: Redis, mail: M
     // In the business's own city's time zone (Peydoo is in many countries)
     const date = formatDate(r.trialEndsAt, r.timeZone);
     const link = `${opts.appUrl}/b/${r.slug}/billing`;
+    // The price the trial's subscription goes on at, which a later price change doesn't touch
+    const pro = r.priceMinor !== null ? euros(r.priceMinor) : await proMonthlyText(db);
     await mail({
       to: r.email,
       subject: t.subject(r.name, r.days),
-      text: t.text(r.name, date, link),
+      text: t.text(r.name, date, link, pro),
       html: emailHtml(
-        `<p>${escapeHtml(t.intro(r.name, date))}</p><p>${escapeHtml(t.body)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
+        `<p>${escapeHtml(t.intro(r.name, date))}</p><p>${escapeHtml(t.body(pro))}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
       ),
     });
     sent++;

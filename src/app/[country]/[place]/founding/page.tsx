@@ -8,6 +8,7 @@ import { messages } from '../../../../messages/fa';
 import { cityFoundingPlaces } from '../../../../modules/payments/founding';
 import { browsePath } from '../../../../modules/search/paths';
 import { resolveBrowse } from '../../_browse/resolve';
+import { proMonthlyText } from '../../../../modules/payments/prices';
 
 // What a founding business gets in a city (round 12, mockup final/founding-business), linked from
 // the city's waitlist page: said plainly, with the real places left, then how it works, and
@@ -94,7 +95,7 @@ export default async function FoundingPage({ params }: Props) {
           </span>
         </div>
         <p className="mt-6 text-xs leading-6 text-neutral-600">
-          {t.after}{' '}
+          {t.after(await proMonthlyText(appDb()))}{' '}
           <Link href="/pro" className="font-bold text-brand-800 underline">
             {t.compare}
           </Link>

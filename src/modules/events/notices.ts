@@ -235,6 +235,14 @@ export async function weeklyRecipients(db: Queryable): Promise<WeeklyRecipient[]
   });
 }
 
+/** The cities' time zones: the weekly message goes out at 9:00 on each city's clock (wave 2 part 7) */
+export async function cityZones(db: Queryable, ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  const rows = await db.execute<{ id: string; timezone: string }>(sql`
+    SELECT id, timezone FROM locations WHERE id IN (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)})`);
+  return new Map(rows.map((r) => [r.id, r.timezone]));
+}
+
 /** This week's message for one city, or null when nothing is on there */
 export async function weeklyMessageFor(
   db: Queryable,

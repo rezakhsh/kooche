@@ -383,7 +383,7 @@ describe('post-checks and digest', () => {
     const monday = new Date('2028-03-06T07:00:00Z');
     const de = await publishEvent(u.id, { now: new Date('2028-03-01T00:00:00Z'), event: { startDate: '2028-03-08' } });
     await publishEvent(u.id, { now: new Date('2028-03-01T00:00:00Z'), event: { startDate: '2028-03-20' } });
-    expect(await writeWeeklyDigests(workerDb, 'Europe/Berlin', monday)).toBe(1);
+    expect(await writeWeeklyDigests(workerDb, monday)).toBe(1);
     const [row] = await db
       .select()
       .from(schema.outboxEvents)

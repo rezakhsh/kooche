@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { priceKey, syncCatalog } from '../src/modules/payments/catalog-sync';
-import type { CheckoutInput, CheckoutState, CustomerInput, InvoiceSummary, PaymentGateway, RefundInput } from '../src/modules/payments/gateway';
+import type { CheckoutInput, CheckoutState, CustomerInput, InvoiceSummary, PaymentGateway, PriceInput, RefundInput } from '../src/modules/payments/gateway';
 import { eventSchema, type ProviderEvent } from '../src/modules/payments/stripe-objects';
 import { products } from '../seed/products';
 import { db, makeListing, publicToken, type Tx } from './db';
@@ -94,6 +94,26 @@ export class FakeGateway implements PaymentGateway {
     const i = this.invoices.get(invoiceId);
     if (!i) throw new Error(`no invoice ${invoiceId}`);
     return i;
+  }
+  /** Admin › prices: prices by lookup key, archived ids, the Customer Portal's plans */
+  prices = new Map<string, string>();
+  archived: string[] = [];
+  portal: { productId: string; priceIds: string[] }[] = [];
+  async ensurePrice(input: PriceInput) {
+    const found = this.prices.get(input.lookupKey);
+    if (found) {
+      this.archived = this.archived.filter((x) => x !== found);
+      return found;
+    }
+    const priceId = `price_${input.lookupKey}`;
+    this.prices.set(input.lookupKey, priceId);
+    return priceId;
+  }
+  async archivePrice(priceId: string) {
+    this.archived.push(priceId);
+  }
+  async setPortalPlans(plans: { productId: string; priceIds: string[] }[]) {
+    this.portal = plans;
   }
 }
 

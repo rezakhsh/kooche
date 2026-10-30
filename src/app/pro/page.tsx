@@ -16,6 +16,7 @@ import { myBusinesses } from '../../modules/organizations/organizations';
 import { currentSession } from '../../modules/users/server';
 import { visitorCountry } from '../../lib/client-ip';
 import { chosenCountry } from '../country-choice';
+import { proMonthlyText } from '../../modules/payments/prices';
 
 // What Pro costs and includes (wave 1, mockup final/pro; prices decided by the owner Oct 22, 2026):
 // the founding offer of the first open city first, a monthly / yearly switch (CSS only, so it works
@@ -42,6 +43,7 @@ export default async function ProPage() {
     }),
   );
   const plans: Plan[] = [{ code: 'free', month: null, year: null, features: FREE_BUSINESS }, ...paid];
+  const pro = await proMonthlyText(db);
 
   // The founding offer of the visitor's country's first open city, with its places left
   const [countries, chosen, here] = await Promise.all([activeCountries(db), chosenCountry(db), headers().then(visitorCountry)]);
@@ -80,7 +82,7 @@ export default async function ProPage() {
           <div className="min-w-0 flex-1 basis-64">
             <b className="block">{t.founding.title(firstOpen.nameFa)}</b>
             <span className="block text-sm leading-7 text-saffron-800">
-              {t.founding.body(founding.places, left)}{' '}
+              {t.founding.body(founding.places, left, pro)}{' '}
               <Link href={`/${country.slug}/${firstOpen.slug}/founding`} className="font-bold underline">
                 {t.founding.terms}
               </Link>
@@ -154,10 +156,11 @@ export default async function ProPage() {
         </div>
       </div>
       <p className="mt-4 text-center text-sm text-neutral-600">{t.noVat}</p>
+      <p className="mt-1 text-center text-sm text-neutral-600">{t.inEuros}</p>
 
       <h2 className="mt-10 text-xl font-extrabold">{t.faqTitle}</h2>
       <div className="mt-3 divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white">
-        {t.faq.map((f) => (
+        {t.faq(pro).map((f) => (
           <details key={f.q} className="group">
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-[15px] font-bold [&::-webkit-details-marker]:hidden">
               {f.q}

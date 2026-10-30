@@ -10,6 +10,7 @@ import { activeSubscription, businessPlan, latestSubscription } from '../../../.
 import { paymentGateway } from '../../../../modules/payments/server';
 import { foundingAction, portalAction, subscribeAction } from '../../../business/actions';
 import { foundingState } from '../../../../modules/payments/founding';
+import { proMonthlyText } from '../../../../modules/payments/prices';
 import { legalComplete } from '../../../../modules/organizations/organizations';
 import { memberOf } from '../member';
 
@@ -33,6 +34,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
   const iran = await fromIran();
   const payments = !!paymentGateway() && !iran;
+  const pro = await proMonthlyText(db);
   // Listed here from Stripe: its Customer Portal leaves out some invoices (the €0 trial invoice)
   const invoices = await businessInvoices(db, paymentGateway(), org.id);
   const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
@@ -75,7 +77,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
           <form id="plans" action={foundingAction} className="scroll-mt-20 space-y-3 rounded-3xl border-2 border-brand-200 bg-brand-50 p-4 lg:p-5">
             {hidden}
             <h2 className="text-lg font-extrabold">{t.founding.title}</h2>
-            <p className="text-sm leading-7 text-neutral-700">{t.founding.body}</p>
+            <p className="text-sm leading-7 text-neutral-700">{t.founding.body(pro)}</p>
             <label className="flex gap-2 text-sm">
               <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
               <span>{t.businessTick}</span>
@@ -88,7 +90,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {running?.status === 'trialing' && running.trialEndsAt && (
           <div className="space-y-1 rounded-2xl bg-brand-50 p-4 text-sm leading-7">
             <p className="font-bold text-brand-800">{t.founding.trialing(formatDate(running.trialEndsAt, zone))}</p>
-            <p className="text-neutral-700">{t.founding.continue}</p>
+            <p className="text-neutral-700">{t.founding.continue(pro)}</p>
           </div>
         )}
 
@@ -175,6 +177,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
             <p className="text-xs text-neutral-500">{t.methods}</p>
             <p className="text-xs text-neutral-500">{t.businessTickHint}</p>
             <p className="text-xs text-neutral-500">{messages.pro.noVat}</p>
+            <p className="text-xs text-neutral-500">{messages.pro.inEuros}</p>
           </section>
         )}
       </div>

@@ -96,6 +96,8 @@ Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved 
 - Listing prices are already in the country's currency. Pro, Pro Plus, bumps and founding Pro get Stripe prices in USD, GBP, CAD, AUD, CHF and the Nordic currencies (today Stripe prices are EUR only, `seed/products.ts`). Outside the EU, Pro is sold to businesses only at first (round 6).
 - The weekly events digest goes out Monday 8:00 in each country's own time (today Berlin time for all).
 
+**Built Oct 30, 2026, changed by the owner** (docs/setup.md, "Payments and Pro"): instead of prices per currency, **one euro price for everyone** with Stripe's Adaptive Pricing (the buyer sees and pays their own money; we get euros); **admin › «قیمت‌ها»** to change a price (new buyers only; running subscriptions keep theirs); and **all four timed messages** on local clocks (weekly digest, weekly city email, expiry reminder, daily saved-search notices). Pro is sold to businesses only, as everywhere.
+
 ## 8. A new country's first pages (2 days)
 
 - **Starter first page** for a country in its first weeks (mockup `us-starter`): events, verified businesses, jobs and online services first, prices in its currency, venue time zones.

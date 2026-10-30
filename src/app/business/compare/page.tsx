@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppBar } from '../../../components/app-bar';
 import { Icon } from '../../../components/icons';
+import { appDb } from '../../../db/drizzle';
 import { webEnv } from '../../../lib/env';
 import { messages } from '../../../messages/fa';
+import { proMonthlyText } from '../../../modules/payments/prices';
 
 // Private or business, in one page (wave 2 part 4, mockup final/private-vs-business). The big
 // difference is being found: a business has a page, a place among the city's verified businesses
@@ -16,7 +18,8 @@ export function generateMetadata(): Metadata {
   return { title: `${t.title} | ${messages.site.name}`, description: t.intro, alternates: { canonical: `${webEnv().APP_URL}/business/compare` } };
 }
 
-export default function ComparePage() {
+export default async function ComparePage() {
+  const pro = await proMonthlyText(appDb());
   return (
     <>
       <AppBar title={t.title} back="/" backLabel={messages.notFound.home} />
@@ -76,7 +79,7 @@ export default function ComparePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {t.rows.map(([label, person, business], i) => (
+              {t.rows(pro).map(([label, person, business], i) => (
                 <tr key={label} className={i === 1 ? 'bg-brand-50' : ''}>
                   <th scope="row" className="p-2.5 text-start align-top text-xs font-bold text-neutral-700">
                     {label}

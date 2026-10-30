@@ -246,6 +246,13 @@
       "when": 1793279947142,
       "tag": "0034_listing_number_country",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793356499424,
+      "tag": "0035_product_price_function",
+      "breakpoints": true
     }
   ]
 }

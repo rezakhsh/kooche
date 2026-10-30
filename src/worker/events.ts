@@ -2,9 +2,11 @@ import { Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { writeWeeklyDigests } from '../modules/events/digest';
-import { DEFAULT_TIME_ZONE, EVENT_OUTBOX } from '../modules/events/events';
+import { EVENT_OUTBOX } from '../modules/events/events';
+import { DEFAULT_ZONE, EVERY_HOUR, isLocalHour, MONDAY } from '../modules/notifications/local-hour';
 import {
   channelsFor,
+  cityZones,
   claimReminder,
   dueReminders,
   followMessage,
@@ -22,19 +24,20 @@ import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure } from './monitoring';
 
 // Worker jobs of the events section, on queue `events`:
-// - `event-digest` (Mondays 08:00 Berlin): one outbox event per country for the planned channel
-//   posting;
+// - `event-digest` (Mondays 08:00 on each country's clock): one outbox event per country for the
+//   planned channel posting;
 // - `event-reminders` (hourly): saved events the day before (src/modules/events/notices.ts);
-// - `event-weekly` (Mondays 09:00 Berlin): «رویدادهای این هفته در شهر» to those who asked;
+// - `event-weekly` (Mondays 09:00 on each city's clock): «رویدادهای این هفته در شهر» to those who asked;
 // - `event_follow` (from the outbox, an event published): the business's followers, once per
 //   event; those in their quiet hours get theirs in the morning (`event_follow_one`).
 // Messages go out on the shared send queues (./chat.ts). Ending an event needs no job of its own:
-// its listing expires at the end of its last date (listing-expiry).
+// its listing expires at the end of its last date (listing-expiry). The two Monday jobs run every
+// hour and send where it is their hour now (wave 2 part 7, src/modules/notifications/local-hour.ts).
 
 const SCHEDULES = {
-  'event-digest': { pattern: '0 8 * * 1', tz: 'Europe/Berlin' },
+  'event-digest': EVERY_HOUR,
   'event-reminders': { pattern: '5 * * * *', tz: 'Europe/Berlin' },
-  'event-weekly': { pattern: '0 9 * * 1', tz: 'Europe/Berlin' },
+  'event-weekly': EVERY_HOUR,
 } as const;
 
 /** One fan-out per event, even when both `event.published` and `listing.published` arrive */
@@ -104,7 +107,11 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     const at = now();
     const byCity = new Map<string, Awaited<ReturnType<typeof weeklyMessageFor>>>();
     let sent = 0;
-    for (const r of await weeklyRecipients(db)) {
+    const recipients = await weeklyRecipients(db);
+    // Only the cities where it is Monday 9:00 now
+    const zones = await cityZones(db, [...new Set(recipients.map((r) => r.cityId))]);
+    for (const r of recipients) {
+      if (!isLocalHour(at, zones.get(r.cityId) ?? DEFAULT_ZONE, 9, MONDAY)) continue;
       if (!byCity.has(r.cityId)) byCity.set(r.cityId, await weeklyMessageFor(db, r.cityId, opts.appUrl, at));
       const message = byCity.get(r.cityId);
       if (!message) continue;
@@ -123,7 +130,7 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     async (job: Job) => {
       switch (job.name) {
         case 'event-digest': {
-          const n = await writeWeeklyDigests(db, DEFAULT_TIME_ZONE);
+          const n = await writeWeeklyDigests(db, now(), { localHour: 8 });
           return `digest for ${n} countries`;
         }
         case 'event-reminders':
