@@ -1448,3 +1448,12 @@ Plan approved by the owner before building. Commit `3981272`, on staging. Detail
 - **Tests:** 1,053 passing (new `tests/job-fixes.test.ts`; the weekly message and digest in `tests/events-wave1.test.ts`).
 - **Checked on staging:** web and worker healthy after the deploy; the new schedules (`listing-purge`, `erase-stuck`, `acting-ended`) registered; no failed job in any queue; the status snapshot carries the stuck-deletion count (0).
 - **The code check is done:** 35 findings, the 8 "fix first" and 13 "fix soon" all fixed in packages 1–4, plus most small ones. Left on purpose or for later: the nodemailer update (with the software-update plan), the view-as pass tied to the role (no gain), staging test accounts' shared code (staging only), the SMS form's number check and double tap (the SMS option is hidden). Production has none of it until the owner asks for `peydoo-promote` (migration 0037 comes with it).
+
+## Oct 30, 2026: visitor numbers (own counter, ref links, QR codes)
+
+The owner chose "Own counter + ref links" over Google Analytics and approved building it as planned without a mockup. Commit `5b765a1`, on staging with migration 0038. Details in `docs/setup.md` ("Visitor numbers").
+
+- **Built:** a beacon on every public page (no cookie, nothing on the device) → `/api/v` → daily counters in Valkey with once-a-day visitors from a salted hash (the salt goes after 3 days) → `visit_stats` every 10 minutes; new accounts get the source of that day's visit (`users.signup_source`) and the account page asks once «از کجا با پیدو آشنا شدید؟»; admin › «آمار بازدید» (admins): visitors, views, new and returning accounts, daily charts, sources with what new accounts did next, the owner's ref links with QR codes, countries, pages, devices, answers. Privacy policy section 3.5 (de and fa).
+- **Tests:** 1,058 passing (new `tests/visits.test.ts`; the grants test counts 54 tables).
+- **Checked on staging** with a temporary admin and a new account (removed, with the test link's counts): a ref link made through the admin form; an anonymous phone visit through it sent its beacons, Valkey counted them and the worker wrote them to `visit_stats` within 10 minutes (ref and direct sources, Finland, phone, two pages); the stats page and the account page's question on phone and computer, light and dark, no horizontal scroll, no errors. Screenshots in `/root/peydoo-media/after-wave2/visitor-numbers/`.
+- **For the owner:** make a link per Berlin contact in admin › «آمار بازدید» (after production gets it); print the QR code from the page.
