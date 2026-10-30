@@ -1373,3 +1373,14 @@ Planned with the owner first (the owner asked on Oct 30 to see each part's plan 
 - **Seen on staging, not from this part:** one failed job in the `seo` queue from before the deploy (admin › وضعیت سیستم shows it).
 - **Tests:** 1,004 passing (new `tests/prices.test.ts` and `tests/local-time.test.ts`; local-hour cases added to the expiry-reminder and saved-search tests; the grants test lists the new function).
 - **Next:** part 9 (Telegram channel and the waitlist reward) or part 10 (final check), after the owner's approval of the plan.
+
+## Oct 30, 2026: wave 2 part 9: the waitlist reward (channel posting postponed)
+
+Planned with the owner first. **Telegram channel posting is postponed** by the owner: a channel that repeats the site could become its competitor, and a country is the wrong size for the US, Canada or Australia; to be thought about in a bigger picture (suggested: the bot's personal subscriptions by city and interest; @peydooapp for announcements only). **The waitlist reward was built** (`docs/setup.md`, "Waitlist reward"; migration 0036; `src/modules/launch/rewards.ts`).
+
+- **Given** when the owner opens a city or a whole country: the first confirmed sign-ups of each city group that wasn't open (one per email, 200 / 100 / 50 by population), usable from day 3 to day 60, by the account with that verified email. As the public pages promised; the admin page's older wording («روز باز شدن روی اولین آگهی») was corrected.
+- **Told:** one email from day 3 at 9:00 on the city's clock, and a box on «آگهی‌های من» (the owner's choice).
+- **Used:** «استفاده از نردبان رایگان» on a listing's «ارتقا» page; the minute bump job applies it like a paid bump, or frees it when the listing closed first. Not an entitlement (those come only from payments).
+- **Checked on staging** (`2cfe692`) with a made-up person signed up for Hamburg with a reward and a listing in Berlin (all removed): the box and the button on phone and computer, light and dark (no horizontal scroll, no console errors); using it; the worker moved the listing up within a minute (one `bumped` row by `system`). The box said «کنار آگهی «ارتقا» را بزنید» while «ارتقا» is under «بیشتر»: the box and the email now say «بیشتر» و بعد «ارتقا». Screenshots in `/root/peydoo-media/wave2/waitlist-reward/`.
+- **Tests:** 1,011 passing (new `tests/rewards.test.ts`: giving, places and order, a whole country, using, unverified emails, the bump job, the email; the grants test counts the new table).
+- **Next:** part 10 (final check of wave 2), after the owner's approval of the plan.
