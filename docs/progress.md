@@ -1347,3 +1347,17 @@ Approved by the owner ("go 5"; the zone rule chosen the same day). `docs/setup.m
 - **Checked on staging** (`07c1e50`) in headless Chromium with a temporary admin with a Turkish number and two test-account sellers (all deleted), next to both mockups, phone and computer, light and dark. The locked list's heading spacing was fixed after the side-by-side.
 - **Tests:** 982 passing (new `tests/borders.test.ts`: zones, another zone, online services, verified business, renewing, the same zone, the first week, the fresh list); one older test now uses an older account (a German number posting twice in Austria in its first week).
 - **Next:** part 6, the online layer, after the owner's approval.
+
+## Oct 30, 2026: wave 2 part 6: the online layer
+
+Approved by the owner ("Go 6", with remote jobs only within the zone). `docs/setup.md`, "The online layer"; no migration; `src/modules/listings/online.ts`, `src/app/[country]/online/page.tsx`.
+
+- **What reaches other countries:** services and lessons offered online (the existing «امکان انجام آنلاین» and lesson format, so the form didn't change) and events held only online, from every open country; remote jobs («دورکاری») only from open countries of the same zone. Hybrid events and closed countries' listings stay at home.
+- **«آنلاین از همه‌جا», `/{country}/online`:** online events, online services and lessons, and remote jobs, the country's own and others' together, with search, one section at a time with paging, and a category filter. Listings from another country show its flag and name; events say «آنلاین، از آلمان» and «۱۹:۰۰ به وقت برلین». No mockup: styled like the starter page (`us-starter`).
+- **Links with counts** (a brand strip shaped like «این هفته در برلین»): a country's or city's first page and the starter page (everything online), services, lessons and jobs pages (what other countries add in that category), keyword searches (online matches from other countries).
+- **Events lists** of a country and its cities include other open countries' online-only events; the «تا ۲۰ €» filter only counts prices in the country's currency.
+- **Decided from practice, not asked:** a separate page instead of mixing into category pages (their price filters and sort are in the country's currency); hybrid events stay at home (the venue is the point); the «این هفته» strip, featured events and the weekly digest stay the country's own; `online` is kept free as a city or category slug (seed check).
+- **Not built:** the admin countries mockup's per-country «آنلاین از همه‌جا» switch. Part 2 replaced that sidebar with emergency pauses, so online-from-everywhere is simply on for every open country.
+- **Checked on staging** (`7761fce`) in headless Chromium with Austria opened for the check and two made-up sellers in Berlin and Vienna (all removed, Austria back on waitlist): the online page (phone and computer, light and dark), one section, a search, the Austrian starter page, Austria's events list with the German online event, Germany's first page, its services page and a search. No horizontal scroll, no console errors. Screenshots in `/root/peydoo-media/wave2/online/`.
+- **Tests:** 990 passing (new `tests/online.test.ts`: services and lessons, paging, categories, test accounts, remote jobs by zone, online events in other countries' lists, prices in another currency, the row's wording, the counts).
+- **Next:** part 7, money and time, after the owner's approval.
