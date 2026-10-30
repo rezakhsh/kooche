@@ -39,6 +39,8 @@ import { RememberCountry, RememberView } from '../remember-country';
 import { ActiveFilters, filterChips } from './chips';
 import { formatPrice } from '../../../modules/listings/price';
 import { FilterForm } from './filter-form';
+import { OnlineLink, onlineSummary } from './online-link';
+import { cachedOnlineCounts, onlineCounts, sectionOf, type OnlineCounts } from '../../../modules/listings/online';
 import { SaveSearchButton } from './save-search';
 import type { Browse } from './resolve';
 
@@ -91,7 +93,21 @@ const pageData = cache(async (b: Browse) => {
   const weekEvent = week?.items[0] ?? null;
   // «قیمت بیشتر آگهی‌های …: ۵۰۰ تا ۷۵۰ €» under the price fields, for a category with prices
   const typical = b.category && b.ctx.priceAllowed ? await typicalPrice(db, { countryCode: b.country.code, categoryIds: b.filters.categoryIds, locationId: b.city?.id ?? null }) : null;
-  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount };
+  // «آنلاین از همه‌جا» (wave 2 part 6): everything online on the first page; what other countries
+  // add on a services, lessons or jobs page and under a search
+  const section = b.category ? sectionOf(b.catalog, b.category.id) : null;
+  const online: { counts: OnlineCounts; total: number } | null = await (async () => {
+    if (b.state.after || limited) return null;
+    const counts = b.state.q
+      ? await onlineCounts(db, b.catalog, { countryCode: b.country.code, elsewhereOnly: true, keyword: b.state.q, categoryIds: b.filters.categoryIds, withTest: b.filters.withTest })
+      : plain || section
+        ? await cachedOnlineCounts(db, b.catalog, b.country.code, plain ? null : b.category!.id)
+        : null;
+    if (!counts) return null;
+    const total = plain || b.state.q ? counts.events + counts.services + counts.jobs : counts[section!];
+    return total > 0 ? { counts, total } : null;
+  })();
+  return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount, online, section };
 });
 
 function titleOf(b: Browse): string {
@@ -146,7 +162,7 @@ export async function BrowsePage({ b }: { b: Browse }) {
   // A listing's code typed into the search box opens that listing (like Kleinanzeigen's ID)
   const coded = state.q ? await pathOfListingCode(appDb(), state.q) : null;
   if (coded) redirect(coded);
-  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount } = await pageData(b);
+  const { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount, online, section } = await pageData(b);
   const env = webEnv();
   const t = messages.country;
   const tb = messages.browse;
@@ -444,6 +460,15 @@ export async function BrowsePage({ b }: { b: Browse }) {
               </span>
               <span className="shrink-0 text-sm font-extrabold text-saffron-800">{tb.weekCount(weekCount)}</span>
             </Link>
+          )}
+
+          {online && (
+            <OnlineLink
+              country={country.slug}
+              text={state.q ? messages.online.link.searchElsewhere(online.total) : section ? messages.online.link[section === 'services' ? 'servicesElsewhere' : 'jobsElsewhere'](online.total) : onlineSummary(online.counts)}
+              category={state.q ? null : category?.slug}
+              q={state.q}
+            />
           )}
 
           {/* On phones the applied filters are in the chip row */}

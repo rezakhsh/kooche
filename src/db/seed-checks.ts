@@ -149,16 +149,17 @@ export const SEED_CHECKS: SeedCheck[] = [
   },
   {
     // /germany/{city or category}: one path segment means either, and /germany/berlin/events is
-    // the city's events page. Retired rows (the old `community › events`) are never shown.
+    // the city's events page; /germany/online is «آنلاین از همه‌جا» (wave 2 part 6). Retired rows
+    // (the old `community › events`) are never shown.
     name: 'city slugs, category slugs and events stay apart in browse addresses',
     query: sql`
       SELECT 'city ' || l.slug || ' (' || l.country_code || ') ' ||
-             CASE WHEN l.slug = 'events' THEN 'is named events' ELSE 'has the slug of a category' END AS problem
+             CASE WHEN l.slug IN ('events', 'online') THEN 'is named ' || l.slug ELSE 'has the slug of a category' END AS problem
       FROM locations l
       WHERE l.kind = 'city' AND l.is_active
-        AND (l.slug = 'events' OR EXISTS (SELECT 1 FROM categories c WHERE c.slug = l.slug AND c.is_active))
+        AND (l.slug IN ('events', 'online') OR EXISTS (SELECT 1 FROM categories c WHERE c.slug = l.slug AND c.is_active))
       UNION ALL
-      SELECT 'category events' FROM categories WHERE slug = 'events' AND is_active`,
+      SELECT 'category ' || slug FROM categories WHERE slug IN ('events', 'online') AND is_active`,
   },
   {
     name: 'free-text fields are not filters',

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { messages } from '../messages/fa';
 import type { CardFact } from '../modules/listings/attribute-text';
+import { Flag } from './flag';
 import { Icon } from './icons';
 
 // One listing in a list of listings (country page; later city pages, search and events reuse
@@ -33,6 +34,8 @@ export type CardData = {
   unit?: string | null;
   /** Without a photo: the category on a soft tile, and the business under it on its page (mockup final/business-page) */
   tile?: { label: string; sub?: string | null } | null;
+  /** From another country (the online page, wave 2 part 6): its flag and name after the place */
+  country?: { code: string; nameFa: string } | null;
 };
 
 /** `favorite`: the ♡ button, laid over the card next to the link (a button can't sit inside a link) */
@@ -131,9 +134,10 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
       <p className="mt-auto flex min-w-0 items-center gap-1 pt-1 text-xs text-neutral-600">
         {card.place && (
           <>
-            <Icon name="pin" className="size-3.5 shrink-0" />
+            {card.country ? <Flag code={card.country.code} className="h-3 w-4.5 shrink-0" /> : <Icon name="pin" className="size-3.5 shrink-0" />}
             <span className="truncate">
               {card.place.latin ? <bdi dir="ltr">{card.place.text}</bdi> : card.place.text}
+              {card.country && `، ${card.country.nameFa}`}
               {(card.distance || card.ago) && '،'}
             </span>
           </>

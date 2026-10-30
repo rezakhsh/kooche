@@ -108,6 +108,8 @@ export function stateFilter(
 ): EventFilter {
   return {
     countryCode: ctx.countryCode,
+    // Events held only online in the other open countries too (wave 2 part 6)
+    onlineElsewhere: 'also',
     locationId: ctx.locationId,
     withinKm: ctx.locationId && s.near ? NEAR_KM : null,
     categoryIds: s.types.map(ctx.typeIds).filter((x): x is string => !!x),

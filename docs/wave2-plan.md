@@ -89,6 +89,8 @@ Mockups `post-crossborder`, `listing-crossborder`; round 6 proposal, **approved 
 - Online services, online events and remote jobs are shown in every open country (today online events show only within their own country; businesses have a badge only).
 - A listing in these categories can say «آنلاین»; it then appears in each open country's «آنلاین» section and search.
 
+**Built Oct 30, 2026** (docs/setup.md, "The online layer"). Remote jobs reach only the open countries of the same zone (the owner's choice); «آنلاین» is the existing «امکان انجام آنلاین», lesson format and «دورکاری», so the form didn't change; a page per country (`/austria/online`) instead of mixing into the category pages, whose prices are in the country's currency; hybrid events stay at home.
+
 ## 7. Money and time (1.5 days)
 
 - Listing prices are already in the country's currency. Pro, Pro Plus, bumps and founding Pro get Stripe prices in USD, GBP, CAD, AUD, CHF and the Nordic currencies (today Stripe prices are EUR only, `seed/products.ts`). Outside the EU, Pro is sold to businesses only at first (round 6).

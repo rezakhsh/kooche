@@ -185,7 +185,7 @@ export function keywordWords(keyword: string): string[][] {
 }
 
 /** Every word (or a synonym of it) somewhere in the title or description, ZWNJ ignored */
-function keywordCondition(keyword: string): SQL | undefined {
+export function keywordCondition(keyword: string): SQL | undefined {
   const groups = keywordWords(keyword);
   if (groups.length === 0) return undefined;
   const flat = (col: SQL) => sql`replace(${col}, ${'\u200c'}, '')`;
@@ -454,7 +454,7 @@ export async function cityCounts(db: Queryable, countryCode: string): Promise<Ma
 const COUNTS_TTL_MS = 60_000;
 const globalForCounts = globalThis as typeof globalThis & { browseCounts?: Map<string, { value: Promise<Map<string, number>>; at: number }> };
 
-function cachedCounts(key: string, load: () => Promise<Map<string, number>>): Promise<Map<string, number>> {
+export function cachedCounts(key: string, load: () => Promise<Map<string, number>>): Promise<Map<string, number>> {
   const cache = (globalForCounts.browseCounts ??= new Map());
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < COUNTS_TTL_MS) return hit.value;

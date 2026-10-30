@@ -17,12 +17,15 @@ import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { viewerSeesTest } from '../../../modules/users/server';
 import { CategoryGrid } from '../../category-grid';
 import { RememberCountry } from '../remember-country';
+import { cachedOnlineCounts } from '../../../modules/listings/online';
+import { OnlineLink, onlineSummary } from './online-link';
 
 // A country's first page in its first 8 weeks after opening (wave 2 part 8, mockup final/us-starter;
 // src/modules/launch/country-page.ts): events, verified businesses and jobs first, because those
 // exist before the listings do; its cities; the first waitlist city's goal or «آگهی بدهید»; the
 // founding offer; then the categories. Prices are in the country's currency and event times at
-// the venue, as everywhere. Germany, open from the start, never has it.
+// the venue, as everywhere. Germany, open from the start, never has it. Wave 2 part 6: the link to
+// «آنلاین از همه‌جا» after the jobs.
 
 const t = messages.countryPage.starter;
 
@@ -55,12 +58,14 @@ export async function StarterPage({ country, detected = false, remember = false 
   const withTest = await viewerSeesTest();
   const catalog = await cachedCatalog(db);
   const jobsRoot = catalog.bySlug.get('jobs');
-  const [cities, events, businesses, jobs] = await Promise.all([
+  const [cities, events, businesses, jobs, online] = await Promise.all([
     keyCitiesOf(db, country.code),
     upcomingEvents(db, { countryCode: country.code, from: new Date(), to: null, withTest }, new Date(), 3),
     newestVerifiedBusinesses(db, country.code, { limit: 3, withTest }).then((rows) => rows.map((b) => ({ ...b, logo: b.logoKey ? imageUrl(b.logoKey, 'thumb', 'webp') : null }))),
     jobsRoot ? newestListingsIn(db, country.code, subtreeIds(catalog, jobsRoot.id), { limit: 3, withTest }) : Promise.resolve([]),
+    cachedOnlineCounts(db, catalog, country.code),
   ]);
+  const onlineText = onlineSummary(online);
   const firstOpen = cities.find((c) => c.status === 'open') ?? null;
   const gate = cities.find((c) => c.status === 'waitlist' && c.goal) ?? null;
   const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
@@ -183,6 +188,8 @@ export async function StarterPage({ country, detected = false, remember = false 
               </ul>
             </>
           )}
+
+          {onlineText && <OnlineLink country={country.slug} text={onlineText} className="mt-7" />}
         </div>
 
         <aside>

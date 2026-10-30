@@ -2,6 +2,7 @@ import type { EventCardData } from '../../components/event-card';
 import type { EventRowData } from '../../components/event-row';
 import { messages } from '../../messages/fa';
 import type { Catalog } from '../listings/catalog';
+import { countryNameFa } from '../listings/zones';
 import { imageUrl } from '../media/server';
 import { cardDate, eventPriceShort, eventPriceText } from './format';
 import type { EventCardRow } from './queries';
@@ -32,18 +33,27 @@ const dayFormat = (timeZone: string) => {
   return (d: Date) => `${weekday.format(d)}، ${dayMonth.format(d)}`;
 };
 
-/** A row of the wave 1 list (src/components/event-row.tsx) from an event row */
-export function eventRowOf(catalog: Catalog, e: EventCardRow, ctx: { saved: Set<string>; season: ActiveSeason | null }): EventRowData {
+/**
+ * A row of the wave 1 list (src/components/event-row.tsx) from an event row. `countryCode`: the
+ * list's country; an online event from another one says where it is from and whose time it is in.
+ */
+export function eventRowOf(catalog: Catalog, e: EventCardRow, ctx: { saved: Set<string>; season: ActiveSeason | null; countryCode?: string }): EventRowData {
   const currency = e.currency ? catalog.currencies.get(e.currency) : undefined;
   const online = e.attendance === 'online';
-  const where = online ? messages.events.card.online : [e.venueName, e.neighbourhood ?? e.cityFa ?? e.placeName].filter(Boolean).join('، ');
+  const abroad = !!ctx.countryCode && e.countryCode !== ctx.countryCode;
+  const where = abroad
+    ? messages.events.card.onlineFrom(countryNameFa(e.countryCode))
+    : online
+      ? messages.events.card.online
+      : [e.venueName, e.neighbourhood ?? e.cityFa ?? e.placeName].filter(Boolean).join('، ');
+  const time = cardDate(e.startsAt, e.timeZone).time;
   const part = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { timeZone: e.timeZone, ...o }).format(e.startsAt);
   return {
     id: e.id,
     title: e.title,
     publicToken: e.publicToken,
     day: dayFormat(e.timeZone)(e.startsAt),
-    time: cardDate(e.startsAt, e.timeZone).time,
+    time: abroad ? messages.events.card.timeIn(time, e.cityFa ?? e.placeName ?? countryNameFa(e.countryCode)) : time,
     badge: { day: part({ day: 'numeric' }), month: part({ month: 'short' }) },
     where: where || null,
     online,

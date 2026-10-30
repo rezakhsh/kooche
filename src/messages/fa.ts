@@ -174,6 +174,36 @@ export const messages = {
       businessCta: 'ثبت کسب‌وکار',
     },
   },
+  /** «آنلاین از همه‌جا» (wave 2 part 6, src/modules/listings/online.ts): /austria/online and the links to it */
+  online: {
+    title: 'آنلاین از همه‌جا',
+    metaTitle: (country: string) => `آنلاین از همه‌جا برای ${country}`,
+    description: (country: string) => `رویدادهای آنلاین، خدمات و کلاس‌های آنلاین و کار دورکاری برای فارسی‌زبانان ${country}، از همهٔ کشورهای پیدو.`,
+    intro: (zone: string) => `رویدادها، خدمات و کلاس‌هایی که از هر جا می‌شود در آن‌ها شرکت کرد، از همهٔ کشورهای پیدو؛ و کار دورکاری در ${zone}.`,
+    search: 'جستجو در آنلاین‌ها…',
+    chips: { all: 'همه', events: 'رویدادها', services: 'خدمات و کلاس‌ها', jobs: 'کار دورکاری' },
+    sections: { events: 'رویدادهای آنلاین', services: 'خدمات و کلاس‌های آنلاین', jobs: 'کار دورکاری' },
+    all: 'همه',
+    more: 'بیشتر',
+    from: (country: string) => `از ${country}`,
+    clearCategory: (category: string) => `${category}، حذف`,
+    empty: 'هنوز چیزی اینجا نیست.',
+    emptySearch: (q: string) => `برای «${q}» چیزی پیدا نشد.`,
+    postTitle: 'خدمت یا کلاس آنلاین دارید؟',
+    postText: 'در فرم آگهی «امکان انجام آنلاین» یا برگزاری آنلاین را بزنید تا در همهٔ کشورهای پیدو دیده شود.',
+    post: 'ثبت آگهی رایگان',
+    /** The links on the country's pages */
+    link: {
+      title: 'آنلاین از همه‌جا',
+      counts: (parts: string[]) => parts.join('، '),
+      events: (n: number) => `${n.toLocaleString('fa-IR')} رویداد`,
+      services: (n: number) => `${n.toLocaleString('fa-IR')} خدمت و کلاس`,
+      jobs: (n: number) => `${n.toLocaleString('fa-IR')} کار دورکاری`,
+      servicesElsewhere: (n: number) => `${n.toLocaleString('fa-IR')} خدمت و کلاس آنلاین از کشورهای دیگر`,
+      jobsElsewhere: (n: number) => `${n.toLocaleString('fa-IR')} کار دورکاری از کشورهای دیگر`,
+      searchElsewhere: (n: number) => `${n.toLocaleString('fa-IR')} نتیجهٔ آنلاین از کشورهای دیگر`,
+    },
+  },
   country: {
     title: (name: string) => `آگهی‌های ${name}`,
     categoryTitle: (category: string, country: string) => `${category} در ${country}`,
@@ -2159,6 +2189,10 @@ export const messages = {
     card: {
       online: 'آنلاین',
       hybrid: 'حضوری و آنلاین',
+      /** An online event held in another open country (wave 2 part 6) */
+      onlineFrom: (country: string) => `آنلاین، از ${country}`,
+      /** Its time at the venue, named: «۱۹:۰۰ به وقت تورنتو» */
+      timeIn: (time: string, place: string) => `${time} به وقت ${place}`,
       moreDates: (n: number) => `و ${n.toLocaleString('fa-IR')} تاریخ دیگر`,
     },
     scheduleStatus: {

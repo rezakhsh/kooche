@@ -51,6 +51,11 @@ export type EventFilter = {
   withTest?: boolean;
   /** A country's events, or (without it) one seller's events everywhere */
   countryCode?: string;
+  /**
+   * With `countryCode`, events held only online in the other open countries (wave 2 part 6,
+   * src/modules/listings/online.ts): as well as the country's own, or instead of them
+   */
+  onlineElsewhere?: 'also' | 'only';
   /** Only this seller's own events, not their organizations' (the seller page) */
   sellerId?: string;
   /** Only this business's events (its page, wave 1) */
@@ -93,6 +98,8 @@ export type EventCardRow = {
   publicToken: string;
   title: string;
   categoryId: string | null;
+  /** Where it is held (another country's online events on a country's list, wave 2 part 6) */
+  countryCode: string;
   priceType: string;
   priceMinor: number | null;
   currency: string | null;
@@ -119,8 +126,17 @@ export type EventCardRow = {
 
 /** The conditions on an event's next date (alias d), its listing (l) and its details (e) */
 function eventConditions(f: EventFilter, now: Date) {
+  const elsewhere = sql`(d.country_code <> ${f.countryCode ?? ''} AND d.country_code IN (SELECT code FROM countries WHERE is_active)
+    AND d.listing_id IN (SELECT listing_id FROM event_details WHERE attendance = 'online'))`;
+  const country = !f.countryCode
+    ? sql`true`
+    : f.onlineElsewhere === 'only'
+      ? elsewhere
+      : f.onlineElsewhere === 'also'
+        ? sql`(d.country_code = ${f.countryCode} OR ${elsewhere})`
+        : sql`d.country_code = ${f.countryCode}`;
   const dates = sql`
-    ${f.countryCode ? sql`d.country_code = ${f.countryCode}` : sql`true`}
+    ${country}
     ${f.sellerId ? sql`AND d.listing_id IN (SELECT id FROM listings WHERE user_id = ${f.sellerId} AND organization_id IS NULL)` : sql``}
     ${f.organizationId ? sql`AND d.listing_id IN (SELECT id FROM listings WHERE organization_id = ${f.organizationId})` : sql``}
     AND d.ends_at > ${now.toISOString()}::timestamptz
@@ -144,7 +160,7 @@ function eventConditions(f: EventFilter, now: Date) {
     ${f.online ? sql`AND e.attendance <> 'in_person'` : sql``}
     ${f.inPerson ? sql`AND e.attendance <> 'online'` : sql``}
     ${f.free ? sql`AND l.price_type = 'free'` : sql``}
-    ${f.maxPriceMinor != null ? sql`AND (l.price_type = 'free' OR (l.price_type = 'fixed' AND l.price_minor <= ${f.maxPriceMinor}))` : sql``}
+    ${f.maxPriceMinor != null ? sql`AND (l.price_type = 'free' OR (l.price_type = 'fixed' AND l.price_minor <= ${f.maxPriceMinor}${f.onlineElsewhere && f.countryCode ? sql` AND l.currency = (SELECT default_currency FROM countries WHERE code = ${f.countryCode})` : sql``}))` : sql``}
     ${f.languages?.length ? sql`AND e.languages && ARRAY[${sql.join(f.languages.map((x) => sql`${x}`), sql`, `)}]::text[]` : sql``}
     ${text ? sql`AND (lower(l.title_normalized) LIKE ${text} OR lower(coalesce(e.venue_name_normalized, '')) LIKE ${text} OR lower(coalesce(e.organizer_name_normalized, '')) LIKE ${text})` : sql``}
     ${f.family ? sql`AND e.min_age IS NULL` : sql``}
@@ -167,6 +183,7 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
     public_token: string;
     title: string;
     category_id: string | null;
+    country_code: string;
     price_type: string;
     price_minor: string | null;
     currency: string | null;
@@ -192,7 +209,7 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
       WHERE ${where.dates}
       ORDER BY d.listing_id, d.starts_at
     )
-    SELECT l.id, l.public_token, l.title, l.category_id, l.price_type, l.price_minor, l.currency,
+    SELECT l.id, l.public_token, l.title, l.category_id, l.country_code, l.price_type, l.price_minor, l.currency,
            l.postal_code, l.place_name, lc.name_fa AS city_fa,
            (SELECT n.name_fa FROM neighbourhoods n
             WHERE l.location_precision IN ('postal_code', 'area') AND n.location_id = l.location_id AND n.is_active
@@ -219,6 +236,7 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
     publicToken: r.public_token,
     title: r.title,
     categoryId: r.category_id,
+    countryCode: r.country_code,
     priceType: r.price_type,
     priceMinor: r.price_minor === null ? null : Number(r.price_minor),
     currency: r.currency,

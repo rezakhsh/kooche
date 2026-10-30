@@ -33,8 +33,9 @@ import { RememberCountry } from '../remember-country';
 // with a dot where something is on, type chips that apply at once, free and online, the paid
 // «ویژه» slot, then the events by week with their upright posters, and «خبرم کن» for the weekly
 // message. The sheet holds the rest (how far, when, price, language, who it suits). A city's list
-// includes the country's online events. Every filter is a link or a GET form with its own address
-// (src/modules/events/list-params.ts), so it all works without JavaScript.
+// includes the country's online events, and every list those held only online in the other open
+// countries (wave 2 part 6), with the venue's time named. Every filter is a link or a GET form
+// with its own address (src/modules/events/list-params.ts), so it all works without JavaScript.
 
 export type EventsParams = { country: string; place?: string };
 export type EventsSearch = EventsQuery;
@@ -112,7 +113,7 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
     : [];
   const ids = [...page.items, ...featuredRows].map((e) => e.id);
   const saved = session ? await savedAmong(db, session.user.id, ids) : new Set<string>();
-  const row = (e: EventCardRow): EventRowData => eventRowOf(catalog, e, { saved, season });
+  const row = (e: EventCardRow): EventRowData => eventRowOf(catalog, e, { saved, season, countryCode: country.code });
   const back = `${path}${stateQuery(s).toString() ? `?${stateQuery(s)}` : ''}`;
   const href = (patch: Parameters<typeof stateQuery>[1]) => {
     const str = stateQuery(s, patch).toString();
