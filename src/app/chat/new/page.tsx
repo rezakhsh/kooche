@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Icon } from '../../../components/icons';
@@ -13,6 +14,7 @@ import { imageUrl } from '../../../modules/media/server';
 import { canSendMessage, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { Composer } from '../composer';
+import { isIranRequest } from '../../../lib/region';
 
 export const metadata = { title: messages.chat.newTitle, robots: { index: false } };
 
@@ -34,7 +36,7 @@ export default async function NewConversationPage({ searchParams }: { searchPara
   if (existing) redirect(`/chat/${existing}`);
 
   const t = messages.chat;
-  const allowed = canSendMessage(await loadActor(db, user.id));
+  const allowed = canSendMessage(await loadActor(db, user.id), { fromIran: isIranRequest(await headers()) });
   const cover = (await coverKeys(db, [l.id])).get(l.id);
   const coverUrl = cover ? imageUrl(cover, 'thumb', 'webp') : null;
 

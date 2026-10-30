@@ -332,7 +332,21 @@ export async function sanctionUser(
       takenDown = live.length;
     }
     const closed = await closeReports(tx, [{ reportedUserId: u.id }, ...listingTargets], d!.id, 'resolved', now);
-    await staffAudit(tx, staff, 'user.sanctioned', { type: 'user', id: u.id }, { decisionId: d!.id, kind: input.kind, days: input.days, listings: takenDown, reports: closed });
+    // A ban also suspends the businesses the person owns alone: their page can't stay up (code check, Oct 30, 2026)
+    let businesses = 0;
+    if (input.kind === 'banned') {
+      const owned = await tx.execute<{ id: string }>(sql`
+        SELECT o.id FROM organizations o JOIN organization_members m ON m.organization_id = o.id AND m.user_id = ${u.id} AND m.role = 'owner'
+        WHERE o.status = 'active' AND NOT EXISTS (SELECT 1 FROM organization_members m2 WHERE m2.organization_id = o.id AND m2.role = 'owner' AND m2.user_id <> ${u.id})`);
+      for (const { id } of owned) {
+        const [o] = await tx.select().from(organizations).where(eq(organizations.id, id)).for('update');
+        if (o?.status === 'active') {
+          await suspendLocked(tx, staff, o, input, { ...opts, appealId: undefined }, now);
+          businesses++;
+        }
+      }
+    }
+    await staffAudit(tx, staff, 'user.sanctioned', { type: 'user', id: u.id }, { decisionId: d!.id, kind: input.kind, days: input.days, listings: takenDown, reports: closed, businesses });
     await decided(tx, d!.id, true);
     return { ok: true, decisionId: d!.id };
   });
@@ -438,34 +452,39 @@ export async function suspendBusiness(db: Db, staff: StaffContext, organizationI
   return db.transaction(async (tx) => {
     const [o] = await tx.select().from(organizations).where(eq(organizations.id, organizationId)).for('update');
     if (!o || o.status !== 'active') return { ok: false, reason: 'not_found' };
-    const onReport = await hasOpenReports(tx, [{ organizationId: o.id }]);
-    const [d] = await tx
-      .insert(moderationDecisions)
-      .values({
-        organizationId: o.id,
-        decision: 'sanction',
-        reasonCode: g.reason,
-        policyGround: g.section ? policyGround(g.section) : null,
-        legalGround: g.legalGround,
-        statementFa: composeStatement({ what: { kind: 'business_suspended', name: o.name }, facts: g.facts, section: g.section, legalGround: g.legalGround, onReport, timeZone: opts.timeZone }),
-        decidedBy: 'staff',
-        moderatorUserId: staff.userId,
-        appealOfDecisionId: await answerAppeal(tx, opts.appealId, now),
-        contentSnapshot: { name: o.name, slug: o.slug },
-      })
-      .returning({ id: moderationDecisions.id });
-    await tx.update(organizations).set({ status: 'suspended' }).where(eq(organizations.id, o.id));
-    const live = await tx.select().from(listings).where(and(eq(listings.organizationId, o.id), inArray(listings.status, [...VISIBLE, 'pending_review']))).for('update');
-    const targets: Target[] = [{ organizationId: o.id }];
-    for (const l of live) {
-      await takeDownRow(tx, l, d!.id, staff, now, { reason: g.reason, sanction: 'business_suspended' });
-      targets.push({ listingId: l.id });
-    }
-    const closed = await closeReports(tx, targets, d!.id, 'resolved', now);
-    await staffAudit(tx, staff, 'organization.suspended', { type: 'organization', id: o.id }, { decisionId: d!.id, listings: live.length, reports: closed });
-    await decided(tx, d!.id, true);
-    return { ok: true, decisionId: d!.id };
+    return { ok: true, decisionId: await suspendLocked(tx, staff, o, g, opts, now) };
   });
+}
+
+/** Suspends a locked, active business: decision, status, its listings down, reports closed, told */
+async function suspendLocked(tx: Queryable, staff: StaffContext, o: typeof organizations.$inferSelect, g: Grounds, opts: DecideOptions, now: Date): Promise<string> {
+  const onReport = await hasOpenReports(tx, [{ organizationId: o.id }]);
+  const [d] = await tx
+    .insert(moderationDecisions)
+    .values({
+      organizationId: o.id,
+      decision: 'sanction',
+      reasonCode: g.reason,
+      policyGround: g.section ? policyGround(g.section) : null,
+      legalGround: g.legalGround,
+      statementFa: composeStatement({ what: { kind: 'business_suspended', name: o.name }, facts: g.facts, section: g.section, legalGround: g.legalGround, onReport, timeZone: opts.timeZone }),
+      decidedBy: 'staff',
+      moderatorUserId: staff.userId,
+      appealOfDecisionId: await answerAppeal(tx, opts.appealId, now),
+      contentSnapshot: { name: o.name, slug: o.slug },
+    })
+    .returning({ id: moderationDecisions.id });
+  await tx.update(organizations).set({ status: 'suspended' }).where(eq(organizations.id, o.id));
+  const live = await tx.select().from(listings).where(and(eq(listings.organizationId, o.id), inArray(listings.status, [...VISIBLE, 'pending_review']))).for('update');
+  const targets: Target[] = [{ organizationId: o.id }];
+  for (const l of live) {
+    await takeDownRow(tx, l, d!.id, staff, now, { reason: g.reason, sanction: 'business_suspended' });
+    targets.push({ listingId: l.id });
+  }
+  const closed = await closeReports(tx, targets, d!.id, 'resolved', now);
+  await staffAudit(tx, staff, 'organization.suspended', { type: 'organization', id: o.id }, { decisionId: d!.id, listings: live.length, reports: closed });
+  await decided(tx, d!.id, true);
+  return d!.id;
 }
 
 export async function liftBusinessSuspension(db: Db, staff: StaffContext, organizationId: string, note: string, opts: DecideOptions): Promise<DecideResult> {

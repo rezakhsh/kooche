@@ -2,7 +2,9 @@ import type { Redis } from 'ioredis';
 import type { Db } from '../../db/drizzle';
 import { auditLog } from '../../db/schema';
 import { hit } from '../../lib/rate-limit';
+import { blockState } from '../users/blocks';
 import { canSendMessage, loadActor, type Denied } from '../users/permissions';
+import { mixesTestAndReal } from '../users/test-accounts';
 import { LISTING_LIMITS } from './limits';
 import { listingPhone } from './queries';
 
@@ -40,6 +42,10 @@ export async function revealPhone(
 
   const found = await listingPhone(db, opts.token);
   if (!found) return { ok: false, reason: 'hidden' };
+  // As in chat: test accounts and real people never meet, and a seller who blocked this person
+  // doesn't show them the number (code check, Oct 30, 2026)
+  if (await mixesTestAndReal(db, opts.userId, found.sellerId)) return { ok: false, reason: 'hidden' };
+  if ((await blockState(db, opts.userId, found.sellerId)).blockedMe) return { ok: false, reason: 'hidden' };
   await db.insert(auditLog).values({
     actorType: 'user',
     actorUserId: opts.userId,

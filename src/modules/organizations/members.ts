@@ -1,8 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, count, eq, gt, isNull } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
-import { auditLog, organizationInvitations, organizationMembers, organizations, users } from '../../db/schema';
+import { auditLog, conversations, listings, organizationInvitations, organizationMembers, organizations, outboxEvents, users } from '../../db/schema';
+import { LISTING_OUTBOX } from '../listings/events';
 import { businessPlan } from '../payments/plans';
+import { canPostListing, loadActor } from '../users/permissions';
 import { lockAs, type Role } from './organizations';
 
 // Members of a business (docs/schema.md, section 7): owner (billing, members, everything),
@@ -13,7 +15,7 @@ import { lockAs, type Role } from './organizations';
 const INVITATION_DAYS = 7;
 const DAY_MS = 86_400_000;
 
-export type MemberError = 'not_found' | 'last_owner' | 'no_seats' | 'already_member' | 'invalid' | 'expired' | 'wrong_account';
+export type MemberError = 'not_found' | 'last_owner' | 'no_seats' | 'already_member' | 'invalid' | 'expired' | 'wrong_account' | 'restricted';
 
 export const tokenHash = (token: string) => createHash('sha256').update(token).digest();
 
@@ -58,6 +60,7 @@ export async function invite(
   return db.transaction(async (tx) => {
     const org = await lockAs(tx, opts.userId, opts.organizationId, ['owner']);
     if (!org) return { ok: false, reason: 'not_found' };
+    if (!canPostListing(await loadActor(tx, opts.userId)).ok) return { ok: false, reason: 'restricted' };
     const [existing] = await tx
       .select({ id: users.id })
       .from(organizationMembers)
@@ -139,7 +142,10 @@ export async function revokeInvitation(db: Db, opts: { userId: string; organizat
 
 /**
  * The owner changes a member's role or removes them; anyone may leave. The last owner can do
- * neither to themselves: hand ownership on first. Listings a member posted stay with the business.
+ * neither to themselves: hand ownership on first. Listings and events a member posted stay with
+ * the business: when they leave, they pass to an owner (the one removing them, else the longest
+ * standing), with their buyer chats, so a former member keeps no hold on them (code check,
+ * Oct 30, 2026). The history still names who posted them.
  */
 export async function changeMember(
   db: Db,
@@ -158,10 +164,32 @@ export async function changeMember(
     }
     if (opts.to === 'removed') {
       await tx.delete(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, opts.memberId)));
+      const [heir] = self
+        ? await tx.select({ id: organizationMembers.userId }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.role, 'owner'))).orderBy(asc(organizationMembers.createdAt)).limit(1)
+        : [{ id: opts.userId }];
+      if (heir) await handOver(tx, org.id, opts.memberId, heir.id);
     } else {
       await tx.update(organizationMembers).set({ role: opts.to }).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, opts.memberId)));
     }
     await tx.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.member_changed', targetType: 'organization', targetId: org.id, data: { member: opts.memberId, from: member.role, to: opts.to } });
     return { ok: true };
   });
+}
+
+/** The business's listings and events a former member posted, and their buyer chats, pass to `heir` */
+async function handOver(tx: Queryable, organizationId: string, from: string, heir: string): Promise<void> {
+  const moved = await tx
+    .update(listings)
+    .set({ userId: heir })
+    .where(and(eq(listings.organizationId, organizationId), eq(listings.userId, from), ne(listings.status, 'deleted')))
+    .returning({ id: listings.id });
+  if (!moved.length) return;
+  const ids = moved.map((l) => l.id);
+  // A chat the heir started as a buyer stays as it is (one person can't be both sides)
+  await tx
+    .update(conversations)
+    .set({ sellerUserId: heir })
+    .where(and(inArray(conversations.listingId, ids), eq(conversations.sellerUserId, from), ne(conversations.buyerUserId, heir)));
+  await tx.insert(outboxEvents).values(moved.map((l) => ({ eventType: LISTING_OUTBOX.updated, aggregateType: 'listing', aggregateId: l.id })));
+  await tx.insert(auditLog).values({ actorType: 'system', action: 'organization.listings_handed_over', targetType: 'organization', targetId: organizationId, data: { from, to: heir, listings: ids.length } });
 }

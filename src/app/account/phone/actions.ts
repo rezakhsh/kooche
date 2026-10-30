@@ -16,6 +16,7 @@ import {
   startTelegramVerification,
 } from '../../../modules/users/phone';
 import { maskPhone, parseSmsNumber } from '../../../modules/users/phone-number';
+import { smsAvailable } from '../../../modules/users/sms';
 import { requireSession, sms, telegramLogin } from '../../../modules/users/server';
 import { startTelegramLogin } from '../../../modules/users/telegram-oidc';
 import { redirect } from 'next/navigation';
@@ -77,6 +78,7 @@ export async function smsAction(state: SmsState, form: FormData): Promise<SmsSta
 
 async function sendSms(form: FormData): Promise<SmsState> {
   const { user } = await requireSession('/account/phone/sms');
+  if (!smsAvailable(webEnv().SMS_PROVIDER)) return { step: 'number', error: messages.sms.unavailable };
   const t = messages.sms;
   const parsed = parseSmsNumber(String(form.get('phone') ?? ''));
   if (!parsed.ok) {

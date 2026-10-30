@@ -41,12 +41,18 @@ async function denied(tx: Tx, role: Role, statement: (tx: Tx) => PromiseLike<unk
 describe('grants', () => {
   it('cover every table for all three roles', async () => {
     const all = await tables();
-    expect(all).toHaveLength(50);
+    expect(all).toHaveLength(52);
     const missing: string[] = [];
     for (const table of all) {
-      for (const role of ROLES) if (!(await has(role, table, 'SELECT'))) missing.push(`${role} ${table}`);
+      for (const role of ROLES) {
+        // The key of banned people's fingerprints: only the backup role reads it (migration 0037)
+        if (table === 'fingerprint_keys' && role !== 'classifieds_readonly') continue;
+        if (!(await has(role, table, 'SELECT'))) missing.push(`${role} ${table}`);
+      }
     }
     expect(missing).toEqual([]);
+    expect(await has('classifieds_app', 'fingerprint_keys', 'SELECT')).toBe(false);
+    expect(await has('classifieds_worker', 'fingerprint_keys', 'SELECT')).toBe(false);
   });
 
   it('give the readonly role no write access anywhere', async () => {
@@ -226,9 +232,12 @@ describe('grants', () => {
       WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
       ORDER BY p.proname`);
     expect(rows).toEqual([
+      { proname: 'banned_fingerprint', worker: false, app: false, readonly: false },
+      { proname: 'banned_identifier_hit', worker: true, app: true, readonly: false },
       { proname: 'erase_user', worker: true, app: false, readonly: false },
       { proname: 'purge_audit_log', worker: true, app: false, readonly: false },
       { proname: 'purge_moderation_records', worker: true, app: false, readonly: false },
+      { proname: 'record_banned_identifiers', worker: false, app: true, readonly: false },
       { proname: 'scrub_audit_ip', worker: true, app: false, readonly: false },
       { proname: 'set_product_price', worker: false, app: true, readonly: false },
     ]);

@@ -51,9 +51,14 @@ export function canPostListing(actor: Actor | null): Decision {
   return restrictsPosting(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
 }
 
-/** Sending a chat message or seeing a phone number: a verified phone and no messaging restriction */
-export function canSendMessage(actor: Actor | null): Decision {
-  const base = verified(actor);
+/**
+ * Sending a chat message or seeing a phone number: a verified phone and no messaging restriction.
+ * From Iran, an email account may send messages without one (owner's rule of Oct 27, 2026: +98
+ * numbers are refused; built after the code check, Oct 30, 2026, for Iran only); seeing a phone
+ * number still needs one.
+ */
+export function canSendMessage(actor: Actor | null, where: { fromIran?: boolean } = {}): Decision {
+  const base = where.fromIran ? signedIn(actor) : verified(actor);
   if (!base.ok) return base;
   return restrictsMessaging(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
 }

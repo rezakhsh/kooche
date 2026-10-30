@@ -94,10 +94,12 @@ function groupCategoryIds(catalog: Catalog, group: PrivateGroup): string[] {
 
 /**
  * Listings the user may manage: their own, and every listing of a business where they are owner
- * or manager. Staff manage only what they posted (it is their own).
+ * or manager. Staff manage only what they posted (it is their own), and a business's listing only
+ * while they are still a member (code check, Oct 30, 2026).
  */
 export function manageableBy(userId: string): SQL {
-  return sql`(${listings.userId} = ${userId} OR ${listings.organizationId} IN (SELECT organization_id FROM organization_members WHERE user_id = ${userId} AND role IN ('owner', 'manager')))`;
+  return sql`((${listings.userId} = ${userId} AND (${listings.organizationId} IS NULL OR ${listings.organizationId} IN (SELECT organization_id FROM organization_members WHERE user_id = ${userId})))
+    OR ${listings.organizationId} IN (SELECT organization_id FROM organization_members WHERE user_id = ${userId} AND role IN ('owner', 'manager')))`;
 }
 
 export async function postingRefusal(

@@ -24,6 +24,7 @@ import { openBillingPortal, startPlanCheckout, type PlanCode } from '../../modul
 import { startFoundingCheckout } from '../../modules/payments/founding';
 import { PAYMENT_LIMITS } from '../../modules/payments/features';
 import { paymentGateway } from '../../modules/payments/server';
+import { canPostListing, loadActor } from '../../modules/users/permissions';
 import { requireSession } from '../../modules/users/server';
 import { chosenPostingCountry } from '../country-choice';
 import type { BusinessFormState } from './business-form';
@@ -125,6 +126,8 @@ export async function logoUploadAction(contentType: string, size: number): Promi
   const { user } = await requireSession('/business/new');
   const store = storage();
   if (!store || typeof contentType !== 'string' || typeof size !== 'number') return { ok: false };
+  // A banned or restricted person uploads no logo (code check, Oct 30, 2026)
+  if (!canPostListing(await loadActor(appDb(), user.id)).ok) return { ok: false };
   if (!(await hit(valkey(), [[LOGO_UPLOADS, user.id]])).ok) return { ok: false };
   const r = await requestLogoUpload(store, { userId: user.id, contentType, size });
   return r.ok ? { ok: true, key: r.key, url: r.upload.url, headers: r.upload.headers } : { ok: false };

@@ -45,6 +45,7 @@ import { currentSession, viewerSeesTest } from '../../../../modules/users/server
 import { Contact } from './contact';
 import { Gallery, type GalleryImage } from './gallery';
 import { BackButton, CopyLink, ShareButton } from './photo-bar';
+import { isIranRequest } from '../../../../lib/region';
 
 // The public listing page, /v/{persian-title}/{token}, rendered on the server. The token finds the
 // listing; the title part is not checked, and the canonical link carries the current one.
@@ -139,7 +140,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const mapLabel = l.locationPrecision === 'area' ? t.mapArea : l.locationPrecision === 'postal_code' ? t.mapPostal : t.mapCity;
   const path = listingPath(l.title, l.publicToken);
   // The seller sees no chat button on their own listing
-  const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
+  const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path, fromIran: isIranRequest(await headers()) });
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
   // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own

@@ -70,6 +70,16 @@ export async function completeVerification(
   let refused: 'phone_in_use' | 'telegram_in_use' | null = null;
   try {
     await db.transaction(async (tx) => {
+      // A banned person who deleted their account can't come back with the same number or
+      // Telegram account (migration 0037); they hear what anyone with a taken number hears
+      const [banned] = await tx.execute<{ phone: boolean; telegram: boolean }>(sql`
+        SELECT banned_identifier_hit('phone', ${v.phoneE164}) AS phone,
+               ${v.telegramUserId === undefined ? sql`false` : sql`banned_identifier_hit('telegram', ${String(v.telegramUserId)})`} AS telegram`);
+      if (banned?.phone || banned?.telegram) {
+        refused = banned.phone ? 'phone_in_use' : 'telegram_in_use';
+        await tx.insert(auditLog).values({ actorType: 'system', action: 'phone.banned_number_refused', targetType: 'user', targetId: v.userId, data: { kind: banned.phone ? 'phone' : 'telegram' } });
+        return;
+      }
       const [phoneOwner] = await tx
         .select({ id: users.id, test: users.testAccount })
         .from(users)

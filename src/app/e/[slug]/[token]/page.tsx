@@ -35,6 +35,7 @@ import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { followAction } from '../../../events/follow-actions';
 import { BackButton, ShareButton } from '../../../v/[slug]/[token]/photo-bar';
+import { isIranRequest } from '../../../../lib/region';
 
 // The event page, /e/{persian-title}/{token} (wave 1, mockup final/event). Phones: the poster whole
 // (4:5) on a blurred copy of itself with back, share and ♡ over it, then the date, the place and
@@ -124,7 +125,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
 
   const organizationId = business ? l.organizationId : null;
   const [chat, savedSet, going, facts, following, similar, mapView] = await Promise.all([
-    isOwner || l.status !== 'active' ? Promise.resolve(null) : chatEntry(db, { userId: session?.user.id ?? null, listing: l, returnTo: path }),
+    isOwner || l.status !== 'active' ? Promise.resolve(null) : chatEntry(db, { userId: session?.user.id ?? null, listing: l, returnTo: path, fromIran: isIranRequest(requestHeaders) }),
     session && !isOwner ? savedAmong(db, session.user.id, [l.id]) : Promise.resolve(new Set<string>()),
     favoriteCounts(db, l.userId, [l.id]).then((m) => m.get(l.id) ?? 0),
     organizerFacts(db, { userId: l.userId, organizationId }),

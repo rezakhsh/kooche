@@ -20,9 +20,11 @@ export interface PurgeResult {
   sessions: number;
   verifications: number;
   phoneVerifications: number;
+  /** Banned people's fingerprints past their 2 years (migration 0037) */
+  bannedIdentifiers: number;
 }
 
-/** Deletes expired sessions, old login codes and old phone verification attempts. */
+/** Deletes expired sessions, old login codes, old phone verification attempts and expired fingerprints. */
 export async function purgeAccountData(
   sql: postgres.Sql,
   { batchSize = 5_000, maxBatches = 100 }: PurgeOptions = {},
@@ -66,5 +68,16 @@ export async function purgeAccountData(
     batchSize,
     maxBatches,
   );
-  return { sessions, verifications, phoneVerifications };
+  const bannedIdentifiers = await inBatches(
+    async (limit) =>
+      (
+        await sql`
+          DELETE FROM banned_identifiers WHERE id IN (
+            SELECT id FROM banned_identifiers WHERE expires_at < now() ORDER BY id LIMIT ${limit})
+        `
+      ).count,
+    batchSize,
+    maxBatches,
+  );
+  return { sessions, verifications, phoneVerifications, bannedIdentifiers };
 }

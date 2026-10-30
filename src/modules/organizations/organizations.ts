@@ -256,12 +256,16 @@ export async function updateBusiness(
     return await db.transaction(async (tx) => {
       const org = await lockAs(tx, opts.userId, opts.organizationId, ['owner']);
       if (!org) return { ok: false, reason: 'not_found' };
+      // A banned or restricted owner can't rewrite the public page (code check, Oct 30, 2026)
+      const allowed = canPostListing(await loadActor(tx, opts.userId));
+      if (!allowed.ok) return allowed;
       const built = await columns(tx, org.countryCode, { ...shop.input, legalLater: false }, shop.pinFound);
       if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       // Once complete, the Impressum stays: the business's live listings depend on it (./limits.ts)
       if (legalComplete(org) && !legalComplete(built.values)) return { ok: false, reason: 'legal_incomplete', fields: { legalName: 'required' } };
-      // Changing the legal details sends a verified business back to unverified
-      const legalChanged = org.legalName !== built.values.legalName || org.registrationNumber !== built.values.registrationNumber || org.vatId !== built.values.vatId;
+      // Changing the legal details or the public name sends a verified business back to unverified:
+      // the badge must not move to another name (code check, Oct 30, 2026)
+      const legalChanged = org.legalName !== built.values.legalName || org.registrationNumber !== built.values.registrationNumber || org.vatId !== built.values.vatId || org.name !== built.values.name;
       await tx
         .update(organizations)
         .set({ ...built.values, ...(legalChanged && org.verificationStatus === 'verified' ? { verificationStatus: 'unverified' as const, verifiedAt: null, verifiedByUserId: null } : {}) })

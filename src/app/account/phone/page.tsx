@@ -6,7 +6,9 @@ import { Alert } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
+import { webEnv } from '../../../lib/env';
 import { maskPhone } from '../../../modules/users/phone-number';
+import { smsAvailable } from '../../../modules/users/sms';
 import { requireSession, telegramLogin } from '../../../modules/users/server';
 import { TelegramLogin, TelegramVerify } from './telegram';
 
@@ -27,6 +29,7 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
     .from(users)
     .where(eq(users.id, user.id));
   const t = messages.phone;
+  const sms = smsAvailable(webEnv().SMS_PROVIDER);
   const login = telegramLogin() !== null;
   // The result of "Log in with Telegram" (./telegram/callback/route.ts)
   const result = (await searchParams).telegram;
@@ -79,9 +82,18 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
           <b className="block text-neutral-900">{t.iranTipTitle}</b>
           {t.iranTipBody}
         </div>
-        <Link href="/account/phone/sms" className="mt-3 flex h-11 items-center justify-center text-sm font-bold text-brand-800 hover:underline">
-          {t.noneOfThem}
-        </Link>
+        {sms ? (
+          <Link href="/account/phone/sms" className="mt-3 flex h-11 items-center justify-center text-sm font-bold text-brand-800 hover:underline">
+            {t.noneOfThem}
+          </Link>
+        ) : (
+          <p className="mt-4 text-center text-sm leading-7 text-neutral-600">
+            {t.noTelegramYet}{' '}
+            <Link href="/contact" className="font-bold text-brand-800 underline">
+              {t.contactUs}
+            </Link>
+          </p>
+        )}
         <p className="mt-2 text-center text-xs">
           <Link href="/privacy#s4-2" className="text-neutral-600 underline">
             {t.privacy}
@@ -95,6 +107,7 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
 /** A +98 number from Telegram's login: why it isn't accepted and what to do instead */
 function IranNumber({ login }: { login: boolean }) {
   const t = messages.phone.iranScreen;
+  const sms = smsAvailable(webEnv().SMS_PROVIDER);
   return (
     <>
       <AppBar title={t.title} back="/account/settings" backLabel={messages.account.back} />
@@ -133,9 +146,11 @@ function IranNumber({ login }: { login: boolean }) {
           ))}
         </ul>
         <div className="mt-6">{login ? <TelegramLogin label={t.retry} hint={false} /> : <TelegramVerify />}</div>
-        <Link href="/account/phone/sms" className="mt-2 flex h-12 items-center justify-center rounded-xl border border-neutral-300 font-bold text-neutral-800 hover:bg-neutral-50">
-          {messages.phone.smsLink}
-        </Link>
+        {sms && (
+          <Link href="/account/phone/sms" className="mt-2 flex h-12 items-center justify-center rounded-xl border border-neutral-300 font-bold text-neutral-800 hover:bg-neutral-50">
+            {messages.phone.smsLink}
+          </Link>
+        )}
       </main>
     </>
   );

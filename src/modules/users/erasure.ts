@@ -29,6 +29,9 @@ export async function requestErasure(db: Db, userId: string, typedEmail: string)
     // erase_user refuses the only owner of an organization; say so before anything changes
     if (await soleOwner(tx, userId)) return { ok: false, error: 'sole_owner' } as const;
 
+    // A banned person's number and Telegram account stay as fingerprints, so they can't verify a
+    // new account with them (code check, Oct 30, 2026; migration 0037)
+    await tx.execute(sql`SELECT record_banned_identifiers(${userId}::uuid)`);
     await tx.execute(sql`UPDATE users SET status = 'deactivated' WHERE id = ${userId}`);
     await tx.execute(sql`DELETE FROM sessions WHERE user_id = ${userId}`);
     await tx.execute(sql`
@@ -69,4 +72,40 @@ export async function eraseRequestedUser(db: Queryable, userId: string): Promise
   if (user.status !== 'deactivated') return 'not_requested';
   await db.execute(sql`SELECT erase_user(${userId}::uuid)`);
   return 'erased';
+}
+
+/** A deletion asked for this long ago and not done is finished by the sweep */
+export const ERASE_RETRY_AFTER_MS = 3_600_000;
+/** …and one still not done after this long shows on the admin page */
+export const ERASE_STUCK_AFTER_MS = 24 * 3_600_000;
+
+const askedBefore = (cutoff: Date) => sql`
+  SELECT u.id FROM users u
+  WHERE u.status = 'deactivated'
+    AND EXISTS (SELECT 1 FROM audit_log a WHERE a.action = ${ERASE_REQUESTED} AND a.target_id = u.id AND a.created_at <= ${cutoff.toISOString()}::timestamptz)`;
+
+/**
+ * Worker, hourly (code check, Oct 30, 2026): finishes deletions whose job ran out of retries (the
+ * database away for minutes, a lock), so a person's data never stays because a job gave up. Each
+ * in its own transaction; one that still fails waits for the next hour.
+ */
+export async function finishStuckErasures(db: Db, now: Date = new Date()): Promise<{ erased: number; failed: number }> {
+  const due = await db.execute<{ id: string }>(sql`${askedBefore(new Date(now.getTime() - ERASE_RETRY_AFTER_MS))} ORDER BY u.id LIMIT 100`);
+  let erased = 0;
+  let failed = 0;
+  for (const { id } of due) {
+    try {
+      if ((await db.transaction((tx) => eraseRequestedUser(tx, id))) === 'erased') erased++;
+    } catch (e) {
+      failed++;
+      console.error(`erasure: ${id} still not erased:`, e instanceof Error ? e.message : e);
+    }
+  }
+  return { erased, failed };
+}
+
+/** Deletions asked for more than a day ago and still not done (the admin page's system problems) */
+export async function stuckErasures(db: Queryable, now: Date = new Date()): Promise<number> {
+  const [r] = await db.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM (${askedBefore(new Date(now.getTime() - ERASE_STUCK_AFTER_MS))}) x`);
+  return r?.n ?? 0;
 }

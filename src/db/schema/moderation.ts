@@ -8,12 +8,14 @@ import {
   jsonb,
   pgTable,
   real,
+  smallint,
   text,
   uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { createdAt, id, isIn, isObject, jsonObject, standardColumns, tstz } from './_columns';
+import { createdAt, id, insertOnlyColumns, isIn, isObject, jsonObject, standardColumns, tstz } from './_columns';
+import { bytea } from '../types';
 import { REASON_CODES } from './_values';
 import { messages } from './chat';
 import { listings } from './listings';
@@ -276,4 +278,39 @@ export const moderationAppeals = pgTable(
     index('moderation_appeals_queue_idx').on(t.createdAt).where(sql`status = 'open'`),
     index('moderation_appeals_user_id_idx').on(t.userId),
   ],
+);
+
+export const BANNED_IDENTIFIER_KINDS = ['phone', 'telegram'] as const;
+
+/**
+ * One-way fingerprints of a banned person's phone number and Telegram account, kept when they
+ * delete their account, so the same number can't verify a new account (code check, approved by the
+ * owner Oct 30, 2026; privacy policy, section 7). SHA-256 of the value with the database's own
+ * random key (`fingerprint_keys`), never the number itself; made and checked only through
+ * `record_banned_identifiers()` and `banned_identifier_hit()` (migration 0037), so the web and
+ * the worker (the Telegram bot) check the same way. The worker deletes them after `expires_at`.
+ */
+export const bannedIdentifiers = pgTable(
+  'banned_identifiers',
+  {
+    ...insertOnlyColumns(),
+    kind: text('kind', { enum: BANNED_IDENTIFIER_KINDS }).notNull(),
+    hash: bytea('hash').notNull(),
+    expiresAt: tstz('expires_at').notNull(),
+  },
+  (t) => [
+    check('banned_identifiers_kind_check', isIn(t.kind, BANNED_IDENTIFIER_KINDS)),
+    uniqueIndex('banned_identifiers_kind_hash_key').on(t.kind, t.hash),
+    index('banned_identifiers_expires_at_idx').on(t.expiresAt),
+  ],
+);
+
+/** The key of the fingerprints above: one row, made by migration 0037; no running role reads it */
+export const fingerprintKeys = pgTable(
+  'fingerprint_keys',
+  {
+    id: smallint('id').primaryKey(),
+    key: bytea('key').notNull(),
+  },
+  (t) => [check('fingerprint_keys_one_check', sql`${t.id} = 1`)],
 );

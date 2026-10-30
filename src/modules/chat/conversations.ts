@@ -132,7 +132,7 @@ async function lockConversation(tx: Queryable, id: string): Promise<Conversation
 export async function sendMessage(
   db: Db,
   redis: Redis,
-  opts: { userId: string; target: SendTarget; body: string; now?: Date },
+  opts: { userId: string; target: SendTarget; body: string; now?: Date; fromIran?: boolean },
 ): Promise<Sent | Refused> {
   const body = cleanBody(opts.body);
   if (!body) return { ok: false, reason: 'empty' };
@@ -141,7 +141,7 @@ export async function sendMessage(
 
   return db.transaction(async (tx) => {
     const actor = await loadActor(tx, opts.userId);
-    const allowed = canSendMessage(actor);
+    const allowed = canSendMessage(actor, { fromIran: opts.fromIran });
     if (!allowed.ok) return allowed;
     if (restrictsMessaging(await activeSanctions(tx, opts.userId, now))) return { ok: false, reason: 'restricted' };
 

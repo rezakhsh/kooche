@@ -3,6 +3,7 @@ import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { auditLog, organizations } from '../../db/schema';
 import type { ObjectStorage, PresignedPut } from '../media/storage';
+import { canPostListing, loadActor } from '../users/permissions';
 import { legalComplete, VERIFICATION_DOC_KEEP_DAYS } from './organizations';
 
 // Business verification levels (wave 2 part 4, round 11; docs/setup.md, "Private or business"):
@@ -109,7 +110,7 @@ export async function checkVat(
   }
 }
 
-export type SubmitResult = { ok: true } | { ok: false; reason: 'not_owner' | 'legal_missing' | 'already_verified' | 'bad_file' };
+export type SubmitResult = { ok: true } | { ok: false; reason: 'not_owner' | 'legal_missing' | 'already_verified' | 'bad_file' | 'restricted' };
 
 /** The owner asks for verification with the uploaded document: pending, the file kept privately, VIES checked */
 export async function submitVerification(
@@ -122,6 +123,7 @@ export async function submitVerification(
     SELECT m.role FROM organization_members m JOIN organizations o ON o.id = m.organization_id
     WHERE m.organization_id = ${opts.organizationId} AND m.user_id = ${opts.userId} AND o.status = 'active'`);
   if (row?.role !== 'owner') return { ok: false, reason: 'not_owner' };
+  if (!canPostListing(await loadActor(db, opts.userId)).ok) return { ok: false, reason: 'restricted' };
   const [org] = await db.select().from(organizations).where(eq(organizations.id, opts.organizationId));
   if (!org) return { ok: false, reason: 'not_owner' };
   if (org.verificationStatus === 'verified') return { ok: false, reason: 'already_verified' };

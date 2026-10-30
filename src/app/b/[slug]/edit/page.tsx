@@ -1,3 +1,4 @@
+import { Alert } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { messages } from '../../../../messages/fa';
@@ -61,6 +62,11 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ s
     <>
       <PostingBar title={messages.business.wizard.editTitle} category={org.name} closeHref={`/b/${org.slug}/manage`} />
       <main className="mx-auto w-full max-w-2xl px-4 pt-6 pb-10 sm:px-6">
+        {org.verificationStatus === 'verified' && (
+          <div className="mb-4">
+            <Alert tone="info">{messages.business.verifiedEditNote}</Alert>
+          </div>
+        )}
         <BusinessForm
           action={updateBusinessAction.bind(null, org.id, org.slug)}
           mode="edit"

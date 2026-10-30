@@ -1228,6 +1228,7 @@ Proposed periods. They go into the privacy policy and get checked by the lawyer.
 | Expired `sessions` | 30 days after expiry | Worker job `account-retention`, daily |
 | `verifications` | 1 day after expiry | Worker job `account-retention`, daily |
 | `phone_verifications` | 90 days after creation | Worker job `account-retention`, daily |
+| `banned_identifiers` | 2 years after the banned person asked for deletion (`expires_at`) | Worker job `account-retention`, daily |
 | `outbox_events` | 7 days after processing | Worker job `event-retention`, daily |
 | `webhook_events` | 90 days after receipt, once processed; unprocessed ones stay | Worker job `event-retention`, daily |
 | `audit_log` | 2 years; IP and user agent 90 days | `SECURITY DEFINER` functions, called by worker job `history-retention`, daily |
@@ -1366,3 +1367,8 @@ Roadmap step 8; details in `docs/setup.md`, "Admin page". Migration `0015_admin`
 - **Outbox event types:** `listing.restored` (search sync, chats reopen, purge), `moderation.decided` (the statement to the person concerned, the outcome to reporters), `appeal.created` and `report.created` (the receipt and the owner's alert), `user.phone_released` (an email). Handlers in `src/worker/moderation.ts`, queue `moderation`.
 - **Decisions by staff** use the existing columns: `decided_by = 'staff'`, `moderator_user_id`, the statement in `statement_fa`; a suspension's take-downs are `listing_events` rows pointing at the account's decision, and a restore points at its own. `restore` decisions by rule (`ai_output = {rule: 'suspension_ended'}`) bring listings back when a suspension runs out.
 - Grants were otherwise enough: the app already wrote `reports`, `user_sanctions`, `listings`, `organizations`, `messages` and inserted decisions and audit rows.
+
+### `banned_identifiers` and `fingerprint_keys` (migration 0037, code check Oct 30, 2026)
+
+When a person whose ban is running asks to delete their account, `record_banned_identifiers(user_id)` (SECURITY DEFINER, app only; called by `requestErasure`) keeps one-way fingerprints of their phone number (`kind` `phone`, E.164) and Telegram account (`telegram`, the numeric id): `hash` = SHA-256 of the key in `fingerprint_keys` (one random row made by the migration) and `kind:value`, `expires_at` = 2 years later. `banned_identifier_hit(kind, value)` (app and worker) answers whether a value is listed; `completeVerification` refuses such a number or Telegram account as "in use" and writes `phone.banned_number_refused`. Nobody but the functions and the readonly role (for pg_dump) can read `fingerprint_keys`; `banned_identifiers` is readable by the app and worker (hashes only), deletable by the worker (retention). Privacy policy section 7 and 9 (de and fa) say so.
+

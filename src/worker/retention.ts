@@ -22,7 +22,7 @@ const JOBS: Record<string, (sql: postgres.Sql) => Promise<string>> = {
     const n = await purgeAccountData(sql);
     return (
       `deleted ${n.sessions} expired sessions, ${n.verifications} login codes, ` +
-      `${n.phoneVerifications} phone verification attempts`
+      `${n.phoneVerifications} phone verification attempts, ${n.bannedIdentifiers} expired fingerprints`
     );
   },
   'event-retention': async (sql) => {

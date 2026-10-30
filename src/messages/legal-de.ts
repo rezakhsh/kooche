@@ -372,7 +372,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 29. Oktober 2026',
+  updated: 'Stand: 30. Oktober 2026',
   draft: true,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
@@ -519,6 +519,7 @@ const privacy: LegalDoc = {
         'Anzeigen prüfen wir automatisch (Ziffer 7 der Nutzungsbedingungen): auf verbotene Begriffe, auf Fotos, die schon ein anderes Konto verwendet hat (über einen Fingerabdruck der Bilddatei), und auf unzulässige Links. Entscheidungen speichern wir mit dem geprüften Inhalt, um sie begründen und überprüfen zu können. Wichtige Vorgänge (zum Beispiel Bestätigung der Telefonnummer, Datenexport, Löschantrag) halten wir in einem Sicherheitsprotokoll fest.',
         'Meldungen: Wenn Sie etwas melden, speichern wir die Meldung und, falls Sie nicht angemeldet sind, Ihren Namen und Ihre E-Mail-Adresse, um sie zu prüfen und Ihnen Eingang und Ergebnis mitzuteilen. Ihren Namen und Ihre E-Mail-Adresse geben wir nicht an die gemeldete Person weiter. Um eine gemeldete Nachricht zu prüfen, sehen unsere Mitarbeitenden auch einige Nachrichten davor und danach in demselben Gespräch.',
         'Einblick in Ihr Konto: Um Ihnen zu helfen oder eine Meldung zu prüfen, kann der Betreiber Ihr Konto so ansehen, wie Sie es sehen: nur mit Zwei-Faktor-Bestätigung und schriftlicher Begründung, höchstens 30 Minuten am Stück, und jeder Einblick wird protokolliert. Dabei wird nichts geändert. Muss ausnahmsweise etwas für Sie geändert werden, wird auch das protokolliert und Sie erhalten danach eine E-Mail.',
+        'Gesperrte Konten: Löscht eine Person ihr Konto, während es wegen eines Verstoßes gesperrt ist, speichern wir einen nicht umkehrbaren Fingerabdruck (Hashwert) ihrer Telefonnummer und ihres Telegram-Kontos, nicht die Nummer selbst. So kann dieselbe Nummer kein neues Konto bestätigen. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Schutz der Nutzer vor Betrug und Missbrauch).',
         'Rechtsgrundlagen: Art. 6 Abs. 1 lit. c DSGVO (Pflichten aus dem Digital Services Act) und lit. f (Sicherheit, Schutz der Nutzer, Hilfe bei Ihren Anliegen). Gegen automatische Entscheidungen können Sie Widerspruch einlegen; dann prüft ein Mensch.',
       ],
     },
@@ -551,6 +552,7 @@ const privacy: LegalDoc = {
             'Abgelaufene Sitzungen: 30 Tage nach Ablauf.',
             'Anmeldecodes: höchstens einen Tag nach Ablauf.',
             'Versuche zur Bestätigung der Telefonnummer: 90 Tage.',
+            'Fingerabdrücke von Telefonnummern und Telegram-Konten gesperrter Personen, die ihr Konto gelöscht haben (Ziffer 7): zwei Jahre.',
             'Gelöschte Anzeigen mit Fotos: 12 Monate, länger nur, solange eine Meldung, eine Moderationsentscheidung oder eine Bestellung darauf verweist.',
             'Nachrichten: 90 Tage, nachdem einer der beiden Gesprächspartner sein Konto gelöscht hat; länger nur, solange eine Meldung oder Entscheidung darauf verweist.',
             'Meldungen und Moderationsentscheidungen: zwei Jahre nach der Entscheidung.',

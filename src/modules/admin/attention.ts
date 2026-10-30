@@ -11,7 +11,7 @@ export type Live = {
   meili: number | null | undefined;
 };
 
-export type ProblemKey = 'database' | 'valkey' | 'meili' | 'worker' | 'webhooks' | 'failed' | 'outbox' | 'backup';
+export type ProblemKey = 'database' | 'valkey' | 'meili' | 'worker' | 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure';
 
 export type Problem = { key: ProblemKey; count?: number; queues?: string[]; since?: string | null };
 
@@ -33,6 +33,7 @@ export function systemProblems(live: Live, status: { snapshot: StatusSnapshot | 
     const failed = Object.entries(s.queues).filter(([, c]) => c.failed > 0);
     if (failed.length) out.push({ key: 'failed', count: failed.reduce((n, [, c]) => n + c.failed, 0), queues: failed.map(([q]) => q) });
     if (s.outbox.oldest && now.getTime() - new Date(s.outbox.oldest).getTime() > OUTBOX_LATE_MS) out.push({ key: 'outbox', count: s.outbox.backlog, since: s.outbox.oldest });
+    if (s.stuckErasures) out.push({ key: 'erasure', count: s.stuckErasures });
   }
   if (status.backupAt && now.getTime() - new Date(status.backupAt).getTime() > BACKUP_LATE_MS) out.push({ key: 'backup', since: status.backupAt });
   return out;

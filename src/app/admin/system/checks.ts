@@ -52,7 +52,9 @@ export function problemText(p: Problem, timeZone: string): { title: string; what
       return { title: t.outbox.title(p.count ?? 0), what: t.outbox.what(ago(p.since)) };
     case 'backup':
       return { title: t.backup.title, what: t.backup.what(ago(p.since)) };
+    case 'erasure':
+      return { title: t.erasure.title(p.count ?? 0), what: t.erasure.what };
     default:
-      return t[p.key as Exclude<ProblemKey, 'webhooks' | 'failed' | 'outbox' | 'backup'>];
+      return t[p.key as Exclude<ProblemKey, 'webhooks' | 'failed' | 'outbox' | 'backup' | 'erasure'>];
   }
 }

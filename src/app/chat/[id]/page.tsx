@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
@@ -22,6 +23,7 @@ import { canSendMessage, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { archiveAction, blockAction } from '../actions';
 import { ReportButton, Thread } from './thread';
+import { isIranRequest } from '../../../lib/region';
 
 export const metadata = { title: messages.chat.title, robots: { index: false } };
 
@@ -48,7 +50,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   ]);
   const t = messages.chat;
   const env = webEnv();
-  const allowed = canSendMessage(actor);
+  const allowed = canSendMessage(actor, { fromIran: isIranRequest(await headers()) });
 
   let readOnly: ReactNode = null;
   if (view.status === 'closed') readOnly = t.readOnly.closed;

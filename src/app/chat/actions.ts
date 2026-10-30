@@ -1,9 +1,11 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
 import { hit } from '../../lib/rate-limit';
+import { isIranRequest } from '../../lib/region';
 import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { sendMessage, setArchived, type SendRefusal } from '../../modules/chat/conversations';
@@ -51,6 +53,7 @@ export async function sendAction(_prev: SendState, form: FormData): Promise<Send
     userId: session.user.id,
     target: conversationId ? { conversationId } : { listingToken: listingToken! },
     body,
+    fromIran: isIranRequest(await headers()),
   });
   if (!result.ok) return { error: refusalText(result.reason, result.retryAfterSeconds) };
 

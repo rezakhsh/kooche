@@ -192,9 +192,9 @@ export async function publicListing(db: Queryable, token: string) {
  * The seller's verified number for "show number": only for an active listing whose seller allows
  * phone contact. Never part of the page's HTML.
  */
-export async function listingPhone(db: Queryable, token: string): Promise<{ listingId: string; phone: string } | null> {
+export async function listingPhone(db: Queryable, token: string): Promise<{ listingId: string; sellerId: string; phone: string } | null> {
   const [row] = await db
-    .select({ listingId: listings.id, phone: users.phoneE164 })
+    .select({ listingId: listings.id, sellerId: listings.userId, phone: users.phoneE164 })
     .from(listings)
     .innerJoin(users, eq(users.id, listings.userId))
     .where(
@@ -205,7 +205,7 @@ export async function listingPhone(db: Queryable, token: string): Promise<{ list
         eq(users.status, 'active'),
       ),
     );
-  return row?.phone ? { listingId: row.listingId, phone: row.phone } : null;
+  return row?.phone ? { listingId: row.listingId, sellerId: row.sellerId, phone: row.phone } : null;
 }
 
 /**

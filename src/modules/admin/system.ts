@@ -4,6 +4,7 @@ import type { Redis } from 'ioredis';
 import type { Queryable } from '../../db/drizzle';
 import { LISTINGS_INDEX } from '../search/documents';
 import type { Meili } from '../search/meili';
+import { stuckErasures } from '../users/erasure';
 
 // The system status on the admin page (roadmap step 8). The worker writes a snapshot to Valkey
 // every minute (queue depths, the outbox, webhooks, Meilisearch, the sitemaps); it expires after
@@ -25,6 +26,8 @@ export type StatusSnapshot = {
   activeListings: number;
   meili: { ok: boolean; documents: number | null } | null;
   sitemapAt: string | null;
+  /** Account deletions asked for over a day ago and still not done (code check, Oct 30, 2026) */
+  stuckErasures?: number;
 };
 
 export async function collectStatus(db: Queryable, connection: Redis, meili: Meili | null, prefix?: string): Promise<StatusSnapshot> {
@@ -60,6 +63,7 @@ export async function collectStatus(db: Queryable, connection: Redis, meili: Mei
     activeListings: r!.active,
     meili: meiliState,
     sitemapAt: iso(r!.sitemap),
+    stuckErasures: await stuckErasures(db),
   };
 }
 
