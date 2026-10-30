@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { appDb } from '../../db/drizzle';
+import { clientIp } from '../../lib/client-ip';
 import { webEnv } from '../../lib/env';
 import { reportError } from '../../lib/monitoring/server';
 import type { FormState } from '../../lib/form';
@@ -12,6 +13,7 @@ import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { isLoginHuman, markLoginHuman } from '../../modules/security/login-human';
 import { checkTurnstile } from '../../modules/security/server';
+import { recordSignupSource } from '../../modules/stats/visits';
 import { authErrorCode, rateLimitMessage } from '../../modules/users/errors';
 import { loadActor } from '../../modules/users/permissions';
 import { auth, safeNext } from '../../modules/users/server';
@@ -116,6 +118,13 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   jar.delete({ name: NEXT_COOKIE, path: '/login' });
   // A ♡ tapped before signing in
   await savePendingFavorite(userId);
+  // A new account: where its person came from today, for the visitor numbers (no cookie involved)
+  try {
+    const h = await headers();
+    await recordSignupSource(appDb(), valkey(), { userId, ip: clientIp(h), userAgent: h.get('user-agent') });
+  } catch (e) {
+    console.error('login: signup source not recorded:', e instanceof Error ? e.message : e);
+  }
 
   // New and unverified users go to phone verification first, unless they came from somewhere
   const actor = await loadActor(appDb(), userId);

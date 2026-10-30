@@ -26,6 +26,8 @@ import {
   tstz,
 } from './_columns';
 import { PHONE_VERIFICATION_METHODS } from './_values';
+
+export const SIGNUP_ANSWERS = ['friend', 'instagram', 'telegram', 'google', 'shop', 'event', 'other', 'skipped'] as const;
 import { locations } from './listings';
 
 // Module: users, authentication and phone verification (docs/schema.md, section 6).
@@ -76,6 +78,14 @@ export const users = pgTable(
     status: text('status', { enum: USER_STATUSES }).notNull().default('active'),
     lastSeenAt: tstz('last_seen_at'),
     deletedAt: tstz('deleted_at'),
+    /**
+     * Where the person came from when they signed up (src/modules/stats/visits.ts, migration
+     * 0038): `direct`, a search engine or social site, another site, or `ref:<code>` (one of the
+     * owner's links). Worked out on the server, without cookies; null before Oct 30, 2026.
+     */
+    signupSource: text('signup_source'),
+    /** «از کجا با پیدو آشنا شدید؟», answered once on the account page, or `skipped` */
+    signupAnswer: text('signup_answer', { enum: SIGNUP_ANSWERS }),
   },
   (t) => [
     check('users_public_token_check', matches(t.publicToken, PATTERNS.publicToken)),
@@ -96,6 +106,8 @@ export const users = pgTable(
     check('users_trust_score_check', sql`${t.trustScore} BETWEEN 0 AND 100`),
     check('users_notification_prefs_check', isObject(t.notificationPrefs)),
     check('users_status_check', isIn(t.status, USER_STATUSES)),
+    check('users_signup_source_check', matches(t.signupSource, '^(ref:)?[a-z0-9.-]{1,40}$')),
+    check('users_signup_answer_check', isIn(t.signupAnswer, SIGNUP_ANSWERS)),
     // A number is never stored without its verification time and method
     check(
       'users_phone_check',

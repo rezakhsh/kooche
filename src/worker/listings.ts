@@ -18,6 +18,7 @@ import { reportJobFailure } from './monitoring';
 import { EVERY_HOUR, scheduledTime } from '../modules/notifications/local-hour';
 import { sendRewardNotices } from '../modules/launch/rewards';
 import { purgeDeletedListings } from '../modules/listings/purge';
+import { flushVisitStats } from '../modules/stats/visits';
 
 // Worker jobs of the posting feature:
 // - queue `media` (from the outbox): process an uploaded photo or business logo, delete a removed
@@ -29,7 +30,7 @@ import { purgeDeletedListings } from '../modules/listings/purge';
 //   09:00 on the seller's clock (run hourly, wave 2 part 7), the waitlist reward's "ready" email
 //   at 09:00 on the city's clock (wave 2 part 9), the cleanup of abandoned uploads (and of verification documents 7 days after
 //   the decision) daily at 02:45 UTC, the purge of listings deleted 12 months ago daily at 02:50
-//   UTC, the listing views
+//   UTC, the visitor numbers into visit_stats every 10 minutes, the listing views
 //   counted in Valkey written to PostgreSQL every 5 minutes.
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
@@ -42,6 +43,7 @@ const SCHEDULES = {
   'upload-cleanup': { pattern: '45 2 * * *', tz: 'UTC' },
   'listing-purge': { pattern: '50 2 * * *', tz: 'UTC' },
   'view-flush': { pattern: '*/5 * * * *', tz: 'UTC' },
+  'visit-flush': { pattern: '*/10 * * * *', tz: 'UTC' },
 } as const;
 
 export async function startListingJobs(
@@ -109,6 +111,9 @@ export async function startListingJobs(
           // Deleted listings after 12 months, with their photos (src/modules/listings/purge.ts)
           const n = await purgeDeletedListings(db, storage);
           console.log(`listings: purged ${n.purged} deleted listings, ${n.photos} photos`);
+        } else if (job.name === 'visit-flush') {
+          // The visitor numbers from Valkey into visit_stats (src/modules/stats/visits.ts)
+          await flushVisitStats(connection, db);
         } else if (job.name === 'view-flush') {
           await flushViews(connection, db);
         } else if (job.name === 'upload-cleanup') {

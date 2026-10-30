@@ -267,6 +267,13 @@
       "when": 1793370960043,
       "tag": "0037_banned_identifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793374519400,
+      "tag": "0038_visit_stats",
+      "breakpoints": true
     }
   ]
 }

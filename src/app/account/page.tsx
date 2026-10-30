@@ -12,7 +12,7 @@ import { myBusinesses } from '../../modules/organizations/organizations';
 import { businessPlan } from '../../modules/payments/plans';
 import { isPlaceholderName, sellerPath } from '../../modules/users/profile';
 import { requireSession } from '../../modules/users/server';
-import { signOut } from './actions';
+import { signOut, signupAnswerAction } from './actions';
 
 export const metadata = { title: messages.account.title, robots: { index: false } };
 
@@ -20,12 +20,13 @@ export const metadata = { title: messages.account.title, robots: { index: false 
 // on Peydoo with counts, the business only when there is one, then one row into Settings
 // (/account/settings), help, the legal pages and sign out.
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ answered?: string }> }) {
   const { user } = await requireSession('/account');
+  const { answered } = await searchParams;
   const db = appDb();
   const [[me], area, perStatus, [saved], [searches], [bought], businesses] = await Promise.all([
     db
-      .select({ name: users.displayName, publicToken: users.publicToken, since: users.createdAt, phoneVerifiedAt: users.phoneVerifiedAt })
+      .select({ name: users.displayName, publicToken: users.publicToken, since: users.createdAt, phoneVerifiedAt: users.phoneVerifiedAt, signupAnswer: users.signupAnswer })
       .from(users)
       .where(eq(users.id, user.id)),
     homeArea(db, user.id),
@@ -83,6 +84,28 @@ export default async function AccountPage() {
           </Link>
         )}
       </section>
+
+      {/* «از کجا با پیدو آشنا شدید؟» once, in the first month (src/modules/stats/visits.ts) */}
+      {answered ? (
+        <p className="mt-4 rounded-2xl bg-brand-50 p-3 text-sm font-bold text-brand-800">{t.signupQuestion.thanks}</p>
+      ) : (
+        me && !me.signupAnswer && Date.now() - me.since.getTime() < 30 * 86_400_000 && (
+          <form action={signupAnswerAction} className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
+            <h2 className="font-extrabold">{t.signupQuestion.title}</h2>
+            <p className="mt-1 text-sm leading-6 text-neutral-600">{t.signupQuestion.intro}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(t.signupQuestion.answers).map(([value, label]) => (
+                <button key={value} name="answer" value={value} className="h-10 rounded-full border border-neutral-300 px-4 text-sm font-medium hover:border-brand-600 hover:bg-brand-50">
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button name="answer" value="skipped" className="mt-3 text-xs text-neutral-500 underline hover:text-neutral-700">
+              {t.signupQuestion.skip}
+            </button>
+          </form>
+        )
+      )}
 
       <h2 className="mt-6 mb-2 px-1 text-sm font-bold text-neutral-600">{t.activity}</h2>
       <div className="grid grid-cols-2 gap-2">

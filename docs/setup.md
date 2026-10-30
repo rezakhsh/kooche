@@ -515,6 +515,16 @@ Production still to do: its own `/root/.secrets/sentry.env` (the same DSN), `SEN
 - **Deletions:** the worker finishes every deletion still waiting an hour after it was asked for (queue `accounts`, job `erase_stuck`, hourly at :23; `finishStuckErasures`), so one whose job ran out of retries never stays. One still not done after a day shows on admin › وضعیت سیستم («حذف حساب انجام نشده»), e.g. when the person became the only owner of a business after asking.
 - **«نمایش شماره»** follows chat's rules: never between test accounts and real people, and not to someone the seller blocked.
 
+## Visitor numbers
+
+Built Oct 30, 2026 (owner: "Own counter + ref links", instead of Google Analytics; built as planned without a mockup). Code in `src/modules/stats/visits.ts`, `src/components/visit-beacon.tsx`, `src/app/api/v/route.ts`, `src/app/admin/stats/`; migration 0038.
+
+- **Counting:** every page but the admin page sends one `sendBeacon` to `/api/v` (path; on the tab's first page also `document.referrer` and `?ref=`). Nothing on the device, no cookie, so no consent banner. Refused: other origins, staff viewing as a country, bots by user agent, over 600 an hour per IP. Valkey keeps each Berlin day's counters (`vs:<day>:…`, 3 days): views per dimension (total, source, country, page group, device) and HyperLogLog visitors (all but pages) from SHA-256 of a daily random salt, the IP and the user agent; the salt goes after 3 days, so a visitor is someone else tomorrow and nothing can be traced back. The worker writes absolute totals for today and yesterday to `visit_stats` every 10 minutes (`visit-flush`, queue `listings`).
+- **Sources:** a valid ref code (`ref:<code>`), Google, Bing, Instagram, Facebook, Telegram, WhatsApp, X, YouTube…, another site's domain, or `direct` (no referrer or our own). Page groups: browse pages by up to three path segments, a business by its page, every listing, event and seller page as one group, then sections.
+- **Sign-ups:** right after a new account signs in, the source of that day's first visit from the same IP and browser is stored on `users.signup_source` (else `direct`); the account page asks «از کجا با پیدو آشنا شدید؟» once in the first month (`users.signup_answer`, or `skipped`).
+- **Admin › «آمار بازدید»** (`stats.view`, admins only): visitors (sum of daily visitors), page views, new accounts and returning accounts (older than a week, signed in this week); charts per day; sources with visitors, landings and what the period's new accounts did (phone verified, posted, messaged); the owner's links (code, whom it is for, link, QR code, visitors, sign-ups, archive); countries, pages, devices and the answers. Periods 7, 30, 90 days.
+- **Privacy policy** section 3.5 (de and fa, Oct 30, 2026).
+
 ## People in Iran
 
 Owner's rule, Oct 27, 2026 (replaces wave 0's "Iran read-only" of Oct 26; owner's wording rule: never "sanctions", never VPNs or virtual numbers). A request from Iran is Cloudflare's `CF-IPCountry: IR`, trusted only when the request came through Cloudflare (`isIranRequest()` in `src/lib/region.ts`, on top of `visitorCountry()`).

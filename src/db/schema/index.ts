@@ -11,3 +11,4 @@ export * from './payments';
 export * from './shared';
 export * from './events';
 export * from './launch';
+export * from './stats';

@@ -442,6 +442,14 @@ const privacy: LegalDoc = {
         'Ihren Standort verwenden wir nur, wenn Sie „In meiner Nähe“ („نزدیک من“) oder „Meinen Standort verwenden“ („استفاده از موقعیت من“) antippen und Ihr Browser es erlaubt. Der Browser rundet die Position vor dem Senden auf ein Raster von etwa 500 Metern. Bei der Suche steht der gerundete Punkt verschlüsselt und zwei Stunden gültig in der Adresse und wird nicht gespeichert. Bei einer Anzeige speichern wir den gerundeten Punkt mit der Anzeige und zeigen ihn als ungefähren Ort.',
       ],
     },
+    {
+      id: '3.5',
+      heading: '3.5 Besucherzahlen',
+      body: [
+        'Um zu sehen, wie Peydoo genutzt wird und woher Besucher kommen, zählen wir Seitenaufrufe selbst, ohne Cookies, ohne Speicherung auf Ihrem Gerät und ohne Dienste Dritter (kein Google Analytics). Jede Seite sendet dazu den Pfad, beim ersten Aufruf auch die verweisende Seite und einen etwaigen Werbelink-Code (`?ref=`). Damit eine Person an einem Tag nur einmal zählt, bilden wir aus IP-Adresse und Browserangabe mit einem täglich wechselnden geheimen Schlüssel einen Hashwert; Schlüssel und Hashwerte werden nach zwei Tagen gelöscht, die IP-Adresse wird nicht gespeichert. Dauerhaft gespeichert werden nur Tagessummen (Aufrufe und Besucher je Seite, Land, Herkunft und Gerätetyp).',
+        'Wenn Sie ein Konto anlegen, speichern wir bei Ihrem Konto, woher Sie an diesem Tag kamen (zum Beispiel eine Suchmaschine oder einer unserer Links), und, falls Sie die freiwillige Frage „Wie haben Sie von Peydoo erfahren?“ beantworten, Ihre Antwort. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, unser Angebot und seine Bekanntmachung zu verbessern).',
+      ],
+    },
     { id: '4', heading: '4. Ihr Konto', body: [] },
     {
       id: '4.1',

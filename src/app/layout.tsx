@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { headers } from 'next/headers';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { AutoDirection } from '../components/auto-direction';
@@ -9,10 +10,12 @@ import { SiteFooter, SiteHeader } from '../components/site-header';
 import { ViewAsBanner } from '../components/view-as-banner';
 import { ActingBanner } from '../components/acting-banner';
 import { Toaster } from '../components/toast';
+import { VisitBeacon } from '../components/visit-beacon';
 import { webEnv } from '../lib/env';
 import { MONITORING_META } from '../lib/monitoring/browser';
 import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
 import { messages } from '../messages/fa';
+import { ADMIN_GATE_HEADER } from '../modules/admin/gate';
 import { currentTheme } from './theme';
 import './globals.css';
 
@@ -41,6 +44,8 @@ const BAR = { light: '#0b6e77', dark: '#16211f' };
 
 export async function generateViewport(): Promise<Viewport> {
   const theme = await currentTheme();
+  // The admin page counts no visits (the proxy marks its requests)
+  const admin = (await headers()).has(ADMIN_GATE_HEADER);
   return {
     themeColor:
       theme === 'auto'
@@ -61,6 +66,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const monitoring = browserMonitoringConfig(monitoringConfig(env), env.APP_URL);
   // Light or dark when chosen; otherwise globals.css follows the device (src/app/theme.ts)
   const theme = await currentTheme();
+  // The admin page counts no visits (the proxy marks its requests)
+  const admin = (await headers()).has(ADMIN_GATE_HEADER);
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable} data-theme={theme === 'auto' ? undefined : theme}>
@@ -75,6 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Toaster />
         <FormValidation />
         <AutoDirection />
+        {!admin && <VisitBeacon />}
       </body>
     </html>
   );
