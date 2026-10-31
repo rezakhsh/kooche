@@ -54,6 +54,11 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
                     {messages.moderation.termsSection(section)}
                   </Link>
                 )}
+                {n.fixListingId && (
+                  <Link href={`/my/listings/${n.fixListingId}`} className="mt-3 flex h-10 w-fit items-center rounded-lg bg-brand-700 px-3.5 text-sm font-bold text-white hover:bg-brand-800">
+                    {messages.my.fixAndResend}
+                  </Link>
+                )}
                 {n.appeal?.status === 'open' && <p className="mt-2 text-xs text-neutral-600">{t.appealOpen}</p>}
                 {n.appeal?.status === 'decided' && <p className="mt-2 text-xs text-neutral-600">{t.appealDecided}</p>}
                 {appealable(n) && <AppealForm decisionId={n.id} />}

@@ -12,6 +12,7 @@ import { messages } from '../../../../messages/fa';
 import type { AttributeDef } from '../../../../modules/listings/catalog';
 import { dependentOptions, parentOf } from '../../../../modules/listings/dependent-options';
 import type { FieldError } from '../../../../modules/listings/listings';
+import { formatTypedAmount } from '../../../../modules/listings/price';
 import { saveListingAction, type SaveState } from '../actions';
 import { firstStepWithErrors, stepOf, type Step } from './steps';
 
@@ -203,7 +204,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     const unit = props.rent ? ` ${messages.country.rentUnit}` : '';
     setSummary({
       title: String(data.get('title') ?? '').trim(),
-      price: type === 'fixed' || type === 'negotiable' ? (amount ? `${amount} ${props.country?.currencySymbol ?? ''}${unit}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
+      price: type === 'fixed' || type === 'negotiable' ? (amount ? `${formatTypedAmount(amount, props.country?.currencySymbol ?? '')}${unit}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
       details: details.join('، '),
       postAs: props.postAs.options.find((o) => o.id === String(data.get('organizationId') ?? v.organizationId))?.name ?? `${t.myself}${props.userName ? ` (${props.userName})` : ''}`,
     });
@@ -512,7 +513,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               .map(([key, value, step]) => (
                 <div key={key} className="flex items-start gap-3 py-3">
                   <dt className="w-24 shrink-0 text-sm text-neutral-600">{t.checkRows[key]}</dt>
-                  <dd className={`min-w-0 flex-1 text-sm leading-6 ${value ? 'font-bold' : 'text-neutral-600'}`}>
+                  {/* «تغییر» inside the <dd>: a <dl> row holds only <dt> and <dd> (accessibility check, Oct 31, 2026) */}
+                  <dd className="flex min-w-0 flex-1 items-start gap-3">
+                    <span className={`min-w-0 flex-1 text-sm leading-6 ${value ? 'font-bold' : 'text-neutral-600'}`}>
                     {key === 'photos' && wizard.photos.length > 0 ? (
                       <span className="flex flex-wrap items-center gap-1.5">
                         <span className="sr-only">{value}</span>
@@ -528,12 +531,13 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
                     ) : (
                       value || t.notEntered
                     )}
+                    </span>
+                    {step !== 4 && (
+                      <button type="button" onClick={() => wizard.setStep(step)} className="flex min-h-11 items-center text-sm font-bold text-brand-800 hover:underline">
+                        {t.change}
+                      </button>
+                    )}
                   </dd>
-                  {step !== 4 && (
-                    <button type="button" onClick={() => wizard.setStep(step)} className="flex min-h-11 items-center text-sm font-bold text-brand-800 hover:underline">
-                      {t.change}
-                    </button>
-                  )}
                 </div>
               ))}
           </dl>

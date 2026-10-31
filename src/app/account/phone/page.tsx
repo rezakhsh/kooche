@@ -87,12 +87,13 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
             {t.noneOfThem}
           </Link>
         ) : (
-          <p className="mt-4 text-center text-sm leading-7 text-neutral-600">
-            {t.noTelegramYet}{' '}
-            <Link href="/contact" className="font-bold text-brand-800 underline">
-              {t.contactUs}
+          // A way out for people without Telegram, as in the mockup's «هیچ‌کدام را ندارم» (design check, Oct 31, 2026)
+          <div className="mt-3 text-center">
+            <Link href="/help#phone" className="inline-flex h-11 items-center text-sm font-bold text-brand-800 hover:underline">
+              {t.noneOfThem}
             </Link>
-          </p>
+            <p className="text-xs leading-6 text-neutral-600">{t.noTelegramYet}</p>
+          </div>
         )}
         <p className="mt-2 text-center text-xs">
           <Link href="/privacy#s4-2" className="text-neutral-600 underline">

@@ -55,7 +55,7 @@ export default async function EditListingPage({ params, searchParams }: { params
     <PageShell title={listing.status === 'draft' ? t.draftTitle : t.editTitle} wide>
       <div className="space-y-6">
         {listing.status === 'rejected' && (
-          <TakeDownReason notice={t.rejectedNotice} reason={statement} />
+          <TakeDownReason notice={statement?.byStaff ? t.rejectedNoticeStaff : t.rejectedNotice} reason={statement} />
         )}
         {listing.status === 'active' && <Alert tone="info">{t.liveNotice}</Alert>}
         {!editable && <Alert tone="error">{t.notEditable}</Alert>}

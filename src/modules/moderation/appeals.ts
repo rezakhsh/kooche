@@ -26,6 +26,8 @@ export type Notice = {
   appeal: { status: 'open' | 'decided'; createdAt: Date } | null;
   /** The decision this one answers (an appeal's answer) */
   answers: string | null;
+  /** The person's own listing this rejection still holds back, to fix and send again */
+  fixListingId: string | null;
 };
 
 /** A decision is about this user when it concerns their listing, account, sent message or owned business */
@@ -39,11 +41,13 @@ export async function decisionsAbout(db: Queryable, userId: string, opts: { limi
   const rows = await db.execute<{
     id: string; decision: string; decided_by: Notice['decidedBy']; statement_fa: string | null; policy_ground: string | null; created_at: string | Date;
     kind: Notice['kind']; title: string | null; ref_number: string | null; appeal_status: 'open' | 'decided' | null; appeal_at: string | Date | null; appeal_of: string | null;
+    fix_listing: string | null;
   }>(sql`
     SELECT d.id, d.decision, d.decided_by, d.statement_fa, d.policy_ground, d.created_at, d.appeal_of_decision_id AS appeal_of,
       CASE WHEN d.listing_id IS NOT NULL THEN 'listing' WHEN d.user_id IS NOT NULL THEN 'user'
            WHEN d.organization_id IS NOT NULL THEN 'business' ELSE 'message' END AS kind,
-      coalesce(l.title, o.name) AS title, l.ref_number, a.status AS appeal_status, a.created_at AS appeal_at
+      coalesce(l.title, o.name) AS title, l.ref_number, a.status AS appeal_status, a.created_at AS appeal_at,
+      CASE WHEN d.decision = 'reject' AND l.status = 'rejected' AND l.user_id = ${userId} THEN l.id END AS fix_listing
     FROM moderation_decisions d
     LEFT JOIN listings l ON l.id = d.listing_id
     LEFT JOIN organizations o ON o.id = d.organization_id
@@ -66,6 +70,7 @@ export async function decisionsAbout(db: Queryable, userId: string, opts: { limi
     listingCode: r.ref_number === null ? null : Number(r.ref_number),
     appeal: r.appeal_status ? { status: r.appeal_status, createdAt: new Date(r.appeal_at!) } : null,
     answers: r.appeal_of,
+    fixListingId: r.fix_listing,
   }));
 }
 

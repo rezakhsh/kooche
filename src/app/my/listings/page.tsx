@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type React from 'react';
+import { ChipRow } from '../../../components/chip-row';
 import { Icon } from '../../../components/icons';
 import { Sheet } from '../../../components/sheet';
 import { Alert } from '../../../components/ui';
@@ -11,7 +12,7 @@ import { conversationCounts } from '../../../modules/chat/queries';
 import { ancestry, cachedCatalog } from '../../../modules/listings/catalog';
 import { favoriteCounts } from '../../../modules/listings/favorites';
 import { canApply, type StatusAction } from '../../../modules/listings/listings';
-import { myListings } from '../../../modules/listings/queries';
+import { myListings, takeDownStatement } from '../../../modules/listings/queries';
 import { hasOwnEvents } from '../../../modules/events/queries';
 import { formatPrice } from '../../../modules/listings/price';
 import { safetyKind } from '../../../modules/listings/safety-kind';
@@ -36,11 +37,11 @@ const STATUS_CLASS: Record<string, string> = {
   expired: 'bg-red-50 text-red-800',
   rejected: 'bg-red-50 text-red-800',
 };
-/** Tabs by status (approved Oct 17, 2026); "in review" sits with the live ones. Expired and
- * rejected show only when there are some. */
-const TABS = ['active', 'draft', 'paused', 'sold', 'expired', 'rejected'] as const;
+/** Tabs by status (approved Oct 17, 2026). "In review", expired and rejected show only when there
+ * are some; "in review" has its own tab since the design check (Oct 31, 2026): counted with the
+ * live ones, a listing nobody can see yet read as published. */
+const TABS = ['active', 'pending_review', 'draft', 'paused', 'sold', 'expired', 'rejected'] as const;
 const ALWAYS = new Set(['active', 'draft', 'paused', 'sold']);
-const tabOf = (status: string) => (status === 'pending_review' ? 'active' : status);
 
 const button = 'flex h-10 items-center rounded-lg px-3.5 text-sm font-bold whitespace-nowrap';
 const primary = `${button} bg-brand-700 text-white hover:bg-brand-800`;
@@ -64,12 +65,16 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
   const params = await searchParams;
   const zone = webEnv().APP_TIME_ZONE;
   const rewards = await usableRewards(db, user.id);
+  // A rejected listing says why on its card, with the way to fix it (design check, Oct 31, 2026)
+  const reasons = new Map(
+    await Promise.all(rows.filter((r) => r.listing.status === 'rejected').map(async (r) => [r.listing.id, (await takeDownStatement(db, r.listing.id))?.statement ?? null] as const)),
+  );
   const t = messages.my;
   const now = new Date();
   const done = params.done && params.done in t.done ? t.done[params.done as keyof typeof t.done] : null;
   const tab = TABS.find((x) => x === params.tab) ?? null;
-  const count = (x: string) => rows.filter((r) => tabOf(r.listing.status) === x).length;
-  const shown = tab ? rows.filter((r) => tabOf(r.listing.status) === tab) : rows;
+  const count = (x: string) => rows.filter((r) => r.listing.status === x).length;
+  const shown = tab ? rows.filter((r) => r.listing.status === tab) : rows;
   const chip = (on: boolean) =>
     `flex h-10 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium whitespace-nowrap ${on ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50'}`;
   const isRent = (categoryId: string | null) => !!categoryId && safetyKind(ancestry(catalog, categoryId)) === 'rent';
@@ -110,7 +115,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
         </nav>
       )}
       {rows.length > 0 && (
-        <nav aria-label={t.tabs} className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4">
+        <ChipRow label={t.tabs} className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4">
           <Link href="/my/listings" className={chip(!tab)} aria-current={!tab ? 'page' : undefined}>
             {t.tab(t.all, rows.length)}
           </Link>
@@ -119,7 +124,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
               {t.tab(t.tabNames[x], count(x))}
             </Link>
           ))}
-        </nav>
+        </ChipRow>
       )}
       {rows.length === 0 && <p className="mt-6 text-neutral-600">{t.empty}</p>}
       {rows.length > 0 && shown.length === 0 && <p className="mt-6 text-neutral-600">{t.emptyTab}</p>}
@@ -168,6 +173,11 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                   )}
                   {l.expiresAt && l.status === 'expired' && <span className="font-bold text-red-700">{t.expiredOn(formatDate(l.expiresAt, zone))}</span>}
                 </p>
+                {reasons.get(l.id) && (
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-red-800">
+                    <b>{messages.form.reason}</b> {reasons.get(l.id)}
+                  </p>
+                )}
                 {stats.length > 0 && (
                   <p className="mt-1 text-xs text-neutral-700">
                     {stats.map(([n, label], i) => (
@@ -180,9 +190,9 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                 )}
                 {/* One line, as in the mockup; on the narrowest phones «بیشتر» keeps only its ⋯ */}
                 <div className="mt-2 flex gap-2">
-                  {main === 'continue' ? (
+                  {main === 'continue' || l.status === 'rejected' ? (
                     <Link href={`/my/listings/${l.id}`} className={primary}>
-                      {t.continueDraft}
+                      {l.status === 'rejected' ? t.fixAndResend : t.continueDraft}
                     </Link>
                   ) : (
                     main && (
@@ -191,7 +201,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
                       </StatusForm>
                     )
                   )}
-                  {editable && (
+                  {editable && l.status !== 'rejected' && (
                     <Link href={`/my/listings/${l.id}`} className={secondary}>
                       {t.edit}
                     </Link>

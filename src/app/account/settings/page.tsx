@@ -59,10 +59,9 @@ export default async function SettingsPage() {
         />
         <SettingsRow href="/account/place" icon="pin" label={t.place} value={saved ? <bdi>{placeLabel(saved.place)}</bdi> : t.placeNotSet} />
       </SettingsGroup>
-      <SettingsGroup title={s.notices}>
+      {/* One group: alone, «اعلان‌ها» and «ظاهر» each had a title that repeated their only row (design check, Oct 31, 2026) */}
+      <SettingsGroup title={s.preferences}>
         <SettingsRow href="/account/notifications" icon="bell" label={t.notifications} value={notices} />
-      </SettingsGroup>
-      <SettingsGroup title={s.appearance}>
         <SettingsRow href="/account/appearance" icon={THEME_ICONS[theme]} label={t.appearance.title} value={t.appearance.options[theme].name} />
       </SettingsGroup>
       <SettingsGroup title={s.security}>

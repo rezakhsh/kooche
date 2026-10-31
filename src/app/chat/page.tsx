@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Icon } from '../../components/icons';
 import { Alert } from '../../components/ui';
 import { appDb } from '../../db/drizzle';
+import { cutAtWord } from '../../lib/bidi';
 import { webEnv } from '../../lib/env';
 import { formatAgo } from '../../lib/format';
 import { messages } from '../../messages/fa';
@@ -90,7 +91,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                       <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 text-xs text-neutral-600">{c.side === 'buyer' ? t.seller : t.buyer}</span>
                       <span className="ms-auto shrink-0 text-xs text-neutral-500">{formatAgo(c.last.createdAt, tz)}</span>
                     </span>
-                    <span className="block truncate text-xs text-neutral-600">{c.listing.title}</span>
+                    <span className="block truncate text-xs text-neutral-600">{cutAtWord(c.listing.title, 40)}</span>
                     <span className="mt-0.5 flex items-center gap-1">
                       {mine && <Icon name={c.last.seen ? 'checks' : 'check'} className={`size-3.5 shrink-0 ${c.last.seen ? 'text-brand-600' : 'text-neutral-400'}`} />}
                       <span dir="auto" className={`truncate text-sm ${c.unread ? 'font-semibold text-neutral-900' : 'text-neutral-600'}`}>

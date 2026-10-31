@@ -31,21 +31,31 @@ export default async function WithdrawPage({ params }: { params: Promise<{ id: s
         <input type="hidden" name="orderId" value={order.id} />
         <p className="text-sm leading-7 text-neutral-700">{t.intro}</p>
         <Card>
-          <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-            <dt className="text-neutral-500">{t.contract}</dt>
-            <dd className="font-bold">
-              {order.productName}
-              {order.listingTitle && <span className="font-normal text-neutral-600"> ({order.listingTitle})</span>}
-              <span className="ms-2 tabular-nums">{formatPrice(order.totalMinor, order.currency, 2)}</span>
-            </dd>
-            <dt className="text-neutral-500">{t.paidOn}</dt>
-            <dd>{formatDateTime(order.paidAt!, zone)}</dd>
-            <dt className="text-neutral-500">{t.account}</dt>
-            <dd>{order.buyerName}</dd>
-            <dt className="text-neutral-500">{t.receiptTo}</dt>
-            <dd dir="ltr" className="text-end">
-              {order.buyerEmail}
-            </dd>
+          {/* One label above each value: the page is narrow, and side by side the email broke at its
+              hyphen and the price slid under the title (design check, Oct 31, 2026) */}
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-neutral-500">{t.contract}</dt>
+              <dd className="font-bold">
+                {order.productName}
+                {order.listingTitle && <span className="font-normal text-neutral-600"> ({order.listingTitle})</span>}
+                <span className="block tabular-nums">{formatPrice(order.totalMinor, order.currency, 2)}</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-neutral-500">{t.paidOn}</dt>
+              <dd>{formatDateTime(order.paidAt!, zone)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-neutral-500">{t.account}</dt>
+              <dd>{order.buyerName}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-neutral-500">{t.receiptTo}</dt>
+              <dd>
+                <bdi dir="ltr" className="break-all">{order.buyerEmail}</bdi>
+              </dd>
+            </div>
           </dl>
         </Card>
         <div className="flex flex-wrap gap-2">

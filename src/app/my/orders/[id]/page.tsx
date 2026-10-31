@@ -51,7 +51,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             {t.waiting} {t.waitingHint}
           </Alert>
         )}
-        {paidLike && (
+        {/* Thanks only on the way back from paying; later visits are a receipt (design check, Oct 31, 2026) */}
+        {paidLike && query.done && (
           <Alert tone="success">
             {t.paid} {t.paidHint}
           </Alert>

@@ -68,3 +68,15 @@ export function formatPrice(minor: number, currency: string, minorUnit: number):
   const symbol = parts.find((p) => p.type === 'currency')?.value ?? currency;
   return `${amount}\u00a0${symbol}`;
 }
+
+/**
+ * A typed amount as buyers will see it («۲۵۰ €», «۱٬۲۰۰ €»), for the posting form's preview and
+ * review (design check, Oct 31, 2026: they showed the raw «€ 250»). What doesn't parse yet stays
+ * as typed.
+ */
+export function formatTypedAmount(input: string, symbol: string): string {
+  const minor = parseAmount(input, 2);
+  if (minor === null) return `${input.trim()}\u00a0${symbol}`.trim();
+  const amount = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 }).format(minor / 100);
+  return symbol ? `${amount}\u00a0${symbol}` : amount;
+}

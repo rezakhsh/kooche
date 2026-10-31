@@ -13,6 +13,7 @@ import { clientIp } from '../../../../lib/client-ip';
 import { valkey } from '../../../../lib/valkey';
 import { countView } from '../../../../modules/listings/views';
 import { streetMapView } from '../../../../modules/maps/street-map';
+import { activePrice, LISTING_PRODUCTS, PAYMENT_CURRENCY } from '../../../../modules/payments/checkout';
 import { isFeatured } from '../../../../modules/payments/plans';
 import { Alert, Card, LinkButton } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -153,6 +154,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
   }
   const { published } = await searchParams;
+  // «از ۱٫۹۹ €» on the published card's promote row (mockup final/posted; design check, Oct 31, 2026)
+  const promoteFrom = await (async () => {
+    if (!published || !isOwner || l.status !== 'active') return null;
+    const prices = (await Promise.all(LISTING_PRODUCTS.map((p) => activePrice(appDb(), p, PAYMENT_CURRENCY)))).filter((o) => !!o).map((o) => o.price.amountMinor);
+    return prices.length ? formatPrice(Math.min(...prices), PAYMENT_CURRENCY, 2) : null;
+  })();
   const country = l.countryCode ? (await activeCountries(appDb())).find((c) => c.code === l.countryCode) : undefined;
   const countrySlug = country?.slug ?? null;
   const countryName = country?.nameFa ?? '';
@@ -397,7 +404,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
           {/* Right after publishing (wave 1, mockup final/posted): share where people already are, then the boost */}
           {published && isOwner && l.status === 'active' && (
-            <section className="mx-4 rounded-2xl border border-brand-200 bg-brand-50/40 p-4 text-center sm:mx-0">
+            <section className="mx-4 mt-4 rounded-2xl border border-brand-200 bg-brand-50/40 p-4 text-center sm:mx-0 sm:mt-0">
               <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                 <Icon name="check" className="size-8" />
               </span>
@@ -433,6 +440,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   <b className="block">{t.posted.promote}</b>
                   <span className="text-sm text-saffron-800">{t.posted.promoteText}</span>
                 </span>
+                {promoteFrom && <span className="shrink-0 text-sm font-bold text-saffron-800">{t.posted.from(promoteFrom)}</span>}
                 <Icon name="chevronEnd" className="size-5 text-saffron-800" />
               </Link>
               <div className="mt-4 grid grid-cols-2 gap-2">

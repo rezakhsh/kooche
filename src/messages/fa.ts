@@ -577,7 +577,8 @@ export const messages = {
       zoneNumberRequired: 'شمارهٔ تأییدشدهٔ شما از کشوری بیرون از این منطقه است. از آنجا فقط آگهی «درخواست»، رویداد، خدمات آنلاین و آگهی کسب‌وکار تأییدشده منتشر می‌شود. برای اجاره دادن، فروش و پیشنهاد کار، شمارهٔ همین منطقه را در «حساب من» تأیید کنید؛ آگهی‌تان پیش‌نویس می‌ماند.',
       abroadFirstWeek: 'در هفتهٔ اول حساب، فقط یک آگهی بیرون از کشورِ شمارهٔ تأییدشده‌تان منتشر می‌شود. چند روز دیگر دوباره امتحان کنید؛ آگهی‌تان پیش‌نویس می‌ماند.',
     },
-    countIn: (parent: string, n: number, place: string) => `در ${parent}، ${n.toLocaleString('fa-IR')} آگهی در ${place}`,
+    // «۰ آگهی» put people off (design check, Oct 31, 2026)
+    countIn: (parent: string, n: number, place: string) => (n > 0 ? `در ${parent}، ${n.toLocaleString('fa-IR')} آگهی در ${place}` : `در ${parent}، اولین آگهی این دسته در ${place} باشید`),
     searchCategory: 'جستجوی دسته',
     searchCategoryPlaceholder: 'مثلاً «اتاق»، «دوچرخه» یا «ترجمه»',
     noCategoryFound: 'دسته‌ای با این نام پیدا نشد. از فهرست پایین انتخاب کنید.',
@@ -649,7 +650,8 @@ export const messages = {
     stepOf: (n: number, total: number, name: string) => `مرحلهٔ ${n.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}: ${name}`,
     draftSaved: 'پیش‌نویس ذخیره شد',
     photoActions: 'کارهای این عکس',
-    photoMenuHint: 'برای جابه‌جایی یا اصلی کردن، روی ⋯ هر عکس بزنید.',
+    photoMenuHint: 'برای جابه‌جایی یا اصلی کردن، روی ⋮ هر عکس بزنید.',
+    photoNumber: (n: number, of: number) => `عکس ${n.toLocaleString('fa-IR')} از ${of.toLocaleString('fa-IR')}`,
     previous: 'قبلی',
     continueTo: (name: string) => `ادامه: ${name}`,
     stepHeadings: { 2: 'عکس و توضیح', 3: 'جزئیات و قیمت', 4: 'محل و انتشار' } as Record<number, string>,
@@ -738,6 +740,7 @@ export const messages = {
     fixErrors: 'چند مورد را باید درست کنید.',
     notEditable: 'این آگهی دیگر قابل ویرایش نیست.',
     rejectedNotice: 'این آگهی به‌طور خودکار برداشته شد. آن را اصلاح کنید و دوباره بفرستید.',
+    rejectedNoticeStaff: 'تیم پیدو این آگهی را بررسی کرد و برداشت. آن را اصلاح کنید و دوباره بفرستید.',
     reason: 'دلیل:',
     liveNotice: 'آگهی منتشر شده است. تغییرات بلافاصله دیده می‌شوند و دوباره به‌طور خودکار بررسی می‌شوند.',
     view: 'دیدن آگهی',
@@ -791,7 +794,7 @@ export const messages = {
     // Wave 1 (mockup final/mylistings): a tab with its count, the numbers under each listing, one
     // action that fits the moment and ⋯ for the rest
     tab: (label: string, n: number) => (n > 0 ? `${label} ${n.toLocaleString('fa-IR')}` : label),
-    tabNames: { active: 'منتشر شده', draft: 'پیش‌نویس', paused: 'متوقف', sold: 'فروخته شده', expired: 'منقضی شده', rejected: 'رد شده' },
+    tabNames: { active: 'منتشر شده', pending_review: 'در حال بررسی', draft: 'پیش‌نویس', paused: 'متوقف', sold: 'فروخته شده', expired: 'منقضی شده', rejected: 'رد شده' },
     views: 'بازدید',
     saves: 'نشان',
     chats: 'گفتگو',
@@ -799,6 +802,7 @@ export const messages = {
     renewFree: 'تمدید رایگان',
     rented: 'اجاره داده شد',
     continueDraft: 'ادامهٔ ثبت',
+    fixAndResend: 'اصلاح و ارسال دوباره',
     more: 'بیشتر',
     moreLabel: (title: string) => `کارهای بیشتر برای ${title}`,
     promoteFrom: (price: string) => `ارتقا: بالای فهرست از ${price}`,
@@ -902,6 +906,7 @@ export const messages = {
       copy: 'کپی پیوند',
       promote: 'ارتقای آگهی',
       promoteText: 'بالای فهرست ببرید یا یک هفته ویژه کنید.',
+      from: (price: string) => `از ${price}`,
       another: 'آگهی دیگر',
       mine: 'آگهی‌های من',
     },
@@ -962,7 +967,8 @@ export const messages = {
     waiver:
       'موافقم که این خدمت همین حالا شروع شود و می‌دانم حق انصراف ۱۴ روزه‌ام با انجام کامل آن (مثلاً اجرای نردبان) از بین می‌رود و برای بخش انجام‌شده پولی برنمی‌گردد.',
     pay: 'ادامه و پرداخت',
-    methods: 'پرداخت با کارت، Apple Pay، Google Pay، PayPal یا EPS (اتریش) در صفحه امن Stripe.',
+    // EPS is Austria's bank transfer: named only to people there (design check, Oct 31, 2026)
+    methods: (country: string | null) => `پرداخت با کارت، Apple Pay، Google Pay${country === 'AT' ? '، PayPal یا EPS' : ' یا PayPal'} در صفحه امن Stripe.`,
     notLive: 'فقط آگهی‌های فعال را می‌شود ارتقا داد.',
     off: 'پرداخت فعلاً در دسترس نیست.',
     running: 'ارتقاهای فعال این آگهی',
@@ -1665,7 +1671,7 @@ export const messages = {
     // The settings page (no mockup; wave 1 design in the approved style)
     settingsPage: {
       account: 'حساب',
-      notices: 'اعلان‌ها',
+      preferences: 'ترجیحات',
       security: 'امنیت و دستگاه‌ها',
       privacy: 'حریم خصوصی و داده‌ها',
       phoneMissing: 'تأیید نشده؛ برای ثبت آگهی لازم است',
@@ -1678,7 +1684,6 @@ export const messages = {
       myData: 'دریافت داده‌های من',
       myDataHint: 'یک فایل با همهٔ چیزهایی که از شما نگه می‌داریم',
       delete: 'حذف حساب',
-      appearance: 'ظاهر',
     },
     // Settings › Appearance and the footer's switch (wave 1, part 10; mockup final/appearance)
     appearance: {
@@ -1699,7 +1704,7 @@ export const messages = {
       title: 'داده‌های من',
       exportTitle: 'دریافت داده‌های من',
       exportIntro:
-        'یک فایل JSON با همه چیزهایی که از شما نگه می‌داریم: حساب، دستگاه‌ها، آگهی‌ها و رویدادها با تاریخچه و لینک عکس‌ها، نشان‌شده‌ها، گفتگوها، گزارش‌ها و فعالیت‌های حساب.',
+        'یک فایل با همه چیزهایی که از شما نگه می‌داریم: حساب، دستگاه‌ها، آگهی‌ها و رویدادها با تاریخچه و لینک عکس‌ها، نشان‌شده‌ها، گفتگوها، گزارش‌ها و فعالیت‌های حساب.',
       exportButton: 'دریافت فایل',
       exportLimited: 'در یک ساعت گذشته چند بار فایل گرفته‌اید. کمی بعد دوباره امتحان کنید.',
       deleteTitle: 'حذف حساب',
@@ -2011,8 +2016,7 @@ export const messages = {
     verifiedScreenTitle: 'شمارهٔ تلفن',
     verifiedBy: (method: string) => `تأیید شده با ${method}`,
     noneOfThem: 'تلگرام ندارم',
-    noTelegramYet: 'فعلاً شماره فقط با تلگرام تأیید می‌شود؛ تأیید با پیامک به‌زودی می‌آید. اگر تلگرام ندارید و کمک لازم دارید، به ما بنویسید.',
-    contactUs: 'تماس با ما',
+    noTelegramYet: 'فعلاً شماره فقط با تلگرام تأیید می‌شود؛ تأیید با پیامک به‌زودی می‌آید.',
     iranScreen: {
       title: 'تأیید شماره',
       sent: 'شماره‌ای که در تلگرام فرستادید',
@@ -2090,6 +2094,7 @@ export const messages = {
     current: 'همین دستگاه',
     unknownBrowser: 'مرورگر ناشناخته',
     unknownOs: 'سیستم ناشناخته',
+    on: 'روی',
     signedIn: (date: string) => `ورود: ${date}`,
     lastActive: (date: string) => `آخرین فعالیت: ${date}`,
     revoke: 'خروج از این دستگاه',
@@ -2725,7 +2730,7 @@ export const messages = {
       iban: 'این پیام شماره حساب بانکی (IBAN) دارد. پیش از دیدن کالا پولی واریز نکنید.',
     },
     reportForm: {
-      title: 'گزارش پیام',
+      title: 'گزارش گفتگو',
       reason: 'دلیل',
       reasons: {
         scam: 'کلاهبرداری یا درخواست پول',
@@ -3525,6 +3530,7 @@ export const pages = {
       },
       {
         heading: 'تأیید شماره تلفن',
+        id: 'phone',
         items: [
           {
             q: 'چرا باید شماره‌ام را تأیید کنم؟',
@@ -3536,7 +3542,8 @@ export const pages = {
           },
           {
             q: 'تلگرام ندارم.',
-            a: 'در همان صفحه «تأیید با پیامک» را بزنید و کدی را که پیامک می‌کنیم وارد کنید.',
+            // SMS isn't on everywhere yet: the answer promised a button that wasn't there (design check, Oct 31, 2026)
+            a: 'اگر در صفحهٔ «شماره تلفن» دکمهٔ «تأیید با پیامک» هست، آن را بزنید و کدی را که پیامک می‌کنیم وارد کنید. اگر هنوز نیست، از صفحهٔ «تماس با ما» به ما بنویسید تا راه دیگری پیدا کنیم.',
           },
         ],
       },

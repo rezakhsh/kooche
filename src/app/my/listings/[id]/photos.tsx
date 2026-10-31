@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Icon } from '../../../../components/icons';
+import { Sheet } from '../../../../components/sheet';
 import { Alert, Card } from '../../../../components/ui';
 import { messages } from '../../../../messages/fa';
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from '../../../../modules/media/limits';
@@ -20,7 +21,9 @@ import type { PhotoView } from '../photo-view';
 // PUT; the server only hands out the URL and then learns that the upload is done. While the worker processes a
 // photo, the list asks the server again every two seconds.
 // Wave 1 (mockup final/post2): a big «افزودن عکس» tile in the grid, and each photo's actions
-// (main photo, earlier, later, remove) in a ⋯ menu instead of four links under it.
+// (main photo, earlier, later, remove) in a ⋯ menu instead of four links under it. The menu is a
+// sheet like every other ⋯ menu (design check, Oct 31, 2026: a small menu inside the tile was cut
+// off on phones).
 
 const t = messages.form;
 const POLL_MS = 2_000;
@@ -133,7 +136,13 @@ export function PhotoEditor({
     <input ref={input} type="file" accept={ACCEPTED_TYPES.join(',')} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
   );
 
-  const menuItem = 'flex min-h-11 w-full items-center px-3 text-start text-sm hover:bg-neutral-50';
+  const menuItem = 'flex min-h-12 w-full items-center rounded-xl px-3 text-start hover:bg-neutral-50';
+  // Closes the photo's sheet, then runs the action
+  const pick = (e: MouseEvent<HTMLElement>, fn: () => Promise<boolean>) => {
+    const sheet = e.currentTarget.closest('details');
+    if (sheet) sheet.open = false;
+    void act(fn);
+  };
   const Box = bare ? 'div' : Card;
   return (
     <Box className="space-y-3">
@@ -193,33 +202,40 @@ export function PhotoEditor({
             {i === 0 && p.status === 'ready' && (
               <span className="absolute start-1.5 top-1.5 rounded-md bg-saffron-500 px-1.5 text-xs font-bold leading-5 text-ink">{t.cover}</span>
             )}
-            <details className="absolute end-1 bottom-1">
-              <summary aria-label={t.photoActions} className="flex size-11 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden">
+            <Sheet
+              className="absolute end-1 bottom-1"
+              summary={
                 <span className="flex size-8 items-center justify-center rounded-full bg-white/95 text-neutral-800 shadow-sm">
                   <Icon name="more" className="size-4" />
                 </span>
-              </summary>
-              <div className="absolute end-0 bottom-full z-20 mb-1 w-44 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+              }
+              summaryClassName="flex size-11 items-center justify-center"
+              summaryLabel={t.photoActions}
+              title={t.photoNumber(i + 1, photos.length)}
+              closeLabel={messages.country.close}
+            >
+              {p.thumb && <img src={p.thumb} alt="" width={160} height={160} className="mb-2 size-24 rounded-2xl object-cover" />}
+              <div className="flex flex-col">
                 {i > 0 && (
-                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'first'))}>
+                  <button type="button" className={menuItem} onClick={(e) => pick(e, () => moveImageAction(p.id, 'first'))}>
                     {t.makeCover}
                   </button>
                 )}
                 {i > 0 && (
-                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'earlier'))}>
+                  <button type="button" className={menuItem} onClick={(e) => pick(e, () => moveImageAction(p.id, 'earlier'))}>
                     {t.moveEarlier}
                   </button>
                 )}
                 {i < photos.length - 1 && (
-                  <button type="button" className={menuItem} onClick={() => act(() => moveImageAction(p.id, 'later'))}>
+                  <button type="button" className={menuItem} onClick={(e) => pick(e, () => moveImageAction(p.id, 'later'))}>
                     {t.moveLater}
                   </button>
                 )}
-                <button type="button" className={`${menuItem} text-red-700`} onClick={() => act(() => removeImageAction(p.id))}>
+                <button type="button" className={`${menuItem} text-red-700`} onClick={(e) => pick(e, () => removeImageAction(p.id))}>
                   {t.removePhoto}
                 </button>
               </div>
-            </details>
+            </Sheet>
           </li>
           );
         })}

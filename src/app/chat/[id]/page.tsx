@@ -104,7 +104,7 @@ export default async function ConversationPage({ params, searchParams }: { param
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-bold">{l.title}</span>
+            <span className="line-clamp-2 text-[15px] leading-6 font-bold break-words">{l.title}</span>
             <span className="block truncate text-xs text-neutral-600">
               {t.with(otherName, view.side === 'buyer' ? t.seller : t.buyer)}
               {price && (

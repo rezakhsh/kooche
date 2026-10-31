@@ -183,10 +183,10 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
               </span>
             </label>
             <Button type="submit" className="w-full sm:w-auto">
-              <Icon name="arrow-up" className="size-4" />
+              <Icon name="lock" className="size-4" />
               {t.pay}
             </Button>
-            <p className="text-xs text-neutral-500">{t.methods}</p>
+            <p className="text-xs text-neutral-500">{t.methods(own.listing.countryCode)}</p>
           </form>
         )}
 

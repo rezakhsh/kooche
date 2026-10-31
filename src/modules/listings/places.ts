@@ -21,6 +21,8 @@ export type Place =
       placeName: string;
       locationId: string;
       center: Point;
+      /** The city neighbourhood covering the postal code's centre («ودینگ»), where the city has them */
+      area?: string | null;
     }
   | { kind: 'city'; id: string; countryCode: string; nameFa: string; nameLocal: string; locationId: string; center: Point };
 
@@ -38,7 +40,9 @@ export function placeValue(p: Place): string {
 export const toSuggestion = (p: Place): PlaceSuggestion => ({ value: placeValue(p), label: placeLabel(p), center: p.center });
 
 export function placeLabel(p: Place): string {
-  return p.kind === 'postal' ? `${p.postalCode} ${p.placeName}` : `${p.nameFa} (${p.nameLocal})`;
+  if (p.kind === 'city') return `${p.nameFa} (${p.nameLocal})`;
+  // «ودینگ، 13351 Berlin»: the area people know first (design check, Oct 31, 2026; mockup post4)
+  return p.area ? `${p.area}، ${p.postalCode} ${p.placeName}` : `${p.postalCode} ${p.placeName}`;
 }
 
 const postalColumns = {
@@ -48,9 +52,13 @@ const postalColumns = {
   placeName: postalPlaces.placeName,
   locationId: postalPlaces.locationId,
   center: postalPlaces.center,
+  area: sql<string | null>`(
+    SELECT n.name_fa FROM neighbourhoods n
+    WHERE n.location_id = ${postalPlaces.locationId} AND n.is_active AND ST_Covers(n.boundary, ${postalPlaces.center})
+    ORDER BY n.key LIMIT 1)`,
 };
 
-type PostalRow = { id: string; countryCode: string; postalCode: string; placeName: string; locationId: string | null; center: Point };
+type PostalRow = { id: string; countryCode: string; postalCode: string; placeName: string; locationId: string | null; center: Point; area: string | null };
 
 const toPostal = (r: PostalRow): Place | null =>
   r.locationId ? { kind: 'postal', ...r, locationId: r.locationId } : null;
@@ -66,7 +74,8 @@ const prefix = (s: string) => `${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** "12045 Berlin" → { code: "12045", rest: "berlin" }; "Graz" → { code: "", rest: "graz" } */
 function split(text: string): { code: string; rest: string } {
-  const t = normalizePersian(text).trim();
+  // A label read back («نویکلن، 12045 Berlin») is its postal code and town
+  const t = normalizePersian(text).trim().replace(/^[^\d،]+،\s*(?=\d)/, '');
   const m = /^([0-9][0-9A-Za-z]*)\s*(.*)$/.exec(t);
   return m ? { code: m[1]!.toUpperCase(), rest: foldLatin(m[2]!) } : { code: '', rest: foldLatin(t) };
 }

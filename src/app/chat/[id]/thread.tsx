@@ -276,9 +276,10 @@ function ReportDialog({ messageId, onClose }: { messageId: string; onClose: () =
             <input type="hidden" name="messageId" value={messageId} />
             <fieldset className="space-y-2">
               <legend className="mb-1 text-sm font-medium text-neutral-700">{r.reason}</legend>
-              {(Object.keys(r.reasons) as Array<keyof typeof r.reasons>).map((k, i) => (
+              {/* Nothing chosen at first (design check, Oct 31, 2026: a ticked «کلاهبرداری» invited wrong scam reports) */}
+              {(Object.keys(r.reasons) as Array<keyof typeof r.reasons>).map((k) => (
                 <label key={k} className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="reason" value={k} defaultChecked={i === 0} className="size-4" />
+                  <input type="radio" name="reason" value={k} required className="size-4" />
                   {r.reasons[k]}
                 </label>
               ))}

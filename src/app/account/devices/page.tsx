@@ -40,9 +40,10 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2 text-[15px]">
-                <bdi dir="ltr">
-                  {d.browser ?? t.unknownBrowser}، {d.os ?? t.unknownOs}
-                </bdi>
+                {/* «Safari روی iOS», each name kept whole (design check, Oct 31, 2026: «Safari، iOS» read backwards) */}
+                <span>
+                  <bdi>{d.browser ?? t.unknownBrowser}</bdi> {t.on} <bdi>{d.os ?? t.unknownOs}</bdi>
+                </span>
                 {d.current && <span className="rounded-full bg-brand-50 px-2 text-xs font-bold leading-6 text-brand-800">{t.current}</span>}
               </span>
               <span className="block text-xs text-neutral-600">{t.lastActive(formatAgo(d.lastActiveAt, zone))}</span>

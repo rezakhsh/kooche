@@ -140,9 +140,9 @@ export async function coverKeys(db: Queryable, listingIds: string[]): Promise<Ma
 }
 
 /** Why a listing was taken down: the statement of its last take-down (also a suspension's) */
-export async function takeDownStatement(db: Queryable, listingId: string): Promise<{ statement: string | null; policyGround: string | null } | null> {
+export async function takeDownStatement(db: Queryable, listingId: string): Promise<{ statement: string | null; policyGround: string | null; byStaff: boolean } | null> {
   const last = await lastTakeDown(db, listingId);
-  return last ? { statement: last.statement, policyGround: last.policyGround } : null;
+  return last ? { statement: last.statement, policyGround: last.policyGround, byStaff: last.decidedBy === 'staff' } : null;
 }
 
 /** «۲ آگهی دیگر» in the seller box: the seller's (or business's) other active listings */
