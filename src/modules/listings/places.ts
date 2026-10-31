@@ -41,8 +41,9 @@ export const toSuggestion = (p: Place): PlaceSuggestion => ({ value: placeValue(
 
 export function placeLabel(p: Place): string {
   if (p.kind === 'city') return `${p.nameFa} (${p.nameLocal})`;
-  // «ودینگ، 13351 Berlin»: the area people know first (design check, Oct 31, 2026; mockup post4)
-  return p.area ? `${p.area}، ${p.postalCode} ${p.placeName}` : `${p.postalCode} ${p.placeName}`;
+  // «ودینگ، 13351 Berlin»: the area people know first (design check, Oct 31, 2026; mockup post4).
+  // The code and town are isolated left to right, or after a Persian word they swap places.
+  return p.area ? `${p.area}، \u2066${p.postalCode} ${p.placeName}\u2069` : `${p.postalCode} ${p.placeName}`;
 }
 
 const postalColumns = {
@@ -75,7 +76,7 @@ const prefix = (s: string) => `${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 /** "12045 Berlin" → { code: "12045", rest: "berlin" }; "Graz" → { code: "", rest: "graz" } */
 function split(text: string): { code: string; rest: string } {
   // A label read back («نویکلن، 12045 Berlin») is its postal code and town
-  const t = normalizePersian(text).trim().replace(/^[^\d،]+،\s*(?=\d)/, '');
+  const t = normalizePersian(text.replace(/[\u2066-\u2069]/g, '')).trim().replace(/^[^\d،]+،\s*(?=\d)/, '');
   const m = /^([0-9][0-9A-Za-z]*)\s*(.*)$/.exec(t);
   return m ? { code: m[1]!.toUpperCase(), rest: foldLatin(m[2]!) } : { code: '', rest: foldLatin(t) };
 }

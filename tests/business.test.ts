@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { listingInputSchema, saveListing, changeListingStatus, createDraft, ownListing, type ListingInput } from '../src/modules/listings/listings';
 import { cachedCatalog } from '../src/modules/listings/catalog';
-import { acceptInvitation, changeMember, invitationByToken, invite, revokeInvitation } from '../src/modules/organizations/members';
+import { acceptInvitation, changeMember, declineInvitation, invitationByToken, invite, revokeInvitation } from '../src/modules/organizations/members';
 import { businessUsage, postingRefusal } from '../src/modules/organizations/limits';
 import { businessBySlug, createBusiness, myBusinesses, setVerification, updateBusiness, type BusinessInput } from '../src/modules/organizations/organizations';
 import { managedListings } from '../src/modules/organizations/queries';
@@ -167,6 +167,23 @@ describe('members and invitations', () => {
     expect(await acceptInvitation(appDb, { userId: guest.id, token: first.ok ? first.token : '' })).toMatchObject({ ok: true, slug: org.slug });
     const [m] = await db.select().from(schema.organizationMembers).where(and(eq(schema.organizationMembers.organizationId, org.id), eq(schema.organizationMembers.userId, guest.id)));
     expect(m?.role).toBe('staff');
+  });
+
+  // «رد دعوت» (design check, Oct 31, 2026): only the invited account, only an open invitation
+  it('only the invited account declines, and then nobody can accept', async () => {
+    const { org, ownerId } = await business();
+    await givePlan(org.id, 'pro-plus');
+    const [guest, other] = await Promise.all([user(), user()]);
+    const a = await invite(appDb, { userId: ownerId, organizationId: org.id, email: guest.email, role: 'staff' });
+    const token = a.ok ? a.token : '';
+    expect((await invitationByToken(db, token))?.inviter).toBeTruthy();
+    expect(await declineInvitation(appDb, { userId: other.id, token })).toBe(false);
+    expect(await declineInvitation(appDb, { userId: guest.id, token: 'x'.repeat(32) })).toBe(false);
+    expect((await invitationByToken(db, token))?.usable).toBe(true);
+    expect(await declineInvitation(appDb, { userId: guest.id, token })).toBe(true);
+    expect((await invitationByToken(db, token))?.usable).toBe(false);
+    expect(await declineInvitation(appDb, { userId: guest.id, token })).toBe(false);
+    expect(await acceptInvitation(appDb, { userId: guest.id, token })).toEqual({ ok: false, reason: 'not_found' });
   });
 
   it('only the invited account accepts, once, and not after expiry or revocation', async () => {

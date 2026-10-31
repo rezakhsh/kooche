@@ -130,7 +130,7 @@ describe('finding a place', () => {
 
   it('suggests postal codes by prefix, towns by name and cities by their Persian name', async () => {
     // Berlin's postal codes carry the neighbourhood that covers them (design check, Oct 31, 2026)
-    expect((await searchPlaces(appDb, 'DE', '1204')).map((s) => s.label)).toContain('نویکلن، 12045 Berlin');
+    expect((await searchPlaces(appDb, 'DE', '1204')).map((s) => s.label)).toContain('نویکلن، \u206612045 Berlin\u2069');
     expect((await searchPlaces(appDb, 'DE', 'muench')).map((s) => s.label)).toContain('80331 München');
     expect((await searchPlaces(appDb, 'DE', 'münch'))[0]?.label).toMatch(/München/);
     expect((await searchPlaces(appDb, 'AT', 'وی')).map((s) => s.label)).toContain('وین (Wien)');
@@ -142,7 +142,7 @@ describe('finding a place', () => {
     // 8010 has a dozen places; the one nearest Graz's centre wins
     expect(mustPlace(await resolvePlace(appDb, 'AT', '8010'))).toMatchObject({ kind: 'postal', placeName: 'Graz, Innere Stadt' });
     expect(mustPlace(await resolvePlace(appDb, 'DE', '12045 Berlin'))).toMatchObject({ kind: 'postal', postalCode: '12045', placeName: 'Berlin' });
-    expect(mustPlace(await resolvePlace(appDb, 'DE', 'نویکلن، 12045 Berlin'))).toMatchObject({ kind: 'postal', postalCode: '12045' });
+    expect(mustPlace(await resolvePlace(appDb, 'DE', 'نویکلن، \u206612045 Berlin\u2069'))).toMatchObject({ kind: 'postal', postalCode: '12045' });
     expect(mustPlace(await resolvePlace(appDb, 'DE', '۱۲۰۴۵'))).toMatchObject({ postalCode: '12045' });
     expect(mustPlace(await resolvePlace(appDb, 'AT', 'وین'))).toMatchObject({ kind: 'city', nameLocal: 'Wien' });
     expect(mustPlace(await resolvePlace(appDb, 'DE', 'gießen'))).toMatchObject({ kind: 'postal', placeName: 'Gießen' });

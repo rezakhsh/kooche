@@ -41,13 +41,13 @@ const ban = async (userId: string) => expect(await sanctionUser(appDb, await adm
 /** A business with all its legal details, owned by `ownerId` */
 async function business(ownerId: string) {
   const org = await makeOrganization(tx, ownerId);
-  await db.update(schema.organizations).set({ legalName: 'Prüfladen GmbH', legalForm: 'GmbH', addressLine1: 'Teststraße 1', postalCode: '10115', placeName: 'Berlin', email: 'laden@example.test' }).where(eq(schema.organizations.id, org.id));
+  await db.update(schema.organizations).set({ legalName: 'Prüfladen GmbH', legalForm: 'GmbH', representativeName: 'Petra Prüfer', addressLine1: 'Teststraße 1', postalCode: '10115', placeName: 'Berlin', email: 'laden@example.test' }).where(eq(schema.organizations.id, org.id));
   return org;
 }
 /** The edit form's input, as tests/business.test.ts writes it */
 const businessInput = (name: string, slug: string): BusinessInput => ({
   name, slug, businessType: 'food', tagline: '', instagram: '', telegram: '', legalName: 'Prüfladen GmbH', legalForm: 'GmbH',
-  representativeName: '', addressLine1: 'Sonnenallee 1', addressLine2: '', place: '12045', placeValue: '', phone: '030 1234567',
+  representativeName: 'Petra Prüfer', addressLine1: 'Sonnenallee 1', addressLine2: '', place: '12045', placeValue: '', phone: '030 1234567',
   email: 'laden@example.test', website: '', registerCourt: '', registrationNumber: '', vatId: '', imprintExtra: '', description: '',
 } as BusinessInput);
 

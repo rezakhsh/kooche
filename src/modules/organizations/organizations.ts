@@ -17,6 +17,7 @@ import { validHours } from './hours';
 import { ownLogoUpload, queueLogo, removeLogo } from './logo';
 import { queueBusinessNotice } from './notices';
 import { testOwned } from '../users/test-accounts';
+import { needsRepresentative } from './legal-forms';
 
 // Businesses (docs/schema.md, section 7; roadmap step 6). A business has a public page /b/{slug}
 // with the legal details German law asks of traders (§5 DDG), its members with roles, and a plan
@@ -116,8 +117,8 @@ export type BusinessError =
 const LEGAL_FIELDS = ['legalName', 'legalForm', 'representativeName', 'addressLine1', 'addressLine2', 'registerCourt', 'registrationNumber', 'vatId', 'imprintExtra'] as const;
 
 /** Everything the Impressum, the «تأییدشده» badge and a payment need */
-export function legalComplete(org: { legalName?: string | null; legalForm?: string | null; addressLine1?: string | null; postalCode?: string | null; email?: string | null }): boolean {
-  return !!(org.legalName && org.legalForm && org.addressLine1 && org.postalCode && org.email);
+export function legalComplete(org: { legalName?: string | null; legalForm?: string | null; representativeName?: string | null; addressLine1?: string | null; postalCode?: string | null; email?: string | null }): boolean {
+  return !!(org.legalName && org.legalForm && org.addressLine1 && org.postalCode && org.email) && (!needsRepresentative(org.legalForm) || !!org.representativeName);
 }
 
 /** Field → what is wrong with it, from Zod's issues */
@@ -152,6 +153,7 @@ async function columns(db: Queryable, countryCode: string, raw: z.output<typeof 
   if (LEGAL_FIELDS.some((k) => input[k])) {
     const missing = Object.fromEntries((['legalForm', 'legalName', 'addressLine1'] as const).filter((k) => !input[k]).map((k) => [k, 'required']));
     if (Object.keys(missing).length) return { error: 'legal_incomplete', fields: missing };
+    if (needsRepresentative(input.legalForm) && !input.representativeName) return { error: 'legal_incomplete', fields: { representativeName: 'required' } };
     if (place.kind !== 'postal') return { error: 'postal_required', fields: { legalPostal: 'required' } };
     if (!input.email) return { error: 'legal_incomplete', fields: { email: 'required' } };
   }

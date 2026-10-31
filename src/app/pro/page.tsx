@@ -16,6 +16,7 @@ import { myBusinesses } from '../../modules/organizations/organizations';
 import { currentSession } from '../../modules/users/server';
 import { visitorCountry } from '../../lib/client-ip';
 import { chosenCountry } from '../country-choice';
+import { planFeatureList } from './feature-list';
 import { proMonthlyText } from '../../modules/payments/prices';
 
 // What Pro costs and includes (wave 1, mockup final/pro; prices decided by the owner Oct 22, 2026):
@@ -54,12 +55,7 @@ export default async function ProPage() {
 
   const mine = owned[0];
   const startHref = (code: Plan['code']) => (code === 'free' ? (mine ? `/b/${mine.slug}/manage` : '/business/new') : mine ? `/b/${mine.slug}/billing` : '/business/new');
-  const featureList = (p: Plan) => {
-    const f = t.features;
-    if (p.code === 'free') return [f.listings(p.features.activeListings), f.page, f.bumps(0)];
-    const list = [f.listings(p.features.activeListings), f.bumps(p.features.bumpsPerMonth), f.featured(p.features.featuredSlots), f.staff(p.features.staffSeats)];
-    return (p.code === 'pro' ? [...list, f.badge, f.stats] : [...list, f.allPro]).filter((x): x is string => !!x);
-  };
+  const featureList = (p: Plan) => planFeatureList(p.code, p.features);
   const price = (p: Plan, interval: 'month' | 'year') => {
     if (p.code === 'free') return { main: t.free, per: '', note: t.forever };
     const main = interval === 'month' ? p.month : p.year;

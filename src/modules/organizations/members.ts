@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, asc, count, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, conversations, listings, organizationInvitations, organizationMembers, organizations, outboxEvents, users } from '../../db/schema';
 import { LISTING_OUTBOX } from '../listings/events';
@@ -91,12 +91,29 @@ export async function invite(
 export async function invitationByToken(db: Queryable, token: string, now: Date = new Date()) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const [row] = await db
-    .select({ id: organizationInvitations.id, email: organizationInvitations.email, role: organizationInvitations.role, expiresAt: organizationInvitations.expiresAt, acceptedAt: organizationInvitations.acceptedAt, revokedAt: organizationInvitations.revokedAt, orgName: organizations.name, slug: organizations.slug, organizationId: organizations.id })
+    .select({ id: organizationInvitations.id, email: organizationInvitations.email, role: organizationInvitations.role, expiresAt: organizationInvitations.expiresAt, acceptedAt: organizationInvitations.acceptedAt, revokedAt: organizationInvitations.revokedAt, orgName: organizations.name, slug: organizations.slug, organizationId: organizations.id, logoKey: organizations.logoKey, verified: sql<boolean>`${organizations.verificationStatus} = 'verified'`, inviter: users.displayName })
     .from(organizationInvitations)
     .innerJoin(organizations, and(eq(organizations.id, organizationInvitations.organizationId), eq(organizations.status, 'active')))
+    .leftJoin(users, eq(users.id, organizationInvitations.invitedByUserId))
     .where(eq(organizationInvitations.tokenHash, tokenHash(token)));
   if (!row) return null;
   return { ...row, usable: !row.acceptedAt && !row.revokedAt && row.expiresAt > now };
+}
+
+/**
+ * The invited person turns the invitation down, signed in with the invited email address (design
+ * check, Oct 31, 2026: «رد دعوت»). The owner sees it gone from the pending list.
+ */
+export async function declineInvitation(db: Db, opts: { userId: string; token: string; now?: Date }): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(opts.token)) return false;
+  const [me] = await db.select({ email: users.email }).from(users).where(eq(users.id, opts.userId));
+  if (!me) return false;
+  const rows = await db
+    .update(organizationInvitations)
+    .set({ revokedAt: opts.now ?? new Date() })
+    .where(and(eq(organizationInvitations.tokenHash, tokenHash(opts.token)), eq(organizationInvitations.email, me.email.toLowerCase()), isNull(organizationInvitations.acceptedAt), isNull(organizationInvitations.revokedAt)))
+    .returning({ id: organizationInvitations.id });
+  return rows.length > 0;
 }
 
 /**

@@ -13,7 +13,7 @@ import { valkey } from '../../lib/valkey';
 import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, notificationMailer } from '../../modules/notifications/mailer';
 import { testInbox } from '../../modules/users/test-accounts';
-import { acceptInvitation, changeMember, invite, revokeInvitation } from '../../modules/organizations/members';
+import { acceptInvitation, changeMember, declineInvitation, invite, revokeInvitation } from '../../modules/organizations/members';
 import { hoursFromForm, WEEKDAYS } from '../../modules/organizations/hours';
 import { requestLogoUpload } from '../../modules/organizations/logo';
 import { createBusiness, updateBusiness, type BusinessInput } from '../../modules/organizations/organizations';
@@ -188,6 +188,14 @@ export async function acceptInvitationAction(form: FormData): Promise<void> {
   const { user } = await requireSession(back);
   const r = await acceptInvitation(appDb(), { userId: user.id, token });
   redirect(r.ok ? `/b/${r.slug}/manage?joined=1` : `${back}?error=${r.reason}`);
+}
+
+export async function declineInvitationAction(form: FormData): Promise<void> {
+  const token = String(form.get('token') ?? '');
+  const back = `/business/invite/${encodeURIComponent(token)}`;
+  const { user } = await requireSession(back);
+  await declineInvitation(appDb(), { userId: user.id, token });
+  redirect(`${back}?declined=1`);
 }
 
 /** The "for my business, not as a consumer" tick (terms 14.5), with the request's IP, browser and region */

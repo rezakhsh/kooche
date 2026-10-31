@@ -9,7 +9,7 @@ import { imageUrl } from '../../../../modules/media/server';
 import { WEEKDAYS, validHours } from '../../../../modules/organizations/hours';
 import { updateBusinessAction } from '../../../business/actions';
 import { BusinessForm } from '../../../business/business-form';
-import { PostingBar } from '../../../new/posting-bar';
+import { AppBar } from '../../../../components/app-bar';
 import { memberOf } from '../member';
 import { preparingCountries } from '../../../../modules/launch/country-page';
 
@@ -60,7 +60,8 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ s
   };
   return (
     <>
-      <PostingBar title={messages.business.wizard.editTitle} category={org.name} closeHref={`/b/${org.slug}/manage`} />
+      {/* The title as the page's heading, with the way back to the dashboard (design check, Oct 31, 2026) */}
+      <AppBar title={messages.business.wizard.editTitle} sub={org.name} back={`/b/${org.slug}/manage`} backLabel={messages.business.backToPanel} />
       <main className="mx-auto w-full max-w-2xl px-4 pt-6 pb-10 sm:px-6">
         {org.verificationStatus === 'verified' && (
           <div className="mb-4">

@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import { listings } from '../../db/schema';
 import { ancestry, type Catalog } from '../listings/catalog';
 import { businessPlan } from '../payments/plans';
+import { REPRESENTED_FORMS } from './legal-forms';
 import { restrictedRoots } from './suspicions';
 
 // Who may publish what, privately or as a business (decided Oct 22, 2026, "the middle way";
@@ -164,7 +165,8 @@ export async function businessVerified(db: Queryable, organizationId: string): P
 /** Whether the business's Impressum is complete (the same fields as legalComplete()) */
 export async function businessLegalComplete(db: Queryable, organizationId: string): Promise<boolean> {
   const [row] = await db.execute<{ yes: boolean }>(sql`
-    SELECT (legal_name IS NOT NULL AND legal_form IS NOT NULL AND address_line1 IS NOT NULL AND postal_code IS NOT NULL AND email IS NOT NULL) AS yes
+    SELECT (legal_name IS NOT NULL AND legal_form IS NOT NULL AND address_line1 IS NOT NULL AND postal_code IS NOT NULL AND email IS NOT NULL
+      AND (btrim(legal_form) <> ALL (${sql.raw(`ARRAY[${REPRESENTED_FORMS.map((f) => `'${f}'`).join(', ')}]`)}) OR representative_name IS NOT NULL)) AS yes
     FROM organizations WHERE id = ${organizationId}`);
   return !!row?.yes;
 }

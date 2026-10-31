@@ -167,7 +167,7 @@ export async function startFoundingCheckout(
     return { ok: false, reason };
   }
   const [org] = await db
-    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
+    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, representativeName: organizations.representativeName, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
   const price = await activePrice(db, 'pro', PAYMENT_CURRENCY, 'month');

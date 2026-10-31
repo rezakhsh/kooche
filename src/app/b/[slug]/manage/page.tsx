@@ -32,12 +32,18 @@ export const metadata = { title: messages.business.manage.title, robots: { index
 /** The checklist's bar without a style attribute (the CSP allows no inline styles) */
 const PROGRESS = ['w-0', 'w-1/4', 'w-1/2', 'w-3/4', 'w-full'];
 
-function Step({ done, title, sub }: { done: boolean; title: string; sub: string }) {
+function Step({ done, title, sub, href }: { done: boolean; title: string; sub: string; href?: string }) {
   return (
     <li className="flex items-start gap-3">
       <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${done ? 'bg-brand-700 text-white' : 'border-2 border-neutral-300 bg-white'}`}>{done && <Icon name="check" className="size-3.5" />}</span>
       <span>
-        <b className="block text-sm">{title}</b>
+        {href ? (
+          <Link href={href} className="block text-sm font-bold text-brand-800 underline">
+            {title}
+          </Link>
+        ) : (
+          <b className="block text-sm">{title}</b>
+        )}
         <span className="text-xs text-neutral-600">{sub}</span>
       </span>
     </li>
@@ -65,6 +71,8 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
   const founding = role === 'owner' && paymentGateway() && !(await fromIran()) && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
   const places = founding ? await foundingPlaces(db, org.id) : null;
   const legal = legalComplete(org);
+  const verified = org.verificationStatus === 'verified';
+  const firstStep = verified ? 'verified' : legal ? 'verifyTodo' : 'legalTodo';
   const logo = org.logoKey ? imageUrl(org.logoKey, 'thumb', 'webp') : null;
 
   // The steps to a complete page, until all are done
@@ -87,7 +95,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
   ];
 
   return (
-    <main data-soft-page className="mx-auto w-full max-w-3xl px-4 pt-5 pb-24">
+    <main data-soft-page className="mx-auto w-full max-w-3xl px-4 pt-5 pb-10">
       <div className="flex items-center gap-3">
         <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-brand-50 text-lg font-black text-brand-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -119,12 +127,15 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
           <h2 className="mt-1 text-lg font-extrabold">{d.foundingTitle}</h2>
           <div className="mt-3 flex items-center gap-3">
             <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white">
-              <i className="block h-full w-2/3 rounded-full bg-saffron-500" />
+              <i className={`block h-full rounded-full bg-saffron-500 ${verified ? 'w-2/3' : 'w-1/3'}`} />
             </span>
-            <b className="text-sm">{d.checklistDone(2, 3)}</b>
+            <b className="text-sm">{d.checklistDone(verified ? 2 : 1, 3)}</b>
           </div>
+          {/* Staff offer it to verified businesses only, but the badge goes when the name or legal
+              details change: the first step shows the real state, not always a tick (design check, Oct 31, 2026) */}
           <ol className="mt-4 space-y-3">
-            {(['verified', 'offered', 'start'] as const).map((k) => (
+            <Step done={verified} title={d.foundingSteps[firstStep]![0]} sub={d.foundingSteps[firstStep]![1]} href={firstStep === 'legalTodo' ? `/b/${org.slug}/edit#legal` : undefined} />
+            {(['offered', 'start'] as const).map((k) => (
               <Step key={k} done={k !== 'start'} title={d.foundingSteps[k]![0]} sub={d.foundingSteps[k]![1]} />
             ))}
           </ol>
@@ -143,7 +154,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
           {!legal && (
             <p className="mt-3 text-sm text-red-700">
               {t.billing.errors.legal_missing}{' '}
-              <Link href={`/b/${org.slug}/edit`} className="font-bold underline">
+              <Link href={`/b/${org.slug}/edit#legal`} className="font-bold underline">
                 {t.wizard.legalHeading}
               </Link>
             </p>
@@ -167,7 +178,7 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
           <ol className="mt-4 space-y-3">
             {checklist.map((c) => {
               const [title, sub] = d.checklist[c.key]!;
-              const href = c.key === 'listing' ? '/new' : role === 'owner' ? `/b/${org.slug}/edit` : null;
+              const href = c.key === 'listing' ? '/new' : role === 'owner' ? `/b/${org.slug}/edit${c.key === 'legal' ? '#legal' : c.key === 'contact' ? '#contact' : ''}` : null;
               return (
                 <li key={c.key}>
                   {href && !c.done ? (

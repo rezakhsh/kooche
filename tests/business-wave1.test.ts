@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { memoryStorage } from '../src/modules/media/storage';
 import { hoursFromForm, openState, validHours } from '../src/modules/organizations/hours';
+import { businessLegalComplete } from '../src/modules/organizations/limits';
 import { LOGO_OUTBOX, ownLogoUpload, processLogo, requestLogoUpload } from '../src/modules/organizations/logo';
 import { businessBySlug, createBusiness, legalComplete, updateBusiness, type BusinessInput } from '../src/modules/organizations/organizations';
 import { suggestSlug } from '../src/modules/organizations/slug';
@@ -85,6 +86,21 @@ describe('a new business in three steps', () => {
     // «بعداً تکمیل می‌کنم» drops whatever was typed in step 3
     const { org: later } = await create({ vatId: 'DE987654321', legalName: 'Half', legalLater: true });
     expect(later).toMatchObject({ vatId: null, legalName: null });
+  });
+
+  // § 5 DDG: a company's Impressum names its representative (design check, Oct 31, 2026: it was optional)
+  it('asks a GmbH or UG for its managing director', async () => {
+    const gmbh = { ...legal, legalForm: 'GmbH', legalName: 'Parsian Übersetzungen GmbH' };
+    expect((await create(gmbh)).r).toMatchObject({ ok: false, reason: 'legal_incomplete', fields: { representativeName: 'required' } });
+    const { org } = await create({ ...gmbh, representativeName: 'Nasrin Example' });
+    expect(legalComplete(org!)).toBe(true);
+    expect(await businessLegalComplete(db, org!.id)).toBe(true);
+    // One saved before the rule counts as incomplete until the director is added
+    await db.update(schema.organizations).set({ representativeName: null }).where(eq(schema.organizations.id, org!.id));
+    expect(legalComplete({ ...org!, representativeName: null })).toBe(false);
+    expect(await businessLegalComplete(db, org!.id)).toBe(false);
+    // A sole trader names no one else
+    expect(legalComplete({ ...org!, legalForm: 'Einzelunternehmen', representativeName: null })).toBe(true);
   });
 
   it('stores what it does, languages, hours and the handles, cleaned up', async () => {

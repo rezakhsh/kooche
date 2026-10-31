@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { appDb } from '../../../db/drizzle';
 import { messages } from '../../../messages/fa';
-import { cachedCatalog, isEventCategory, isPostable } from '../../../modules/listings/catalog';
+import { cachedCatalog, isEventCategory, isPostable, openToPoster } from '../../../modules/listings/catalog';
 import { canPostListing, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { ListingEditor } from '../../my/listings/[id]/editor';
@@ -9,6 +9,7 @@ import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
 import { PostingBar } from '../posting-bar';
 import { editorData } from '../../my/listings/editor-data';
 import { chosenCountry } from '../../country-choice';
+import { myBusinesses } from '../../../modules/organizations/organizations';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -25,7 +26,9 @@ export default async function NewInCategoryPage({ params, searchParams }: { para
   const catalog = await cachedCatalog(db);
   const category = catalog.bySlug.get(slug);
   if (!category || !isPostable(catalog, category.id)) notFound();
-  if (category.businessOnly) redirect('/new?error=business_only');
+  // Business-only categories are for members of a business; the form then offers only their
+  // businesses (design check, Oct 31, 2026: everyone was sent back, members too)
+  if (!openToPoster(category, (await myBusinesses(db, user.id)).length > 0)) redirect('/new?error=business_only');
   if (isEventCategory(catalog, category.id)) redirect(`/events/new?type=${category.slug}`);
 
   const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null, kind);

@@ -4,7 +4,7 @@ import { categoryIcon, Icon } from '../../components/icons';
 import { Alert, Card, LinkButton, PageShell } from '../../components/ui';
 import { appDb } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
-import { EVENT_ROOT_SLUG, ancestry, cachedCatalog, isEventCategory, isPostable, type CategoryNode } from '../../modules/listings/catalog';
+import { EVENT_ROOT_SLUG, ancestry, cachedCatalog, isEventCategory, isPostable, openToPoster, type CategoryNode } from '../../modules/listings/catalog';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { CategorySearch, type Pickable } from './category-search';
 import { PostingBar } from './posting-bar';
@@ -87,7 +87,7 @@ export default async function NewListingPage({
   // With how many listings each has in the country, the busiest first (mockup final/post1)
   const counts = country ? await cachedCategoryCounts(db, country.code, null) : new Map<string, number>();
   const pickable: Pickable[] = [...catalog.byId.values()]
-    .filter((c) => c.childIds.length === 0 && isPostable(catalog, c.id) && !isEventCategory(catalog, c.id) && (!c.businessOnly || member))
+    .filter((c) => c.childIds.length === 0 && isPostable(catalog, c.id) && !isEventCategory(catalog, c.id) && openToPoster(c, member))
     .map((c) => {
       const chain = ancestry(catalog, c.id);
       const parentFa = chain.slice(0, -1).map((p) => p.nameFa).join('، ');
@@ -173,7 +173,7 @@ export default async function NewListingPage({
 }
 
 function CategoryRow({ category, keep, listingId, root, member, wanted }: { category: CategoryNode; keep: string; listingId?: string; root: boolean; member: boolean; wanted: boolean }) {
-  const closed = category.businessOnly && !member;
+  const closed = !openToPoster(category, member);
   const row = 'flex min-h-14 w-full items-center gap-3 px-4 py-3 text-start text-[15px] hover:bg-neutral-50';
   const icon = root && (
     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">

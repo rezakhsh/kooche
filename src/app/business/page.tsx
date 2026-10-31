@@ -25,8 +25,11 @@ export default async function MyBusinessesPage() {
             <li key={b.id}>
               <Link href={`/b/${b.slug}/manage`} className="flex items-center gap-3 px-4 py-4 hover:bg-neutral-50">
                 <Icon name="store" className="size-5 text-brand-700" />
-                <span className="min-w-0 flex-1 truncate font-bold">{b.name}</span>
-                {b.verificationStatus === 'verified' && <Icon name="verified" className="size-4 text-brand-700" />}
+                {/* The badge right after the name, as on the business page (design check, Oct 31, 2026) */}
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="truncate font-bold">{b.name}</span>
+                  {b.verificationStatus === 'verified' && <Icon name="verified" className="size-4 shrink-0 text-brand-700" />}
+                </span>
                 <Pill tone="neutral">{t.roles[b.role]}</Pill>
               </Link>
             </li>

@@ -118,6 +118,19 @@ describe('dark mode', () => {
     expect(missing).toEqual([]);
   });
 
+  // A shade missing from the colour list draws in the text colour (design check, Oct 31, 2026:
+  // border-saffron-300 framed the founding card in black, and in white in dark mode)
+  it('uses only shades that exist', () => {
+    const families = new Set([...vars(blockAfter(css, '@theme')).keys()].map((n) => n.replace(/-\d+$/, '')));
+    const unknown = new Set<string>();
+    for (const { path, text } of sources) {
+      for (const m of text.matchAll(/\b(?:bg|text|border(?:-[setbxy])?|ring|divide|fill|stroke|from|via|to|outline|accent|decoration|placeholder)-([a-z]+)-(\d+)(?:\/\d+)?\b/g)) {
+        if (families.has(m[1]!) && !light.has(`${m[1]}-${m[2]}`)) unknown.add(`${m[1]}-${m[2]} (${path})`);
+      }
+    }
+    expect([...unknown]).toEqual([]);
+  });
+
   it('puts text-white only on fills that turn light in dark mode', () => {
     const wrong = sources.flatMap(({ path, text }) =>
       text

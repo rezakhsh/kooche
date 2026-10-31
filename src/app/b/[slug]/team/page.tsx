@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Field, PageShell, Pill } from '../../../../components/ui';
+import { Alert, Button, Card, Field, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatDate } from '../../../../lib/format';
@@ -7,6 +7,7 @@ import { members, pendingInvitations } from '../../../../modules/organizations/m
 import { businessPlan } from '../../../../modules/payments/plans';
 import { changeMemberAction, inviteAction, revokeInvitationAction } from '../../../business/actions';
 import { memberOf } from '../member';
+import { TaskPage } from '../../../../components/settings';
 
 // The business's members and invitations (owner only; anyone else may leave from here too, but
 // only the owner sees this page). Seats come from the plan.
@@ -33,13 +34,18 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
     </>
   );
 
+  // TaskPage: a way back to the dashboard (design check, Oct 31, 2026)
   return (
-    <PageShell title={`${t.team.title}: ${org.name}`} wide>
+    <TaskPage title={`${t.team.title}: ${org.name}`} back={`/b/${org.slug}/manage`} backLabel={messages.business.backToPanel} wide>
       <div className="space-y-5">
         {query.sent && <Alert tone="success">{t.team.sent}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         <ul className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
-          {list.map((m) => (
+          {list.map((m) => {
+            // The only owner can't step down or leave: those buttons could only fail (design check, Oct 31, 2026)
+            const lastOwner = m.role === 'owner' && list.filter((x) => x.role === 'owner').length === 1;
+            const self = m.userId === user.id;
+            return (
             <li key={m.userId} className="space-y-2 px-4 py-3">
               <p className="flex flex-wrap items-center gap-2">
                 <span className="font-bold">
@@ -50,7 +56,8 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
               <p className="text-xs text-neutral-500" dir="ltr">
                 {m.email}
               </p>
-              <div className="flex flex-wrap gap-2">
+              {!lastOwner && (
+              <div className="flex flex-wrap items-start gap-2">
                 {ROLES.filter((r) => r !== m.role).map((r) => (
                   <form key={r} action={changeMemberAction}>
                     {hidden}
@@ -61,17 +68,28 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
                     </Button>
                   </form>
                 ))}
-                <form action={changeMemberAction}>
-                  {hidden}
-                  <input type="hidden" name="memberId" value={m.userId} />
-                  <input type="hidden" name="to" value="removed" />
-                  <Button type="submit" variant="danger" className="px-3 py-1.5 text-xs">
-                    {m.userId === user.id ? t.team.leave : t.team.remove}
-                  </Button>
-                </form>
+                {/* Removing someone, or leaving, asks once more, like deleting a listing */}
+                <details className="w-full">
+                  <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50 [&::-webkit-details-marker]:hidden">
+                    {self ? t.team.leave : t.team.remove}
+                  </summary>
+                  <div className="mt-2 rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-800">
+                    <p>{self ? t.team.leaveConfirm : t.team.removeConfirm(m.name)}</p>
+                    <form action={changeMemberAction} className="mt-2">
+                      {hidden}
+                      <input type="hidden" name="memberId" value={m.userId} />
+                      <input type="hidden" name="to" value="removed" />
+                      <Button type="submit" variant="danger" className="px-3 py-1.5 text-xs">
+                        {self ? t.team.leaveYes : t.team.removeYes}
+                      </Button>
+                    </form>
+                  </div>
+                </details>
               </div>
+              )}
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         {pending.length > 0 && (
@@ -119,6 +137,6 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
           )}
         </Card>
       </div>
-    </PageShell>
+    </TaskPage>
   );
 }

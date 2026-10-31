@@ -9,6 +9,7 @@ import { fieldDir } from '../../lib/field-dir';
 import { messages } from '../../messages/fa';
 import { suggestSlug } from '../../modules/organizations/slug';
 import { logoUploadAction } from './actions';
+import { needsRepresentative } from '../../modules/organizations/legal-forms';
 
 // The business form (wave 1, mockups final/business-new and business-legal; step 2 designed in the
 // same style). A new business is made in three steps in one form: about it, contact and hours, the
@@ -174,6 +175,8 @@ function HoursRow({ day, v, error }: { day: (typeof WEEKDAYS)[number]; v: Values
   );
 }
 
+const SECTION_IDS = ['about', 'contact', 'legal'] as const;
+
 export function BusinessForm({
   action,
   initial,
@@ -249,7 +252,8 @@ export function BusinessForm({
     startTransition(() => dispatch(data));
   }
 
-  const section = (n: Step) => ({ 'data-step': wizard ? n : undefined, className: !wizard || step === n ? 'block' : 'hidden' });
+  // Each part has an address (#about, #contact, #legal) so the dashboard's «اطلاعات قانونی» opens it
+  const section = (n: Step) => ({ id: SECTION_IDS[n - 1], 'data-step': wizard ? n : undefined, className: `scroll-mt-20 ${!wizard || step === n ? 'block' : 'hidden'}` });
   const heading = (n: Step, title: string, lead?: string) => (
     <>
       {wizard ? <h1 className="mt-5 text-2xl font-extrabold">{title}</h1> : <h2 className="text-xl font-extrabold">{names[n - 1]}</h2>}
@@ -315,7 +319,7 @@ export function BusinessForm({
               <bdi dir="ltr" className="font-bold text-neutral-800">
                 {host}/b/{slug || '…'}
               </bdi>{' '}
-              <button type="button" onClick={() => setSlugOpen(true)} className="font-bold text-brand-800">
+              <button type="button" onClick={() => setSlugOpen(true)} className="-my-3 inline-flex min-h-11 items-center px-2 font-bold text-brand-800">
                 {w.slugChange}
               </button>
             </p>
@@ -394,7 +398,8 @@ export function BusinessForm({
           ))}
         </div>
         <Label optional>{w.hours}</Label>
-        <p className="text-xs text-neutral-600">{w.hoursHint}</p>
+        {/* No day set yet reads as "nothing entered", not as closed all week (design check, Oct 31, 2026) */}
+        <p className="text-xs text-neutral-600">{WEEKDAYS.some((d) => v[`hours.${d}.open`] === 'on') ? w.hoursHint : w.hoursNone}</p>
         <ul className="mt-1 divide-y divide-neutral-200">
           {WEEKDAYS.map((d) => (
             <HoursRow key={d} day={d} v={v} error={f[`hours.${d}`]} />
@@ -474,7 +479,7 @@ export function BusinessForm({
           ))}
         </datalist>
         <TextField name="legalName" label={sole ? w.legalNameSole : company ? w.legalNameCompany : t.fields.legalName} v={v} f={f} ltr maxLength={120} autoComplete={sole ? 'name' : 'organization'} />
-        {(company || otherForm) && <TextField name="representativeName" label={w.representative} v={v} f={f} optional ltr maxLength={120} />}
+        {(company || otherForm) && <TextField name="representativeName" label={w.representative} v={v} f={f} optional={!needsRepresentative(legalForm)} ltr maxLength={120} />}
         <TextField name="addressLine1" label={w.street} v={v} f={f} ltr maxLength={120} autoComplete="address-line1" placeholder="Kantstraße 1" />
         <div className="grid grid-cols-[8rem_1fr] gap-x-3">
           <TextField name="legalPostal" label={w.postal} v={v} f={f} ltr maxLength={20} autoComplete="postal-code" inputMode="numeric" />

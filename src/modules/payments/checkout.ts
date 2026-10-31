@@ -267,7 +267,7 @@ export async function startPlanCheckout(
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };
 
   const [org] = await db
-    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
+    .select({ id: organizations.id, slug: organizations.slug, name: organizations.name, legalName: organizations.legalName, legalForm: organizations.legalForm, representativeName: organizations.representativeName, addressLine1: organizations.addressLine1, postalCode: organizations.postalCode, email: organizations.email })
     .from(organizations)
     .where(eq(organizations.id, opts.organizationId));
   const found = await activePrice(db, opts.plan, PAYMENT_CURRENCY, opts.interval);

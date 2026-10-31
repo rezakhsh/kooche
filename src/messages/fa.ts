@@ -1061,6 +1061,7 @@ export const messages = {
   },
   // Businesses, their page, members and plan (roadmap step 6, approved Oct 22, 2026)
   business: {
+    backToPanel: 'پنل کسب‌وکار',
     // Private or business in one page (wave 2 part 4, mockup final/private-vs-business)
     compare: {
       title: 'آگهی شخصی یا کسب‌وکار؟',
@@ -1236,6 +1237,10 @@ export const messages = {
       revoke: 'لغو',
       remove: 'حذف',
       leave: 'خروج از این کسب‌وکار',
+      removeConfirm: (name: string) => `«${name}» دیگر به این کسب‌وکار دسترسی ندارد. آگهی‌هایی که به نام کسب‌وکار گذاشته، با گفتگوهایشان به شما می‌رسد.`,
+      removeYes: 'بله، حذف شود',
+      leaveConfirm: 'دیگر به این کسب‌وکار دسترسی ندارید. آگهی‌هایی که به نام کسب‌وکار گذاشته‌اید پیش کسب‌وکار می‌ماند.',
+      leaveYes: 'بله، خارج می‌شوم',
       makeRole: (role: string) => `تغییر به ${role}`,
       you: '(شما)',
       errors: {
@@ -1252,6 +1257,16 @@ export const messages = {
       title: 'دعوت به کسب‌وکار',
       text: (org: string, role: string) => `شما دعوت شده‌اید که با نقش «${role}» به «${org}» در پیدو بپیوندید.`,
       accept: 'پذیرفتن دعوت',
+      decline: 'رد دعوت',
+      declined: 'دعوت را رد کردید. مالک کسب‌وکار دیگر آن را در فهرست دعوت‌ها نمی‌بیند.',
+      seePage: 'دیدن صفحهٔ کسب‌وکار',
+      byWhom: (name: string, role: string) => `${name} شما را با نقش «${role}» به این کسب‌وکار در پیدو دعوت کرده است.`,
+      roleCan: {
+        staff: 'همکار به نام کسب‌وکار آگهی می‌گذارد و آگهی‌های خودش را مدیریت می‌کند. اطلاعات کسب‌وکار، همکاران و اشتراک دست مالک است.',
+        manager: 'مدیر به نام کسب‌وکار آگهی می‌گذارد و همهٔ آگهی‌های کسب‌وکار را مدیریت می‌کند. اطلاعات کسب‌وکار، همکاران و اشتراک دست مالک است.',
+        owner: 'مالک همه چیز را مدیریت می‌کند: آگهی‌ها، اطلاعات کسب‌وکار، همکاران و اشتراک.',
+      } as Record<string, string>,
+      phoneFirst: 'برای گذاشتن آگهی به نام کسب‌وکار، اول باید شماره‌تان را تأیید کنید. می‌توانید دعوت را همین حالا بپذیرید.',
       wrongAccount: (email: string) => `این دعوت برای ${email} است. با همان ایمیل وارد شوید.`,
       expired: 'این دعوت منقضی یا لغو شده است. از مالک کسب‌وکار بخواهید دوباره دعوت کند.',
       accepted: 'به کسب‌وکار پیوستید.',
@@ -1267,6 +1282,7 @@ export const messages = {
     billing: {
       title: 'اشتراک و فاکتورها',
       current: 'اشتراک فعلی',
+      seatsUsed: (used: number, max: number) => `${used.toLocaleString('fa-IR')} از ${max.toLocaleString('fa-IR')} همکار`,
       none: 'این کسب‌وکار اشتراکی ندارد و تا ۳ آگهی فعال رایگان دارد.',
       status: {
         active: 'فعال',
@@ -1384,6 +1400,7 @@ export const messages = {
       languages: 'به چه زبان‌هایی خدمت می‌دهید؟',
       hours: 'ساعت کار',
       hoursHint: 'روزهایی که باز هستید را روشن کنید.',
+      hoursNone: 'هنوز ساعت کاری وارد نشده است. روزهایی که باز هستید را روشن کنید.',
       closed: 'بسته',
       from: 'از',
       to: 'تا',
@@ -1447,6 +1464,8 @@ export const messages = {
       foundingTitle: 'جای بنیان‌گذار شما آماده است: ۶ ماه پرو رایگان',
       foundingSteps: {
         verified: ['کسب‌وکار تأیید شد', 'شماره، نشانی و Impressum بررسی شد'],
+        verifyTodo: ['نشان «تأییدشده» را دوباره بگیرید', 'پس از تغییر نام یا اطلاعات قانونی، مدرک را در همین صفحه بفرستید'],
+        legalTodo: ['اطلاعات قانونی را کامل کنید', 'نام، شکل حقوقی و نشانی برای Impressum؛ لازم برای شروع'],
         offered: ['جای بنیان‌گذار برای شما نگه داشته شد', 'از طرف پیدو'],
         start: ['شروع ۶ ماه پرو', 'بدون کارت بانکی؛ بعد از ۶ ماه خودش تمام می‌شود'],
       } as Record<string, [string, string]>,

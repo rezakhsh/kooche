@@ -231,6 +231,11 @@ export function browsableCategory(catalog: Catalog, slug: string): CategoryNode 
   return ancestry(catalog, c.id).every((x) => x.isActive) ? c : null;
 }
 
+/** Whether this person may open the category's form: business-only ones need a business (the form then offers only theirs) */
+export function openToPoster(category: Pick<CategoryNode, 'businessOnly'>, member: boolean): boolean {
+  return !category.businessOnly || member;
+}
+
 /** A category new listings may use: an active leaf whose ancestors are active too */
 export function isPostable(catalog: Catalog, categoryId: string): boolean {
   const chain = ancestry(catalog, categoryId);

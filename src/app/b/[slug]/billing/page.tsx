@@ -1,5 +1,5 @@
 import { IranPaymentNotice, fromIran } from '../../../../components/iran';
-import { Alert, Button, Card, PageShell, Pill } from '../../../../components/ui';
+import { Alert, Button, Card, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
 import { formatDate } from '../../../../lib/format';
@@ -13,6 +13,12 @@ import { foundingState } from '../../../../modules/payments/founding';
 import { proMonthlyText } from '../../../../modules/payments/prices';
 import { legalComplete } from '../../../../modules/organizations/organizations';
 import { memberOf } from '../member';
+import { TaskPage } from '../../../../components/settings';
+import { Icon } from '../../../../components/icons';
+import { businessUsage } from '../../../../modules/organizations/limits';
+import { members, pendingInvitations } from '../../../../modules/organizations/members';
+import { planFeatures } from '../../../../modules/payments/features';
+import { planFeatureList } from '../../../pro/feature-list';
 
 // The business's plan (owner only): subscribe through Stripe Checkout, or manage the running
 // subscription in Stripe's Customer Portal. What the business has is read from entitlements; the
@@ -31,6 +37,10 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   const offers = await Promise.all(
     (['pro', 'pro-plus'] as const).map(async (code) => ({ code, month: await activePrice(db, code, 'EUR', 'month'), year: await activePrice(db, code, 'EUR', 'year') })),
   );
+  // Paying needs the legal details: the pay buttons wait for them, as on the dashboard (design check, Oct 31, 2026)
+  const legalOk = legalComplete(org);
+  // What the current plan is used for: listings and colleagues (design check, Oct 31, 2026)
+  const [usage, team, invited] = await Promise.all([businessUsage(db, org.id), members(db, org.id), pendingInvitations(db, org.id)]);
   // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
   const iran = await fromIran();
   const payments = !!paymentGateway() && !iran;
@@ -48,8 +58,9 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   // Just back from paying, before the webhook arrives: no plan forms, so nobody pays twice (code check, Oct 30, 2026)
   const offer = !running && !query.done;
 
+  // TaskPage: a way back to the dashboard (design check, Oct 31, 2026)
   return (
-    <PageShell title={`${t.title}: ${org.name}`} wide>
+    <TaskPage title={`${t.title}: ${org.name}`} back={`/b/${org.slug}/manage`} backLabel={messages.business.backToPanel} wide>
       <div className="space-y-5">
         {query.done && !plan.code && <meta httpEquiv="refresh" content="4" />}
         {query.done && <Alert tone="success">{t.done}</Alert>}
@@ -66,7 +77,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
         {error && <Alert tone="error">{error}</Alert>}
         {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
         {/* Wave 1: the legal details can wait until here; paying needs them (legal_missing) */}
-        {payments && offer && !legalComplete(org) && (
+        {payments && offer && !legalOk && (
           <Alert tone="info">
             {t.errors.legal_missing}{' '}
             <a href={`/b/${org.slug}/edit`} className="font-bold underline">
@@ -84,7 +95,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
               <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
               <span>{t.businessTick}</span>
             </label>
-            <Button type="submit" className="w-full sm:w-auto">
+            <Button type="submit" className="w-full sm:w-auto" disabled={!legalOk}>
               {t.founding.start}
             </Button>
           </form>
@@ -106,6 +117,12 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                 <Pill tone={running.status === 'active' || running.status === 'trialing' ? 'success' : 'warning'}>{t.status[running.status]}</Pill>
               </p>
               <p className="text-sm text-neutral-600">{running.cancelAtPeriodEnd ? t.ends(formatDate(running.currentPeriodEnd, zone)) : t.renews(formatDate(running.currentPeriodEnd, zone))}</p>
+              {plan.code && (
+                <p className="text-sm text-neutral-700">
+                  {messages.business.manage.usage(usage.active, usage.limit)}
+                  {plan.features.staffSeats > 0 && `، ${t.seatsUsed(team.length - 1 + invited.length, plan.features.staffSeats)}`}
+                </p>
+              )}
               {processing && <Alert tone="info">{t.processing}</Alert>}
             </>
           ) : (
@@ -152,6 +169,16 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                   {hidden}
                   <input type="hidden" name="plan" value={o.code} />
                   <p className="text-lg font-extrabold">{messages.pro.planNames[o.code]}</p>
+                  {(o.month ?? o.year) && (
+                    <ul className="space-y-1 text-sm text-neutral-700">
+                      {planFeatureList(o.code, planFeatures((o.month ?? o.year)!.product.features)).map((line) => (
+                        <li key={line} className="flex gap-2">
+                          <Icon name="check" className="mt-1 size-4 shrink-0 text-brand-700" />
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <fieldset className="space-y-2 text-sm">
                     {o.month && (
                       <label className="flex items-center gap-2">
@@ -170,7 +197,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                     <input type="checkbox" name="business" required className="mt-0.5 size-4 shrink-0 accent-brand-700" />
                     <span>{t.businessTick}</span>
                   </label>
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={!legalOk}>
                     {t.subscribe}
                   </Button>
                 </form>
@@ -183,6 +210,6 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
           </section>
         )}
       </div>
-    </PageShell>
+    </TaskPage>
   );
 }
