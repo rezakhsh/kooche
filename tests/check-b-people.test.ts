@@ -216,7 +216,8 @@ describe('photos of a taken-down or deleted listing', () => {
     expect(storage.objects.has(`${HELD_PREFIX}${key}`)).toBe(true);
     // Back again
     await db.update(schema.listings).set({ status: 'active' }).where(eq(schema.listings.id, l.id));
-    await syncPhotoVisibility(workerDb, storage, l.id);
+    // Its public addresses are purged again: Cloudflare kept the 404s of the held time
+    expect(await syncPhotoVisibility(workerDb, storage, l.id)).toEqual([key]);
     expect(await keyNow()).toBe(key);
     expect(storage.objects.has(key)).toBe(true);
     expect(storage.objects.has(`${HELD_PREFIX}${key}`)).toBe(false);

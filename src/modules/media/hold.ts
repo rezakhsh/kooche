@@ -17,8 +17,8 @@ export const HELD_PREFIX = 'held/';
 const HIDDEN_STATUSES = new Set(['rejected', 'deleted']);
 
 /**
- * Moves the listing's photos in or out of `held/` to match its status. Returns the keys whose
- * public addresses changed (the old ones, to purge). Safe to run again after a failure: the copy
+ * Moves the listing's photos in or out of `held/` to match its status. Returns the public keys
+ * whose addresses to purge (also on the way back: Cloudflare caches the 404s of a held photo). Safe to run again after a failure: the copy
  * comes first, and the key no longer in use is deleted every time.
  */
 export async function syncPhotoVisibility(db: Db, storage: ObjectStorage, listingId: string): Promise<string[]> {
@@ -40,11 +40,12 @@ export async function syncPhotoVisibility(db: Db, storage: ObjectStorage, listin
       const body = await storage.get(image.key, MAX_UPLOAD_BYTES);
       if (body) await storage.put(target, body, 'image/webp');
       await db.update(listingImages).set({ storageKey: target }).where(eq(listingImages.id, image.id));
-      changed.push(image.key);
     }
     // The copy no longer in use, also when an earlier run stopped after the update
     await storage.delete(hide ? shown : `${HELD_PREFIX}${shown}`);
-    if (hide && image.key === target) changed.push(shown);
+    // The public addresses always: hidden, Cloudflare's copies go; back, the 404s it cached
+    // meanwhile (kept 4 hours) go
+    changed.push(shown);
   }
   return changed;
 }
