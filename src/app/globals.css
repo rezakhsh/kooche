@@ -241,6 +241,11 @@ body:has(details[data-sheet][open]) [data-bottom-nav] {
   display: none;
 }
 
+/* A page with its own bar at the bottom keeps it alone (src/components/bottom-nav.tsx) */
+body:has([data-own-bar], [data-step-bar]) [data-bottom-nav] {
+  display: none;
+}
+
 /* The admin page has its own bar and sections (src/app/admin/layout.tsx, wave 1): none of the
    public header, footer, Iran note or bottom bar */
 body:has([data-admin]) > :is(header, footer),

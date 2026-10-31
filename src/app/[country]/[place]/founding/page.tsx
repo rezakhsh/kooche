@@ -101,7 +101,7 @@ export default async function FoundingPage({ params }: Props) {
           </Link>
         </p>
       </main>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:pt-0">
+      <div data-own-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:pt-0">
         <div className="mx-auto max-w-3xl">
           <Link href="/business/new" className="flex h-12 items-center justify-center rounded-xl bg-brand-700 font-bold text-white hover:bg-brand-800">
             {t.cta}

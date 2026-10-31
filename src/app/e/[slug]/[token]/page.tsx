@@ -518,7 +518,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
 
       {/* Phones: the date, the price and the main button, always in reach */}
       {!isOwner && live && (
-        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div data-own-bar className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
           <p className="min-w-0 flex-1">
             {next && (
               <span className="block truncate text-xs text-neutral-600">

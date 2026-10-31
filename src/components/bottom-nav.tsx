@@ -7,24 +7,12 @@ import { Icon, type IconName } from './icons';
 
 // The bar at the bottom of the screen on phones (approved Oct 17, 2026; messages added Oct 18):
 // listings, messages, post, my listings, account. Hidden from the small breakpoint up, where the
-// header has the same links, and on task pages (wave 1: "the bottom bar only on browsing pages"):
-// a conversation, posting and editing, settings, sign-in and forms, which keep the screen to
-// themselves.
+// header has the same links. Owner, Oct 31, 2026: on every page except where the page has its own
+// bar at the bottom: a conversation (the typing box), posting (the steps' bar), and the pages that
+// mark their own bar with data-own-bar or data-step-bar (globals.css: the listing and event pages'
+// contact bar, a draft's steps, the business form's save bar, the founding offer's bar).
 
-const TASK_PAGES = [
-  // A listing page has its own bar (chat, phone, save); an event page too (tickets, save)
-  /^\/v\//,
-  /^\/e\//,
-  /^\/chat\/./,
-  /^\/new(\/|$)/,
-  /^\/my\/(listings|events|orders)\/./,
-  /^\/events\/new/,
-  /^\/business\/new/,
-  // A business's dashboard is a hub (mockup final/business-dashboard); its edit, team and billing aren't
-  /^\/b\/[^/]+\/(edit|team|billing)/,
-  /^\/account\/./,
-  /^\/(login|report|contact|waitlist|cities)(\/|$)/,
-];
+const TASK_PAGES = [/^\/chat\/./, /^\/new(\/|$)/, /^\/events\/new/, /^\/business\/new/];
 
 /** Whether the bar shows on this path (phones only) */
 export function showsBottomNav(path: string): boolean {

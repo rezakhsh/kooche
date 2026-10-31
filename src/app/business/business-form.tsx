@@ -503,7 +503,7 @@ export function BusinessForm({
       </section>
 
       {/* Without JavaScript, and when editing: one plain button */}
-      <div data-noscript-actions className={wizard ? 'hidden' : 'fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:p-0'}>
+      <div data-noscript-actions data-own-bar={wizard ? undefined : ''} className={wizard ? 'hidden' : 'fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:p-0'}>
         <button type="submit" name="intent" value="save" disabled={pending || logoBusy} className="mx-auto flex h-12 w-full max-w-2xl items-center justify-center rounded-xl bg-brand-700 font-bold text-white hover:bg-brand-800 disabled:opacity-60">
           {wizard ? w.create : t.save}
         </button>

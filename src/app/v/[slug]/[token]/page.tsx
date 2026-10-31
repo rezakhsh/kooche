@@ -593,7 +593,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       {/* Phones: chat, phone and save always at hand */}
       {canContact && !isOwner && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div data-own-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
           <Contact token={l.publicToken} allowPhone={l.allowPhoneContact} returnTo={path} chat={chat!} layout="bar" save={<FavoriteButton token={l.publicToken} saved={savedByMe} back={path} variant="bar" />} />
         </div>
       )}
