@@ -25,14 +25,15 @@ export default async function UserPage({ params, searchParams }: { params: Promi
   return (
     <>
       <AdminTitle title={`${admin.item.kinds.user}: ${p.name}`}>
-        <div className="flex flex-wrap items-center gap-4">
+        {/* 44 px tap height on phones (design check, Oct 31, 2026) */}
+        <div className="flex flex-wrap items-center gap-x-4">
           {/* Sign in as this user (src/modules/admin/acting.ts): the form on «دیدن از نگاه دیگران» */}
           {actAllowed && !p.staffRole && id !== staff.ctx.userId && (
-            <Link href={adminHref(`/view-as?target=${id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">
+            <Link href={adminHref(`/view-as?target=${id}`)} prefetch={false} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-800 hover:underline">
               {t.actAs}
             </Link>
           )}
-          <Link href={adminHref(`/items/user/${id}`)} prefetch={false} className="text-sm font-medium text-brand-800 hover:underline">
+          <Link href={adminHref(`/items/user/${id}`)} prefetch={false} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-800 hover:underline">
             {t.moderation}
           </Link>
         </div>
@@ -94,11 +95,14 @@ export default async function UserPage({ params, searchParams }: { params: Promi
               <ul className="divide-y divide-neutral-100 text-sm">
                 {listings.map((l) => (
                   <li key={l.id}>
-                    <Link href={adminHref(`/items/listing/${l.id}`)} prefetch={false} className="flex flex-wrap items-center gap-2 py-2 hover:bg-neutral-50">
-                      <bdi dir="auto" className="min-w-0 flex-1 truncate">{l.title || admin.common.none}</bdi>
-                      <StatusPill status={l.status} />
-                      <span className="text-xs text-neutral-500">{faDigits(String(l.refNumber))}</span>
-                      <span className="text-xs text-neutral-500"><When date={l.createdAt} /></span>
+                    {/* The title on its own line: on phones the row cut it to one word (design check, Oct 31, 2026) */}
+                    <Link href={adminHref(`/items/listing/${l.id}`)} prefetch={false} className="block py-2.5 hover:bg-neutral-50">
+                      <bdi dir="auto" className="block truncate font-medium">{l.title || admin.common.none}</bdi>
+                      <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <StatusPill status={l.status} />
+                        <span className="text-xs text-neutral-500">{faDigits(String(l.refNumber))}</span>
+                        <span className="text-xs text-neutral-500"><When date={l.createdAt} /></span>
+                      </span>
                     </Link>
                   </li>
                 ))}

@@ -124,7 +124,8 @@ export default async function ViewAsPage({ searchParams }: { searchParams: Promi
                       )}
                     </td>
                     <td className="p-3">
-                      <Link href={adminHref(`/users/${a.id}`)} prefetch={false} className="hover:underline">
+                      {/* 44 px tap height on phones (design check, Oct 31, 2026) */}
+                      <Link href={adminHref(`/users/${a.id}`)} prefetch={false} className="inline-flex min-h-11 items-center hover:underline">
                         {a.email ? <bdi dir="ltr">{a.email}</bdi> : <bdi dir="auto">{a.name}</bdi>}
                       </Link>
                     </td>
@@ -136,7 +137,7 @@ export default async function ViewAsPage({ searchParams }: { searchParams: Promi
                       <td className="p-3">
                         <form action={actAsAction}>
                           <input type="hidden" name="userId" value={a.id} />
-                          <button type="submit" className="inline-flex h-9 items-center rounded-lg border border-neutral-300 px-3 text-xs font-bold whitespace-nowrap hover:bg-neutral-50">{t.signInAs}</button>
+                          <button type="submit" className="inline-flex h-11 items-center rounded-lg border border-neutral-300 px-3 text-xs font-bold whitespace-nowrap hover:bg-neutral-50">{t.signInAs}</button>
                         </form>
                       </td>
                     )}

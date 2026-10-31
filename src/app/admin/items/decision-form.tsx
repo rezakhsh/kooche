@@ -85,7 +85,11 @@ export function DecisionForm(props: {
       {picked?.appealId && <input type="hidden" name="appealId" value={picked.appealId} />}
       {picked?.sanctionId && <input type="hidden" name="sanctionId" value={picked.sanctionId} />}
       <fieldset>
-        <legend className="mb-2 text-xs text-neutral-600">{t.keysHint(Math.min(9, props.ops.length))}</legend>
+        {/* Keyboard hints only where there is a keyboard and mouse (design check, Oct 31, 2026) */}
+        <legend className="mb-2 text-xs text-neutral-600">
+          <span className="pointer-coarse:hidden">{t.keysHint(Math.min(9, props.ops.length))} </span>
+          {t.noneChosen}
+        </legend>
         <div className="space-y-1.5">
           {props.ops.map((o, i) => {
             const red = RESTRICTING.has(o.op);
@@ -95,7 +99,7 @@ export function DecisionForm(props: {
                 className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 text-sm has-[:checked]:border-2 has-[:checked]:font-bold has-[:focus-visible]:ring-2 ${red ? 'has-[:checked]:border-red-600 has-[:checked]:bg-red-50 has-[:checked]:text-red-800 has-[:focus-visible]:ring-red-600/30' : 'has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800 has-[:focus-visible]:ring-brand-600/30'}`}
               >
                 <input type="radio" name="$choice" data-key-option checked={choice === i} onChange={() => setChoice(i)} className="sr-only" />
-                <kbd className="w-5 shrink-0 rounded bg-neutral-100 text-center text-xs font-normal text-neutral-700">{i < 9 ? fa(i + 1) : ''}</kbd>
+                <kbd className="w-5 shrink-0 rounded bg-neutral-100 text-center text-xs font-normal text-neutral-700 pointer-coarse:hidden">{i < 9 ? fa(i + 1) : ''}</kbd>
                 {o.label}
               </label>
             );
@@ -181,7 +185,7 @@ export function DecisionForm(props: {
         className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold disabled:cursor-not-allowed ${!picked ? 'bg-neutral-100 text-neutral-500' : restricting ? 'bg-danger text-snow hover:bg-danger-hover' : 'bg-brand-700 text-white hover:bg-brand-800'} disabled:opacity-80`}
       >
         {picked ? t.submitNext(picked.label) : t.chooseFirst}
-        {picked && <kbd className="rounded bg-snow/20 px-1.5 text-xs font-normal">Enter</kbd>}
+        {picked && <kbd className="rounded bg-ink/25 px-1.5 text-xs font-normal pointer-coarse:hidden">Enter</kbd>}
       </button>
       {restricting && <p className="text-center text-xs text-neutral-600">{t.previewNote}</p>}
     </form>

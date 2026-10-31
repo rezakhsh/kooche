@@ -10,9 +10,26 @@ import { SoftwareCard } from './software';
 
 // The system status (roadmap step 8): live checks from the web, and the worker's snapshot.
 // Wave 1 (mockup admin-system): problems first, in red, each with what to do; the healthy parts
-// quiet, as green dots; every queue column visible, failed first and in red.
+// quiet, as green dots; the busy queues only, failed first and in red.
 
 const fa = (n: number) => n.toLocaleString('fa-IR');
+
+type Counts = { waiting: number; active: number; delayed: number; failed: number };
+
+/** One queue: its name and only the counts that aren't zero */
+function QueueRow({ name, counts }: { name: string; counts: Counts }) {
+  const shown = (['failed', 'active', 'waiting', 'delayed'] as const).filter((k) => counts[k] > 0);
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+      <bdi dir="ltr" className="font-mono text-[13px]">{name}</bdi>
+      {shown.map((k) => (
+        <span key={k} className={`text-xs tabular-nums ${k === 'failed' ? 'font-bold text-red-700' : 'text-neutral-700'}`}>
+          {admin.system.queueCount(fa(counts[k]), admin.system.counts[k]!)}
+        </span>
+      ))}
+    </li>
+  );
+}
 
 export default async function SystemPage({ searchParams }: { searchParams: Promise<{ dismiss?: string }> }) {
   await requireStaff('system.view');
@@ -22,6 +39,9 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
   const t = admin.system;
   const s = status.snapshot;
   const bad = new Set(problems.map((p) => p.key));
+  const queues = Object.entries(s?.queues ?? {}).sort(([, a], [, b]) => b.failed - a.failed);
+  const busy = queues.filter(([, c]) => c.failed > 0 || c.active > 0 || c.waiting > 0);
+  const calm = queues.filter(([, c]) => !(c.failed > 0 || c.active > 0 || c.waiting > 0));
   const ms = (v: number | null | undefined) => (v === undefined ? t.unknown : v === null ? t.down : `${fa(v)} ms`);
   const ago = (iso: string | null | undefined) => (iso ? <Ago date={new Date(iso)} /> : t.unknown);
   const tiles: Array<[string, React.ReactNode, boolean]> = [
@@ -83,32 +103,27 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
 
       <section id="queues" className="mt-4 scroll-mt-20 rounded-2xl border border-neutral-200 bg-white p-4">
         <h2 className="font-extrabold">{t.queues}</h2>
+        {/* Only queues with something failed, running or waiting; the calm ones folded away. Rows, not a
+            table: on phones the table ran off the side (design check, Oct 31, 2026). Scheduled jobs
+            (repeating ones) are normal and don't make a queue busy. */}
         {s ? (
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[30rem] text-sm">
-              <thead>
-                <tr className="text-xs text-neutral-600">
-                  <th className="py-2 text-start font-bold">{t.queue}</th>
-                  {(['failed', 'active', 'waiting', 'delayed'] as const).map((k) => (
-                    <th key={k} className="text-start font-bold">{t.counts[k]}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {Object.entries(s.queues).map(([name, c]) => (
-                  <tr key={name}>
-                    <td className="py-2">
-                      <bdi dir="ltr" className="font-mono text-[13px]">{name}</bdi>
-                    </td>
-                    <td className={`tabular-nums ${c.failed ? 'font-bold text-red-700' : 'text-neutral-500'}`}>{fa(c.failed)}</td>
-                    <td className="tabular-nums">{fa(c.active)}</td>
-                    <td className="tabular-nums">{fa(c.waiting)}</td>
-                    <td className="tabular-nums text-neutral-600">{fa(c.delayed)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {busy.length > 0 ? (
+              <ul className="mt-2 divide-y divide-neutral-100 text-sm">
+                {busy.map(([name, c]) => <QueueRow key={name} name={name} counts={c} />)}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-green-800">{t.queuesAllCalm(calm.length)}</p>
+            )}
+            {busy.length > 0 && calm.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer py-2 text-sm text-neutral-600">{t.queuesCalm(calm.length)}</summary>
+                <ul className="divide-y divide-neutral-100 text-sm">
+                  {calm.map(([name, c]) => <QueueRow key={name} name={name} counts={c} />)}
+                </ul>
+              </details>
+            )}
+          </>
         ) : (
           <p className="mt-2 text-sm text-neutral-600">{t.stale}</p>
         )}

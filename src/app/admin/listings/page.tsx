@@ -32,7 +32,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
           ))}
         </select>
         <select name="country" defaultValue={country ?? ''} className={selectClass} aria-label={admin.common.country}>
-          <option value="">{admin.common.all}</option>
+          <option value="">{t.allCountries}</option>
           <option value="DE">DE</option>
           <option value="AT">AT</option>
         </select>

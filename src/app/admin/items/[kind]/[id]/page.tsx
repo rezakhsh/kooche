@@ -4,7 +4,7 @@ import { Alert, Pill } from '../../../../../components/ui';
 import { appDb } from '../../../../../db/drizzle';
 import { userSanctions } from '../../../../../db/schema';
 import { webEnv } from '../../../../../lib/env';
-import { admin, faDigits } from '../../../../../messages/fa';
+import { admin, faDigits, messages } from '../../../../../messages/fa';
 import { staffAudit } from '../../../../../modules/admin/audit';
 import { contactsListed } from '../../../../../modules/admin/users';
 import { businessForReview, decisionsOn, duplicateOf, listingForReview, messageInContext, personHistory, reportsOn, sameTextCount, type DecisionRow } from '../../../../../modules/admin/items';
@@ -301,9 +301,10 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
               <Facts
                 rows={[
                   [t.status, <StatusPill key="s" status={b.org.status} />],
-                  [t.verification, admin.status[b.org.verificationStatus] ?? b.org.verificationStatus],
+                  // In Persian, as on the businesses page (design check, Oct 31, 2026: «unverified», «(owner)»)
+                  [t.verification, admin.businesses.verificationStatus[b.org.verificationStatus] ?? b.org.verificationStatus],
                   [t.person.listings, faDigits(String(b.liveListings))],
-                  [t.members, b.members.map((m) => `${m.name} (${m.role})`).join('، ')],
+                  [t.members, b.members.map((m) => `${m.name} (${(messages.business.roles as Record<string, string>)[m.role] ?? m.role})`).join('، ')],
                   [t.person.since, <Ago key="c" date={b.org.createdAt} />],
                 ]}
               />

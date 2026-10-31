@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Icon } from '../../../components/icons';
 import { Button } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { admin, faDigits } from '../../../messages/fa';
@@ -32,7 +33,15 @@ export default async function FreshPage() {
             const cur = r.currency ? catalog.currencies.get(r.currency) : undefined;
             return (
               <li key={r.id} className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200">
-                <div className="aspect-[4/3] bg-neutral-100">{cover && <img src={cover} alt="" className="size-full object-cover" loading="lazy" />}</div>
+                {/* No photo: a short strip, not an empty photo space (design check, Oct 31, 2026) */}
+                {cover ? (
+                  <div className="aspect-[4/3] bg-neutral-100"><img src={cover} alt="" className="size-full object-cover" loading="lazy" /></div>
+                ) : (
+                  <p className="flex items-center gap-2 bg-neutral-100 px-3 py-2 text-xs font-bold text-neutral-600">
+                    <Icon name="camera" className="size-4" />
+                    {admin.item.noPhotos}
+                  </p>
+                )}
                 <div className="flex flex-1 flex-col gap-1 p-3 text-sm">
                   <p className="truncate font-bold"><bdi dir="auto">{r.title}</bdi></p>
                   {r.price_minor !== null && cur && <p>{formatPrice(Number(r.price_minor), cur.code, cur.minorUnit)}</p>}

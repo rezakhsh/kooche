@@ -3,6 +3,7 @@ import { Alert } from '../../../components/ui';
 import { admin } from '../../../messages/fa';
 import { adminHref, staffSession } from '../../../modules/admin/server';
 import { CodeForm } from './code-form';
+import { TwoFactorExit } from '../two-factor-exit';
 
 export default async function VerifyPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { state } = await staffSession();
@@ -16,6 +17,7 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
       {after && <div className="mb-4"><Alert tone="success">{t.afterSetup}</Alert></div>}
       <p className="mb-6 text-sm text-neutral-700">{t.intro}</p>
       <CodeForm />
+      <TwoFactorExit />
     </div>
   );
 }

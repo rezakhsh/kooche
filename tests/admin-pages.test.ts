@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { auditLog, organizations, outboxEvents, sessions, users } from '../src/db/schema';
 import { can } from '../src/modules/admin/access';
 import { auditRows } from '../src/modules/admin/audit-log';
+import { messageInContext } from '../src/modules/admin/items';
 import { opPermission, OPS } from '../src/modules/admin/ops';
 import { cityMetrics, overview } from '../src/modules/admin/overview';
 import { stripeLink } from '../src/modules/admin/payments';
@@ -141,6 +142,24 @@ describe('businesses', () => {
   });
 });
 
+describe('a reported message in its conversation', () => {
+  it('shows it once, with the messages around it (microsecond times)', async () => {
+    const seller = await user();
+    const buyer = await user();
+    const l = await makeListing(tx, seller.id);
+    const [c] = await db.insert(schema.conversations).values({ listingId: l.id, buyerUserId: buyer.id, sellerUserId: seller.id }).returning({ id: schema.conversations.id });
+    const at = ['2026-10-31 17:30:54.847591+00', '2026-10-31 17:42:54.847591+00', '2026-10-31 17:50:00.000001+00'];
+    const ids: string[] = [];
+    for (const [i, t] of at.entries()) {
+      const [m] = await db.execute<{ id: string }>(sql`INSERT INTO messages (conversation_id, sender_user_id, body, created_at) VALUES (${c!.id}, ${i === 1 ? seller.id : buyer.id}, ${`message ${i}`}, ${t}::timestamptz) RETURNING id`);
+      ids.push(m!.id);
+    }
+    const ctx = await messageInContext(appDb, ids[1]!);
+    expect(ctx!.messages.map((m) => m.id)).toEqual(ids);
+    expect(ctx!.messages.filter((m) => m.reported)).toHaveLength(1);
+  });
+});
+
 describe('audit log and status', () => {
   it('moderators see only their own rows', async () => {
     const mod = await staffCtx('moderator');
@@ -154,6 +173,9 @@ describe('audit log and status', () => {
     expect(mine.length).toBeGreaterThan(0);
     const all = await auditRows(appDb, { action: 'listing.taken', actor: other.userId, target: '', onlyUserId: null });
     expect(all.every((r) => r.actorId === other.userId)).toBe(true);
+    // The page's groups: listing.* is under «آگهی‌ها، پیام‌ها و اعتراض‌ها», not money
+    expect((await auditRows(appDb, { action: 'moderation', actor: '', target: '', onlyUserId: mod.userId })).length).toBeGreaterThan(0);
+    expect(await auditRows(appDb, { action: 'money', actor: '', target: '', onlyUserId: mod.userId })).toEqual([]);
   });
 
   it('the worker snapshot reaches the status page and expires', async () => {

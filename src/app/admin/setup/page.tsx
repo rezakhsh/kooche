@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { admin } from '../../../messages/fa';
 import { adminHref, staffSession } from '../../../modules/admin/server';
 import { SetupForm } from './setup-form';
+import { TwoFactorExit } from '../two-factor-exit';
 
 export default async function SetupPage() {
   const { state } = await staffSession();
@@ -11,6 +12,7 @@ export default async function SetupPage() {
       <h1 className="mb-4 text-2xl font-extrabold">{admin.setup.title}</h1>
       <p className="mb-6 text-sm text-neutral-700">{admin.setup.intro}</p>
       <SetupForm />
+      <TwoFactorExit />
     </div>
   );
 }

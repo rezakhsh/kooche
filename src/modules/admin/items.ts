@@ -192,15 +192,17 @@ export async function messageInContext(db: Queryable, messageId: string, around 
     .from(conversations)
     .innerJoin(listings, eq(listings.id, conversations.listingId))
     .where(eq(conversations.id, m.conversationId));
+  // The message's own time from the database: a JS date keeps milliseconds, created_at has
+  // microseconds, and the message then counted as "after" itself (design check, Oct 31, 2026)
   const rows = await db.execute<{ id: string; sender_user_id: string | null; kind: string; body: string; risk_flags: string[]; hidden_at: string | null; withheld: boolean; created_at: string | Date }>(sql`
     (SELECT id, sender_user_id, kind, body, risk_flags, hidden_at, withheld, created_at FROM messages
-      WHERE conversation_id = ${m.conversationId} AND (created_at, id) < (${m.createdAt.toISOString()}::timestamptz, ${m.id}::uuid)
+      WHERE conversation_id = ${m.conversationId} AND (created_at, id) < (SELECT created_at, id FROM messages WHERE id = ${m.id})
       ORDER BY created_at DESC, id DESC LIMIT ${around})
     UNION ALL
     (SELECT id, sender_user_id, kind, body, risk_flags, hidden_at, withheld, created_at FROM messages WHERE id = ${m.id})
     UNION ALL
     (SELECT id, sender_user_id, kind, body, risk_flags, hidden_at, withheld, created_at FROM messages
-      WHERE conversation_id = ${m.conversationId} AND (created_at, id) > (${m.createdAt.toISOString()}::timestamptz, ${m.id}::uuid)
+      WHERE conversation_id = ${m.conversationId} AND (created_at, id) > (SELECT created_at, id FROM messages WHERE id = ${m.id})
       ORDER BY created_at, id LIMIT ${around})
     ORDER BY created_at, id
   `);

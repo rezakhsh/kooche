@@ -268,12 +268,12 @@ export function ItemBar({ position, since, prev, next }: { position: { index: nu
       )}
       {prev && (
         <Link href={prev} prefetch={false} data-key-prev className={button}>
-          {t.prev} <kbd className="ms-1.5 rounded bg-neutral-100 px-1 text-xs">K</kbd>
+          {t.prev} <kbd className="ms-1.5 rounded bg-neutral-100 px-1 text-xs pointer-coarse:hidden">K</kbd>
         </Link>
       )}
       {next && (
         <Link href={next} prefetch={false} data-key-next className={button}>
-          {t.next} <kbd className="ms-1.5 rounded bg-neutral-100 px-1 text-xs">J</kbd>
+          {t.next} <kbd className="ms-1.5 rounded bg-neutral-100 px-1 text-xs pointer-coarse:hidden">J</kbd>
         </Link>
       )}
     </div>

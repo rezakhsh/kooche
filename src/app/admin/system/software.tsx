@@ -1,3 +1,4 @@
+import { formatDate } from '../../../lib/format';
 import { admin } from '../../../messages/fa';
 import { dismissKey, SOFTWARE_LATE_MS, type Dismissal, type Kind, type SoftwareItem, type SoftwareReport } from '../../../modules/admin/software';
 import { Ago } from '../ui';
@@ -116,15 +117,17 @@ export function SoftwareCard({ report, dismissed, errorKey, now }: { report: Sof
       })}
 
       {report && report.support.length > 0 && (
-        <p className="mt-4 text-xs text-neutral-600">
-          <b>{t.support}:</b>{' '}
-          {report.support.map((s, n) => (
-            <span key={s.name}>
-              {n > 0 && '، '}
-              <bdi dir="ltr" className="font-mono">{t.supportLine(s.name, s.line, s.ends)}</bdi>
-            </span>
-          ))}
-        </p>
+        // One line each, the date in Persian (design check, Oct 31, 2026: names and dates ran together)
+        <div className="mt-4 text-xs text-neutral-600">
+          <b>{t.support}:</b>
+          <ul className="mt-1 space-y-0.5">
+            {report.support.map((s) => (
+              <li key={s.name}>
+                <bdi dir="ltr" className="font-mono">{`${s.name} ${s.line}`}</bdi> {t.supportUntil(formatDate(new Date(`${s.ends}T12:00:00Z`), 'UTC'))}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {dev.length > 0 && (
