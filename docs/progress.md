@@ -1491,3 +1491,19 @@ Check A of `docs/plan-checks.md`, group 1: 39 pages and states, 174 pictures (ph
 - Filter panel's bottom shadow follows dark mode (the white strip); event address wraps; event date under the poster (it covered the poster's text); retired fields (cold/warm rent) hidden on the listing page; footer links 44 px on phones; no «ورود» on the sign-in pages; event type links use `aria-current`.
 - **Not changed:** Cloudflare's robot box appears only for visitors it doubts (my test browser); reserving its space would leave an empty gap for everyone.
 - **New rule (owner):** design checks also open filters, panels, menus and switchers.
+
+## Oct 31, 2026: design check, group 2 (own pages) and its fixes
+
+Check A, group 2: the signed-in person's pages, 34 pages plus 27 open states (⋯ menus, sheets, delete/cancel/block confirms, the report box, tabs, the photo menu, the category search), 196 pictures plus 38 mockup pictures, same machine checks as group 1. Sample people for the run (`design-check/tools/gen-seed2.py`, removed afterwards): «سارا نمونه» (listings in every status, two chats, saved listings and searches, a paid bump), «نیما نمونه» (the other side of her chats), «مهسا نمونه» (no phone yet). Some of the owner's sample listings are lent to them for the run and given back by the cleanup; a draft copy borrows the Wedding flat's photos (photo rows are unique per stored file). Review page: https://claude.ai/artifact/NjaEimZhicp53zL6kmopak. 24 of 38 mockup pictures match; the video folder now has 18 guides, and a logo pack for the videos is in `/root/peydoo-media/brand/`.
+
+**Fixed (owner approved P1–P10, I1, I2):**
+- **Photo menu** opens as a bottom sheet (`photos.tsx`): the small menu inside the tile was cut off on phones, so photos couldn't be deleted or moved there.
+- **My listings:** the chosen tab scrolls into view (`src/components/chip-row.tsx`); «در حال بررسی» is its own tab (it was counted as published); a rejected listing shows its reason and «اصلاح و ارسال دوباره», also on its notice in «تصمیم‌های پیدو» (`Notice.fixListingId`); a staff rejection no longer says «به‌طور خودکار» (`rejectedNoticeStaff`).
+- **Posting:** the preview and the review show the price as buyers see it (`formatTypedAmount`); «تغییر» inside its `<dd>` (axe); postal places carry their neighbourhood («نویکلن، 12045 Berlin», `places.ts`; a label read back still resolves); no «۰ آگهی» in category suggestions.
+- **Chat:** the report box starts with no reason chosen and is called «گزارش گفتگو»; long titles are cut at a word (`cutAtWord`: the browser's ellipsis cut the start of a final Latin word).
+- **Account:** devices read «Safari روی iOS»; settings' one-row groups merged into «ترجیحات»; «تلگرام ندارم» leads to the help, whose answer no longer promises an SMS button that isn't there; «فایل JSON» → «یک فایل».
+- **Orders:** «پرداخت انجام شد. سپاس!» only right after paying; the withdraw summary stacked (the email broke at its hyphen); EPS named only to people in Austria; a lock on the pay button.
+- **Published card:** top spacing and «از ۱٫۹۹ €» on the promote row.
+- **Decided:** phone verification stays Telegram-only for now (WhatsApp later, its own part); the event form's "paste your Instagram/Telegram post" helper (mockup post-event1) becomes its own part after the design check.
+- **Not changed:** the live chat stream allows 5 per person (`MAX_STREAMS_PER_USER`); opening many chats fast falls back to polling, nothing is lost.
+- **After the fixes:** staging deployed (8b6ac47), all 196 pictures taken again (old ones in `2-own/before/`), each fix seen in the new pictures; the review page shows them before and after. All 1,073 tests pass. The sample people are removed and the lent listings are back with the owner.
