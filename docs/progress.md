@@ -1472,3 +1472,7 @@ Plan approved by the owner before building ("Yes, build it"; nodemailer now, sma
 - **Owner's rule:** updates only on the owner's command, staging first, production later; the admin card only reminds.
 - **Owner's decisions (Oct 31):** the Valkey warning GHSA-fq2f-crmw-q97r is marked «لازم نیست» on staging (needs the Valkey password; Valkey is private; the 9.1 step later), recorded through `dismissSoftware` under the owner's admin account at their request, with an audit row; production's card will show it again after the release until it is marked there. Coolify's nightly self-update on staging and Ubuntu's automatic security fixes on both servers stay on (the owner's choice).
 - **Noticed:** `/usr/local/bin/peydoo-docker-cleanup` has no execute bit and no timer runs it (its header says every 2 minutes); it runs with `bash` before each push.
+
+## Oct 31, 2026: next, two checks before production (plan)
+
+The owner tests staging by hand first; production only when staging has no known bugs. City threads: researched and dropped by the owner ("does not make sense for us now"). The plan for the two checks (the design of every page, and bugs in the code) is in `docs/plan-checks.md`; each starts separately after the owner approves it.
