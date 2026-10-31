@@ -6,6 +6,7 @@ import { chatHub } from '../../../modules/chat/hub';
 import { INBOX_SCOPE, markViewing, stopViewing } from '../../../modules/chat/presence';
 import { messagesAfter, isParticipant } from '../../../modules/chat/queries';
 import { type ChatEvent, wireMessage } from '../../../modules/chat/realtime';
+import { sessionLive } from '../../../modules/users/devices';
 import { currentSession } from '../../../modules/users/server';
 
 // Server-sent events for the chat pages (docs/setup.md, "Chat"). `?c=<conversation>` on a
@@ -19,7 +20,7 @@ import { currentSession } from '../../../modules/users/server';
 // PING_MS keeps it open, refreshes the "viewing" presence, and lets the browser notice a
 // connection that died without closing (use-chat-stream.ts reconnects after 50 s of silence). Each stream ends after
 // MAX_STREAM_MS and the browser reconnects, so no connection lives forever. A stream holds no
-// database connection.
+// database connection; each ping checks that its session still exists.
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,8 @@ export async function GET(request: Request): Promise<Response> {
         // A named event, so the browser's watchdog sees it (comments are invisible to scripts)
         write('event: ping\ndata: {}\n\n');
         void markViewing(redis, userId, scope, connectionId).catch(() => {});
+        // A device signed out elsewhere stops receiving at the next ping, not after 10 minutes (Check B, Oct 31, 2026)
+        void sessionLive(db, session.session.id).then((live) => live || close(), () => {});
       }, PING_MS);
       const end = setTimeout(() => close(), MAX_STREAM_MS);
       function close() {

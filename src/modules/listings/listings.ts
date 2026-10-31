@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
-import { countries, listingImages, listings, users, type PRICE_TYPES } from '../../db/schema';
+import { countries, listingImages, listings, organizations, users, type PRICE_TYPES } from '../../db/schema';
 import type { Point } from '../../db/types';
 import { distanceMeters, snapToGrid } from '../../lib/geo';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -604,6 +604,11 @@ export async function saveListing(
       if (opts.input.organizationId && !(await roleIn(tx, opts.userId, opts.input.organizationId))) return { ok: false, reason: 'not_member' };
       organizationId = opts.input.organizationId;
     }
+    // A suspended (or closed) business publishes nothing, also from drafts saved before (Check B, Oct 31, 2026)
+    if (goingOut && organizationId) {
+      const [org] = await tx.select({ status: organizations.status }).from(organizations).where(eq(organizations.id, organizationId));
+      if (org?.status !== 'active') return { ok: false, reason: 'not_allowed' };
+    }
     // Private and business limits (decided Oct 22, 2026), when the listing goes live
     if (goingOut && !opts.extension) {
       const refused = await postingRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind, attributes: opts.input.attributes }, now);
@@ -625,7 +630,10 @@ export async function saveListing(
 
     const mode = listing.status === 'draft' && !goingOut ? 'draft' : 'publish';
     const needsName = await needsDisplayName(tx, opts.userId);
-    const result = await prepare(tx, catalog, category, listing, opts.input, mode, needsName);
+    // «نمایش شماره» shows the poster's own number: only the poster turns it on or off, not a
+    // manager or owner editing their listing (Check B, Oct 31, 2026)
+    const input = opts.userId === listing.userId ? opts.input : { ...opts.input, allowPhoneContact: listing.allowPhoneContact };
+    const result = await prepare(tx, catalog, category, listing, input, mode, needsName);
     const extra = await opts.extension?.prepare(tx, {
       current: listing,
       place: result.ok ? result.prepared.place : result.place,

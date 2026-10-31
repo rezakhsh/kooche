@@ -3,6 +3,7 @@ import type { Db, Queryable } from '../../db/drizzle';
 import { listings, organizations, outboxEvents, sessions, users } from '../../db/schema';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { describeDevice } from '../../lib/user-agent';
+import { endRemovedActing } from './acting';
 import { staffAudit, type StaffContext } from './audit';
 
 // Users, listings and businesses on the admin page (roadmap step 8): search, details, sessions,
@@ -55,7 +56,11 @@ export async function sessionsOf(db: Queryable, userId: string) {
 
 export async function signOutEverywhere(db: Db, staff: StaffContext, userId: string): Promise<number> {
   return db.transaction(async (tx) => {
-    const gone = await tx.delete(sessions).where(eq(sessions.userId, userId)).returning({ id: sessions.id });
+    const gone = await tx
+      .delete(sessions)
+      .where(eq(sessions.userId, userId))
+      .returning({ id: sessions.id, userId: sessions.userId, openedBy: sessions.openedByUserId, writableAt: sessions.writableAt });
+    await endRemovedActing(tx, gone);
     await staffAudit(tx, staff, 'user.signed_out', { type: 'user', id: userId }, { sessions: gone.length });
     // The person is told by email (outbox `user.signed_out`)
     await tx.insert(outboxEvents).values({ eventType: 'user.signed_out', aggregateType: 'user', aggregateId: userId, payload: { sessions: gone.length } });

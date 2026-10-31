@@ -265,9 +265,12 @@ export async function updateBusiness(
       if ('error' in built) return { ok: false, reason: built.error, fields: built.fields };
       // Once complete, the Impressum stays: the business's live listings depend on it (./limits.ts)
       if (legalComplete(org) && !legalComplete(built.values)) return { ok: false, reason: 'legal_incomplete', fields: { legalName: 'required' } };
-      // Changing the legal details or the public name sends a verified business back to unverified:
-      // the badge must not move to another name (code check, Oct 30, 2026)
-      const legalChanged = org.legalName !== built.values.legalName || org.registrationNumber !== built.values.registrationNumber || org.vatId !== built.values.vatId || org.name !== built.values.name;
+      // Changing the legal details, the address or the public name sends a verified business back to
+      // unverified: the badge must not move to another name or company (code check, Oct 30, 2026;
+      // legal form, register, representative and address added in Check B, owner's choice, Oct 31).
+      // Phone, website and logo keep it.
+      const LEGAL = ['name', 'legalName', 'legalForm', 'registerCourt', 'registrationNumber', 'vatId', 'representativeName', 'addressLine1', 'addressLine2', 'postalCode', 'placeName'] as const;
+      const legalChanged = LEGAL.some((k) => (org[k] ?? null) !== (built.values[k] ?? null));
       await tx
         .update(organizations)
         .set({ ...built.values, ...(legalChanged && org.verificationStatus === 'verified' ? { verificationStatus: 'unverified' as const, verifiedAt: null, verifiedByUserId: null } : {}) })
@@ -323,6 +326,13 @@ export async function myBusinesses(db: Queryable, userId: string) {
 }
 
 /** A business by its slug, for its page; suspended and deleted ones aren't found */
+/** A business that closed (its only owner deleted their account, Check B): its name for the page that says so */
+export async function closedBusinessName(db: Queryable, slug: string): Promise<string | null> {
+  if (!SLUG.test(slug)) return null;
+  const [org] = await db.select({ name: organizations.name }).from(organizations).where(and(eq(organizations.slug, slug), eq(organizations.status, 'deleted')));
+  return org?.name ?? null;
+}
+
 export async function businessBySlug(db: Queryable, slug: string) {
   if (!SLUG.test(slug)) return null;
   const [org] = await db

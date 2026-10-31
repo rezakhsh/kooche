@@ -6,7 +6,9 @@ import { expireDueListings } from '../modules/listings/listings';
 import { flushViews } from '../modules/listings/views';
 import { cleanupAbandonedUploads } from '../modules/media/cleanup';
 import { deleteDecidedDocuments } from '../modules/organizations/verification';
-import { storageFromEnv } from '../modules/media/config';
+import { imgproxyFromEnv, storageFromEnv } from '../modules/media/config';
+import { imageUrlsOf, syncPhotoVisibility } from '../modules/media/hold';
+import { purgeUrls } from '../modules/admin/purge';
 import { markImageFailed, processImage } from '../modules/media/process';
 import { runListingChecks } from '../modules/moderation/checks';
 import { LOGO_OUTBOX, processLogo } from '../modules/organizations/logo';
@@ -61,6 +63,15 @@ export async function startListingJobs(
     await scheduled.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: 50, removeOnFail: 100 } });
   }
 
+  // Photo addresses dropped from Cloudflare after a take-down, a delete or a removed photo (Check B,
+  // Oct 31, 2026); 30 addresses a call, the Free plan's limit
+  const imgproxy = imgproxyFromEnv(env);
+  const purgePhotos = async (keys: string[]) => {
+    if (!imgproxy || !env.CLOUDFLARE_ZONE_ID || !env.CLOUDFLARE_PURGE_TOKEN || keys.length === 0) return;
+    const urls = keys.flatMap((k) => imageUrlsOf(imgproxy, k));
+    for (let i = 0; i < urls.length; i += 30) await purgeUrls(env.CLOUDFLARE_ZONE_ID, env.CLOUDFLARE_PURGE_TOKEN, urls.slice(i, i + 30));
+  };
+
   const needStorage = () => {
     if (!storage) throw new Error('S3_* is not configured, photos cannot be processed');
     return storage;
@@ -82,7 +93,15 @@ export async function startListingJobs(
           console.log(`media: logo of ${job.data.aggregateId}: ${outcome.status}${'reason' in outcome ? ` (${outcome.reason})` : ''}`);
         } else if (job.name === 'media_delete') {
           const key = job.data.payload.storageKey;
-          if (typeof key === 'string') await needStorage().delete(key);
+          if (typeof key === 'string') {
+            await needStorage().delete(key);
+            await purgePhotos([key]);
+          }
+        } else if (job.name === 'photo_visibility') {
+          // A listing taken down, deleted or back: its photos follow (src/modules/media/hold.ts)
+          const moved = await syncPhotoVisibility(db, needStorage(), job.data.aggregateId);
+          await purgePhotos(moved);
+          if (moved.length) console.log(`media: ${job.data.aggregateId}: ${moved.length} photos moved`);
         } else throw new Error(`media: unknown job ${job.name}`);
       },
       { connection: connections[0]!, concurrency: 1 },
@@ -144,7 +163,8 @@ export async function startListingJobs(
     'listing_image.deleted': [{ name: 'media_delete', queue: media }],
     [LOGO_OUTBOX.uploaded]: [{ name: 'logo_process', queue: media }],
     [LOGO_OUTBOX.deleted]: [{ name: 'media_delete', queue: media }],
-    'listing.published': toChecks,
+    // A resubmitted listing that passes comes back as «published»: its photos follow
+    'listing.published': [...toChecks, { name: 'photo_visibility', queue: media }],
     'listing.updated': toChecks,
     'listing.submitted': toChecks,
     // Search sync subscribes to these too (./search.ts); nothing else needs them yet
@@ -154,8 +174,9 @@ export async function startListingJobs(
     'listing.sold': [],
     'listing.expired': [],
     'listing.renewed': [],
-    'listing.rejected': [],
-    'listing.deleted': [],
+    'listing.rejected': [{ name: 'photo_visibility', queue: media }],
+    'listing.deleted': [{ name: 'photo_visibility', queue: media }],
+    'listing.restored': [{ name: 'photo_visibility', queue: media }],
   };
 
   return {

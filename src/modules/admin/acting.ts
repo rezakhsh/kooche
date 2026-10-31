@@ -184,7 +184,16 @@ export async function closeEndedActingSessions(db: Db, now: Date = new Date()): 
   });
 }
 
-type ClosedSession = { id: string; userId: string; openedBy: string | null; writableAt: Date | null };
+export type ClosedSession = { id: string; userId: string; openedBy: string | null; writableAt: Date | null };
+
+/**
+ * "Sign in as" sessions deleted another way (the person's «دستگاه‌ها» or «خروج از دستگاه‌های
+ * دیگر», an admin's «خروج از همه دستگاه‌ها»): the end is written and told as «پایان» does (Check B,
+ * Oct 31, 2026: the person never heard about the changes). Other sessions are ignored.
+ */
+export async function endRemovedActing(tx: Queryable, removed: ClosedSession[]): Promise<void> {
+  for (const s of removed) if (s.openedBy) await recordEnd(tx, openerCtx(s), s, { signedOut: true });
+}
 
 const openerCtx = (s: ClosedSession): StaffContext => ({ userId: s.openedBy!, sessionId: s.id, role: 'admin', ip: null, userAgent: null });
 

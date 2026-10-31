@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
-import { listings, messages, moderationAppeals, moderationDecisions, organizations, outboxEvents, reports, userSanctions, users } from '../../db/schema';
+import { listings, messages, moderationAppeals, moderationDecisions, organizationMembers, organizations, outboxEvents, reports, userSanctions, users } from '../../db/schema';
 import { messages as messages_ } from '../../messages/fa';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { cachedCatalog } from '../listings/catalog';
@@ -236,14 +236,24 @@ export async function noViolation(db: Db, staff: StaffContext, target: Target, n
   const now = opts.now ?? new Date();
   return db.transaction(async (tx) => {
     let values: Partial<typeof moderationDecisions.$inferInsert> = {};
+    // Never one's own case: reports about oneself, one's listing, business or message (Check B, Oct 31, 2026)
     if (target.listingId) {
       const l = await lockListing(tx, target.listingId);
       if (!l) return { ok: false, reason: 'not_found' };
+      if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
       values = { listingId: l.id, listingRevision: l.revision, contentSnapshot: await snapshot(tx, l) };
-    } else if (target.reportedUserId) values = { userId: target.reportedUserId };
-    else if (target.organizationId) values = { organizationId: target.organizationId };
-    else if (target.messageId) values = { messageId: target.messageId };
-    else return { ok: false, reason: 'invalid' };
+    } else if (target.reportedUserId) {
+      if (target.reportedUserId === staff.userId) return { ok: false, reason: 'not_allowed' };
+      values = { userId: target.reportedUserId };
+    } else if (target.organizationId) {
+      const [member] = await tx.select({ id: organizationMembers.userId }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, target.organizationId), eq(organizationMembers.userId, staff.userId)));
+      if (member) return { ok: false, reason: 'not_allowed' };
+      values = { organizationId: target.organizationId };
+    } else if (target.messageId) {
+      const [m] = await tx.select({ sender: messages.senderUserId }).from(messages).where(eq(messages.id, target.messageId));
+      if (m?.sender === staff.userId) return { ok: false, reason: 'not_allowed' };
+      values = { messageId: target.messageId };
+    } else return { ok: false, reason: 'invalid' };
     const [d] = await tx
       .insert(moderationDecisions)
       .values({ ...values, decision: 'no_action', statementFa: note.trim() || null, decidedBy: 'staff', moderatorUserId: staff.userId })
@@ -555,8 +565,10 @@ export async function hideMessage(db: Db, staff: StaffContext, messageId: string
 export async function unhideMessage(db: Db, staff: StaffContext, messageId: string, note: string, opts: DecideOptions): Promise<DecideResult> {
   const now = opts.now ?? new Date();
   return db.transaction(async (tx) => {
-    const [m] = await tx.select({ id: messages.id, hiddenAt: messages.hiddenAt }).from(messages).where(eq(messages.id, messageId)).for('update');
+    const [m] = await tx.select({ id: messages.id, hiddenAt: messages.hiddenAt, sender: messages.senderUserId }).from(messages).where(eq(messages.id, messageId)).for('update');
     if (!m?.hiddenAt) return { ok: false, reason: 'not_found' };
+    // Never one's own message (Check B, Oct 31, 2026)
+    if (m.sender === staff.userId) return { ok: false, reason: 'not_allowed' };
     const t = messages_.moderation.staff;
     const [d] = await tx
       .insert(moderationDecisions)

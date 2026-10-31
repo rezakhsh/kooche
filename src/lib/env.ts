@@ -204,6 +204,11 @@ const workerSchema = z.object({
   // token the web's post-deployment command uses. Unset: the 60-second edge cache bound applies.
   CLOUDFLARE_ZONE_ID: optional(z.string().regex(/^[0-9a-f]{32}$/)),
   CLOUDFLARE_PURGE_TOKEN: optional(z.string().min(1)),
+  // The photo addresses of a taken-down or deleted listing are purged too (src/modules/media/hold.ts,
+  // Check B): the worker signs them like the web. Unset: only the masters are moved.
+  IMAGE_URL: optional(z.url({ protocol: /^https?$/ })),
+  IMGPROXY_KEY: optional(hex),
+  IMGPROXY_SALT: optional(hex),
   ...monitoringFields,
   ...testInboxField,
 })

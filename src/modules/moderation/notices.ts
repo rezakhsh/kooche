@@ -163,6 +163,17 @@ export async function phoneReleasedMail(db: Queryable, userId: string, appUrl: s
 }
 
 /**
+ * The Telegram copy of an account notice from staff (signed in as, role, signed out, number
+ * released, «احتمالاً کسب‌وکار»), for people who linked Telegram: the owner's rule is email and
+ * Telegram (Check B, Oct 31, 2026). The mail's own text, which ends with its link.
+ */
+export async function telegramCopy(db: Queryable, redis: Redis, userId: string, mail: Mail): Promise<{ telegramUserId: number; text: string } | null> {
+  const [u] = await db.select({ telegramUserId: users.telegramUserId }).from(users).where(eq(users.id, userId));
+  if (u?.telegramUserId == null || (await isUnreachableMarked(redis, u.telegramUserId))) return null;
+  return { telegramUserId: u.telegramUserId, text: `${mail.subject}\n\n${mail.text}` };
+}
+
+/**
  * The email after an admin signed in as the person with changes allowed and pressed «پایان»
  * (src/modules/admin/acting.ts; the owner's rule: staff changes are always told)
  */

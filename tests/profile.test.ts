@@ -14,7 +14,7 @@ import { checkDisplayName, RENAME_LIMIT, sellerProfile, setDisplayName } from '.
 import { addFavorite } from '../src/modules/listings/favorites';
 import { startAccountJobs } from '../src/worker/accounts';
 import { appDb, redis, workerDb } from './accounts';
-import { db, expectError, INSUFFICIENT_PRIVILEGE, makeListing, makeOrganization, rollback, setRole, type Tx } from './db';
+import { db, expectError, INSUFFICIENT_PRIVILEGE, makeListing, makeOrganization, makeProduct, rollback, setRole, type Tx } from './db';
 import { categoryBySlug, city, user } from './listings-fixtures';
 
 // Your name, the public seller page, "download my data" and "delete my account" (approved
@@ -213,11 +213,36 @@ describe('delete my account', () => {
     expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: false, error: 'not_active' });
   });
 
-  it('refuses the only owner of an organization before anything changes', async () => {
+  it('closes a business the person owns alone, with its listings; waits while its plan still renews (Check B)', async () => {
     const me = await user();
-    await makeOrganization(owner, me.id);
-    expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: false, error: 'sole_owner' });
+    const org = await makeOrganization(owner, me.id);
+    const staff = await user();
+    await db.insert(schema.organizationMembers).values({ organizationId: org.id, userId: staff.id, role: 'staff' });
+    const theirs = await makeListing(owner, staff.id, { organizationId: org.id });
+    // A paid plan that renews: cancel it first
+    const { price } = await makeProduct(owner);
+    const [sub] = await db
+      .insert(schema.subscriptions)
+      .values({ organizationId: org.id, productPriceId: price!.id, providerSubscriptionId: `sub_close_${org.id}`, status: 'active', currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 86_400_000) })
+      .returning();
+    expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: false, error: 'plan_running' });
     expect((await row(me.id)).status).toBe('active');
+    await db.update(schema.subscriptions).set({ cancelAtPeriodEnd: true }).where(eq(schema.subscriptions.id, sub!.id));
+    expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: true });
+    expect(await eraseRequestedUser(workerDb, me.id)).toBe('erased');
+    expect((await db.select().from(schema.organizations).where(eq(schema.organizations.id, org.id)))[0]!.status).toBe('deleted');
+    expect((await db.select().from(schema.listings).where(eq(schema.listings.id, theirs.id)))[0]!.status).toBe('deleted');
+    expect(await db.select().from(schema.organizationMembers).where(eq(schema.organizationMembers.organizationId, org.id))).toHaveLength(0);
+  });
+
+  it('a business with another owner stays', async () => {
+    const me = await user();
+    const org = await makeOrganization(owner, me.id);
+    const other = await user();
+    await db.insert(schema.organizationMembers).values({ organizationId: org.id, userId: other.id, role: 'owner' });
+    expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: true });
+    expect(await eraseRequestedUser(workerDb, me.id)).toBe('erased');
+    expect((await db.select().from(schema.organizations).where(eq(schema.organizations.id, org.id)))[0]!.status).toBe('active');
   });
 
   it('the worker erases only accounts that asked, once; the app can’t call erase_user', async () => {

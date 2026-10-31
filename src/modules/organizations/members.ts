@@ -4,6 +4,7 @@ import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, conversations, listings, organizationInvitations, organizationMembers, organizations, outboxEvents, users } from '../../db/schema';
 import { LISTING_OUTBOX } from '../listings/events';
 import { businessPlan } from '../payments/plans';
+import { activeSanctions, restrictsPosting } from '../moderation/sanctions';
 import { canPostListing, loadActor } from '../users/permissions';
 import { lockAs, type Role } from './organizations';
 
@@ -91,13 +92,15 @@ export async function invite(
 export async function invitationByToken(db: Queryable, token: string, now: Date = new Date()) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const [row] = await db
-    .select({ id: organizationInvitations.id, email: organizationInvitations.email, role: organizationInvitations.role, expiresAt: organizationInvitations.expiresAt, acceptedAt: organizationInvitations.acceptedAt, revokedAt: organizationInvitations.revokedAt, orgName: organizations.name, slug: organizations.slug, organizationId: organizations.id, logoKey: organizations.logoKey, verified: sql<boolean>`${organizations.verificationStatus} = 'verified'`, inviter: users.displayName })
+    .select({ id: organizationInvitations.id, email: organizationInvitations.email, role: organizationInvitations.role, expiresAt: organizationInvitations.expiresAt, acceptedAt: organizationInvitations.acceptedAt, revokedAt: organizationInvitations.revokedAt, orgName: organizations.name, slug: organizations.slug, organizationId: organizations.id, logoKey: organizations.logoKey, verified: sql<boolean>`${organizations.verificationStatus} = 'verified'`, inviter: users.displayName,
+      // Still an owner of the business (acceptInvitation checks bans too)
+      senderOwns: sql<boolean>`EXISTS (SELECT 1 FROM organization_members m WHERE m.organization_id = ${organizations.id} AND m.user_id = ${organizationInvitations.invitedByUserId} AND m.role = 'owner')` })
     .from(organizationInvitations)
     .innerJoin(organizations, and(eq(organizations.id, organizationInvitations.organizationId), eq(organizations.status, 'active')))
     .leftJoin(users, eq(users.id, organizationInvitations.invitedByUserId))
     .where(eq(organizationInvitations.tokenHash, tokenHash(token)));
   if (!row) return null;
-  return { ...row, usable: !row.acceptedAt && !row.revokedAt && row.expiresAt > now };
+  return { ...row, usable: !row.acceptedAt && !row.revokedAt && row.expiresAt > now && row.senderOwns };
 }
 
 /**
@@ -133,6 +136,13 @@ export async function acceptInvitation(db: Db, opts: { userId: string; token: st
     if (!me || me.status !== 'active' || me.email.toLowerCase() !== inv.email) return { ok: false, reason: 'wrong_account' };
     const [already] = await tx.select({ role: organizationMembers.role }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, opts.userId)));
     if (already) return { ok: false, reason: 'already_member' };
+    // The invitation stands only while its sender is still an owner in good standing, and a banned or
+    // suspended person can't join (Check B, Oct 31, 2026)
+    const [sender] = inv.invitedByUserId
+      ? await tx.select({ role: organizationMembers.role }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, inv.invitedByUserId)))
+      : [];
+    if (sender?.role !== 'owner' || (await restricted(tx, inv.invitedByUserId!))) return { ok: false, reason: 'expired' };
+    if (await restricted(tx, opts.userId)) return { ok: false, reason: 'restricted' };
     const plan = await businessPlan(tx, org.id, now);
     // This invitation is one of the pending ones counted, so the members alone must leave it a seat
     const [membersNow] = await tx.select({ n: count() }).from(organizationMembers).where(eq(organizationMembers.organizationId, org.id));
@@ -173,6 +183,8 @@ export async function changeMember(
     // Leaving needs only membership; changing someone else needs ownership
     const org = await lockAs(tx, opts.userId, opts.organizationId, self && opts.to === 'removed' ? ['owner', 'manager', 'staff'] : ['owner']);
     if (!org) return { ok: false, reason: 'not_found' };
+    // A banned or suspended member may still leave, but not remove or demote others (Check B, Oct 31, 2026)
+    if (!self && (await restricted(tx, opts.userId))) return { ok: false, reason: 'restricted' };
     const [member] = await tx.select().from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, opts.memberId)));
     if (!member) return { ok: false, reason: 'not_found' };
     if (member.role === 'owner' && opts.to !== 'owner') {
@@ -193,11 +205,20 @@ export async function changeMember(
   });
 }
 
-/** The business's listings and events a former member posted, and their buyer chats, pass to `heir` */
+/** Banned, suspended or restricted from posting: no say over a business's members (Check B, Oct 31, 2026) */
+async function restricted(tx: Queryable, userId: string): Promise<boolean> {
+  return restrictsPosting(await activeSanctions(tx, userId));
+}
+
+/**
+ * The business's listings and events a former member posted, and their buyer chats, pass to `heir`.
+ * «نمایش شماره» goes off: it showed the former member's number and must not start showing the
+ * heir's (Check B, Oct 31, 2026).
+ */
 async function handOver(tx: Queryable, organizationId: string, from: string, heir: string): Promise<void> {
   const moved = await tx
     .update(listings)
-    .set({ userId: heir })
+    .set({ userId: heir, allowPhoneContact: false })
     .where(and(eq(listings.organizationId, organizationId), eq(listings.userId, from), ne(listings.status, 'deleted')))
     .returning({ id: listings.id });
   if (!moved.length) return;

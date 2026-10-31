@@ -107,7 +107,7 @@ export async function handleUpdate(
       await api.sendMessage(msg.chat.id, t.linkInvalid, REMOVE_KEYBOARD);
       return;
     }
-    await api.sendMessage(msg.chat.id, t.sharePrompt, {
+    await api.sendMessage(msg.chat.id, t.sharePrompt(`\u2066${bound.account}\u2069`), {
       keyboard: [[{ text: t.shareButton, request_contact: true }]],
       resize_keyboard: true,
       one_time_keyboard: true,

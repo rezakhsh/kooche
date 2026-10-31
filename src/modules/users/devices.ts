@@ -2,6 +2,7 @@ import { and, desc, eq, gt, ne, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { sessions } from '../../db/schema';
 import { describeDevice, type Device } from '../../lib/user-agent';
+import { endRemovedActing } from '../admin/acting';
 
 // "My devices": every live session of a user, each one revocable. Sessions are matched by id and
 // owner; the session token never leaves the server. Better Auth's cookie cache is off, so a
@@ -40,12 +41,16 @@ export async function listDevices(
     .sort((a, b) => Number(b.current) - Number(a.current));
 }
 
+/** What a deleted session tells endRemovedActing(): a "sign in as" session is recorded as ended */
+const GONE = { id: sessions.id, userId: sessions.userId, openedBy: sessions.openedByUserId, writableAt: sessions.writableAt };
+
 /** Logs out one of the user's own sessions. False when it isn't theirs or is already gone. */
 export async function revokeDevice(db: Queryable, userId: string, sessionId: string): Promise<boolean> {
   const deleted = await db
     .delete(sessions)
     .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)))
-    .returning({ id: sessions.id });
+    .returning(GONE);
+  await endRemovedActing(db, deleted);
   return deleted.length > 0;
 }
 
@@ -58,6 +63,13 @@ export async function revokeOtherDevices(
   const deleted = await db
     .delete(sessions)
     .where(and(eq(sessions.userId, userId), ne(sessions.id, currentSessionId)))
-    .returning({ id: sessions.id });
+    .returning(GONE);
+  await endRemovedActing(db, deleted);
   return deleted.length;
+}
+
+/** Whether a session still exists and hasn't run out (the chat stream asks on every ping) */
+export async function sessionLive(db: Queryable, sessionId: string, now: Date = new Date()): Promise<boolean> {
+  const [row] = await db.select({ id: sessions.id }).from(sessions).where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, now)));
+  return !!row;
 }

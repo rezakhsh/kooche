@@ -37,6 +37,7 @@ export default async function InvitationPage({ params, searchParams }: { params:
         ) : (
           <>
             {error === 'no_seats' && <Alert tone="error">{i.noSeats}</Alert>}
+            {error === 'restricted' && <Alert tone="error">{t.team.errors.restricted}</Alert>}
             <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-4">
               {logo ? (
                 <img src={logo} alt="" width={56} height={56} className="size-14 shrink-0 rounded-2xl object-cover" />

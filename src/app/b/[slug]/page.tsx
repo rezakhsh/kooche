@@ -23,7 +23,7 @@ import { cachedCatalog } from '../../../modules/listings/catalog';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { imageUrl } from '../../../modules/media/server';
 import { hoursJsonLd, openState, validHours, WEEKDAYS } from '../../../modules/organizations/hours';
-import { businessBySlug, legalComplete, roleIn } from '../../../modules/organizations/organizations';
+import { businessBySlug, closedBusinessName, legalComplete, roleIn } from '../../../modules/organizations/organizations';
 import { businessListingCards } from '../../../modules/organizations/queries';
 import { foundingBadge } from '../../../modules/payments/founding';
 import { featuredListingIds } from '../../../modules/payments/plans';
@@ -63,7 +63,19 @@ export default async function BusinessPage({ params, searchParams }: { params: P
   const { slug } = await params;
   const sp = await searchParams;
   const found = await load(slug);
-  if (!found) notFound();
+  if (!found) {
+    // A closed business says so instead of «پیدا نشد» (Check B, Oct 31, 2026)
+    const closed = await closedBusinessName(appDb(), slug);
+    if (!closed) notFound();
+    const c = messages.business.page.closed;
+    return (
+      <main className="mx-auto max-w-lg space-y-4 px-4 py-16 text-center">
+        <h1 className="text-2xl font-extrabold text-balance">{c.title(closed)}</h1>
+        <p className="leading-7 text-neutral-700">{c.body}</p>
+        <Link href="/" className="inline-flex min-h-11 items-center font-bold text-brand-800 underline">{c.home}</Link>
+      </main>
+    );
+  }
   const { org, cityFa, cityLocal, neighbourhood } = found;
   const db = appDb();
   const env = webEnv();
@@ -354,7 +366,8 @@ export default async function BusinessPage({ params, searchParams }: { params: P
               <p>{org.addressLine1}</p>
               {org.addressLine2 && <p>{org.addressLine2}</p>}
               <p>{[org.postalCode, cityLocal].filter(Boolean).join(' ')}</p>
-              <p>{org.countryCode === 'AT' ? 'Österreich' : 'Deutschland'}</p>
+              {/* The business's own country, in German like the rest of the Impressum (Check B, Oct 31, 2026) */}
+              <p>{new Intl.DisplayNames('de', { type: 'region' }).of(org.countryCode)}</p>
               {org.representativeName && <p>Vertreten durch: {org.representativeName}</p>}
               {org.email && <p>E-Mail: {org.email}</p>}
               {org.phoneE164 && <p>Telefon: {org.phoneE164}</p>}

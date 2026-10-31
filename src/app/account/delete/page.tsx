@@ -4,6 +4,8 @@ import { Alert, Button, Field } from '../../../components/ui';
 import { TaskPage } from '../../../components/settings';
 import { messages } from '../../../messages/fa';
 import { requireSession } from '../../../modules/users/server';
+import { appDb } from '../../../db/drizzle';
+import { soleOwned } from '../../../modules/users/erasure';
 import { deleteAccountAction } from './actions';
 
 export const metadata = { title: messages.account.delete.title, robots: { index: false } };
@@ -11,11 +13,12 @@ export const metadata = { title: messages.account.delete.title, robots: { index:
 // Deleting the account (approved Oct 21, 2026): what happens, following the retention rules
 // (docs/schema.md, section 14), then a confirmation with the account's own email address.
 
-const ERRORS = new Set(['email_mismatch', 'not_confirmed', 'sole_owner', 'acting'] as const);
+const ERRORS = new Set(['email_mismatch', 'not_confirmed', 'plan_running', 'acting'] as const);
 type ErrorCode = typeof ERRORS extends Set<infer T> ? T : never;
 
 export default async function DeleteAccountPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  await requireSession('/account/delete');
+  const { user } = await requireSession('/account/delete');
+  const closing = await soleOwned(appDb(), user.id);
   const { error } = await searchParams;
   const t = messages.account.delete;
   const code = ERRORS.has(error as ErrorCode) ? (error as ErrorCode) : null;
@@ -36,6 +39,23 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
             </Link>
           </p>
         </section>
+        {closing.length > 0 && (
+          <section className="space-y-2 rounded-2xl border border-saffron-200 bg-saffron-50 p-4">
+            <h2 className="font-bold">{t.businessesTitle}</h2>
+            <p className="text-sm leading-7 text-neutral-700">{t.businessesBody}</p>
+            <ul className="space-y-1.5 text-sm">
+              {closing.map((b) => (
+                <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <b>{b.name}</b>
+                  <Link href={`/b/${b.slug}/team`} className="font-bold text-brand-800 underline">{t.handOver}</Link>
+                  {b.planRenews && (
+                    <Link href={`/b/${b.slug}/billing`} className="font-bold text-red-700 underline">{t.planRenews}</Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <form action={deleteAccountAction} className="space-y-4 rounded-2xl border border-red-200 bg-red-50/40 p-5">
           <Field label={t.emailLabel} hint={t.emailHint} name="email" type="email" required autoComplete="off" dir="ltr" />
           <label className="flex items-start gap-3 text-sm">

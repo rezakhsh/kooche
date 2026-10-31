@@ -185,7 +185,7 @@ export async function startTelegramVerification(
   return { verificationId: row!.id, token, expiresAt };
 }
 
-export type BindResult = { ok: true; verificationId: string } | { ok: false };
+export type BindResult = { ok: true; verificationId: string; account: string } | { ok: false };
 
 /**
  * `/start <token>` in the bot: ties the attempt to the Telegram account that opened the link.
@@ -208,8 +208,18 @@ export async function bindTelegramLink(
         sql`(${phoneVerifications.telegramUserId} IS NULL OR ${phoneVerifications.telegramUserId} = ${telegramUserId})`,
       ),
     )
-    .returning({ id: phoneVerifications.id });
-  return row ? { ok: true, verificationId: row.id } : { ok: false };
+    .returning({ id: phoneVerifications.id, userId: phoneVerifications.userId });
+  if (!row) return { ok: false };
+  // The bot names the account the number goes to, half hidden, so a link someone else sent can be
+  // recognised and ignored (Check B, Oct 31, 2026)
+  const [u] = await db.select({ email: users.email }).from(users).where(eq(users.id, row.userId));
+  return { ok: true, verificationId: row.id, account: u ? maskEmail(u.email) : '' };
+}
+
+/** «a•••@gmail.com»: enough to recognise one's own account, not enough to learn someone else's */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  return `${(local ?? '').slice(0, 1)}•••@${domain ?? ''}`;
 }
 
 export type ContactResult =

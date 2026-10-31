@@ -278,6 +278,15 @@ describe('messages, businesses, no violation', () => {
     expect((await db.select().from(listings).where(eq(listings.id, l.id)))[0]!.status).toBe('active');
   });
 
+  it('a moderator can’t clear reports about themselves or their own listing (Check B)', async () => {
+    const mod = await staffMember();
+    const own = await makeListing(tx, mod.userId);
+    expect(await noViolation(appDb, mod, { listingId: own.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await noViolation(appDb, mod, { reportedUserId: mod.userId }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    const org = await makeOrganization(tx, mod.userId);
+    expect(await noViolation(appDb, mod, { organizationId: org.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+  });
+
   it('no violation dismisses the reports and tells only the reporters', async () => {
     const mod = await staffMember();
     const l = await makeListing(tx, (await seller()).id);

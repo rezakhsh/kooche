@@ -20,7 +20,6 @@ import {
 import { normalizePersian } from '../src/lib/normalize-persian';
 import {
   RAISE_EXCEPTION,
-  RESTRICT_VIOLATION,
   expectError,
   makeListing,
   makeOrganization,
@@ -146,12 +145,16 @@ describe('erase_user', () => {
     });
   });
 
-  it("is refused while the user is an organization's only owner", async () => {
+  it("closes an organization the user owns alone (Check B, migration 0040)", async () => {
     await rollback(async (tx) => {
       const owner = await makeUser(tx);
-      await makeOrganization(tx, owner.id);
+      const org = await makeOrganization(tx, owner.id);
       await setRole(tx, 'classifieds_worker');
-      await expectError(tx.execute(sql`SELECT erase_user(${owner.id})`), RESTRICT_VIOLATION);
+      await tx.execute(sql`SELECT erase_user(${owner.id})`);
+      await tx.execute(sql`RESET ROLE`);
+      const [row] = await tx.execute<{ status: string; deleted_at: Date | null }>(sql`SELECT status, deleted_at FROM organizations WHERE id = ${org.id}`);
+      expect(row?.status).toBe('deleted');
+      expect(row?.deleted_at).not.toBeNull();
     });
   });
 });

@@ -1,9 +1,9 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
-import { appDb } from '../../db/drizzle';
-import { userSanctions } from '../../db/schema';
+import { appDb, type Db } from '../../db/drizzle';
+import { listings, messages, organizationMembers, userSanctions } from '../../db/schema';
 import { webEnv } from '../../lib/env';
 import { admin } from '../../messages/fa';
 import { can } from '../../modules/admin/access';
@@ -32,6 +32,20 @@ import { REASON_SECTIONS } from '../../modules/moderation/reasons';
 
 export type DecideState = { error?: string } | undefined;
 
+/**
+ * Whom a sanction on this item hits: the listing's poster or the message's sender as stored now,
+ * never a user id from the form; for a business, the form's person only if they are a member
+ * (Check B, Oct 31, 2026: a stale page or a hand-made form could hit someone else)
+ */
+async function personOf(db: Db, kind: string, id: string, formUserId: string | undefined): Promise<string | null> {
+  if (kind === 'user') return id;
+  if (kind === 'listing') return (await db.select({ u: listings.userId }).from(listings).where(eq(listings.id, id)))[0]?.u ?? null;
+  if (kind === 'message') return (await db.select({ u: messages.senderUserId }).from(messages).where(eq(messages.id, id)))[0]?.u ?? null;
+  if (!formUserId) return null;
+  const [m] = await db.select({ u: organizationMembers.userId }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, id), eq(organizationMembers.userId, formUserId)));
+  return m?.u ?? null;
+}
+
 export async function decideAction(_prev: DecideState, form: FormData): Promise<DecideState> {
   const staff = await requireStaffAction('queue.view');
   const raw = Object.fromEntries([...form.entries()].filter(([k, v]) => typeof v === 'string' && v !== '' && !k.startsWith('$')));
@@ -54,7 +68,7 @@ export async function decideAction(_prev: DecideState, form: FormData): Promise<
   }
   const opts = { timeZone: webEnv().APP_TIME_ZONE, appealId: i.appealId };
   const ctx = staff.ctx;
-  const userId = i.kind === 'user' ? i.id : i.userId;
+  const userId = RESTRICTING_OPS.has(i.op) ? await personOf(db, i.kind, i.id, i.userId) : null;
 
   let result: DecideResult;
   switch (i.op) {

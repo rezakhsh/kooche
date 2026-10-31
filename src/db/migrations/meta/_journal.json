@@ -281,6 +281,20 @@
       "when": 1793380150633,
       "tag": "0039_software_dismissals",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793485583191,
+      "tag": "0040_close_sole_owner_business",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793485931704,
+      "tag": "0041_purge_deleted_listing",
+      "breakpoints": true
     }
   ]
 }

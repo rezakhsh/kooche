@@ -11,7 +11,7 @@ import type { Db } from '../../db/drizzle';
 export const ERASE_REQUESTED = 'user.erase_requested';
 export const ERASED = 'user.erased';
 
-export type ErasureResult = { ok: true } | { ok: false; error: 'email_mismatch' | 'sole_owner' | 'not_active' };
+export type ErasureResult = { ok: true } | { ok: false; error: 'email_mismatch' | 'plan_running' | 'not_active' };
 
 /** The confirmation: the account's own email address, typed again (case and spaces ignored) */
 export function emailMatches(typed: string, email: string): boolean {
@@ -26,8 +26,9 @@ export async function requestErasure(db: Db, userId: string, typedEmail: string)
     `);
     if (!user || user.status !== 'active') return { ok: false, error: 'not_active' } as const;
     if (!emailMatches(typedEmail, user.email)) return { ok: false, error: 'email_mismatch' } as const;
-    // erase_user refuses the only owner of an organization; say so before anything changes
-    if (await soleOwner(tx, userId)) return { ok: false, error: 'sole_owner' } as const;
+    // A business the person owns alone closes with the account (erase_user, migration 0040); one
+    // with a paid plan that still renews waits until the plan is cancelled (Check B, Oct 31, 2026)
+    if ((await soleOwned(tx, userId)).some((b) => b.planRenews)) return { ok: false, error: 'plan_running' } as const;
 
     // A banned person's number and Telegram account stay as fingerprints, so they can't verify a
     // new account with them (code check, Oct 30, 2026; migration 0037)
@@ -45,17 +46,21 @@ export async function requestErasure(db: Db, userId: string, typedEmail: string)
   });
 }
 
-async function soleOwner(db: Queryable, userId: string): Promise<boolean> {
-  const rows = await db.execute(sql`
-    SELECT 1 FROM organization_members m
+/** The businesses the person owns alone, which close with the account, and whether a paid plan still renews */
+export async function soleOwned(db: Queryable, userId: string): Promise<Array<{ id: string; name: string; slug: string; planRenews: boolean }>> {
+  const rows = await db.execute<{ id: string; name: string; slug: string; plan_renews: boolean }>(sql`
+    SELECT o.id, o.name, o.slug,
+      EXISTS (SELECT 1 FROM subscriptions s WHERE s.organization_id = o.id
+        AND s.status IN ('active', 'trialing', 'past_due', 'incomplete') AND NOT s.cancel_at_period_end) AS plan_renews
+    FROM organization_members m
     JOIN organizations o ON o.id = m.organization_id AND o.status <> 'deleted'
     WHERE m.user_id = ${userId} AND m.role = 'owner'
       AND NOT EXISTS (
         SELECT 1 FROM organization_members m2
         WHERE m2.organization_id = m.organization_id AND m2.role = 'owner' AND m2.user_id <> ${userId})
-    LIMIT 1
+    ORDER BY o.name
   `);
-  return rows.length > 0;
+  return rows.map((r) => ({ id: r.id, name: r.name, slug: r.slug, planRenews: r.plan_renews }));
 }
 
 export type EraseOutcome = 'erased' | 'already_deleted' | 'not_requested' | 'missing';
