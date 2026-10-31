@@ -1476,3 +1476,18 @@ Plan approved by the owner before building ("Yes, build it"; nodemailer now, sma
 ## Oct 31, 2026: next, two checks before production (plan)
 
 The owner tests staging by hand first; production only when staging has no known bugs. City threads: researched and dropped by the owner ("does not make sense for us now"). The plan for the two checks (the design of every page, and bugs in the code) is in `docs/plan-checks.md`; each starts separately after the owner approves it.
+
+## Oct 31, 2026: design check, group 1 (public pages) and its fixes
+
+Check A of `docs/plan-checks.md`, group 1: 39 pages and states, 174 pictures (phone and computer, light and dark) plus 44 mockup pictures, machine checks on each (sideways scroll, cut and overlapping text, broken images, console, axe contrast and ARIA, tap size, LTR leaks, layout shift). Pictures for the video guides in `/root/peydoo-media/design-check/` (README, `first-screen/`, `mockups/`, `guides/`, `manifest.json`; scripts in `tools/`). Review page: https://claude.ai/artifact/EeAkjrX873D8At5PjWH37Z. Pictures are taken with the `country=germany` cookie: this server is in Finland, which isn't open, so without it the header lost its chip and search.
+
+**Fixed (owner: "fix all what u mentioned. fix turkey also"):**
+- **Country logic (owner chose the rule):** the header follows the page on in-app links (`src/components/header-sync.tsx`, key in `header-key.ts`: the address's country/city/category, the sign-in pages, the `country` cookie; one refresh when they differ); the last country opened is the visitor's, coming-soon ones too (`CountrySoon` remembers unless guessed on the home page); the logo leads to it; away from open countries' pages the chip names it.
+- **Turkey:** the guide page of mockup final/turkey (`src/app/[country]/_browse/country-guide.tsx`; texts in `messages.countryPage.guidePage.TR`), with Istanbul's waitlist as «خبرم کن» (Istanbul added to `seed/locations/first-cities.ts`, GeoNames 745044; **run the seed on staging and production**). The official sites block automated visits; the owner checks the three links once.
+- **Iran:** visitors from Iran land on the first open city (Berlin) under the Iran notice (mockup final/iran).
+- **Country list** opens as a sheet from «کشور دیگر» on the home page, the current country checked; `?choose` stays a page.
+- **Page not found:** new design (mockup final/not-found, approved): search, the old listing's category first (`listingTopic`), categories, newest or similar listings, events, posting, help.
+- **«اولین نفر باشید»** instead of empty bars on /cities and the home page's city cards while no business has joined.
+- Filter panel's bottom shadow follows dark mode (the white strip); event address wraps; event date under the poster (it covered the poster's text); retired fields (cold/warm rent) hidden on the listing page; footer links 44 px on phones; no «ورود» on the sign-in pages; event type links use `aria-current`.
+- **Not changed:** Cloudflare's robot box appears only for visitors it doubts (my test browser); reserving its space would leave an empty gap for everyone.
+- **New rule (owner):** design checks also open filters, panels, menus and switchers.

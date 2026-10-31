@@ -102,7 +102,7 @@ export async function keyCitiesOf(db: Queryable, countryCode: string): Promise<K
 /** A closed country's first city with its waitlist, for the city chooser («اول تورنتو: ۹ از ۳۰ کسب‌وکار») */
 export type WaitingCountry = { code: string; slug: string; nameFa: string; city: { slug: string; nameFa: string }; goal: number | null; businesses: number };
 
-/** Countries that aren't open, each with its first waitlist city (the largest goal, then the largest city) */
+/** Countries that aren't open, each with its first waitlist city (the largest goal, then the largest city); guide countries (Turkey) aren't waiting for a market */
 export async function waitingCountries(db: Queryable): Promise<WaitingCountry[]> {
   const rows = await db.execute<{ code: string; slug: string; name_fa: string; city_slug: string; city_fa: string; goal: number | null; businesses: number }>(sql`
     SELECT DISTINCT ON (c.code) c.code, c.slug, c.name_fa, l.slug AS city_slug, l.name_fa AS city_fa, l.business_goal AS goal,
@@ -111,7 +111,7 @@ export async function waitingCountries(db: Queryable): Promise<WaitingCountry[]>
           AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
     FROM countries c
     JOIN locations l ON l.country_code = c.code AND l.kind = 'city' AND l.is_active AND l.launch_with_id IS NULL AND l.launch_status = 'waitlist'
-    WHERE c.mode IN ('waitlist', 'prestart', 'guide') AND c.slug IS NOT NULL
+    WHERE c.mode IN ('waitlist', 'prestart') AND c.slug IS NOT NULL
     ORDER BY c.code, l.business_goal DESC NULLS LAST, l.population DESC NULLS LAST`);
   return rows
     .map((r) => ({ code: r.code, slug: r.slug, nameFa: r.name_fa, city: { slug: r.city_slug, nameFa: r.city_fa }, goal: r.goal, businesses: r.businesses }))

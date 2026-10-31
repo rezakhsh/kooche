@@ -487,9 +487,24 @@ export const messages = {
     sameArea: 'در همان محدودهٔ شما.',
   },
   notFound: {
-    title: 'صفحه پیدا نشد',
+    title: 'این صفحه پیدا نشد',
     body: 'صفحه‌ای که دنبالش هستید وجود ندارد یا جابه‌جا شده است.',
     home: 'بازگشت به صفحه اصلی',
+    // The page as a starting point (design check, Oct 31, 2026; mockup final/not-found)
+    lead: 'شاید آگهی تمام شده یا نشانی اشتباه است. از همین‌جا ادامه دهید:',
+    search: 'جستجو',
+    lookingFor: (category: string) => `دنبال ${category} بودید؟`,
+    activeIn: (n: number, place: string) => `${n.toLocaleString('fa-IR')} آگهی فعال در ${place}`,
+    seeIn: (place: string) => `آگهی‌های فعال در ${place}`,
+    categories: 'دسته‌ها',
+    newestIn: (place: string) => `تازه در ${place}`,
+    all: 'همه ←',
+    events: 'رویدادهای پیش رو',
+    eventsSub: (place: string) => `رویدادهای ${place}`,
+    post: 'آگهی رایگان بگذارید',
+    postSub: 'در چند دقیقه',
+    help: 'راهنما و پرسش‌ها',
+    helpSub: 'یا با ما تماس بگیرید',
   },
   // When a page breaks completely (src/app/global-error.tsx)
   globalError: {

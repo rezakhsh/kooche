@@ -189,6 +189,18 @@ export async function publicListing(db: Queryable, token: string) {
 }
 
 /**
+ * The category and place of a listing by its address token, whatever its status (deleted too), for
+ * the page-not-found page's «دنبال … بودید؟» (design check, Oct 31, 2026). Nothing else about it.
+ */
+export async function listingTopic(db: Queryable, token: string): Promise<{ categoryId: string | null; locationId: string | null; countryCode: string | null } | null> {
+  const [row] = await db
+    .select({ categoryId: listings.categoryId, locationId: listings.locationId, countryCode: listings.countryCode })
+    .from(listings)
+    .where(eq(listings.publicToken, token));
+  return row ?? null;
+}
+
+/**
  * The seller's verified number for "show number": only for an active listing whose seller allows
  * phone contact. Never part of the page's HTML.
  */
