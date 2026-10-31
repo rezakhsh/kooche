@@ -23,7 +23,9 @@ The owner tests staging by hand; production follows only when staging has no kno
 
 **For each group:** a review page (artifact) with the screenshots, every problem found (with its picture and where in the code), and separately **ideas to make it better or easier to use**, each with a before/after mockup. The owner approves which problems to fix and which ideas to build; then the fixes, the tests, staging, and new screenshots side by side with the old ones.
 
-**Rules:** `free -m` before each browser run, one browser at a time, no browser while staging builds; screenshots kept in `/root/peydoo-media/after-wave2/design-check/<group>/`; no real users' data in screenshots.
+**Rules:** `free -m` before each browser run, one browser at a time, no browser while staging builds; no real users' data in screenshots.
+
+**Kept for a video guide later (owner, Oct 31, 2026):** every screenshot goes to `/root/peydoo-media/design-check/<group>/`, named `<nn>-<page>-<phone|computer>-<light|dark>[-<state>].png` and numbered in the order a person uses the site (home → city → listing → sign in → post → chat → account; business; admin). Each group folder has an `index.md` with, for every picture: the page's name in Persian and English, its address, who is looking, what it shows and what a person does there next. After fixes, the new pictures replace the old ones in this folder (the old ones move to `before/`), so the folder always shows the site as it is now. Screenshots for the guide use the sample listings and events, never test markers like «بررسی آزمایشی».
 
 ## Check B: bugs and errors in the code
 
