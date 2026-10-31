@@ -150,6 +150,35 @@ export const messages = {
       open: (country: string) => `پیدو در ${country}`,
       openSub: (country: string) => `اگر برای کار یا مهاجرت به ${country} می‌روید`,
     },
+    /** A country in guide mode (Turkey; mockup final/turkey, built Oct 31, 2026) */
+    guidePage: {
+      title: (country: string) => `راهنمای ایرانیان در ${country}`,
+      scamsTitle: 'مراقب این‌ها باشید',
+      officialTitle: 'جاهای رسمی',
+      worksTitle: (country: string) => `از ${country} هم کار می‌کند`,
+      onlineEvents: 'رویدادهای آنلاین',
+      onlineEventsSub: 'کلاس زبان، کارگاه مهاجرت، شب شعر',
+      onlineServices: 'خدمات آنلاین',
+      onlineServicesSub: 'مترجم رسمی، مشاورهٔ تحصیلی و کاری از کشورهای باز، با کسب‌وکار تأییدشده',
+      formTitle: (country: string) => `اگر پیدو در ${country} باز شد خبرم کن`,
+      formText: 'تاریخی قول نمی‌دهیم. اول رویدادها و کسب‌وکارهای تأییدشده، اگر شریک محلی مطمئن پیدا کنیم.',
+      TR: {
+        intro: 'پیدو هنوز در ترکیه آگهی نمی‌پذیرد: قانون ترکیه برای هر آگهی خانه و خودرو تأیید از راه e-Devlet می‌خواهد و ما هنوز نمی‌توانیم این را درست انجام دهیم. تا آن موقع، این راهنما و آنچه از ترکیه هم کار می‌کند.',
+        scams: [
+          '«کارچاق‌کن» اقامت یا ویزا که پول را پیش از هر کاری می‌خواهد',
+          'فروش وقت سفارت و نوبت ویزای شنگن',
+          'قول پذیرش دانشگاه در ازای پول',
+          'صاحب‌خانه‌ای که پیش از دیدن خانه ودیعه می‌خواهد',
+          'هر کسی که «راه رفتن به اروپا» می‌فروشد',
+        ],
+        scamsNote: 'اقامت فقط از راه سایت رسمی و دفتر مهاجرت گرفته می‌شود. «تضمین» در کار نیست.',
+        official: [
+          { name: 'goc.gov.tr', sub: 'اقامت (ikamet) و تمدید آن، فقط از سایت رسمی', url: 'https://www.goc.gov.tr' },
+          { name: 'UNHCR Türkiye', sub: 'پناهندگی و کمک حقوقی رایگان', url: 'https://help.unhcr.org/turkiye/' },
+          { name: 'کانون وکلای استانبول', sub: 'وکیل رایگان (Adli Yardım) برای کسانی که توان پرداخت ندارند', url: 'https://www.istanbulbarosu.org.tr' },
+        ],
+      },
+    },
     // The chooser's lines (mockup final/countries)
     soonOn: (date: string) => `از ${date}`,
     guide: 'راهنما',
@@ -2236,6 +2265,8 @@ export const messages = {
       /** Its time at the venue, named: «۱۹:۰۰ به وقت تورنتو» */
       timeIn: (time: string, place: string) => `${time} به وقت ${place}`,
       moreDates: (n: number) => `و ${n.toLocaleString('fa-IR')} تاریخ دیگر`,
+      /** The card's date line under the poster: «شنبه ۳۱ اکتبر، ۲۳:۰۰» (design check, Oct 31, 2026) */
+      when: (weekday: string, day: string, time: string) => `${weekday} ${day}، ${time}`,
     },
     scheduleStatus: {
       scheduled: 'طبق برنامه',

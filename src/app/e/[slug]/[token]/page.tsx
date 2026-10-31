@@ -426,7 +426,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               </span>
               <span className="min-w-0 flex-1">
                 <b className="block text-[15px]">{r.title}</b>
-                {r.sub && <span className="block truncate text-xs text-neutral-600">{r.sub}</span>}
+                {r.sub && <span className="block text-xs leading-5 break-words text-neutral-600">{r.sub}</span>}
               </span>
               {r.action && <span className="shrink-0">{r.action}</span>}
             </li>

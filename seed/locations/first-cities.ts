@@ -72,3 +72,13 @@ export const france: LocationsSeed = {
     { slug: 'paris', nameFa: 'پاریس', nameLocal: 'Paris', geonamesId: 2988507, region: 'ile-de-france', lat: 48.85341, lng: 2.3488, population: 2138551, timezone: 'Europe/Paris', launch: { status: 'waitlist', goal: 20 } },
   ],
 };
+
+// Turkey is a guide country (no marketplace): Istanbul's waitlist is the page's «خبرم کن» (design
+// check, Oct 31, 2026); its goal only counts once Turkey's mode changes.
+export const turkey: LocationsSeed = {
+  countryCode: 'TR',
+  regions: [{ slug: 'istanbul-province', nameFa: 'استان استانبول', nameLocal: 'İstanbul', geonamesId: 745042, lat: 41.03508, lng: 28.98331, population: 15907951, timezone: 'Europe/Istanbul' }],
+  cities: [
+    { slug: 'istanbul', nameFa: 'استانبول', nameLocal: 'İstanbul', geonamesId: 745044, region: 'istanbul-province', lat: 41.01384, lng: 28.94966, population: 15701602, timezone: 'Europe/Istanbul', launch: { status: 'waitlist', goal: 30 } },
+  ],
+};

@@ -217,21 +217,21 @@ export async function EventsList({ params, searchParams }: { params: Promise<Eve
 
       <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4 lg:px-0">
         <FilterSheet place={place} s={s} path={path} count={Math.min(total, COUNT_CAP)} capped={total > COUNT_CAP} types={types} />
-        <Link href={href({ types: [] })} className={chipClass(s.types.length === 0)}>
+        <Link href={href({ types: [] })} aria-current={s.types.length === 0 ? 'true' : undefined} className={chipClass(s.types.length === 0)}>
           {t.all}
         </Link>
         {types.filter((c) => c.slug !== OTHER_TYPE).map((c) => {
           const on = s.types.includes(c.slug);
           return (
-            <Link key={c.id} href={href({ types: on ? s.types.filter((x) => x !== c.slug) : [c.slug] })} aria-pressed={on} className={chipClass(on)}>
+            <Link key={c.id} href={href({ types: on ? s.types.filter((x) => x !== c.slug) : [c.slug] })} aria-current={on ? 'true' : undefined} className={chipClass(on)}>
               {c.nameFa}
             </Link>
           );
         })}
-        <Link href={href({ free: !s.free, cheap: false })} aria-pressed={s.free} className={chipClass(s.free, 'brand')}>
+        <Link href={href({ free: !s.free, cheap: false })} aria-current={s.free ? 'true' : undefined} className={chipClass(s.free, 'brand')}>
           {t.free}
         </Link>
-        <Link href={href({ attendance: s.attendance === 'online' ? null : 'online' })} aria-pressed={s.attendance === 'online'} className={chipClass(s.attendance === 'online')}>
+        <Link href={href({ attendance: s.attendance === 'online' ? null : 'online' })} aria-current={s.attendance === 'online' ? 'true' : undefined} className={chipClass(s.attendance === 'online')}>
           <Icon name="globe" className="size-4" />
           {t.online}
         </Link>

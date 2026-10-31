@@ -158,7 +158,7 @@ export function FilterForm({
       </fieldset>
 
       {/* The shadow covers the sheet's bottom padding, so nothing shows through under the bar */}
-      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-neutral-100 bg-white px-1 pt-3 pb-1 shadow-[0_1.25rem_0_0_#fff]">
+      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-neutral-100 bg-white px-1 pt-3 pb-1 shadow-[0_1.25rem_0_0_var(--color-white)]">
         <Link href={`${b.path}${browseQuery(without(state, 'all'), ctx.minorUnit)}`} className="flex min-h-11 items-center px-1 text-sm font-medium text-neutral-700 hover:underline">
           {t.clearAll}
         </Link>

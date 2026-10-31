@@ -12,6 +12,8 @@ import { cityFoundingPlaces } from '../../../modules/payments/founding';
 import { eventsPath } from '../../../modules/search/paths';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import { currentSession } from '../../../modules/users/server';
+import { RememberCountry } from '../remember-country';
+import { CountryGuide } from './country-guide';
 import { prepareInAction } from './prepare-action';
 import { WaitlistForm } from './waitlist-form';
 
@@ -54,6 +56,8 @@ export async function CountrySoon({ country, detected = false }: { country: Coun
   const db = appDb();
   const [cities, open, session] = await Promise.all([keyCitiesOf(db, country.code), activeCountries(db), currentSession()]);
   const waiting = cities.filter((c) => c.status === 'waitlist');
+  // Guide mode (Turkey): the guide page, with its first city's waitlist as «خبرم کن»
+  if (country.mode === 'guide') return <CountryGuide country={country} detected={detected} waiting={waiting.map((c) => ({ id: c.id, nameFa: c.nameFa }))} elsewhere={open[0] ?? null} />;
   const first = waiting[0] ?? null;
   const [launch, founding, drafts] = await Promise.all([
     first ? cityLaunch(db, first.id) : null,
@@ -74,6 +78,8 @@ export async function CountrySoon({ country, detected = false }: { country: Coun
 
   return (
     <main className="pb-24">
+      {/* Opened on purpose (not the home page guessing it): this country is now the visitor's */}
+      {!detected && <RememberCountry slug={country.slug} />}
       <section className="bg-gradient-to-b from-brand-50 to-white px-4 pt-7 pb-4 lg:pt-14">
         <div className="mx-auto max-w-2xl">
           <p className="flex items-center gap-2 text-sm font-bold text-brand-800">

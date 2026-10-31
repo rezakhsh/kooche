@@ -3,13 +3,13 @@ import { countries } from './countries';
 import { currencies } from './currencies';
 import { austria } from './locations/at';
 import { germany } from './locations/de';
-import { australia, canada, france, italy, netherlands, sweden, unitedKingdom, unitedStates } from './locations/first-cities';
+import { australia, canada, france, italy, netherlands, sweden, turkey, unitedKingdom, unitedStates } from './locations/first-cities';
 import type { LocationsSeed } from './types';
 
 export { categories, countries, currencies };
 
 /** One entry per country whose regions and cities are seeded */
-export const locations: LocationsSeed[] = [germany, austria, canada, unitedStates, australia, unitedKingdom, netherlands, italy, sweden, france];
+export const locations: LocationsSeed[] = [germany, austria, canada, unitedStates, australia, unitedKingdom, netherlands, italy, sweden, france, turkey];
 
 export { POSTAL_COUNTRIES, postalPlaces } from './postal';
 export { NEIGHBOURHOOD_CITIES, neighbourhoods } from './neighbourhoods';

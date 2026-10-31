@@ -8,7 +8,7 @@ import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
 import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
 import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { webEnv } from '../lib/env';
-import { chosenCountry } from '../app/country-choice';
+import { chosenCountry, chosenPageCountry } from '../app/country-choice';
 import { countryByCode, countryBySlug, isPlanned } from '../modules/launch/country-page';
 import { currentTheme } from '../app/theme';
 import { appDb } from '../db/drizzle';
@@ -73,6 +73,12 @@ export async function SiteHeader() {
     : path === '/' && !chosen && here && !open.some((c) => c.code === here)
       ? await visitorsPlannedCountry(here)
       : null;
+  // The remembered country when it isn't open yet (owner, Oct 31, 2026: the last country opened is
+  // the visitor's, open or not): the logo leads to its page and, away from an open country's
+  // pages, the chip names it
+  const mine = chosen ? null : await chosenPageCountry(appDb()).catch(() => null);
+  const mineClosed = mine && !open.some((c) => c.slug === mine.slug) ? mine : null;
+  const shownClosed = closedHere ?? (mineClosed && !(first && open.some((c) => c.slug === first)) ? mineClosed : null);
   const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
   // On the events pages the box searches the events (wave 1, mockup final/events: «جستجو در رویدادهای برلین…»)
@@ -81,7 +87,9 @@ export async function SiteHeader() {
   const searchScope = category?.nameFa ?? place?.nameFa ?? country?.nameFa ?? '';
   const searchPlaceholder = onEvents ? messages.events.list.searchIn((city ?? null)?.nameFa ?? country!.nameFa) : messages.search.placeholderIn(searchScope);
   const t = messages.nav;
-  const start = country ? `/${country.slug}` : '/';
+  // No «ورود» on the sign-in pages themselves (design check, Oct 31, 2026)
+  const onLogin = path === '/login' || path.startsWith('/login/');
+  const start = mineClosed ? `/${mineClosed.slug}` : country ? `/${country.slug}` : '/';
   // Conversations with unread messages, for the badge (one small query on the inbox indexes)
   const unread = session ? await unreadConversations(appDb(), session.user.id) : 0;
   return (
@@ -95,18 +103,18 @@ export async function SiteHeader() {
               <span className="mt-1 hidden text-xs leading-none whitespace-nowrap text-neutral-500 lg:block">{messages.site.tagline}</span>
             </span>
           </Link>
-          {(closedHere || country) && (
+          {(shownClosed || country) && (
             <Link
               href="/cities"
               className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 ps-2.5 pe-3 text-[13px] font-medium whitespace-nowrap text-neutral-700 hover:border-brand-300"
               title={messages.cities.title}
             >
               <Icon name="pin" className="size-4 text-brand-700" />
-              {closedHere?.nameFa ?? place?.nameFa ?? country!.nameFa}
+              {shownClosed?.nameFa ?? place?.nameFa ?? country!.nameFa}
               <Icon name="chevronDown" className="size-3.5" />
             </Link>
           )}
-          {country && !closedHere && (
+          {country && !shownClosed && (
             <SearchBox
               key={searchIn}
               id="header-q"
@@ -118,7 +126,7 @@ export async function SiteHeader() {
               className="ms-auto hidden min-w-0 max-w-sm flex-1 lg:block"
             />
           )}
-          <nav aria-label={t.label} className={`${country && !closedHere ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
+          <nav aria-label={t.label} className={`${country && !shownClosed ? '' : 'ms-auto'} hidden shrink-0 items-center gap-1 whitespace-nowrap sm:flex xl:gap-2`}>
             {session && (
               <Link href="/chat" title={t.chat} className="relative flex h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium hover:bg-neutral-50 xl:px-3">
                 <Icon name="chat" className="size-[18px]" />
@@ -142,7 +150,7 @@ export async function SiteHeader() {
               <Link href="/account" aria-label={t.account} title={t.account} className="flex size-11 items-center justify-center rounded-full bg-brand-50 font-bold text-brand-800 hover:bg-brand-100">
                 <span aria-hidden>{[...(session.user.name?.trim() || messages.account.defaultDisplayName)][0]}</span>
               </Link>
-            ) : (
+            ) : onLogin ? null : (
               <Link href="/login" className="flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 px-3 text-sm font-medium hover:bg-neutral-50">
                 <Icon name="user" className="size-4" />
                 {t.signIn}
@@ -159,7 +167,7 @@ export async function SiteHeader() {
               <Icon name="heart" className="size-6" />
             </Link>
           )}
-          {!session && (
+          {!session && !onLogin && (
             <Link href="/login" className="ms-auto flex min-h-10 items-center rounded-xl border border-neutral-200 px-3 text-sm font-medium sm:hidden">
               {t.signIn}
             </Link>
@@ -199,7 +207,7 @@ function FooterColumn({ title, links }: { title: string; links: [ReactNode, stri
       <ul className="space-y-1">
         {links.map(([label, href]) => (
           <li key={href}>
-            <Link href={href} className="flex min-h-9 items-center text-sm text-neutral-700 hover:text-brand-800 hover:underline">
+            <Link href={href} className="flex min-h-11 items-center py-1 text-sm leading-6 text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9 lg:py-0">
               {label}
             </Link>
           </li>
@@ -265,7 +273,7 @@ export async function SiteFooter() {
             <ul className="space-y-1">
               {countries.map((x) => (
                 <li key={x.code}>
-                  <Link href={`/${x.slug}`} className="flex min-h-9 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline">
+                  <Link href={`/${x.slug}`} className="flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9">
                     <Flag code={x.code} className="h-4 w-6" />
                     {x.nameFa}
                   </Link>
@@ -290,7 +298,7 @@ export async function SiteFooter() {
       {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
       <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">
         {LEGAL_LINKS.map(([key, href]) => (
-          <Link key={key} href={href} className="flex min-h-9 items-center text-neutral-600 hover:text-brand-800 hover:underline">
+          <Link key={key} href={href} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
             <bdi>{t.legalLinks[key]}</bdi>
           </Link>
         ))}

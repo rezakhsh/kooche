@@ -5,6 +5,7 @@ import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
+import { HeaderSync } from '../components/header-sync';
 import { IranBanner } from '../components/iran';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { ViewAsBanner } from '../components/view-as-banner';
@@ -16,6 +17,8 @@ import { MONITORING_META } from '../lib/monitoring/browser';
 import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
 import { messages } from '../messages/fa';
 import { ADMIN_GATE_HEADER } from '../modules/admin/gate';
+import { appDb } from '../db/drizzle';
+import { headerRenderedFor } from './country-choice';
 import { currentTheme } from './theme';
 import './globals.css';
 
@@ -68,6 +71,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const theme = await currentTheme();
   // The admin page counts no visits (the proxy marks its requests)
   const admin = (await headers()).has(ADMIN_GATE_HEADER);
+  const header = await headerRenderedFor(appDb());
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable} data-theme={theme === 'auto' ? undefined : theme}>
@@ -79,6 +83,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <IranBanner />
         <div className="flex-1">{children}</div>
         <SiteFooter />
+        <HeaderSync renderedFor={header.renderedFor} countrySlugs={header.countrySlugs} />
         <Toaster />
         <FormValidation />
         <AutoDirection />
