@@ -236,6 +236,7 @@ describe('grants', () => {
       { proname: 'banned_identifier_hit', worker: true, app: true, readonly: false },
       { proname: 'erase_user', worker: true, app: false, readonly: false },
       { proname: 'purge_audit_log', worker: true, app: false, readonly: false },
+      { proname: 'purge_deleted_listing', worker: true, app: false, readonly: false },
       { proname: 'purge_moderation_records', worker: true, app: false, readonly: false },
       { proname: 'record_banned_identifiers', worker: false, app: true, readonly: false },
       { proname: 'scrub_audit_ip', worker: true, app: false, readonly: false },

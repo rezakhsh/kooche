@@ -40,7 +40,7 @@ const JOBS: Record<string, (sql: postgres.Sql) => Promise<string>> = {
     const n = await purgeChatsOfDeletedUsers(sql);
     return `deleted ${n} conversations of accounts deleted more than 90 days ago`;
   },
-  'waitlist-retention': async (sql) => `deleted ${await deleteUnconfirmedWaitlist(sql)} unconfirmed city waitlist signups`,
+  'waitlist-retention': async (sql) => `deleted ${await deleteUnconfirmedWaitlist(sql)} city waitlist signups (unconfirmed, or of a city open 90 days)`,
 };
 
 export async function startRetention(

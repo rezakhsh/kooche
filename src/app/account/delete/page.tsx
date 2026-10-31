@@ -40,7 +40,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
           </p>
         </section>
         {closing.length > 0 && (
-          <section className="space-y-2 rounded-2xl border border-saffron-200 bg-saffron-50 p-4">
+          <section className="space-y-2 rounded-2xl border border-saffron-300 bg-saffron-50 p-4">
             <h2 className="font-bold">{t.businessesTitle}</h2>
             <p className="text-sm leading-7 text-neutral-700">{t.businessesBody}</p>
             <ul className="space-y-1.5 text-sm">

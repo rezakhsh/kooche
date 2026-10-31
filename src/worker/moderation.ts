@@ -31,7 +31,8 @@ import { reportJobFailure } from './monitoring';
 // Emails and Telegram messages go through the chat's send queues (one limiter for the bot).
 // The owner's alert waits 2 minutes to gather a burst and goes out at most once per 10 minutes.
 
-const KEEP = { removeOnComplete: 200, removeOnFail: 1_000 };
+// Failed jobs hold an address and a message text: kept 30 days at most (Check B, Oct 31, 2026)
+const KEEP = { removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 1_000 } };
 const RETRY = { attempts: 8, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
 export const ALERT_GATHER_MS = 2 * 60_000;

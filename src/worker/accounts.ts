@@ -11,7 +11,8 @@ import { reportJobFailure } from './monitoring';
 // does nothing. Every minute it also closes sign-in-as sessions that ran out (acting_ended); every
 // hour it finishes deletions whose job gave up (erase_stuck).
 
-const KEEP = { removeOnComplete: 200, removeOnFail: 1_000 };
+// Failed jobs hold an address and a message text: kept 30 days at most (Check B, Oct 31, 2026)
+const KEEP = { removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 1_000 } };
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
 export async function startAccountJobs(db: Db, connection: Redis, opts: { prefix?: string } = {}) {

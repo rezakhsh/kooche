@@ -10,9 +10,10 @@ import { localDate } from '../notifications/local-hour';
 // Google Analytics; docs/setup.md, "Visitor numbers"). Every page sends one small request
 // (src/components/visit-beacon.tsx → /api/v); nothing is stored on the device. A visitor is
 // counted once a day through a hash of their IP and browser with a secret that changes every day
-// and is thrown away after two (Valkey only): the hash can't be turned back into either, and the
-// same person is someone else tomorrow. Valkey keeps the day's counters; the worker writes the
-// totals to `visit_stats` every 10 minutes. Days are Berlin days.
+// and is thrown away after three (Valkey only; the next day's flush still needs it): the hash
+// can't be turned back into either, and the same person is someone else tomorrow. Valkey keeps
+// the day's counters; the worker writes the totals to `visit_stats` every 10 minutes. Days are
+// Berlin days.
 
 export const STATS_TIME_ZONE = 'Europe/Berlin';
 const KEEP_SECONDS = 3 * 86_400;

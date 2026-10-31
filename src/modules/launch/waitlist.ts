@@ -17,6 +17,8 @@ export type WaitlistRole = (typeof WAITLIST_ROLES)[number];
 
 /** Unconfirmed signups are deleted after this (round 7) */
 export const UNCONFIRMED_DAYS = 30;
+/** Signups of an open city are kept this long after it opened (the rewards run to day 60) */
+export const OPENED_KEEP_DAYS = 90;
 
 /** Free bump for the first confirmed signups of a city, by its size (owner, Oct 26, 2026) */
 export function rewardPlaces(population: number | null): number {
@@ -165,11 +167,17 @@ export async function leaveWaitlist(db: Queryable, token: string): Promise<boole
   return rows.length > 0;
 }
 
-/** Worker, daily (retention queue, as classifieds_worker): unconfirmed signups older than 30 days */
+/**
+ * Worker, daily (retention queue, as classifieds_worker): unconfirmed signups older than 30 days,
+ * and every signup of a city that opened more than OPENED_KEEP_DAYS ago: the opening email went
+ * out and the reward window (day 3 to 60) is over (Check B, Oct 31, 2026: they were kept forever;
+ * privacy policy section 9). The rewards go with them.
+ */
 export async function deleteUnconfirmedWaitlist(sql: postgres.Sql): Promise<number> {
   const rows = await sql`
-    DELETE FROM city_waitlist
-    WHERE confirmed_at IS NULL AND created_at < now() - make_interval(days => ${UNCONFIRMED_DAYS})`;
+    DELETE FROM city_waitlist w
+    WHERE (w.confirmed_at IS NULL AND w.created_at < now() - make_interval(days => ${UNCONFIRMED_DAYS}))
+       OR EXISTS (SELECT 1 FROM locations c WHERE c.id = w.location_id AND c.opened_at < now() - make_interval(days => ${OPENED_KEEP_DAYS}))`;
   return rows.count;
 }
 

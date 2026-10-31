@@ -60,13 +60,20 @@ describe('a deletion whose job gave up', () => {
     expect((await finishStuckErasures(workerDb, new Date(Date.now() + 2 * HOUR))).erased).toBeGreaterThanOrEqual(1);
     expect((await db.select({ status: schema.users.status }).from(schema.users).where(eq(schema.users.id, u.id)))[0]!.status).toBe('deleted');
 
-    // Became the only owner of a business after asking: erase_user refuses, the admin page shows it
+    // One erase_user can't finish (here a test trigger refuses it; a sole owner no longer does since
+    // Check B): the admin page shows it after a day
     const v = await person();
     expect(await requestErasure(appDb, v.id, v.email)).toEqual({ ok: true });
-    await makeOrganization(tx, v.id);
-    expect((await finishStuckErasures(workerDb, new Date(Date.now() + 2 * HOUR))).failed).toBeGreaterThanOrEqual(1);
-    expect(await stuckErasures(workerDb, new Date(Date.now() + 2 * HOUR))).toBe(0);
-    expect(await stuckErasures(workerDb, new Date(Date.now() + 25 * HOUR))).toBeGreaterThanOrEqual(1);
+    await db.execute(sql.raw(`CREATE FUNCTION test_refuse_erase_${v.publicToken}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.id = '${v.id}' AND NEW.status = 'deleted' THEN RAISE EXCEPTION 'test: refused'; END IF; RETURN NEW; END $$`));
+    await db.execute(sql.raw(`CREATE TRIGGER test_refuse_erase_${v.publicToken} BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION test_refuse_erase_${v.publicToken}()`));
+    try {
+      expect((await finishStuckErasures(workerDb, new Date(Date.now() + 2 * HOUR))).failed).toBeGreaterThanOrEqual(1);
+      expect(await stuckErasures(workerDb, new Date(Date.now() + 2 * HOUR))).toBe(0);
+      expect(await stuckErasures(workerDb, new Date(Date.now() + 25 * HOUR))).toBeGreaterThanOrEqual(1);
+    } finally {
+      await db.execute(sql.raw(`DROP TRIGGER test_refuse_erase_${v.publicToken} ON users`));
+      await db.execute(sql.raw(`DROP FUNCTION test_refuse_erase_${v.publicToken}()`));
+    }
   });
 });
 

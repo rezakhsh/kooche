@@ -56,7 +56,7 @@ export type EventJobOptions = {
 export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOptions): Promise<{ handlers: OutboxHandlers; queue: Queue; close: () => Promise<void> }> {
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const now = opts.now ?? (() => new Date());
-  const queue = new Queue('events', { connection, ...prefix, defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 10_000 }, removeOnComplete: 200, removeOnFail: 500 } });
+  const queue = new Queue('events', { connection, ...prefix, defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 10_000 }, removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 500 } } });
   if (opts.schedules !== false) {
     for (const [name, repeat] of Object.entries(SCHEDULES)) {
       await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: 20, removeOnFail: 50 } });

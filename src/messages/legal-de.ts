@@ -8,7 +8,7 @@ import type { LegalDoc } from './legal-types';
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 29. Oktober 2026',
+  updated: 'Stand: 31. Oktober 2026',
   draft: true,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Deutsch und auf Persisch vor; rechtlich maßgeblich ist diese deutsche Fassung (Ziffer 13.2).',
@@ -51,7 +51,7 @@ const terms: LegalDoc = {
       id: '3.2',
       heading: '3.2 Anmeldung und Telefonnummer',
       body: [
-        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram oder per SMS). Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
+        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram oder per SMS). Aus dem Iran kann ein Konto mit bestätigter E-Mail-Adresse auch ohne Telefonnummer Nachrichten senden. Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
       ],
     },
     {
@@ -372,7 +372,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 30. Oktober 2026',
+  updated: 'Stand: 31. Oktober 2026',
   draft: true,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
@@ -446,8 +446,15 @@ const privacy: LegalDoc = {
       id: '3.5',
       heading: '3.5 Besucherzahlen',
       body: [
-        'Um zu sehen, wie Peydoo genutzt wird und woher Besucher kommen, zählen wir Seitenaufrufe selbst, ohne Cookies, ohne Speicherung auf Ihrem Gerät und ohne Dienste Dritter (kein Google Analytics). Jede Seite sendet dazu den Pfad, beim ersten Aufruf auch die verweisende Seite und einen etwaigen Werbelink-Code (`?ref=`). Damit eine Person an einem Tag nur einmal zählt, bilden wir aus IP-Adresse und Browserangabe mit einem täglich wechselnden geheimen Schlüssel einen Hashwert; Schlüssel und Hashwerte werden nach zwei Tagen gelöscht, die IP-Adresse wird nicht gespeichert. Dauerhaft gespeichert werden nur Tagessummen (Aufrufe und Besucher je Seite, Land, Herkunft und Gerätetyp).',
+        'Um zu sehen, wie Peydoo genutzt wird und woher Besucher kommen, zählen wir Seitenaufrufe selbst, ohne Cookies, ohne Speicherung auf Ihrem Gerät und ohne Dienste Dritter (kein Google Analytics). Jede Seite sendet dazu den Pfad, beim ersten Aufruf auch die verweisende Seite und einen etwaigen Werbelink-Code (`?ref=`). Damit eine Person an einem Tag nur einmal zählt, bilden wir aus IP-Adresse und Browserangabe mit einem täglich wechselnden geheimen Schlüssel einen Hashwert; Schlüssel und Hashwerte werden nach drei Tagen gelöscht, die IP-Adresse wird nicht gespeichert. Dauerhaft gespeichert werden nur Tagessummen (Aufrufe und Besucher je Seite, Land, Herkunft und Gerätetyp).',
         'Wenn Sie ein Konto anlegen, speichern wir bei Ihrem Konto, woher Sie an diesem Tag kamen (zum Beispiel eine Suchmaschine oder einer unserer Links), und, falls Sie die freiwillige Frage „Wie haben Sie von Peydoo erfahren?“ beantworten, Ihre Antwort. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, unser Angebot und seine Bekanntmachung zu verbessern).',
+      ],
+    },
+    {
+      id: '3.6',
+      heading: '3.6 Wartelisten für Städte',
+      body: [
+        'Wenn Sie sich für eine Stadt eintragen, die noch nicht geöffnet ist, speichern wir Ihre E-Mail-Adresse, die Stadt und die gewählte Rolle (Suche, private Anzeigen, Unternehmen) und senden eine Bestätigungs-E-Mail. Wir nutzen die Adresse nur für die Nachricht über die Eröffnung dieser Stadt und die Belohnung für frühe Anmeldungen. Über den Link in jeder E-Mail tragen Sie sich aus. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO).',
       ],
     },
     { id: '4', heading: '4. Ihr Konto', body: [] },
@@ -538,8 +545,9 @@ const privacy: LegalDoc = {
         'Wir setzen folgende Dienstleister ein. Mit den Auftragsverarbeitern haben wir Verträge nach Art. 28 DSGVO geschlossen.',
         {
           list: [
-            'Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland: Server (Rechenzentrum Helsinki, Finnland) und verschlüsselte Sicherungskopien (Falkenstein, Deutschland).',
-            'Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA: Schutz vor Angriffen, Zwischenspeicher, DNS, Speicherung der Fotos (R2, EU-Rechtsraum) und Weiterleitung von E-Mails an unsere Kontaktadresse. Ein Zugriff aus den USA ist nicht auszuschließen; Cloudflare ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
+            'Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland: Server (Rechenzentrum Nürnberg, Deutschland) und verschlüsselte Sicherungskopien (Falkenstein, Deutschland).',
+            'Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA: Schutz vor Angriffen, die Prüfung gegen automatisierte Zugriffe (Turnstile) bei Anmeldung und Veröffentlichung, Zwischenspeicher, DNS, Speicherung der Fotos (R2, EU-Rechtsraum) und Weiterleitung von E-Mails an unsere Kontaktadresse. Ein Zugriff aus den USA ist nicht auszuschließen; Cloudflare ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
+            'OpenStreetMap Foundation, St John’s Innovation Centre, Cowley Road, Cambridge, CB4 0WS, Vereinigtes Königreich: Suche der Kartenposition zu einer Geschäfts- oder Veranstaltungsadresse (Nominatim), einmal beim Speichern; übermittelt wird nur die Adresse. Für das Vereinigte Königreich gilt ein Angemessenheitsbeschluss der EU-Kommission.',
             'Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg: Versand von E-Mails (Amazon SES, Region Frankfurt). Für einen möglichen Zugriff aus den USA gelten das EU-U.S. Data Privacy Framework und Standardvertragsklauseln.',
             'Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland: Abwicklung von Zahlungen, Rechnungen und Kundenportal für Abonnements. Stripe erhebt die Zahlungsdaten (etwa Kartennummer oder IBAN) selbst; wir erhalten Name, E-Mail-Adresse, das Land der Rechnungsadresse (bei Abonnements die Rechnungsadresse), Betrag und Zahlungsstatus, nie Karten- oder Kontonummern. Stripe verarbeitet Daten auch in den USA (Stripe, Inc.; EU-U.S. Data Privacy Framework und Standardvertragsklauseln) und ist für die Betrugsprävention und eigene gesetzliche Pflichten selbst verantwortlich. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. c (Aufbewahrungspflichten).',
             'Functional Software, Inc. (Sentry), 45 Fremont Street, 8th Floor, San Francisco, CA 94105, USA: Fehlerberichte (Ziffer 3.1), gespeichert in der EU-Region (Frankfurt am Main, Deutschland). Ein Zugriff aus den USA ist nicht auszuschließen; Sentry ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
@@ -563,6 +571,8 @@ const privacy: LegalDoc = {
             'Fingerabdrücke von Telefonnummern und Telegram-Konten gesperrter Personen, die ihr Konto gelöscht haben (Ziffer 7): zwei Jahre.',
             'Gelöschte Anzeigen mit Fotos: 12 Monate, länger nur, solange eine Meldung, eine Moderationsentscheidung oder eine Bestellung darauf verweist.',
             'Nachrichten: 90 Tage, nachdem einer der beiden Gesprächspartner sein Konto gelöscht hat; länger nur, solange eine Meldung oder Entscheidung darauf verweist.',
+            'Unterhaltungen zu einer gelöschten Anzeige: mit der Anzeige, 12 Monate nach ihrer Löschung.',
+            'E-Mail-Adressen auf der Warteliste einer Stadt: unbestätigt 30 Tage; bestätigt bis 90 Tage nach der Eröffnung der Stadt oder bis Sie sich austragen.',
             'Meldungen und Moderationsentscheidungen: zwei Jahre nach der Entscheidung.',
             'Sicherheitsprotokoll: zwei Jahre; IP-Adressen und Browserangaben darin 90 Tage.',
             'Bestellungen, Zahlungen, Abonnements und Rechnungen: zehn Jahre wegen der handels- und steuerrechtlichen Aufbewahrungspflichten (§ 147 AO, § 257 HGB), auch nach Löschung des Kontos.',
@@ -584,7 +594,7 @@ const privacy: LegalDoc = {
     {
       id: '11',
       heading: '11. Pflicht zur Angabe',
-      body: ['Ohne E-Mail-Adresse können Sie kein Konto anlegen, ohne bestätigte Telefonnummer nichts veröffentlichen und keine Nachrichten senden. Zum Stöbern brauchen Sie kein Konto.'],
+      body: ['Ohne E-Mail-Adresse können Sie kein Konto anlegen, ohne bestätigte Telefonnummer nichts veröffentlichen und keine Nachrichten senden (aus dem Iran sind Nachrichten auch mit einem reinen E-Mail-Konto möglich). Zum Stöbern brauchen Sie kein Konto.'],
     },
     {
       id: '12',

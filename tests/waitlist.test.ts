@@ -160,6 +160,23 @@ describe('notify me', () => {
     expect(left.map((r) => r.email)).not.toContain(old);
     expect(left.map((r) => r.email)).toContain(fresh);
   });
+
+  it('forgets every signup of a city 90 days after it opened (Check B)', async () => {
+    const leipzig = await city('leipzig');
+    const confirmed = email();
+    await db.insert(schema.cityWaitlist).values({ locationId: leipzig.id, email: confirmed, role: 'looking', confirmTokenHash: Buffer.alloc(32, 7), confirmedAt: new Date(), leaveToken: 'L'.repeat(32) } as never);
+    const keep = async () => (await db.select().from(schema.cityWaitlist).where(eq(schema.cityWaitlist.email, confirmed))).length;
+    try {
+      await db.update(schema.locations).set({ openedAt: sql`now() - interval '89 days'` }).where(eq(schema.locations.id, leipzig.id));
+      await deleteUnconfirmedWaitlist(workerSql);
+      expect(await keep()).toBe(1);
+      await db.update(schema.locations).set({ openedAt: sql`now() - interval '91 days'` }).where(eq(schema.locations.id, leipzig.id));
+      await deleteUnconfirmedWaitlist(workerSql);
+      expect(await keep()).toBe(0);
+    } finally {
+      await db.update(schema.locations).set({ openedAt: null }).where(eq(schema.locations.id, leipzig.id));
+    }
+  });
 });
 
 describe('the owner opens cities (as the web role)', () => {

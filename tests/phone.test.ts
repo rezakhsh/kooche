@@ -59,9 +59,11 @@ async function attemptRow(id: string) {
 async function boundAttempt(existingUserId?: string, tgId = ++telegramIds) {
   const userId = existingUserId ?? (await newUser()).id;
   const { token, verificationId } = await startTelegramVerification(appDb, { userId, ip: '203.0.113.9' });
-  expect(await bindTelegramLink(workerDb, { token, telegramUserId: tgId })).toEqual({
+  // The bot also names the account, half hidden (Check B)
+  expect(await bindTelegramLink(workerDb, { token, telegramUserId: tgId })).toMatchObject({
     ok: true,
     verificationId,
+    account: expect.stringMatching(/^.•••@/),
   });
   return { userId, tgId, token, verificationId };
 }

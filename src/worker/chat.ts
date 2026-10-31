@@ -43,7 +43,8 @@ import { reportJobFailure } from './monitoring';
 export const TELEGRAM_PER_SECOND = 25;
 export const EMAIL_PER_SECOND = 10;
 
-const KEEP = { removeOnComplete: 200, removeOnFail: 1_000 };
+// Failed jobs hold an address and a message text: kept 30 days at most (Check B, Oct 31, 2026)
+const KEEP = { removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 1_000 } };
 const OUTBOX_RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
 export const TELEGRAM_RETRY = { attempts: 10, backoff: { type: 'exponential' as const, delay: 5_000 } };
 const EMAIL_RETRY = { attempts: 10, backoff: { type: 'exponential' as const, delay: 10_000 } };
