@@ -30,6 +30,16 @@ const fa = (n: number) => n.toLocaleString('fa-IR');
 const names = (...xs: string[]) => normalizePersian(xs.join(' ')).toLowerCase();
 
 /** A progress bar filling from the right. SVG attributes, because the CSP allows no style attributes. */
+/** Instead of an empty bar while nobody has joined yet: «اولین نفر باشید» (design check, Oct 31, 2026) */
+function FirstOne({ text }: { text: string }) {
+  return (
+    <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+      {text}
+      <span className="rounded-full bg-saffron-50 px-2 py-0.5 font-bold text-saffron-800">{messages.cities.beFirst}</span>
+    </span>
+  );
+}
+
 function Bar({ value, max }: { value: number; max: number }) {
   const pct = max ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
@@ -93,8 +103,14 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
                       </span>
                       <span className="min-w-0 flex-1">
                         <b className="block text-sm">{c.nameFa}</b>
-                        <span className="text-xs text-neutral-600">{c.goal ? t.soon(c.businesses, c.goal) : t.soonNoGoal}</span>
-                        {c.goal && <Bar value={c.businesses} max={c.goal} />}
+                        {c.goal && c.businesses > 0 ? (
+                          <>
+                            <span className="text-xs text-neutral-600">{t.soon(c.businesses, c.goal)}</span>
+                            <Bar value={c.businesses} max={c.goal} />
+                          </>
+                        ) : (
+                          <FirstOne text={t.soonNoGoal} />
+                        )}
                       </span>
                       <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-800">{t.notify}</span>
                     </Link>
@@ -131,13 +147,13 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
                       <span className="text-xs text-neutral-600">
                         {c.opensOn
                           ? messages.countryPage.soonOn(openingDay(c.opensOn, true))
-                          : !c.city
+                          : c.mode === 'guide' || !c.city
                             ? messages.countryPage.guideLine
-                            : c.goal
+                            : c.goal && c.businesses > 0
                               ? t.firstCity(c.city.nameFa, c.businesses, c.goal)
-                              : t.firstCityNoGoal(c.city.nameFa)}
+                              : null}
                       </span>
-                      {!c.opensOn && c.city && c.goal && <Bar value={c.businesses} max={c.goal} />}
+                      {!c.opensOn && c.mode !== 'guide' && c.city && (c.goal && c.businesses > 0 ? <Bar value={c.businesses} max={c.goal} /> : <FirstOne text={t.firstCityNoGoal(c.city.nameFa)} />)}
                     </span>
                     <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                   </Link>

@@ -122,7 +122,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const attrs = l.attributes as Record<string, unknown>;
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;
   const amountCurrency = listingCurrency(catalog, l);
-  const details = defs.map((d) => ({ label: d.labelFa, text: attributeText(d, attrs[d.key], amountCurrency) })).filter((x) => x.text);
+  // Retired fields (cold or warm rent) stay in the listing but aren't shown: their options' labels
+  // are gone, so the raw value («warm») showed (design check, Oct 31, 2026)
+  const details = defs
+    .filter((d) => d.isActive)
+    .map((d) => ({ label: d.labelFa, text: attributeText(d, attrs[d.key], amountCurrency) }))
+    .filter((x) => x.text);
   // Rent: the price is the cold rent; with the extra costs the page adds up the warm rent
   const extraCosts = defs.some((d) => d.key === 'extra_costs') ? attrs.extra_costs : undefined;
   const warmRent =

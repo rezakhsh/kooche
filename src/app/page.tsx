@@ -5,6 +5,7 @@ import { Flag } from '../components/flag';
 import { Icon, type IconName } from '../components/icons';
 import { SearchBox } from '../components/search-box';
 import { SectionTitle } from '../components/section-title';
+import { Sheet } from '../components/sheet';
 import { appDb } from '../db/drizzle';
 import { visitorCountry } from '../lib/client-ip';
 import { messages } from '../messages/fa';
@@ -45,6 +46,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const countries = await activeCountries(db);
   const here = visitorCountry(await headers());
   if (choose !== undefined) return <CountryChooser here={here} />;
+  // From Iran (mockup final/iran; design check, Oct 31, 2026): the Iran notice (on every page) above
+  // the first open city's listings, not the welcome page. Crawlers never come from Iran, so this
+  // isn't the redirect by IP that Google advises against.
+  if (countries[0] && here === 'IR') {
+    const city = (await keyCitiesOf(db, countries[0].code)).find((c) => c.status === 'open');
+    redirect(browsePath(countries[0].slug, city?.slug ?? null, null));
+  }
   const mine = here ? await countryByCode(db, here) : null;
   if (mine && mine.mode !== 'open' && (await isPlanned(db, mine))) return <CountrySoon country={mine} detected />;
   if (countries.length === 0) return <CountryChooser here={here} />;
@@ -78,10 +86,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               {detected ? t.seemsIn(country.nameFa) : country.nameFa}
             </p>
           </div>
-          <Link href="/cities" className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-bold text-brand-800 hover:bg-brand-50">
-            <Icon name="globe" className="size-4" />
-            {t.otherCountry}
-          </Link>
+          <Sheet
+            title={t.chooseCountry}
+            closeLabel={messages.country.close}
+            className="shrink-0"
+            summaryClassName="flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-bold text-brand-800 hover:bg-brand-50"
+            summary={
+              <>
+                <Icon name="globe" className="size-4" />
+                {t.otherCountry}
+              </>
+            }
+          >
+            <CountryList here={here} current={country.code} />
+          </Sheet>
         </div>
         <ul className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-3">
           {cities.map((c) => {
@@ -94,7 +112,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 >
                   <b className="text-[15px]">{c.nameFa}</b>
                   <span className={`text-xs whitespace-nowrap ${open ? 'text-neutral-600' : 'text-saffron-800'}`}>
-                    {open ? t.listingCount(perCity.get(c.id) ?? 0) : c.goal ? t.businesses(c.businesses, c.goal) : t.waitlist}
+                    {open ? t.listingCount(perCity.get(c.id) ?? 0) : c.goal && c.businesses > 0 ? t.businesses(c.businesses, c.goal) : messages.cities.beFirst}
                   </span>
                 </Link>
               </li>
@@ -147,6 +165,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
 /** `?choose`: every open country with its count, the visitor's own first, then «به‌زودی» (mockup final/countries) */
 async function CountryChooser({ here }: { here: string | null }) {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="mb-4 text-2xl font-extrabold">{messages.home.chooseCountry}</h1>
+      <CountryList here={here} current={null} />
+    </main>
+  );
+}
+
+/**
+ * The countries: open ones with their counts (the visitor's own first, the current one checked),
+ * then «به‌زودی» and the guides. On the home page in a sheet over the page (mockup final/countries;
+ * design check, Oct 31, 2026), at `?choose` as its own page.
+ */
+async function CountryList({ here, current }: { here: string | null; current: string | null }) {
   const db = appDb();
   const [countries, counts, planned] = await Promise.all([activeCountries(db), countryCounts(db), soonCountries(db)]);
   const waiting = planned.filter((c) => c.mode !== 'guide');
@@ -154,8 +186,7 @@ async function CountryChooser({ here }: { here: string | null }) {
   const ordered = [...countries].sort((a, b) => Number(b.code === here) - Number(a.code === here));
   const t = messages.home;
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="mb-4 text-2xl font-extrabold">{t.chooseCountry}</h1>
+    <>
       <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 px-4">
         {ordered.map((c) => {
           const mine = c.code === here;
@@ -171,7 +202,13 @@ async function CountryChooser({ here }: { here: string | null }) {
                 </span>
                 {mine && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700">{t.yourCountry}</span>}
                 <span className="text-sm text-neutral-600">{t.listingCount(counts.get(c.code) ?? 0)}</span>
-                <Icon name="chevronEnd" className="size-4 text-neutral-400" />
+                {c.code === current ? (
+                  <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-white" aria-label={t.currentCountry}>
+                    <Icon name="check" className="size-4" />
+                  </span>
+                ) : (
+                  <Icon name="chevronEnd" className="size-4 text-neutral-400" />
+                )}
               </Link>
             </li>
           );
@@ -215,6 +252,6 @@ async function CountryChooser({ here }: { here: string | null }) {
           </ul>
         </>
       )}
-    </main>
+    </>
   );
 }

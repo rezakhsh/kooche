@@ -87,6 +87,7 @@ export const messages = {
     placesLeft: (n: number) => `${n.toLocaleString('fa-IR')} جا مانده`,
     chooseCountry: 'کشورتان را انتخاب کنید',
     yourCountry: 'کشور شما',
+    currentCountry: 'کشور فعلی',
     soon: 'به‌زودی',
     soonCity: (city: string) => `اول ${city}`,
     notifyMe: 'خبرم کن',
@@ -1838,6 +1839,7 @@ export const messages = {
     openCity: (n: number) => `باز، ${n.toLocaleString('fa-IR')} آگهی`,
     soon: (n: number, goal: number) => `به‌زودی: ${n.toLocaleString('fa-IR')} از ${goal.toLocaleString('fa-IR')} کسب‌وکار`,
     soonNoGoal: 'به‌زودی',
+    beFirst: 'اولین نفر باشید',
     notify: 'خبرم کن',
     countryRule: (n: number, country: string) =>
       `وقتی این ${n.toLocaleString('fa-IR')} شهر باز شوند، کل ${country} با همهٔ شهرها باز می‌شود. تا آن موقع، رویدادها و صفحهٔ کسب‌وکارها در همهٔ ${country} آزادند.`,
