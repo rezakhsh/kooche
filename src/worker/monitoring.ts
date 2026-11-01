@@ -1,4 +1,5 @@
 import { RateLimitError, UnrecoverableError, type Job } from 'bullmq';
+import { redactLog } from '../lib/monitoring/scrub';
 import { reportError } from '../lib/monitoring/server';
 
 // Error monitoring for BullMQ jobs (docs/setup.md, "Error monitoring"). Called from every queue's
@@ -34,4 +35,9 @@ export function failureStreak(threshold = 3) {
       count = 0;
     },
   };
+}
+
+/** An error for a log line: its message without addresses, numbers or secrets (redactLog) */
+export function logText(e: unknown): string {
+  return redactLog(e instanceof Error ? e.message : String(e));
 }

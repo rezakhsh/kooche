@@ -25,7 +25,7 @@ import { isUnreachable, TelegramError, type TelegramClient } from '../modules/no
 import type { ReplyMarkup } from '../modules/users/telegram-bot';
 import { markUnreachable } from '../modules/notifications/telegram-reach';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // Worker jobs of the chat (docs/setup.md, "Chat"):
 // - queue `chat` (from the outbox): a listing sold, deleted, expired or taken down closes its
@@ -245,7 +245,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
   );
 
   const onFailed = (job: Job | undefined, e: Error) => {
-    console.error(`${job?.queueName}: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`${job?.queueName}: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   };
   for (const w of [chatWorker, notifyWorker, emailWorker]) w.on('failed', onFailed);
@@ -253,7 +253,7 @@ export async function startChatJobs(db: Db, connection: Redis, opts: ChatJobOpti
     onFailed(job, e);
     // After the last attempt the notice still arrives, by email
     if (job && !isPlain(job) && !(e instanceof UnrecoverableError) && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-      void emailInstead(job).catch((err) => console.error('chat: email fallback failed:', err.message));
+      void emailInstead(job).catch((err) => console.error('chat: email fallback failed:', logText(err)));
     }
   });
 

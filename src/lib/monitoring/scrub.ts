@@ -20,6 +20,8 @@ function foldDigits(text: string): string {
 /** A date inside a run of digits (2026-10-24 10:00, 24.10.2026) makes it a date, not a phone */
 const DATE = /\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?!\d)|(?<!\d)\d{1,2}[-/.]\d{1,2}[-/.]\d{4}/;
 
+const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
 /** [pattern, replacement]; the order matters (a URL's password before emails, cards before phones) */
 const RULES: Array<[RegExp, string | ((match: string, ...groups: string[]) => string)]> = [
   // user:password@ in URLs (database and SMTP URLs in connection errors)
@@ -29,7 +31,7 @@ const RULES: Array<[RegExp, string | ((match: string, ...groups: string[]) => st
   [/\b(?:sk|rk|pk)_(?:test|live)_[0-9A-Za-z]{8,}|\bwhsec_[0-9A-Za-z]{8,}/g, '[secret]'],
   [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]'],
   // UUIDs are our internal ids (users included), never needed to understand an error
-  [/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[id]'],
+  [UUID, '[id]'],
   [
     /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/gi,
     (m) => (isValidIban(m.replace(/ /g, '')) ? '[number]' : m),
@@ -56,6 +58,19 @@ const RULES: Array<[RegExp, string | ((match: string, ...groups: string[]) => st
 export function redact(text: string): string {
   let out = foldDigits(text);
   for (const [pattern, replacement] of RULES) out = out.replace(pattern, replacement as never);
+  return out.length > MAX_TEXT ? `${out.slice(0, MAX_TEXT)}…` : out;
+}
+
+/**
+ * For our own log lines (the worker's job failures): the same, except our ids, which the logs need
+ * to find what failed. A refused email's error names the address (check B, Nov 1, 2026).
+ */
+export function redactLog(text: string): string {
+  const ids: string[] = [];
+  // Set aside first, so the rule for long strings doesn't take them either
+  let out = foldDigits(text).replace(UUID, (id) => `\u0000${ids.push(id) - 1}\u0000`);
+  for (const [pattern, replacement] of RULES) out = out.replace(pattern, replacement as never);
+  out = out.replace(/\u0000(\d+)\u0000/g, (_, i: string) => ids[Number(i)] ?? '');
   return out.length > MAX_TEXT ? `${out.slice(0, MAX_TEXT)}…` : out;
 }
 

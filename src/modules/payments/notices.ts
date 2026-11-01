@@ -12,10 +12,11 @@ import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
 import { ltrLine } from '../../lib/bidi';
 import { isUnreachable, type TelegramClient } from '../notifications/telegram-api';
 import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
+import { onceFor } from '../notifications/send-once';
 import type { PaymentGateway } from './gateway';
 
-// Payment notices (owner's rule, Oct 26, 2026: users are always told). Pro started, renewed or
-// ended for the business owner; a paid order for its buyer; a bump that moved a listing for its
+// Payment notices (owner's rule, Oct 26, 2026: users are always told). Pro started, renewed,
+// ended, revoked or restored for the business owner; a paid, revoked or restored order for its buyer; a bump that moved a listing for its
 // seller. The first three are written to the outbox in the webhook's transaction (./apply.ts); the
 // bump notice hangs off the existing `listing.bumped` event. The worker sends an email with the
 // invoice's link (read from Stripe when sending), and Telegram when the bot can reach the person.
@@ -26,6 +27,11 @@ const payloadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('pro_started'), invoiceId: z.string().nullable(), trial: z.boolean(), until: z.string() }),
   z.object({ kind: z.literal('pro_renewed'), invoiceId: z.string().nullable(), until: z.string() }),
   z.object({ kind: z.literal('pro_ended') }),
+  // A full refund or a dispute took what a payment granted; a dispute closed in our favour gave it back (./apply.ts)
+  z.object({ kind: z.literal('pro_revoked'), reason: z.enum(['refund', 'dispute']) }),
+  z.object({ kind: z.literal('pro_restored') }),
+  z.object({ kind: z.literal('order_revoked'), reason: z.enum(['refund', 'dispute']) }),
+  z.object({ kind: z.literal('order_restored') }),
   z.object({ kind: z.literal('order_paid'), invoiceId: z.string().nullable() }),
   // A consumer's withdrawal (./withdrawals.ts): the receipt at once, then the refund or why none
   z.object({ kind: z.literal('withdrawal_received'), withdrawalId: z.uuid() }),
@@ -49,7 +55,11 @@ export function parsePaymentNotice(payload: Record<string, unknown>): PaymentNot
 }
 
 type Recipient = { email: string; telegramUserId: number | null; timeZone: string };
-type Deps = { mail: Mailer; telegram: TelegramClient | null; appUrl: string; gateway: PaymentGateway | null };
+/**
+ * `once`: the outbox event's id. Each channel then goes out once per notice, also when the job is
+ * retried after the email went (check B, Nov 1, 2026: a Valkey error after it sent it again).
+ */
+type Deps = { mail: Mailer; telegram: TelegramClient | null; appUrl: string; gateway: PaymentGateway | null; once?: string };
 /** `note`: a left-to-right paragraph after the lines (the German receipt) */
 type Content = { subject: string; lines: string[]; note?: string; button: string; link: string; invoiceUrl: string | null };
 
@@ -71,24 +81,31 @@ async function deliver(redis: Redis, deps: Deps, to: Recipient, c: Content): Pro
   const invoice = c.invoiceUrl ? `<p><a href="${escapeHtml(c.invoiceUrl)}" style="color:#0b6e77;font-weight:bold">${escapeHtml(t.invoice)}</a></p>` : '';
   const note = c.note ? `<p dir="ltr" lang="de" style="direction:ltr;text-align:left;color:#525252;font-size:13px">${escapeHtml(c.note)}</p>` : '';
   const lines = c.note ? [...c.lines, ltrLine(c.note)] : c.lines;
-  await deps.mail({
-    to: to.email,
-    subject: c.subject,
-    text: [...lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link].join('\n\n'),
-    html: emailHtml(
-      `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${note}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>`,
-    ),
-  });
+  await onceFor(redis, deps.once, 'mail', () =>
+    deps.mail({
+      to: to.email,
+      subject: c.subject,
+      text: [...lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link].join('\n\n'),
+      html: emailHtml(
+        `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${note}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>`,
+      ),
+    }),
+  );
   let telegram = false;
-  if (deps.telegram && to.telegramUserId !== null && !(await isUnreachableMarked(redis, to.telegramUserId))) {
-    try {
-      const buttons = [[{ text: c.button, url: c.link }], ...(c.invoiceUrl ? [[{ text: t.invoice, url: c.invoiceUrl }]] : [])];
-      await deps.telegram.sendMessage(to.telegramUserId, lines.join('\n\n'), { inline_keyboard: buttons });
-      telegram = true;
-    } catch (e) {
-      if (isUnreachable(e)) await markUnreachable(redis, to.telegramUserId);
-      console.error('payment notice: telegram failed:', e instanceof Error ? e.message : e);
-    }
+  const tg = deps.telegram;
+  const chat = to.telegramUserId;
+  if (tg && chat !== null && !(await isUnreachableMarked(redis, chat))) {
+    // A failed Telegram copy is dropped (the email went), so it is marked like a sent one
+    await onceFor(redis, deps.once, 'tg', async () => {
+      try {
+        const buttons = [[{ text: c.button, url: c.link }], ...(c.invoiceUrl ? [[{ text: t.invoice, url: c.invoiceUrl }]] : [])];
+        await tg.sendMessage(chat, lines.join('\n\n'), { inline_keyboard: buttons });
+        telegram = true;
+      } catch (e) {
+        if (isUnreachable(e)) await markUnreachable(redis, chat);
+        console.error('payment notice: telegram failed:', e instanceof Error ? e.message : e);
+      }
+    });
   }
   return { email: true, telegram };
 }
@@ -99,7 +116,7 @@ const tgId = (v: string | number | null) => (v === null ? null : Number(v));
 export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps, aggregateId: string, notice: PaymentNotice): Promise<{ email: boolean; telegram: boolean }> {
   const t = messages.email.paymentNotice;
   const none = { email: false, telegram: false };
-  if (notice.kind === 'order_paid') {
+  if (notice.kind === 'order_paid' || notice.kind === 'order_revoked' || notice.kind === 'order_restored') {
     const [r] = await db.execute<{ email: string; telegram_user_id: string | number | null; product: string; title: string; token: string; total: number; currency: string; tz: string }>(sql`
       SELECT u.email, u.telegram_user_id, p.name_fa AS product, l.title, l.public_token AS token, o.total_minor AS total, o.currency,
         coalesce((SELECT c.timezone FROM locations c WHERE c.id = l.location_id), 'Europe/Berlin') AS tz
@@ -109,8 +126,13 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       JOIN listings l ON l.id = o.listing_id
       WHERE o.id = ${aggregateId}`);
     if (!r) return none;
+    const to = { email: r.email, telegramUserId: tgId(r.telegram_user_id), timeZone: r.tz };
+    if (notice.kind !== 'order_paid') {
+      const c = notice.kind === 'order_revoked' ? t.orderRevoked[notice.reason] : t.orderRestored;
+      return deliver(redis, deps, to, { subject: c.subject(r.product), lines: [c.intro(r.product, r.title), c.body], button: t.orderButton, link: `${deps.appUrl}/my/orders/${aggregateId}`, invoiceUrl: null });
+    }
     const c = t.orderPaid;
-    return deliver(redis, deps, { email: r.email, telegramUserId: tgId(r.telegram_user_id), timeZone: r.tz }, {
+    return deliver(redis, deps, to, {
       subject: c.subject(r.product),
       lines: [c.intro(r.product, r.title, formatPrice(r.total, r.currency, 2)), c.body],
       button: c.button,
@@ -153,6 +175,10 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       link: billing,
       invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId),
     });
+  }
+  if (notice.kind === 'pro_revoked' || notice.kind === 'pro_restored') {
+    const c = notice.kind === 'pro_revoked' ? t.proRevoked[notice.reason] : t.proRestored;
+    return deliver(redis, deps, to, { subject: c.subject(r.name), lines: [c.intro(r.name), c.body], button: t.proEnded.button, link: billing, invoiceUrl: null });
   }
   const c = t.proEnded;
   return deliver(redis, deps, to, { subject: c.subject(r.name), lines: [c.intro(r.name), c.body], button: c.button, link: billing, invoiceUrl: null });
@@ -206,7 +232,7 @@ async function sendWithdrawalNotice(
 }
 
 /** Worker (outbox `listing.bumped`): tells the seller their listing moved to the top */
-export async function sendBumpNotice(db: Queryable, redis: Redis, deps: Pick<Deps, 'mail' | 'telegram' | 'appUrl'>, listingId: string): Promise<{ email: boolean; telegram: boolean }> {
+export async function sendBumpNotice(db: Queryable, redis: Redis, deps: Pick<Deps, 'mail' | 'telegram' | 'appUrl' | 'once'>, listingId: string): Promise<{ email: boolean; telegram: boolean }> {
   const [r] = await db.execute<{ email: string; telegram_user_id: string | number | null; title: string; token: string }>(sql`
     SELECT u.email, u.telegram_user_id, l.title, l.public_token AS token
     FROM listings l JOIN users u ON u.id = l.user_id AND u.status = 'active'

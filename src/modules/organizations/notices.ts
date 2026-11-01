@@ -6,6 +6,7 @@ import { messages } from '../../messages/fa';
 import { emailHtml, escapeHtml, type Mailer } from '../notifications/mailer';
 import { isUnreachable, type TelegramClient } from '../notifications/telegram-api';
 import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
+import { onceFor } from '../notifications/send-once';
 
 // Notices to a business's owner when staff change something about the business (owner's rule,
 // Oct 26, 2026: users are always told, both ways). Verified, badge removed, rejected, founding.
@@ -26,7 +27,8 @@ export async function queueBusinessNotice(tx: Queryable, organizationId: string,
 export async function sendBusinessNotice(
   db: Queryable,
   redis: Redis,
-  opts: { mail: Mailer; telegram: TelegramClient | null; appUrl: string },
+  /** `once`: the outbox event's id, so a retried job sends each channel once (../payments/notices.ts) */
+  opts: { mail: Mailer; telegram: TelegramClient | null; appUrl: string; once?: string },
   organizationId: string,
   kind: BusinessNoticeKind,
 ): Promise<{ email: boolean; telegram: boolean }> {
@@ -40,24 +42,29 @@ export async function sendBusinessNotice(
   if (!r) return { email: false, telegram: false };
   const t = messages.email.businessNotice[kind];
   const link = `${opts.appUrl}/b/${r.slug}/${kind === 'rejected' || kind === 'unverified' ? 'edit' : 'manage'}`;
-  await opts.mail({
-    to: r.email,
-    subject: t.subject(r.name),
-    text: `${t.intro(r.name)}\n\n${t.body}\n\n${link}`,
-    html: emailHtml(
-      `<p>${escapeHtml(t.intro(r.name))}</p><p>${escapeHtml(t.body)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
-    ),
-  });
+  await onceFor(redis, opts.once, 'mail', () =>
+    opts.mail({
+      to: r.email,
+      subject: t.subject(r.name),
+      text: `${t.intro(r.name)}\n\n${t.body}\n\n${link}`,
+      html: emailHtml(
+        `<p>${escapeHtml(t.intro(r.name))}</p><p>${escapeHtml(t.body)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
+      ),
+    }),
+  );
   let telegram = false;
   const tg = r.telegram_user_id === null ? null : Number(r.telegram_user_id);
-  if (opts.telegram && tg !== null && !(await isUnreachableMarked(redis, tg))) {
-    try {
-      await opts.telegram.sendMessage(tg, `${t.intro(r.name)}\n\n${t.body}`, { inline_keyboard: [[{ text: t.button, url: link }]] });
-      telegram = true;
-    } catch (e) {
-      if (isUnreachable(e)) await markUnreachable(redis, tg);
-      console.error('business notice: telegram failed:', e instanceof Error ? e.message : e);
-    }
+  const bot = opts.telegram;
+  if (bot && tg !== null && !(await isUnreachableMarked(redis, tg))) {
+    await onceFor(redis, opts.once, 'tg', async () => {
+      try {
+        await bot.sendMessage(tg, `${t.intro(r.name)}\n\n${t.body}`, { inline_keyboard: [[{ text: t.button, url: link }]] });
+        telegram = true;
+      } catch (e) {
+        if (isUnreachable(e)) await markUnreachable(redis, tg);
+        console.error('business notice: telegram failed:', e instanceof Error ? e.message : e);
+      }
+    });
   }
   return { email: true, telegram };
 }

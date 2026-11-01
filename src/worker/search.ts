@@ -9,7 +9,7 @@ import type { Meili } from '../modules/search/meili';
 import { phraseCode, rebuildPhrases, SUGGESTIONS_INDEX } from '../modules/search/phrases';
 import { indexState, rebuildIndex, syncListings } from '../modules/search/sync';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // The Meilisearch index (docs/setup.md, "Keyword search and saved searches"), on queue
 // `search-sync` with concurrency 1, so a publish and a quick delete can never overtake each other
@@ -98,7 +98,7 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
   const queue = new Queue('search-sync', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
   if (opts.schedules !== false) {
     for (const [name, repeat] of Object.entries(SCHEDULES)) {
-      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: 20, removeOnFail: 50 } });
+      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: true, removeOnFail: 50 } });
     }
   }
 
@@ -149,7 +149,7 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
     { connection: own, concurrency: 1, ...prefix },
   );
   worker.on('failed', (job, e) => {
-    console.error(`search: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`search: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 
@@ -165,7 +165,7 @@ export async function startSearchJobs(db: Db, connection: Redis, opts: SearchJob
         await queue.add('reindex', startup(state, indexCode()), { removeOnComplete: true, removeOnFail: 50 });
       }
     } catch (e) {
-      console.error('search: start-up check failed:', e instanceof Error ? e.message : e);
+      console.error('search: start-up check failed:', logText(e));
     }
   } else if (!meili) {
     console.log('search: MEILI_URL not set, keyword search runs on PostgreSQL');

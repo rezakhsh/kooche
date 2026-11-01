@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
@@ -5,8 +6,9 @@ import { cachedCatalog } from '../modules/listings/catalog';
 import { claimAlert, dueForDaily, matchListing, noticeDelay, purgeHits, unclaimAlert, type AlertJob, type Channel } from '../modules/search/alerts';
 import { LISTINGS_INDEX } from '../modules/search/documents';
 import type { Meili } from '../modules/search/meili';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 import { EVERY_HOUR, scheduledTime } from '../modules/notifications/local-hour';
+import { sendOnce } from '../modules/notifications/send-once';
 
 /** A bundling person's claimed searches in the daily run, each with when it was claimed */
 type Bundle = { claims: Array<{ job: AlertJob; at: Date }>; channels: Channel[] };
@@ -26,6 +28,9 @@ type Bundle = { claims: Array<{ job: AlertJob; at: Date }>; channels: Channel[] 
 const SCHEDULES = {
   daily: EVERY_HOUR,
 } as const;
+
+/** A set of matches is sent once; it comes back only when its queueing failed (retried within the hour) */
+const ALERT_SENT_TTL_SECONDS = 86_400;
 
 const RETRY = { attempts: 5, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
@@ -50,7 +55,7 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
   const queue = new Queue('search-alerts', { connection, ...prefix, defaultJobOptions: { ...RETRY, removeOnComplete: 200, removeOnFail: 500 } });
   if (opts.schedules !== false) {
     for (const [name, repeat] of Object.entries(SCHEDULES)) {
-      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: 20, removeOnFail: 50 } });
+      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: true, removeOnFail: 50 } });
     }
   }
 
@@ -58,13 +63,22 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
   const schedule = (savedSearchId: string, delay: number, suffix = '') =>
     queue.add('notify', { savedSearchId }, { jobId: `notify_${savedSearchId}${suffix}`, delay, removeOnComplete: true, removeOnFail: true });
 
-  /** Puts a notice on the send queues: Telegram, email or both */
+  /**
+   * Puts a notice on the send queues: Telegram, email or both. Each channel once per person and set
+   * of matches (check B, Nov 1, 2026): a retry after the Telegram copy was queued and the email
+   * failed takes the same matches again under a new key, and queues only the email.
+   */
   const enqueue = async (job: AlertJob, channels: Channel[], key: string) => {
     const email = channels.includes('email');
+    const matches = createHash('sha256')
+      .update([job, ...(job.more ?? [])].flatMap((j) => j.listingIds).sort().join(','))
+      .digest('hex')
+      .slice(0, 16);
+    const once = (channel: string, add: () => Promise<unknown>) => sendOnce(connection, `alert_${channel}_${job.userId}_${matches}`, add, ALERT_SENT_TTL_SECONDS);
     if (channels.includes('telegram') && opts.telegram) {
-      await opts.send.telegram.add('search_telegram', { ...job, emailToo: email }, { jobId: `tg_${key}` });
-      if (email) await opts.send.email.add('search_email', job, { jobId: `mail_${key}` });
-    } else await opts.send.email.add('search_email', job, { jobId: `mail_${key}` });
+      await once('tg', () => opts.send.telegram.add('search_telegram', { ...job, emailToo: email }, { jobId: `tg_${key}` }));
+      if (email) await once('mail', () => opts.send.email.add('search_email', job, { jobId: `mail_${key}` }));
+    } else await once('mail', () => opts.send.email.add('search_email', job, { jobId: `mail_${key}` }));
   };
 
   /** `bundles`: the daily run collects bundling people's notices here and sends one per person */
@@ -137,7 +151,7 @@ export async function startSearchAlertJobs(db: Db, connection: Redis, opts: Aler
     { connection: own, ...prefix, concurrency: 2 },
   );
   worker.on('failed', (job, e) => {
-    console.error(`search-alerts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`search-alerts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 

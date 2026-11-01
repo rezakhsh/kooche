@@ -991,6 +991,7 @@ export const messages = {
       featured: (n: number) => `ویژه ۷ روزه رایگان (${n.toLocaleString('fa-IR')} مانده)`,
       requested: 'درخواست ثبت شد؛ تا یک دقیقه دیگر اعمال می‌شود.',
       none_left: 'سهم این دوره تمام شده است.',
+      already_waiting: 'یک نردبان این آگهی در صف است و تا یک دقیقه دیگر اعمال می‌شود؛ از سهم شما فقط یکی کم می‌شود.',
     },
     /** The waitlist reward (wave 2 part 9, src/modules/launch/rewards.ts) */
     reward: {
@@ -2199,6 +2200,43 @@ export const messages = {
         intro: (name: string) => `اشتراک «${name}» تمام شد.`,
         body: 'صفحهٔ کسب‌وکار و آگهی‌های منتشرشده می‌مانند. برای آگهی تازه، سقف رایگان (۳ آگهی فعال) برقرار است. هر وقت خواستید می‌توانید دوباره مشترک شوید.',
         button: 'اشتراک و فاکتورها',
+      },
+      // A full refund or a chargeback took what a payment granted; a chargeback closed in our favour gave it back
+      proRevoked: {
+        refund: {
+          subject: (name: string) => `پروی «${name}» متوقف شد`,
+          intro: (name: string) => `پول اشتراک پروی «${name}» برای این دوره کامل برگشت داده شد، پس امکانات پروی این دوره هم تمام شد.`,
+          body: 'صفحهٔ کسب‌وکار و آگهی‌های منتشرشده می‌مانند. برای آگهی تازه، سقف رایگان (۳ آگهی فعال) برقرار است. رسیدن پول بسته به بانک ۵ تا ۱۰ روز کاری طول می‌کشد.',
+        },
+        dispute: {
+          subject: (name: string) => `پروی «${name}» متوقف شد`,
+          intro: (name: string) => `پرداخت اشتراک پروی «${name}» از طرف بانک یا کارت برگشت زده شد (اعتراض به پرداخت)، پس امکانات پروی این دوره فعلاً متوقف شد.`,
+          body: 'صفحهٔ کسب‌وکار و آگهی‌های منتشرشده می‌مانند. اگر اعتراض به نفع ما بسته شود، پرو تا پایان همین دوره دوباره فعال می‌شود و خبرتان می‌کنیم.',
+        },
+      },
+      proRestored: {
+        subject: (name: string) => `پروی «${name}» دوباره فعال شد`,
+        intro: (name: string) => `اعتراض به پرداخت اشتراک «${name}» بسته شد و پرداخت سر جایش ماند.`,
+        body: 'امکانات پرو تا پایان همان دوره دوباره فعال است.',
+      },
+      orderButton: 'دیدن خرید',
+      orderRevoked: {
+        refund: {
+          subject: (product: string) => `${product} متوقف شد`,
+          intro: (product: string, title: string) => `پول «${product}» برای آگهی «${title}» کامل برگشت داده شد، پس ویژه بودن یا نردبان‌های اجرانشدهٔ آن هم تمام شد.`,
+          body: 'رسیدن پول بسته به بانک یا PayPal ۵ تا ۱۰ روز کاری طول می‌کشد. خود آگهی سر جایش می‌ماند.',
+        },
+        dispute: {
+          subject: (product: string) => `${product} متوقف شد`,
+          intro: (product: string, title: string) =>
+            `پرداخت «${product}» برای آگهی «${title}» از طرف بانک یا کارت برگشت زده شد (اعتراض به پرداخت)، پس ویژه بودن یا نردبان‌های اجرانشدهٔ آن فعلاً متوقف شد.`,
+          body: 'خود آگهی سر جایش می‌ماند. اگر اعتراض به نفع ما بسته شود، باقی‌ماندهٔ آن دوباره فعال می‌شود و خبرتان می‌کنیم.',
+        },
+      },
+      orderRestored: {
+        subject: (product: string) => `${product} دوباره فعال شد`,
+        intro: (product: string, title: string) => `اعتراض به پرداخت «${product}» برای آگهی «${title}» بسته شد و پرداخت سر جایش ماند.`,
+        body: 'باقی‌ماندهٔ ویژه بودن یا نردبان‌های اجرانشدهٔ آن دوباره فعال است.',
       },
       orderPaid: {
         subject: (product: string) => `پرداخت انجام شد: ${product}`,

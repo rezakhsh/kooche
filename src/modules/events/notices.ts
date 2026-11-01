@@ -146,6 +146,13 @@ export async function claimReminder(db: Queryable, listingId: string, userId: st
   return rows.length > 0;
 }
 
+/** A reminder that couldn't be handed to the send queues is due again */
+export async function releaseReminder(db: Queryable, listingId: string, userId: string, startsAt: Date): Promise<void> {
+  await db.execute(sql`
+    UPDATE favorites SET reminded_for = NULL
+    WHERE listing_id = ${listingId} AND user_id = ${userId} AND reminded_for = ${startsAt.toISOString()}::timestamptz`);
+}
+
 export function reminderMessage(r: DueReminder, channels: NoticeChannel[], appUrl: string): Outgoing {
   const t = messages.events.notices;
   const base = appUrl.replace(/\/$/, '');

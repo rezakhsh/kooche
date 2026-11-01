@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { IranPaymentNotice, fromIran } from '../../../../../components/iran';
 import { Icon } from '../../../../../components/icons';
+import { PendingButton } from '../../../../../components/pending-button';
 import { Alert, Button, Card, PageShell, Pill } from '../../../../../components/ui';
 import { appDb } from '../../../../../db/drizzle';
 import { webEnv } from '../../../../../lib/env';
@@ -86,6 +87,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         {query.reward === 'used' && <Alert tone="success">{t.reward.used}</Alert>}
         {(query.reward === 'none' || query.reward === 'not_allowed') && <Alert tone="error">{t.reward[query.reward]}</Alert>}
         {query.plan === 'none_left' && <Alert tone="error">{t.plan.none_left}</Alert>}
+        {query.plan === 'already_waiting' && <Alert tone="info">{t.plan.already_waiting}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {!live && <Alert tone="error">{t.notLive}</Alert>}
         {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
@@ -108,14 +110,14 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
                 <form action={useAllowanceAction}>
                   <input type="hidden" name="listingId" value={listing.id} />
                   <input type="hidden" name="kind" value="bump" />
-                  <Button type="submit" variant="secondary">{t.plan.bump(plan.bumps)}</Button>
+                  <PendingButton variant="secondary">{t.plan.bump(plan.bumps)}</PendingButton>
                 </form>
               )}
               {plan.featured > 0 && !running.featuredUntil && (
                 <form action={useAllowanceAction}>
                   <input type="hidden" name="listingId" value={listing.id} />
                   <input type="hidden" name="kind" value="featured" />
-                  <Button type="submit" variant="secondary">{t.plan.featured(plan.featured)}</Button>
+                  <PendingButton variant="secondary">{t.plan.featured(plan.featured)}</PendingButton>
                 </form>
               )}
             </div>

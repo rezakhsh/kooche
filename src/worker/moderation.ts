@@ -11,9 +11,10 @@ import { businessCaseMail, decisionNotices, phoneReleasedMail, reportReceipt, si
 import { cachedCatalog } from '../modules/listings/catalog';
 import { closeSwitched, findSuspicions } from '../modules/organizations/suspicions';
 import { LISTING_OUTBOX } from '../modules/listings/events';
+import { sendOnce } from '../modules/notifications/send-once';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // Worker jobs of moderation (roadmap step 8; docs/setup.md, "Admin page"), queue `moderation`:
 // - `report.created`: the reporter's receipt (email), and the owner's alert;
@@ -59,29 +60,41 @@ export type ModerationJobOptions = {
 export async function startModerationJobs(db: Db, connection: Redis, opts: ModerationJobOptions) {
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('moderation', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
-  await queue.upsertJobScheduler('suspensions-ended', { every: 15 * 60_000 }, { name: 'suspensions_ended', opts: { removeOnComplete: 20, removeOnFail: 50 } });
+  await queue.upsertJobScheduler('suspensions-ended', { every: 15 * 60_000 }, { name: 'suspensions_ended', opts: { removeOnComplete: true, removeOnFail: 50 } });
   // The admin page's system status (src/modules/admin/system.ts)
-  await queue.upsertJobScheduler('system-status', { every: 60_000 }, { name: 'system_status', opts: { removeOnComplete: 5, removeOnFail: 20, attempts: 1 } });
-  await queue.upsertJobScheduler('business-scan', { pattern: '40 3 * * *', tz: 'UTC' }, { name: 'business_scan', opts: { removeOnComplete: 20, removeOnFail: 50 } });
+  await queue.upsertJobScheduler('system-status', { every: 60_000 }, { name: 'system_status', opts: { removeOnComplete: true, removeOnFail: 20, attempts: 1 } });
+  await queue.upsertJobScheduler('business-scan', { pattern: '40 3 * * *', tz: 'UTC' }, { name: 'business_scan', opts: { removeOnComplete: true, removeOnFail: 50 } });
   if (opts.software) {
-    await queue.upsertJobScheduler('software-check', { pattern: '0 5 * * 1', tz: 'UTC' }, { name: 'software_check', opts: { removeOnComplete: 10, removeOnFail: 20, attempts: 3, backoff: { type: 'exponential', delay: 60_000 } } });
+    await queue.upsertJobScheduler('software-check', { pattern: '0 5 * * 1', tz: 'UTC' }, { name: 'software_check', opts: { removeOnComplete: true, removeOnFail: 20, attempts: 3, backoff: { type: 'exponential', delay: 60_000 } } });
     // After a deploy the versions changed: check again, at most once an hour
-    await queue.add('software_check', {}, { jobId: `software_check_start_${Math.floor(Date.now() / 3_600_000)}`, delay: 3 * 60_000, removeOnComplete: 10, removeOnFail: 20, attempts: 1 });
+    await queue.add('software_check', {}, { jobId: `software_check_start_${Math.floor(Date.now() / 3_600_000)}`, delay: 3 * 60_000, removeOnComplete: true, removeOnFail: 20, attempts: 1 });
   }
   const gather = opts.gatherMs ?? ALERT_GATHER_MS;
 
-  /** One alert job per ten-minute slot, after a short wait so a burst goes out as one message */
+  /**
+   * One alert job per ten-minute slot, after a short wait so a burst goes out as one message. The
+   * slot is taken in Valkey: the job id alone stopped a second job only while the first was still
+   * in the queue's list of finished jobs (check B, Nov 1, 2026).
+   */
   const scheduleAlert = async () => {
     if (!opts.alert) return;
     const slot = Math.floor(Date.now() / ALERT_EVERY_MS);
-    await queue.add('admin_alert', {}, { jobId: `admin_alert_${slot}`, delay: gather });
+    const key = `${opts.prefix ?? ''}admin-alert:slot:${slot}`;
+    if ((await connection.set(key, '1', 'PX', 2 * ALERT_EVERY_MS, 'NX')) !== 'OK') return;
+    try {
+      await queue.add('admin_alert', {}, { jobId: `admin_alert_${slot}`, delay: gather });
+    } catch (e) {
+      await connection.del(key);
+      throw e;
+    }
   };
 
   /** An account notice from staff: the email, and the same text by Telegram when linked (Check B, Oct 31, 2026) */
   const account = async (userId: string, mail: PlainEmailJob['mail'], key: string) => {
-    await opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_${key}` });
+    // Each channel once: a retry after the email was queued queues only the Telegram copy
+    await sendOnce(connection, `mail_${key}`, () => opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_${key}` }));
     const tg = await telegramCopy(db, connection, userId, mail);
-    if (tg) await opts.send.telegram.add('plain_telegram', tg satisfies PlainTelegramJob, { jobId: `tg_${key}` });
+    if (tg) await sendOnce(connection, `tg_${key}`, () => opts.send.telegram.add('plain_telegram', tg satisfies PlainTelegramJob, { jobId: `tg_${key}` }));
   };
 
   const own = connection.duplicate();
@@ -103,15 +116,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           const n = await decisionNotices(db, connection, data.aggregateId, opts.appUrl, data.payload.notifyUser !== false);
           // Each message once, also when a retry starts again after the send queues forgot the
           // first (they keep 200 finished jobs; code check, Oct 30, 2026)
-          const once = async (key: string, add: () => Promise<unknown>) => {
-            if ((await connection.set(`notice-sent:${key}`, '1', 'EX', 30 * 86_400, 'NX')) !== 'OK') return;
-            try {
-              await add();
-            } catch (e) {
-              await connection.del(`notice-sent:${key}`);
-              throw e;
-            }
-          };
+          const once = (key: string, add: () => Promise<unknown>) => sendOnce(connection, key, add);
           if (n.user) {
             const user = n.user;
             await once(`mail_decision_${data.aggregateId}`, () => opts.send.email.add('plain_email', { mail: user.mail } satisfies PlainEmailJob, { jobId: `mail_decision_${data.aggregateId}` }));
@@ -202,7 +207,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     { connection: own, concurrency: 2, ...prefix },
   );
   worker.on('failed', (job, e) => {
-    console.error(`moderation: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`moderation: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 

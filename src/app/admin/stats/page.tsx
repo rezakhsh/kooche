@@ -27,6 +27,7 @@ function countryName(code: string): string {
   }
 }
 
+/** Columns keep their headings whole with a gap between them; on a phone the table scrolls sideways in its box */
 function Table({ head, rows }: { head: string[]; rows: Array<Array<string | number>> }) {
   if (!rows.length) return <p className="text-sm text-neutral-600">{t.empty}</p>;
   return (
@@ -35,7 +36,7 @@ function Table({ head, rows }: { head: string[]; rows: Array<Array<string | numb
         <thead>
           <tr className="text-xs text-neutral-600">
             {head.map((h, i) => (
-              <th key={h} className={`pb-2 font-medium ${i ? 'text-end' : 'text-start'}`}>
+              <th key={h} className={`pb-2 font-medium whitespace-nowrap ${i ? 'ps-3 text-end' : 'text-start'}`}>
                 {h}
               </th>
             ))}
@@ -45,7 +46,7 @@ function Table({ head, rows }: { head: string[]; rows: Array<Array<string | numb
           {rows.map((r, i) => (
             <tr key={i} className="border-t border-neutral-100">
               {r.map((c, j) => (
-                <td key={j} className={`py-2 ${j ? 'text-end tabular-nums' : 'text-start'}`}>
+                <td key={j} className={`py-2 ${j ? 'ps-3 text-end tabular-nums whitespace-nowrap' : 'text-start'}`}>
                   {typeof c === 'number' ? fa(c) : <bdi>{c}</bdi>}
                 </td>
               ))}

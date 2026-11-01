@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, entitlements, listings, orders, orderWithdrawals, outboxEvents, payments, products, users } from '../../db/schema';
+import { addDays, localParts, zonedToUtc } from '../events/time';
 import type { PaymentGateway } from './gateway';
 import { queuePaymentNotice } from './notices';
 
@@ -15,7 +16,17 @@ import { queuePaymentNotice } from './notices';
 // businesses only (the tick at checkout, ./checkout.ts).
 
 export const WITHDRAWAL_DAYS = 14;
-const DAY_MS = 86_400_000;
+/** German law, German seller: the days are counted on Berlin's calendar */
+const WITHDRAWAL_ZONE = 'Europe/Berlin';
+
+/**
+ * When the period ends (§§ 187 (1), 188 (2) BGB): the day of payment doesn't count, so it runs to
+ * the end of the 14th day after it, Berlin time (check B, Nov 1, 2026: 14 × 24 hours closed it
+ * hours early on its last day). Whether a weekend or holiday moves it (§ 193) is for the lawyer.
+ */
+export function withdrawalEnd(paidAt: Date): Date {
+  return zonedToUtc({ ...addDays(localParts(paidAt, WITHDRAWAL_ZONE), WITHDRAWAL_DAYS + 1), h: 0, mi: 0 }, WITHDRAWAL_ZONE);
+}
 
 /** Outbox: a withdrawal was recorded; the worker refunds what wasn't used */
 export const WITHDRAWAL_RECEIVED = 'order.withdrawn';
@@ -28,11 +39,11 @@ type Eligibility = {
   withdrawnAt: Date | null;
 };
 
-/** Whether the button shows: a consumer's paid order, within 14 days, not withdrawn yet */
+/** Whether the button shows: a consumer's paid order, within its 14 days, not withdrawn yet */
 export function canWithdraw(o: Eligibility, now = new Date()): boolean {
   if (o.business || o.withdrawnAt || !o.paidAt) return false;
   if (o.status !== 'paid' && o.status !== 'partially_refunded') return false;
-  return now.getTime() < o.paidAt.getTime() + WITHDRAWAL_DAYS * DAY_MS;
+  return now < withdrawalEnd(o.paidAt);
 }
 
 /** The columns canWithdraw() needs, for the order queries (./orders.ts) */
@@ -139,7 +150,19 @@ export async function processWithdrawal(db: Db, gateway: PaymentGateway, withdra
     .select({ type: entitlements.type, startsAt: entitlements.startsAt, endsAt: entitlements.endsAt, appliedAt: entitlements.appliedAt, revokedAt: entitlements.revokedAt })
     .from(entitlements)
     .where(eq(entitlements.orderId, w.orderId));
-  const amount = charge ? withdrawalRefund({ totalMinor: order!.totalMinor, refundedMinor: refunded?.sum ?? 0, granted, receivedAt: w.createdAt }) : 0;
+  let amount = w.refundMinor ?? (charge ? withdrawalRefund({ totalMinor: order!.totalMinor, refundedMinor: refunded?.sum ?? 0, granted, receivedAt: w.createdAt }) : 0);
+  if (amount > 0 && w.refundMinor === null) {
+    // Kept before Stripe is asked. A retry after Stripe refunded would count that refund (its
+    // webhook may have run meanwhile) and find nothing left; it asks again with this amount and
+    // the same key instead, and Stripe answers with the same refund (check B, Nov 1, 2026).
+    const [kept] = await db
+      .update(orderWithdrawals)
+      .set({ refundMinor: sql`coalesce(${orderWithdrawals.refundMinor}, ${amount})` })
+      .where(and(eq(orderWithdrawals.id, w.id), eq(orderWithdrawals.status, 'received')))
+      .returning({ refundMinor: orderWithdrawals.refundMinor });
+    if (!kept) return 'done';
+    amount = kept.refundMinor!;
+  }
 
   let outcome: 'refunded' | 'no_refund' = 'no_refund';
   let refundId: string | null = null;

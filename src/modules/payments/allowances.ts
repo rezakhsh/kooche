@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { entitlements, listings, organizationMembers, organizations, outboxEvents } from '../../db/schema';
 import { businessPlan } from './plans';
@@ -16,7 +16,7 @@ const BUMP_WINDOW_MS = 30 * DAY_MS;
 const FEATURED_FROM_PLAN_MS = 7 * DAY_MS;
 
 export type AllowanceKind = 'bump' | 'featured';
-export type AllowanceRefusal = 'not_found' | 'not_allowed' | 'none_left' | 'already_featured';
+export type AllowanceRefusal = 'not_found' | 'not_allowed' | 'none_left' | 'already_featured' | 'already_waiting';
 
 /** What is left of the plan's allowances right now */
 export async function allowancesLeft(db: Queryable, organizationId: string, now: Date = new Date()) {
@@ -33,6 +33,20 @@ export async function allowancesLeft(db: Queryable, organizationId: string, now:
     bumps: Math.max(0, plan.features.bumpsPerMonth - (used?.bumps ?? 0)),
     featured: Math.max(0, plan.features.featuredSlots - (used?.featured ?? 0)),
   };
+}
+
+/**
+ * Whether the listing already has an included bump that hasn't run. The bump run moves a listing
+ * once a minute however many are due, so a second one would use up a bump for nothing (check B,
+ * Nov 1, 2026: a double click took two).
+ */
+async function bumpWaiting(db: Queryable, listingId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: entitlements.id })
+    .from(entitlements)
+    .where(and(eq(entitlements.listingId, listingId), eq(entitlements.type, 'bump'), isNotNull(entitlements.subscriptionId), isNull(entitlements.appliedAt), isNull(entitlements.revokedAt)))
+    .limit(1);
+  return !!row;
 }
 
 /**
@@ -56,6 +70,7 @@ export async function requestAllowance(
   if (row.status !== 'active') return { ok: false, reason: 'not_allowed' };
   const left = await allowancesLeft(db, row.organizationId, now);
   if ((opts.kind === 'bump' ? left.bumps : left.featured) <= 0) return { ok: false, reason: 'none_left' };
+  if (opts.kind === 'bump' && (await bumpWaiting(db, opts.listingId))) return { ok: false, reason: 'already_waiting' };
   await db.insert(outboxEvents).values({
     eventType: ALLOWANCE_REQUESTED,
     aggregateType: 'listing',
@@ -92,6 +107,8 @@ export async function grantAllowance(
 
   const base = { organizationId: org.id, listingId: listing.id, subscriptionId: left.plan.subscriptionId, features: {} };
   if (opts.kind === 'bump') {
+    // Two requests sent before the first was granted: the second waits for nothing
+    if (await bumpWaiting(db, listing.id)) return 'already_waiting';
     await db.insert(entitlements).values({ ...base, type: 'bump', startsAt: now });
     return 'granted';
   }

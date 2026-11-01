@@ -4,7 +4,7 @@ import type { Db } from '../db/drizzle';
 import { closeEndedActingSessions } from '../modules/admin/acting';
 import { ERASED, ERASE_REQUESTED, eraseRequestedUser, finishStuckErasures } from '../modules/users/erasure';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // Worker jobs for accounts: queue `accounts` erases an account after its owner asked for it
 // (src/modules/users/erasure.ts). Retried like the other outbox jobs; a retry after a success
@@ -19,9 +19,9 @@ export async function startAccountJobs(db: Db, connection: Redis, opts: { prefix
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('accounts', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
   // Sign-in-as sessions whose time ran out without «پایان» (src/modules/admin/acting.ts)
-  await queue.upsertJobScheduler('acting-ended', { every: 60_000 }, { name: 'acting_ended', opts: { removeOnComplete: 5, removeOnFail: 20, attempts: 1 } });
+  await queue.upsertJobScheduler('acting-ended', { every: 60_000 }, { name: 'acting_ended', opts: { removeOnComplete: true, removeOnFail: 20, attempts: 1 } });
   // Deletions whose job gave up are finished (src/modules/users/erasure.ts)
-  await queue.upsertJobScheduler('erase-stuck', { pattern: '23 * * * *', tz: 'UTC' }, { name: 'erase_stuck', opts: { removeOnComplete: 5, removeOnFail: 20, attempts: 1 } });
+  await queue.upsertJobScheduler('erase-stuck', { pattern: '23 * * * *', tz: 'UTC' }, { name: 'erase_stuck', opts: { removeOnComplete: true, removeOnFail: 20, attempts: 1 } });
   const own = connection.duplicate();
   const worker = new Worker<OutboxJobData>(
     'accounts',
@@ -36,7 +36,7 @@ export async function startAccountJobs(db: Db, connection: Redis, opts: { prefix
     { connection: own, concurrency: 1, ...prefix },
   );
   worker.on('failed', (job, e) => {
-    console.error(`accounts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`accounts: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 

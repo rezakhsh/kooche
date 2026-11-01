@@ -142,6 +142,7 @@ export const HANDLED_EVENTS = [
   'refund.updated',
   'refund.failed',
   'charge.dispute.created',
+  'charge.dispute.closed',
 ] as const;
 export type HandledEvent = (typeof HANDLED_EVENTS)[number];
 export const isHandled = (type: string): type is HandledEvent => (HANDLED_EVENTS as readonly string[]).includes(type);

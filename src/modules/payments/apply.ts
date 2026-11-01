@@ -158,6 +158,8 @@ async function dispatch(tx: Queryable, type: string, object: Record<string, unkn
       return refundChanged(tx, fetched.refund ?? refundSchema.parse(object), ctx);
     case 'charge.dispute.created':
       return disputed(tx, disputeSchema.parse(object), ctx);
+    case 'charge.dispute.closed':
+      return disputeClosed(tx, disputeSchema.parse(object), ctx);
     default:
       // The endpoint stores only handled types (./webhook.ts); nothing to do for anything else
       return;
@@ -482,15 +484,44 @@ async function chargeOf(tx: Queryable, paymentIntent: string | null, what: strin
   return charge;
 }
 
-/** Revokes everything a charge granted: an order's entitlements, or the invoice's Pro period */
-async function revokeGranted(tx: Queryable, charge: typeof payments.$inferSelect, reason: string, now: Date): Promise<void> {
-  const where = charge.orderId
+/** The rows a charge granted: an order's entitlements, or the invoice's Pro period */
+function grantedBy(charge: typeof payments.$inferSelect) {
+  return charge.orderId
     ? eq(entitlements.orderId, charge.orderId)
     : charge.providerInvoiceId
       ? and(eq(entitlements.subscriptionId, charge.subscriptionId!), eq(entitlements.providerInvoiceId, charge.providerInvoiceId))
       : null;
+}
+
+type Granted = { type: string; endsAt: Date | null; appliedAt: Date | null };
+/** Something the person still had: running time, or a bump that hadn't run */
+const stillHeld = (rows: Granted[], now: Date) => rows.some((r) => (r.type === 'bump' ? r.appliedAt === null : r.endsAt !== null && r.endsAt > now));
+
+/** The buyer (an order) or the business (Pro) hears what ended or came back (owner's rule: users are always told) */
+async function tellGranted(tx: Queryable, charge: typeof payments.$inferSelect, change: 'revoked' | 'restored', reason: 'refund' | 'dispute') {
+  if (charge.orderId) {
+    await queuePaymentNotice(tx, charge.orderId, change === 'revoked' ? { kind: 'order_revoked', reason } : { kind: 'order_restored' });
+    return;
+  }
+  const [sub] = await tx.select({ organizationId: subscriptions.organizationId }).from(subscriptions).where(eq(subscriptions.id, charge.subscriptionId!));
+  if (!sub?.organizationId) return;
+  await queuePaymentNotice(tx, sub.organizationId, change === 'revoked' ? { kind: 'pro_revoked', reason } : { kind: 'pro_restored' });
+}
+
+/**
+ * Revokes everything a charge granted, and tells the person when that took something they still
+ * had (check B, Nov 1, 2026: a Dashboard refund or a chargeback ended Pro or featured time
+ * silently). `tell: false` for a withdrawal's refund, whose own notice says it.
+ */
+async function revokeGranted(tx: Queryable, charge: typeof payments.$inferSelect, reason: 'refund' | 'dispute', now: Date, tell = true): Promise<void> {
+  const where = grantedBy(charge);
   if (!where) return;
-  await tx.update(entitlements).set({ revokedAt: now, revokeReason: reason }).where(and(where, isNull(entitlements.revokedAt)));
+  const revoked = await tx
+    .update(entitlements)
+    .set({ revokedAt: now, revokeReason: reason })
+    .where(and(where, isNull(entitlements.revokedAt)))
+    .returning({ type: entitlements.type, endsAt: entitlements.endsAt, appliedAt: entitlements.appliedAt });
+  if (tell && stillHeld(revoked, now)) await tellGranted(tx, charge, 'revoked', reason);
 }
 
 const REFUND_STATUS: Record<string, 'pending' | 'succeeded' | 'failed'> = {
@@ -505,7 +536,8 @@ const REFUND_STATUS: Record<string, 'pending' | 'succeeded' | 'failed'> = {
  * A refund is its own payments row. A full refund (all refunds of the charge, pending or done,
  * reach its amount) revokes what the charge granted; a partial one leaves it (decided
  * Oct 22, 2026), except a consumer's withdrawal, whose refund ends what is left of the order
- * (./withdrawals.ts). Revoked entitlements never come back, even if a refund fails later.
+ * (./withdrawals.ts). Revoked entitlements never come back, even if a refund fails later; only a
+ * dispute closed in our favour gives back what it took.
  */
 async function refundChanged(tx: Queryable, refund: Refund, ctx: Ctx): Promise<void> {
   const charge = await chargeOf(tx, refund.payment_intent, `refund ${refund.id}`);
@@ -525,7 +557,7 @@ async function refundChanged(tx: Queryable, refund: Refund, ctx: Ctx): Promise<v
       occurredAt: fromUnix(refund.created),
     })
     .onConflictDoUpdate({ target: [payments.provider, payments.providerPaymentId], set: { status } });
-  if (charge.orderId) await endWithdrawnOrder(tx, charge.orderId, refund.metadata, ctx.now);
+  const withdrawn = charge.orderId ? await endWithdrawnOrder(tx, charge.orderId, refund.metadata, ctx.now) : false;
 
   const [sum] = await tx.execute<{ refunded: number }>(sql`
     SELECT coalesce(sum(amount_minor), 0)::bigint AS refunded FROM payments
@@ -533,7 +565,7 @@ async function refundChanged(tx: Queryable, refund: Refund, ctx: Ctx): Promise<v
       AND ${charge.orderId ? sql`order_id = ${charge.orderId}` : sql`subscription_id = ${charge.subscriptionId} AND provider_invoice_id = ${charge.providerInvoiceId}`}`);
   const refunded = Number(sum?.refunded ?? 0);
   const full = refunded >= charge.amountMinor;
-  if (full) await revokeGranted(tx, charge, 'refund', ctx.now);
+  if (full) await revokeGranted(tx, charge, 'refund', ctx.now, !withdrawn);
   if (charge.orderId) {
     await tx
       .update(orders)
@@ -553,4 +585,34 @@ async function disputed(tx: Queryable, dispute: ReturnType<typeof disputeSchema.
     targetId: charge.orderId ?? charge.subscriptionId,
     data: { dispute: dispute.id, reason: dispute.reason, amount_minor: dispute.amount },
   });
+}
+
+/** Closed in our favour (`won`, or an inquiry that never became a chargeback) */
+const KEPT = ['won', 'warning_closed'];
+
+/**
+ * A closed dispute. When the money stays with us, what the dispute revoked comes back, if its time
+ * hasn't run out, and the person is told (check B, Nov 1, 2026: a won dispute never gave it back).
+ * Only rows revoked for a dispute: a refund's revocation stays.
+ */
+async function disputeClosed(tx: Queryable, dispute: ReturnType<typeof disputeSchema.parse>, ctx: Ctx): Promise<void> {
+  const charge = await chargeOf(tx, dispute.payment_intent, `dispute ${dispute.id}`);
+  const where = grantedBy(charge);
+  const kept = KEPT.includes(dispute.status);
+  const restored =
+    kept && where
+      ? await tx
+          .update(entitlements)
+          .set({ revokedAt: null, revokeReason: null })
+          .where(and(where, eq(entitlements.revokeReason, 'dispute'), sql`(${entitlements.endsAt} IS NULL OR ${entitlements.endsAt} > ${ctx.now.toISOString()}::timestamptz)`))
+          .returning({ type: entitlements.type, endsAt: entitlements.endsAt, appliedAt: entitlements.appliedAt })
+      : [];
+  await tx.insert(auditLog).values({
+    actorType: 'webhook',
+    action: 'payment.dispute_closed',
+    targetType: charge.orderId ? 'order' : 'subscription',
+    targetId: charge.orderId ?? charge.subscriptionId,
+    data: { dispute: dispute.id, status: dispute.status, restored: restored.length },
+  });
+  if (stillHeld(restored, ctx.now)) await tellGranted(tx, charge, 'restored', 'dispute');
 }

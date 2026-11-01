@@ -562,7 +562,11 @@ describe('Pro subscriptions (worker role)', () => {
     expect(await outbox(staffListing.id)).toContain('allowance.requested');
 
     const grant = (listingId: string, kind: 'bump' | 'featured') => workerDb.transaction((tx) => grantAllowance(tx, { listingId, organizationId: org.id, kind }));
-    for (let i = 0; i < 15; i++) expect(await grant(listing.id, 'bump')).toBe('granted');
+    // One waiting bump per listing at a time (check B, Nov 1, 2026): each runs before the next
+    for (let i = 0; i < 15; i++) {
+      expect(await grant(listing.id, 'bump')).toBe('granted');
+      await applyDueBumps(workerDb, new Date());
+    }
     expect(await grant(listing.id, 'bump')).toBe('none_left');
     expect(await grant(listing.id, 'featured')).toBe('granted');
     expect(await grant(listing.id, 'featured')).toBe('already_featured');

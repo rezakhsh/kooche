@@ -25,6 +25,7 @@ import { startSearchJobs } from './search';
 import { startSearchAlertJobs } from './search-alerts';
 import { startSeoJobs } from './seo';
 import { runTelegramBot } from './telegram';
+import { logText } from './monitoring';
 
 // Background worker entry point: one process that polls the outbox, runs the phone verification
 // Telegram bot, the chat jobs and notices, account erasure, the daily retention jobs, the hourly sitemaps, the
@@ -46,7 +47,7 @@ const inbox = testInbox(db, env.TEST_INBOX_EMAIL);
 
 // BullMQ requires maxRetriesPerRequest: null on the connections its workers use.
 const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
-connection.on('error', (e) => console.error('valkey:', e.message));
+connection.on('error', (e) => console.error('valkey:', logText(e)));
 
 // Error monitoring (docs/setup.md, "Error monitoring"): jobs that fail for good (./monitoring.ts),
 // the outbox, the Telegram bot and crashes. Off without SENTRY_DSN.
@@ -75,7 +76,7 @@ async function pollOutbox(): Promise<void> {
       handled = await processOutboxBatch(sql, handlers);
       await writeFile(HEARTBEAT_FILE, String(Date.now()));
     } catch (e) {
-      console.error('outbox: poll failed:', e instanceof Error ? e.message : e);
+      console.error('outbox: poll failed:', logText(e));
       reportError(e, { tags: { loop: 'outbox' } });
       await sleep(ERROR_BACKOFF_MS);
       continue;
@@ -92,8 +93,11 @@ async function main(): Promise<void> {
 
   const retention = await startRetention(sql, connection);
   const listingJobs = await startListingJobs(db, connection);
+  // The send clients don't take the shutdown signal (check B, Nov 1, 2026): a message being sent
+  // finishes while the workers close, instead of failing after Telegram took it and going out twice
+  // after the restart. Each request still times out by itself. Only the bot's long poll stops at once.
   const chatJobs = await startChatJobs(db, connection, {
-    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal, undefined, inbox.chat) : null,
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, undefined, undefined, inbox.chat) : null,
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
     timeZone: env.APP_TIME_ZONE,
@@ -109,7 +113,7 @@ async function main(): Promise<void> {
     gateway: env.STRIPE_SECRET_KEY ? new StripeGateway(env.STRIPE_SECRET_KEY) : null,
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
-    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, abort.signal, undefined, inbox.chat) : null,
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, undefined, undefined, inbox.chat) : null,
   });
   // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
   const seoQueue = new Queue('seo', { connection });
@@ -144,7 +148,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e) => {
-  console.error('worker: failed to start:', e instanceof Error ? e.message : e);
+  console.error('worker: failed to start:', logText(e));
   reportError(e, { tags: { loop: 'start' } });
   await flushMonitoring();
   process.exit(1);

@@ -198,8 +198,24 @@ export async function startFoundingCheckout(
 export type FoundingReminder = { subscriptionId: string; days: 14 | 3; trialEndsAt: Date; email: string; name: string; slug: string; timeZone: string; /** What the subscription goes on at (minor units, euros) */ priceMinor: number | null };
 
 /**
- * Trials ending in 14 or 3 days (one day wide, so a daily run finds each once), with the owner's
- * email. The worker remembers what it sent in Valkey, so a second run the same day sends nothing.
+ * The window reaches this much further back than a day, so a run late by a deploy still finds the
+ * trials the day before's window ended on (check B, Nov 1, 2026). The Valkey key stops doubles.
+ */
+const OVERLAP_HOURS = 3;
+
+async function sendOrRelease(redis: Redis, key: string, send: () => Promise<unknown>) {
+  try {
+    await send();
+  } catch (e) {
+    await redis.del(key);
+    throw e;
+  }
+}
+
+/**
+ * Trials ending in 14 or 3 days (one day wide and a little more, so each daily run, also a late
+ * one, finds each), with the owner's email. The worker remembers what it sent in Valkey, so a
+ * second run the same day sends nothing.
  */
 export async function dueFoundingReminders(db: Queryable, now: Date): Promise<FoundingReminder[]> {
   const out: FoundingReminder[] = [];
@@ -213,7 +229,7 @@ export async function dueFoundingReminders(db: Queryable, now: Date): Promise<Fo
       JOIN organization_members m ON m.organization_id = o.id AND m.role = 'owner'
       JOIN users u ON u.id = m.user_id AND u.status = 'active'
       WHERE s.status = 'trialing'
-        AND s.trial_ends_at > ${now.toISOString()}::timestamptz + make_interval(days => ${days - 1})
+        AND s.trial_ends_at > ${now.toISOString()}::timestamptz + make_interval(days => ${days - 1}, hours => ${-OVERLAP_HOURS})
         AND s.trial_ends_at <= ${now.toISOString()}::timestamptz + make_interval(days => ${days})`);
     for (const r of rows) out.push({ subscriptionId: r.id, days, trialEndsAt: new Date(r.trial_ends_at), email: r.email, name: r.name, slug: r.slug, timeZone: r.time_zone, priceMinor: r.price_minor === null ? null : Number(r.price_minor) });
   }
@@ -224,21 +240,23 @@ export async function dueFoundingReminders(db: Queryable, now: Date): Promise<Fo
 export async function sendFoundingReminders(db: Queryable, redis: Redis, mail: Mailer, opts: { appUrl: string }, now = new Date()): Promise<number> {
   let sent = 0;
   for (const r of await dueFoundingReminders(db, now)) {
-    if ((await redis.set(`founding-reminder:${r.subscriptionId}:${r.days}`, '1', 'EX', 40 * 86_400, 'NX')) !== 'OK') continue;
+    const key = `founding-reminder:${r.subscriptionId}:${r.days}`;
+    if ((await redis.set(key, '1', 'EX', 40 * 86_400, 'NX')) !== 'OK') continue;
     const t = messages.email.foundingReminder;
     // In the business's own city's time zone (Peydoo is in many countries)
     const date = formatDate(r.trialEndsAt, r.timeZone);
     const link = `${opts.appUrl}/b/${r.slug}/billing`;
     // The price the trial's subscription goes on at, which a later price change doesn't touch
     const pro = r.priceMinor !== null ? euros(r.priceMinor) : await proMonthlyText(db);
-    await mail({
+    // A failed send is tried again by the job's retry (check B, Nov 1, 2026: the key kept it from ever going)
+    await sendOrRelease(redis, key, () => mail({
       to: r.email,
       subject: t.subject(r.name, r.days),
       text: t.text(r.name, date, link, pro),
       html: emailHtml(
         `<p>${escapeHtml(t.intro(r.name, date))}</p><p>${escapeHtml(t.body(pro))}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>`,
       ),
-    });
+    }));
     sent++;
   }
   return sent;

@@ -16,7 +16,7 @@ import { sendExpiryReminders } from '../modules/notifications/expiry-reminder';
 import { notificationMailer } from '../modules/notifications/mailer';
 import { testInbox } from '../modules/users/test-accounts';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 import { EVERY_HOUR, scheduledTime } from '../modules/notifications/local-hour';
 import { sendRewardNotices } from '../modules/launch/rewards';
 import { purgeDeletedListings } from '../modules/listings/purge';
@@ -148,7 +148,7 @@ export async function startListingJobs(
   ];
 
   const onFailed = (job: Job<OutboxJobData> | undefined, e: Error) => {
-    console.error(`${job?.queueName}: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`${job?.queueName}: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
     // After the last retry, the photo is marked failed so the seller sees it and can remove it
     if (job?.name === 'media_process' && job.attemptsMade >= (job.opts.attempts ?? 1)) {

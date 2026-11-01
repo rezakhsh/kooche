@@ -8,7 +8,7 @@ import { startListingCheckout } from '../src/modules/payments/checkout';
 import { PAYMENT_NOTICE, parsePaymentNotice, sendPaymentNotice } from '../src/modules/payments/notices';
 import { ownOrder } from '../src/modules/payments/orders';
 import { featuredListingIds } from '../src/modules/payments/plans';
-import { canWithdraw, processWithdrawal, withdrawalRefund, withdrawOrder, WITHDRAWAL_RECEIVED } from '../src/modules/payments/withdrawals';
+import { canWithdraw, processWithdrawal, withdrawalEnd, withdrawalRefund, withdrawOrder, WITHDRAWAL_RECEIVED } from '../src/modules/payments/withdrawals';
 import { appDb, redis, workerDb } from './accounts';
 import { db, expectError, INSUFFICIENT_PRIVILEGE } from './db';
 import { outbox } from './listings-fixtures';
@@ -51,8 +51,9 @@ describe('the button', () => {
   it('shows for a consumer’s paid order for 14 days, never for a business, an unpaid or a withdrawn one', () => {
     const paidAt = new Date('2026-11-01T10:00:00Z');
     const o = { status: 'paid' as const, paidAt, business: false, withdrawnAt: null };
-    expect(canWithdraw(o, new Date('2026-11-15T09:59:00Z'))).toBe(true);
-    expect(canWithdraw(o, new Date('2026-11-15T10:00:00Z'))).toBe(false);
+    // To the end of the 14th day after the payment day, Berlin time (check B, Nov 1, 2026)
+    expect(canWithdraw(o, new Date('2026-11-15T22:59:00Z'))).toBe(true);
+    expect(canWithdraw(o, new Date('2026-11-15T23:00:00Z'))).toBe(false);
     expect(canWithdraw({ ...o, status: 'partially_refunded' }, paidAt)).toBe(true);
     expect(canWithdraw({ ...o, business: true }, paidAt)).toBe(false);
     expect(canWithdraw({ ...o, status: 'refunded' }, paidAt)).toBe(false);
@@ -65,7 +66,7 @@ describe('the button', () => {
     expect(canWithdraw((await ownOrder(appDb, seller.id, order.id))!)).toBe(true);
     const stranger = await sellerWithListing();
     expect(await withdrawOrder(appDb, { userId: stranger.seller.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_found' });
-    expect(await withdrawOrder(appDb, { userId: seller.id, orderId: order.id, now: new Date(order.paidAt!.getTime() + 14 * DAY + 1) })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await withdrawOrder(appDb, { userId: seller.id, orderId: order.id, now: withdrawalEnd(order.paidAt!) })).toEqual({ ok: false, reason: 'not_allowed' });
 
     const { org, ownerId } = await business();
     const forBusiness = await paidOrderFor(ownerId, org.id);

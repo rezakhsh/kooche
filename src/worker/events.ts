@@ -9,6 +9,7 @@ import {
   channelsFor,
   cityZones,
   claimReminder,
+  releaseReminder,
   dueReminders,
   followMessage,
   followNews,
@@ -19,10 +20,11 @@ import {
   weeklyRecipients,
   type Outgoing,
 } from '../modules/events/notices';
+import { sendOnce } from '../modules/notifications/send-once';
 import { quietDelay } from '../modules/users/notification-prefs';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // Worker jobs of the events section, on queue `events`:
 // - `event-digest` (Mondays 08:00 on each country's clock): one outbox event per country for the
@@ -61,13 +63,16 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
   const queue = new Queue('events', { connection, ...prefix, defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 10_000 }, removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 500 } } });
   if (opts.schedules !== false) {
     for (const [name, repeat] of Object.entries(SCHEDULES)) {
-      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: 20, removeOnFail: 50 } });
+      await queue.upsertJobScheduler(name, repeat, { name, opts: { removeOnComplete: true, removeOnFail: 50 } });
     }
   }
 
+  // Each channel once (check B, Nov 1, 2026): a retry after the Telegram copy was queued and the
+  // email failed queues only the email
   const deliver = async (out: Outgoing, key: string) => {
-    if (out.telegram) await opts.send.telegram.add('plain_telegram', out.telegram satisfies PlainTelegramJob, { jobId: `tg_${key}` });
-    if (out.mail) await opts.send.email.add('plain_email', { mail: out.mail } satisfies PlainEmailJob, { jobId: `mail_${key}` });
+    const { telegram, mail } = out;
+    if (telegram) await sendOnce(connection, `tg_${key}`, () => opts.send.telegram.add('plain_telegram', telegram satisfies PlainTelegramJob, { jobId: `tg_${key}` }));
+    if (mail) await sendOnce(connection, `mail_${key}`, () => opts.send.email.add('plain_email', { mail } satisfies PlainEmailJob, { jobId: `mail_${key}` }));
   };
 
   const reminders = async () => {
@@ -79,7 +84,13 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
       const channels = await channelsFor(connection, r, 'reminders');
       if (!(await claimReminder(db, r.listingId, r.userId, r.startsAt))) continue;
       if (!channels.length) continue;
-      await deliver(reminderMessage(r, channels, opts.appUrl), `remind_${r.listingId}_${r.userId}_${r.startsAt.getTime()}`);
+      try {
+        await deliver(reminderMessage(r, channels, opts.appUrl), `remind_${r.listingId}_${r.userId}_${r.startsAt.getTime()}`);
+      } catch (e) {
+        // The retry (or the next hourly run) sends it (check B, Nov 1, 2026: a failed hand-off lost it)
+        await releaseReminder(db, r.listingId, r.userId, r.startsAt);
+        throw e;
+      }
       sent++;
     }
     return sent;
@@ -184,7 +195,7 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     { connection: own, ...prefix, concurrency: 1 },
   );
   worker.on('failed', (job, e) => {
-    console.error(`events: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console.error(`events: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 

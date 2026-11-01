@@ -12,10 +12,11 @@ import { PAYMENT_NOTICE, parsePaymentNotice, sendBumpNotice, sendPaymentNotice }
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import type { TelegramClient } from '../modules/notifications/telegram-api';
 import type { Mailer } from '../modules/notifications/mailer';
+import { scheduledTime } from '../modules/notifications/local-hour';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
 import { processWithdrawal, WITHDRAWAL_RECEIVED } from '../modules/payments/withdrawals';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
-import { reportJobFailure } from './monitoring';
+import { reportJobFailure, logText } from './monitoring';
 
 // Worker jobs for payments (docs/setup.md, "Payments"): queue `payments` applies stored provider
 // webhooks and grants included Pro allowances, one at a time; the job scheduler runs due bumps
@@ -24,7 +25,10 @@ import { reportJobFailure } from './monitoring';
 
 const KEEP = { removeOnComplete: 500, removeOnFail: 2_000 };
 const RETRY = { attempts: 10, backoff: { type: 'exponential' as const, delay: 5_000 } };
-const SCHEDULED = { removeOnComplete: 20, removeOnFail: 100 };
+// A scheduled run removes only itself when done. A count (keep 20) trims the queue's whole list of
+// finished jobs each minute, and with it the job ids that stop an outbox hand-off or a notice from
+// running twice (check B, Nov 1, 2026). The same on every queue that also carries other jobs.
+const SCHEDULED = { removeOnComplete: true, removeOnFail: 100 };
 
 export async function startPaymentJobs(
   db: Db,
@@ -75,21 +79,21 @@ export async function startPaymentJobs(
           // Verified, badge removed, rejected, founding (src/modules/organizations/notices.ts)
           const kind = noticeKind(job.data.payload);
           if (!kind || !opts.mailer || !opts.appUrl) return 'skipped';
-          const sent = await sendBusinessNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId, kind);
+          const sent = await sendBusinessNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, once: job.data.outboxId }, job.data.aggregateId, kind);
           console.log(`payments: business notice ${kind} ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
         }
         case 'payment-notice': {
-          // Pro started, renewed or ended; an order paid; a withdrawal (src/modules/payments/notices.ts)
+          // Pro started, renewed, ended, revoked or restored; an order paid, revoked or restored; a withdrawal (src/modules/payments/notices.ts)
           const notice = parsePaymentNotice(job.data.payload);
           if (!notice || !opts.mailer || !opts.appUrl) return 'skipped';
-          const sent = await sendPaymentNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, gateway: opts.gateway }, job.data.aggregateId, notice);
+          const sent = await sendPaymentNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, gateway: opts.gateway, once: job.data.outboxId }, job.data.aggregateId, notice);
           console.log(`payments: notice ${notice.kind} ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
         }
         case 'bump-notice': {
           if (!opts.mailer || !opts.appUrl) return 'skipped';
-          const sent = await sendBumpNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl }, job.data.aggregateId);
+          const sent = await sendBumpNotice(db, connection, { mail: opts.mailer, telegram: opts.telegram ?? null, appUrl: opts.appUrl, once: job.data.outboxId }, job.data.aggregateId);
           console.log(`payments: bump notice ${job.data.aggregateId}: email ${sent.email}, telegram ${sent.telegram}`);
           return sent;
         }
@@ -103,7 +107,8 @@ export async function startPaymentJobs(
         }
         case 'founding-reminders': {
           if (!opts.mailer || !opts.appUrl) return 0;
-          const n = await sendFoundingReminders(db, connection, opts.mailer, { appUrl: opts.appUrl });
+          // Counted from when it was due, not when it ran (check B, Nov 1, 2026)
+          const n = await sendFoundingReminders(db, connection, opts.mailer, { appUrl: opts.appUrl }, scheduledTime(job));
           if (n) console.log(`payments: ${n} founding Pro reminders sent`);
           return n;
         }
@@ -115,7 +120,7 @@ export async function startPaymentJobs(
   );
   worker.on('failed', (job, e) => {
     const level = e instanceof NotReady ? 'warn' : 'error';
-    console[level](`payments: ${job?.name} failed (attempt ${job?.attemptsMade}):`, e.message);
+    console[level](`payments: ${job?.name} failed (attempt ${job?.attemptsMade}):`, logText(e));
     reportJobFailure(job, e);
   });
 

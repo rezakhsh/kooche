@@ -4,7 +4,7 @@ import type { Queryable } from '../db/drizzle';
 import { reportError } from '../lib/monitoring/server';
 import { TelegramClient, TelegramError } from '../modules/notifications/telegram-api';
 import { type TelegramUpdate, handleUpdate } from '../modules/users/telegram-bot';
-import { failureStreak } from './monitoring';
+import { failureStreak, logText } from './monitoring';
 
 // Telegram Bot API over long polling (getUpdates). The worker has no public URL, and only one
 // process may poll a token: during a rolling deploy the old and new worker overlap for a few
@@ -38,7 +38,7 @@ export async function runTelegramBot(
       break;
     } catch (e) {
       if (signal.aborted) return;
-      console.error('telegram: start failed:', e instanceof Error ? e.message : e);
+      console.error('telegram: start failed:', logText(e));
       if (failures.failed()) reportError(e, { tags: { loop: 'telegram' } });
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
     }
@@ -59,7 +59,7 @@ export async function runTelegramBot(
       // 409: the old container still polls during a deploy, not an error. Anything else is
       // logged every time and reported from the third failure in a row (a real outage).
       if (!conflict) {
-        console.error('telegram: getUpdates failed:', e instanceof Error ? e.message : e);
+        console.error('telegram: getUpdates failed:', logText(e));
         if (failures.failed()) reportError(e, { tags: { loop: 'telegram' } });
       }
       await sleep(RETRY_MS, undefined, { signal }).catch(() => {});
@@ -72,7 +72,7 @@ export async function runTelegramBot(
       } catch (e) {
         console.error(
           `telegram: update ${update.update_id} failed:`,
-          e instanceof Error ? e.message : e,
+          logText(e),
         );
         reportError(e, { tags: { loop: 'telegram' } });
       }

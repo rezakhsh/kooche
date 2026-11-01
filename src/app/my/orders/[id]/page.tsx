@@ -9,7 +9,7 @@ import { formatPrice } from '../../../../modules/listings/price';
 import { listingPath } from '../../../../modules/listings/slug';
 import { invoiceUrl } from '../../../../modules/payments/notices';
 import { checkoutOpen, ownOrder } from '../../../../modules/payments/orders';
-import { canWithdraw, WITHDRAWAL_DAYS, withdrawalOf } from '../../../../modules/payments/withdrawals';
+import { canWithdraw, withdrawalEnd, withdrawalOf } from '../../../../modules/payments/withdrawals';
 import { paymentGateway } from '../../../../modules/payments/server';
 import { requireSession } from '../../../../modules/users/server';
 import { resumePaymentAction } from '../actions';
@@ -115,7 +115,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </div>
         {withdrawable && (
           <div className="space-y-2 border-t border-neutral-200 pt-4">
-            <p className="text-xs text-neutral-500">{w.hint(formatDateTime(new Date(order.paidAt!.getTime() + WITHDRAWAL_DAYS * 86_400_000), zone))}</p>
+            <p className="text-xs text-neutral-500">{w.hint(formatDateTime(new Date(withdrawalEnd(order.paidAt!).getTime() - 60_000), zone))}</p>
             <LinkButton href={`/my/orders/${order.id}/withdraw`} variant="danger">
               {w.button}
             </LinkButton>
