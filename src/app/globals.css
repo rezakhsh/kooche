@@ -253,6 +253,7 @@ body:has([data-own-bar], [data-step-bar]) [data-bottom-nav] {
    public header, footer, Iran note or bottom bar */
 body:has([data-admin]) > :is(header, footer),
 body:has([data-admin]) [data-iran-banner],
+body:has([data-admin]) [data-legal-banner],
 body:has([data-admin]) [data-bottom-nav] {
   display: none;
 }

@@ -104,7 +104,10 @@ async function main(): Promise<void> {
   });
   const eventJobs = await startEventJobs(db, connection, { appUrl: env.APP_URL, send: chatJobs.queues });
   const seoJobs = await startSeoJobs(db, connection, env.APP_URL);
-  const accountJobs = await startAccountJobs(db, connection);
+  const accountJobs = await startAccountJobs(db, connection, {
+    mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
+    appUrl: env.APP_URL,
+  });
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
   const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN, timeZone: env.APP_TIME_ZONE });
   const searchJobs = await startSearchJobs(db, connection, { meili, afterPublish: alertJobs.afterPublish });

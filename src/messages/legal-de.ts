@@ -612,6 +612,36 @@ export const legalDe = {
   persianVersion: 'Persische Fassung (فارسی)',
   binding: 'Diese deutsche Fassung ist rechtlich maßgeblich.',
   contents: 'Inhalt',
+  // A new version waiting for its day (src/modules/legal/versions.ts)
+  upcoming: (day: string) => `Ab dem ${day} gilt eine neue Fassung.`,
+  readUpcoming: 'Neue Fassung lesen',
+  isUpcoming: (day: string) => `Dies ist die neue Fassung; sie gilt ab dem ${day}. Bis dahin gilt die aktuelle Fassung.`,
+  readCurrent: 'Aktuelle Fassung lesen',
+} as const;
+
+/**
+ * The German part of the email before the terms of use or the privacy policy change (terms 12,
+ * privacy 12; src/modules/legal/notices.ts). The German version of the terms is the binding one,
+ * so the notice of a change carries it in German too.
+ */
+export const legalNoticeMailDe = {
+  subject: (docs: 'terms' | 'privacy' | 'both', day: string) =>
+    docs === 'terms'
+      ? `Änderung unserer Nutzungsbedingungen zum ${day}`
+      : docs === 'privacy'
+        ? `Änderung unserer Datenschutzerklärung zum ${day}`
+        : `Änderung unserer Nutzungsbedingungen und Datenschutzerklärung zum ${day}`,
+  intro: (docs: 'terms' | 'privacy' | 'both', day: string) =>
+    docs === 'terms'
+      ? `Unsere Nutzungsbedingungen ändern sich zum ${day}.`
+      : docs === 'privacy'
+        ? `Unsere Datenschutzerklärung ändert sich zum ${day}.`
+        : `Unsere Nutzungsbedingungen und unsere Datenschutzerklärung ändern sich zum ${day}.`,
+  what: 'Was sich ändert:',
+  terms: (url: string) => `Neue Nutzungsbedingungen: ${url}`,
+  privacy: (url: string) => `Neue Datenschutzerklärung: ${url}`,
+  disagree: (url: string) => `Sind Sie nicht einverstanden, können Sie Ihr Konto jederzeit löschen: ${url}`,
+  why: 'Diese E-Mail erhalten alle Konten bei Peydoo (Ziffer 12 der Nutzungsbedingungen). Sie ist keine Werbung.',
 } as const;
 
 /**

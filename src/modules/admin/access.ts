@@ -45,6 +45,8 @@ export const PERMISSIONS = {
   'payments.view': 'admin',
   /** Admin › prices (wave 2 part 7): a product's euro price */
   'prices.manage': 'admin',
+  /** «خبر تغییر شرایط به همه» (src/modules/legal/notices.ts): emails every account */
+  'legal.announce': 'admin',
   'stats.view': 'admin',
   /** Everyone's audit rows (moderators see their own) */
   'audit.all': 'admin',

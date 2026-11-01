@@ -302,6 +302,13 @@
       "when": 1793565591352,
       "tag": "0042_invite_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793571666542,
+      "tag": "0043_legal_notices",
+      "breakpoints": true
     }
   ]
 }

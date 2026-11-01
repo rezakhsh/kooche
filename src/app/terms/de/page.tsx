@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { LegalDocPage } from '../../../components/legal-doc';
+import { LegalVersionPage } from '../../../components/legal-doc';
 import { legalDe } from '../../../messages/legal-de';
 
 // The binding German version (approved Oct 21, 2026)
@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function TermsDePage() {
-  return <LegalDocPage doc={legalDe.terms} lang="de" other="/terms" />;
+  return <LegalVersionPage doc="terms" lang="de" />;
 }

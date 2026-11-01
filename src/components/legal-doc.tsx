@@ -1,9 +1,12 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import type { LegalDocument } from '../db/schema';
 import { pages } from '../messages/fa';
 import { legalDe } from '../messages/legal-de';
 import { type LegalBlock, type LegalDoc, sectionAnchor } from '../messages/legal-types';
 import { operator } from '../messages/operator';
+import { currentVersion, dayDe, dayFa, nextVersion } from '../modules/legal/versions';
 import { LegalNav } from './legal-nav';
 
 // The terms of use and the privacy policy, in Persian (right to left) or the binding German
@@ -58,7 +61,20 @@ export function DraftBanner({ text }: { text: string }) {
  * shows the row of legal pages above it. The German version sets lang and dir itself, so screen
  * readers and the browser treat it as German, left to right.
  */
-export function LegalDocPage({ doc, lang, other, nav }: { doc: LegalDoc; lang: Lang; other: string; nav?: 'terms' | 'privacy' }) {
+export function LegalDocPage({
+  doc,
+  lang,
+  other,
+  nav,
+  notice,
+}: {
+  doc: LegalDoc;
+  lang: Lang;
+  other: string;
+  nav?: 'terms' | 'privacy';
+  /** The other version while a new one waits for its day */
+  notice?: { text: string; href: string; label: string };
+}) {
   const de = lang === 'de';
   const labels = de
     ? { draft: legalDe.draft, other: legalDe.persianVersion, note: legalDe.binding, contents: legalDe.contents }
@@ -70,6 +86,14 @@ export function LegalDocPage({ doc, lang, other, nav }: { doc: LegalDoc; lang: L
       <h1 className="mb-2 text-2xl font-extrabold">{doc.title}</h1>
       <p className="mb-4 text-sm text-neutral-500">{doc.updated}</p>
       {doc.draft && <DraftBanner text={labels.draft} />}
+      {notice && (
+        <p className="mb-6 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-800">
+          {notice.text}{' '}
+          <Link href={notice.href} hrefLang={lang} className="text-brand-800 underline">
+            {notice.label}
+          </Link>
+        </p>
+      )}
       <p className="mb-4 text-sm text-neutral-600">
         {labels.note}{' '}
         <Link href={other} hrefLang={de ? 'fa' : 'de'} className="font-semibold text-brand-800 underline">
@@ -106,4 +130,27 @@ export function LegalDocPage({ doc, lang, other, nav }: { doc: LegalDoc; lang: L
       })}
     </main>
   );
+}
+
+/**
+ * The terms of use or the privacy policy in force today, or (`next`) the new version waiting for
+ * its day (src/modules/legal/versions.ts). Each points to the other while both exist; the next
+ * page sends to the current one when nothing waits.
+ */
+export function LegalVersionPage({ doc, lang, next = false }: { doc: LegalDocument; lang: Lang; next?: boolean }) {
+  const now = new Date();
+  const de = lang === 'de';
+  const base = `/${doc}${de ? '/de' : ''}`;
+  const upcoming = nextVersion(doc, now);
+  if (next && !upcoming) redirect(base);
+  const version = next ? upcoming! : currentVersion(doc, now);
+  const day = upcoming ? (de ? dayDe(upcoming.from) : dayFa(upcoming.from)) : '';
+  const t = de ? legalDe : pages.legal;
+  const notice = upcoming
+    ? next
+      ? { text: t.isUpcoming(day), href: base, label: t.readCurrent }
+      : { text: t.upcoming(day), href: `${base}/next`, label: t.readUpcoming }
+    : undefined;
+  const other = `/${doc}${de ? '' : '/de'}${next ? '/next' : ''}`;
+  return <LegalDocPage doc={version[lang]} lang={lang} other={other} nav={de ? undefined : doc} notice={notice} />;
 }

@@ -7,6 +7,7 @@ import { AutoDirection } from '../components/auto-direction';
 import { FormValidation } from '../components/form-validation';
 import { HeaderSync } from '../components/header-sync';
 import { IranBanner } from '../components/iran';
+import { LegalChangeBanner } from '../components/legal-change-banner';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { ViewAsBanner } from '../components/view-as-banner';
 import { ActingBanner } from '../components/acting-banner';
@@ -81,6 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <ViewAsBanner />
         <SiteHeader />
         <IranBanner />
+        <LegalChangeBanner />
         <div className="flex-1">{children}</div>
         <SiteFooter />
         <HeaderSync renderedFor={header.renderedFor} countrySlugs={header.countrySlugs} />

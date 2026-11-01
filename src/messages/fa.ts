@@ -2158,6 +2158,24 @@ export const messages = {
     help: 'این ربات فقط برای تأیید شماره تلفن است. در سایت به «تأیید شماره تلفن» بروید.',
   },
   email: {
+    // Before the terms of use or the privacy policy change (src/modules/legal/notices.ts; terms 12)
+    legalNotice: {
+      subject: (docs: 'terms' | 'privacy' | 'both', day: string) =>
+        docs === 'terms' ? `شرایط استفادهٔ پیدو از ${day} تغییر می‌کند` : docs === 'privacy' ? `حریم خصوصی پیدو از ${day} تغییر می‌کند` : `شرایط استفاده و حریم خصوصی پیدو از ${day} تغییر می‌کند`,
+      intro: (docs: 'terms' | 'privacy' | 'both', day: string) =>
+        docs === 'terms'
+          ? `شرایط استفادهٔ پیدو از ${day} تغییر می‌کند.`
+          : docs === 'privacy'
+            ? `متن حریم خصوصی پیدو از ${day} تغییر می‌کند.`
+            : `شرایط استفاده و متن حریم خصوصی پیدو از ${day} تغییر می‌کنند.`,
+      what: 'چه چیزی تغییر می‌کند:',
+      terms: 'دیدن شرایط تازه',
+      privacy: 'دیدن حریم خصوصی تازه',
+      disagree: 'اگر موافق نیستید، هر وقت بخواهید می‌توانید حسابتان را حذف کنید:',
+      deleteLink: 'حذف حساب',
+      why: 'این ایمیل را برای همهٔ حساب‌های پیدو می‌فرستیم، چون در بند ۱۲ شرایط قول داده‌ایم. تبلیغ نیست.',
+      germanBelow: 'متن آلمانی که از نظر حقوقی معتبر است، در پایین آمده است.',
+    },
     // The waitlist reward is ready (wave 2 part 9, src/modules/launch/rewards.ts), from day 3
     waitlistReward: {
       subject: 'نردبان رایگان شما در پیدو آماده است',
@@ -2918,6 +2936,16 @@ export const pages = {
     germanVersion: 'متن آلمانی (Deutsche Fassung)',
     germanBinding: 'از نظر حقوقی متن آلمانی معتبر است. این ترجمه فارسی برای راحتی شماست.',
     contents: 'فهرست',
+    // A new version waiting for its day (src/modules/legal/versions.ts)
+    upcoming: (day: string) => `نسخهٔ تازهٔ این متن از ${day} اعتبار دارد.`,
+    readUpcoming: 'دیدن نسخهٔ تازه',
+    isUpcoming: (day: string) => `این نسخهٔ تازه است و از ${day} اعتبار دارد. تا آن روز نسخهٔ فعلی معتبر است.`,
+    readCurrent: 'دیدن نسخهٔ فعلی',
+    // The line at the top for signed-in people until the day (src/components/legal-change-banner.tsx)
+    banner: (docs: 'terms' | 'privacy' | 'both', day: string) =>
+      docs === 'terms' ? `شرایط استفادهٔ پیدو از ${day} تغییر می‌کند.` : docs === 'privacy' ? `حریم خصوصی پیدو از ${day} تغییر می‌کند.` : `شرایط استفاده و حریم خصوصی پیدو از ${day} تغییر می‌کنند.`,
+    bannerLink: 'ببینید',
+    bannerClose: 'بستن',
     operator: {
       name: 'نام',
       address: 'نشانی',
@@ -3871,6 +3899,7 @@ export const admin = {
     businessQueue: 'احتمالاً کسب‌وکار',
     payments: 'پرداخت‌ها',
     prices: 'قیمت‌ها',
+    legal: 'خبر تغییر شرایط به همه',
     stats: 'آمار بازدید',
     audit: 'گزارش کارها',
     system: 'وضعیت سیستم',
@@ -4347,6 +4376,51 @@ export const admin = {
     answersEmpty: 'هنوز پاسخی نیامده است.',
     empty: 'هنوز چیزی شمرده نشده است.',
   },
+  // «خبر تغییر شرایط به همه» (Check B, Nov 1, 2026; src/modules/legal/notices.ts)
+  legal: {
+    title: 'خبر تغییر شرایط به همه',
+    intro: 'پیش از تغییر شرایط استفاده یا حریم خصوصی، به همهٔ حساب‌ها ایمیل می‌زند (بند ۱۲ شرایط: دست‌کم چهار هفته پیش‌تر). متن تازه اول در خود سایت گذاشته می‌شود، با روزی که اعتبار پیدا می‌کند؛ اینجا فقط خبرش فرستاده می‌شود.',
+    versionsTitle: 'نسخه‌های تازهٔ آماده',
+    docs: { terms: 'شرایط استفاده', privacy: 'حریم خصوصی' } as Record<'terms' | 'privacy', string>,
+    upcoming: (day: string) => `نسخهٔ تازه از ${day}`,
+    noUpcoming: 'نسخهٔ تازه‌ای آماده نیست',
+    read: 'دیدن متن',
+    noneReady: 'هنوز نسخهٔ تازه‌ای در سایت نیست. متن تازه (آلمانی و فارسی) با روز شروعش اول به کد سایت اضافه می‌شود؛ بعد از آن می‌توانید اینجا خبرش را بفرستید.',
+    tooSoon: (day: string) => `برای تغییر شرایط استفاده، روز شروع باید دست‌کم چهار هفته بعد از امروز باشد (زودترین: ${day}).`,
+    formTitle: 'نوشتن خبر',
+    which: 'کدام متن تغییر می‌کند',
+    summaryFa: 'خلاصهٔ تغییرها به فارسی',
+    summaryFaHint: 'کوتاه و روشن: چه چیزی برای کاربران فرق می‌کند. هر خط یک بند.',
+    summaryDe: 'خلاصهٔ تغییرها به آلمانی (متن معتبر)',
+    summaryDeHint: 'همان خلاصه به آلمانی؛ اگر وکیل متنی داده، همان را بگذارید.',
+    preview: 'پیش‌نمایش',
+    previewTitle: 'پیش‌نمایش ایمیل',
+    subject: 'موضوع',
+    recipients: (n: number) => `به ${n.toLocaleString('fa-IR')} حساب فرستاده می‌شود (همهٔ حساب‌های فعال، حتی اگر خبرها را خاموش کرده باشند؛ این خبر قرارداد است، نه تبلیغ).`,
+    sample: 'فرستادن نمونه به ایمیل خودم',
+    sampleSent: 'نمونه به ایمیل شما فرستاده شد.',
+    sure: 'مطمئنم: این ایمیل همین حالا برای همه فرستاده می‌شود و برگشت ندارد.',
+    send: 'فرستادن به همه',
+    edit: 'ویرایش',
+    discard: 'دور انداختن',
+    sending: 'فرستادن شروع شد. پیشرفت را پایین همین صفحه می‌بینید.',
+    historyTitle: 'خبرهای فرستاده',
+    historyEmpty: 'هنوز خبری فرستاده نشده است.',
+    progress: (sent: number, total: number) => `${sent.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')} فرستاده شد`,
+    failed: (n: number) => `${n.toLocaleString('fa-IR')} ناموفق`,
+    finished: 'تمام شد',
+    inProgress: 'در حال فرستادن',
+    sentAt: (when: string) => `تأیید: ${when}`,
+    errors: {
+      no_version: 'برای متنی که انتخاب کردید نسخهٔ تازه‌ای آماده نیست.',
+      dates_differ: 'دو متن روز شروع یکسانی ندارند؛ هر کدام را جدا بفرستید.',
+      too_soon: 'روز شروع شرایط استفاده کمتر از چهار هفته دیگر است.',
+      already_sent: 'برای همین متن و همین روز قبلاً خبر فرستاده شده است.',
+      invalid: 'هر دو خلاصه لازم است (هر کدام تا ۲٬۰۰۰ نویسه) و دست‌کم یک متن باید انتخاب شود.',
+      not_found: 'این پیش‌نویس دیگر نیست؛ دوباره بنویسید.',
+      sample: 'نمونه فرستاده نشد؛ کمی بعد دوباره امتحان کنید.',
+    } as Record<string, string>,
+  },
   prices: {
     title: 'قیمت‌ها',
     intro: 'همهٔ قیمت‌ها به یوروست؛ خریداران بیرون از کشورهای یورو در صفحهٔ پرداخت Stripe پول کشور خودشان را هم می‌بینند. قیمت تازه فقط برای خریدهای بعدی است: اشتراک‌های جاری با قیمت قبلی ادامه پیدا می‌کنند.',
@@ -4414,7 +4488,7 @@ export const admin = {
       system: 'سیستم و آمار',
     } as Record<string, string>,
     actorTypes: { staff: 'کارمند', user: 'کاربر', system: 'سیستم' } as Record<string, string>,
-    targets: { listing: 'آگهی', user: 'کاربر', organization: 'کسب‌وکار', message: 'پیام', order: 'سفارش', product: 'محصول', city: 'شهر', country: 'کشور', category: 'دسته' } as Record<string, string>,
+    targets: { listing: 'آگهی', user: 'کاربر', organization: 'کسب‌وکار', message: 'پیام', order: 'سفارش', product: 'محصول', city: 'شهر', country: 'کشور', category: 'دسته', legal_notice: 'خبر تغییر شرایط' } as Record<string, string>,
     actions: {
       'appeal.kept': 'اعتراض را رد کرد و تصمیم را نگه داشت',
       'auth.two_factor_failed': 'کد دومرحله‌ای اشتباه زد',
@@ -4423,6 +4497,7 @@ export const admin = {
       'city.launch': 'یک شهر را باز کرد',
       'country.mode': 'حالت یک کشور را عوض کرد',
       'country.open': 'یک کشور را باز کرد',
+      'legal.notice_sent': 'خبر تغییر شرایط را برای همه فرستاد',
       'listing.phone_revealed': 'شمارهٔ یک آگهی را دید',
       'listing.restored': 'آگهی را برگرداند',
       'listing.reviewed': 'آگهی را بررسی کرد',

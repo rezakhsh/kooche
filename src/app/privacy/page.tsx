@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { LegalDocPage } from '../../components/legal-doc';
+import { LegalVersionPage } from '../../components/legal-doc';
 import { pages } from '../../messages/fa';
 
 export const metadata: Metadata = {
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  return <LegalDocPage doc={pages.privacy} lang="fa" other="/privacy/de" nav="privacy" />;
+  return <LegalVersionPage doc="privacy" lang="fa" />;
 }
