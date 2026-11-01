@@ -16,11 +16,15 @@ const HEADERS = { 'Content-Type': 'application/x-protobuf', 'Cache-Control': 'pu
 
 export async function GET(_: Request, { params }: { params: Promise<{ stack: string; range: string }> }) {
   const { stack, range } = await params;
-  // A layer may name several fonts ("A,B"); the first one we have wins
-  const font = decodeURIComponent(stack)
-    .split(',')
-    .map((s) => STACKS[s.trim()])
-    .find(Boolean);
+  // A layer may name several fonts ("A,B"); the first one we have wins. A name that isn't a valid
+  // encoding, or isn't one of ours («constructor»), finds none (Check B, Oct 31, 2026)
+  let names: string[] = [];
+  try {
+    names = decodeURIComponent(stack).split(',');
+  } catch {
+    return new Response(null, { status: 404 });
+  }
+  const font = names.map((s) => s.trim()).filter((s) => Object.hasOwn(STACKS, s)).map((s) => STACKS[s])[0];
   const m = /^(\d{1,5})-(\d{1,5})\.pbf$/.exec(range);
   if (!font || !m || Number(m[1]) % 256 !== 0 || Number(m[2]) !== Number(m[1]) + 255 || Number(m[1]) > 65280) return new Response(null, { status: 404 });
   const data = await readFile(path.join(DIR, font, `${m[1]}-${m[2]}.pbf`)).catch(() => Buffer.alloc(0));

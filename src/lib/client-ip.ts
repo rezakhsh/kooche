@@ -60,6 +60,19 @@ export function clientIp(headers: Headers): string | null {
 }
 
 /**
+ * Whom a per-address limit counts: an IPv4 address itself, an IPv6 address by its /64, which one
+ * home or phone connection gets whole (Check B, Oct 31, 2026: each address of it counted apart)
+ */
+export function ipBlock(ip: string): string {
+  if (isIP(ip) !== 6) return ip;
+  const [head = '', tail = ''] = ip.toLowerCase().split('::');
+  const front = head ? head.split(':') : [];
+  const back = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...front, ...Array<string>(Math.max(0, 8 - front.length - back.length)).fill('0'), ...back] : front;
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(':')}::/64`;
+}
+
+/**
  * The visitor's country as Cloudflare sees it (CF-IPCountry, ISO code), only when the request
  * really came through Cloudflare. Used to highlight a country on the home page and for the Iran
  * rules (./region.ts). Staff viewing the site as a country get that country, unless the request

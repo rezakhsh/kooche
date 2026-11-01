@@ -1,4 +1,5 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { countries, COUNTRY_MODES, locations } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
@@ -66,7 +67,7 @@ export type ModeChange = { mode: CountryMode; opensOn?: string | null };
  */
 export async function setCountryMode(tx: Queryable, ctx: StaffContext, code: string, change: ModeChange): Promise<{ slug: string | null; citySlugs: string[] } | null> {
   if (!COUNTRY_MODES.includes(change.mode)) return null;
-  const opensOn = change.mode === 'prestart' && change.opensOn && /^\d{4}-\d{2}-\d{2}$/.test(change.opensOn) ? change.opensOn : null;
+  const opensOn = change.mode === 'prestart' && change.opensOn && z.iso.date().safeParse(change.opensOn).success ? change.opensOn : null;
   const [before] = await tx.select({ mode: countries.mode, opensOn: countries.opensOn }).from(countries).where(eq(countries.code, code)).for('update');
   if (!before || (before.mode === change.mode && before.opensOn === opensOn)) return null;
   const [after] = await tx

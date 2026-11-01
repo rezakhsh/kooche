@@ -5,7 +5,7 @@ import { webEnv } from '../../../lib/env';
 import { admin, messages } from '../../../messages/fa';
 import { qrPath } from '../../../modules/admin/qr';
 import { adminHref, requireStaff } from '../../../modules/admin/server';
-import { visitReport, type FunnelRow, type Row } from '../../../modules/stats/visits';
+import { labelFor, visitReport, type FunnelRow, type Row } from '../../../modules/stats/visits';
 import { LineChart } from '../charts';
 import { AdminTitle, Panel } from '../ui';
 import { archiveRefCodeAction, createRefCodeAction } from './actions';
@@ -64,7 +64,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const r = await visitReport(appDb(), days);
   const appUrl = webEnv().APP_URL.replace(/\/$/, '');
   const labels = new Map(r.refs.map((x) => [`ref:${x.code}`, x.label]));
-  const sourceName = (s: string) => (s.startsWith('ref:') ? t.refLabel(labels.get(s) ?? s.slice(4)) : (t.sources[s] ?? s));
+  const sourceName = (s: string) => (s.startsWith('ref:') ? t.refLabel(labels.get(s) ?? s.slice(4)) : labelFor(t.sources, s));
   const funnel = new Map<string, FunnelRow>(r.funnel.map((f) => [f.source, f]));
   // Every source with visitors, then the ones with sign-ups only (e.g. accounts from before the counting)
   const sourceRows = [...r.sources.map((s) => s.key), ...r.funnel.map((f) => f.source).filter((s) => !r.sources.some((x) => x.key === s))].map((key) => {
@@ -185,16 +185,16 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           <Table head={['', t.cols.visitors, t.cols.views]} rows={r.countries.map((c) => [countryName(c.key), c.visitors, c.views])} />
         </Panel>
         <Panel title={t.pagesTitle}>
-          <Table head={[t.cols.key, t.cols.views]} rows={r.pages.map((p) => [t.pages[p.key] ?? p.key, p.views])} />
+          <Table head={[t.cols.key, t.cols.views]} rows={r.pages.map((p) => [labelFor(t.pages, p.key), p.views])} />
         </Panel>
         <Panel title={t.devicesTitle}>
-          <Table head={['', t.cols.visitors, t.cols.views]} rows={r.devices.map((d) => [t.devices[d.key] ?? d.key, d.visitors, d.views])} />
+          <Table head={['', t.cols.visitors, t.cols.views]} rows={r.devices.map((d) => [labelFor(t.devices, d.key), d.visitors, d.views])} />
         </Panel>
         <Panel title={t.answersTitle}>
           {r.answers.length === 0 ? (
             <p className="text-sm text-neutral-600">{t.answersEmpty}</p>
           ) : (
-            <Table head={['', t.cols.signups]} rows={r.answers.map((a) => [messages.account.signupQuestion.answers[a.answer] ?? a.answer, a.n])} />
+            <Table head={['', t.cols.signups]} rows={r.answers.map((a) => [labelFor(messages.account.signupQuestion.answers, a.answer), a.n])} />
           )}
         </Panel>
       </div>

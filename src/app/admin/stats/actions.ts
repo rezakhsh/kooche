@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
 import { adminHref, requireStaffAction } from '../../../modules/admin/server';
 import { archiveRefCode, createRefCode } from '../../../modules/stats/visits';
@@ -16,6 +17,6 @@ export async function createRefCodeAction(form: FormData): Promise<void> {
 export async function archiveRefCodeAction(form: FormData): Promise<void> {
   const staff = await requireStaffAction('stats.view');
   const id = String(form.get('id') ?? '');
-  if (/^[0-9a-f-]{36}$/.test(id)) await archiveRefCode(appDb(), staff.ctx, id);
+  if (z.uuid().safeParse(id).success) await archiveRefCode(appDb(), staff.ctx, id);
   redirect(adminHref('/stats#links'));
 }

@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
-import { clientIp, visitorCountry } from '../../../lib/client-ip';
+import { clientIp, ipBlock, visitorCountry } from '../../../lib/client-ip';
 import { webEnv } from '../../../lib/env';
 import { hit } from '../../../lib/rate-limit';
 import { valkey } from '../../../lib/valkey';
 import { VIEW_AS_HEADER } from '../../../modules/admin/view-as';
-import { countVisit, liveRefCodes } from '../../../modules/stats/visits';
+import { countVisit, liveRefCodes, refCodeCache } from '../../../modules/stats/visits';
 
 // One page view from src/components/visit-beacon.tsx (src/modules/stats/visits.ts). Only from our
 // own pages; a staff member viewing as a country isn't a visitor. Always 204, so a page never waits.
@@ -15,11 +15,7 @@ export const dynamic = 'force-dynamic';
 const body = z.object({ p: z.string().max(300), l: z.boolean(), r: z.string().max(500).nullable(), q: z.string().max(40).nullable() });
 const PER_IP = { name: 'visit:ip:1h', max: 600, windowSeconds: 3600 };
 
-let codes: { at: number; set: Promise<Set<string>> } | null = null;
-function refCodesCached(): Promise<Set<string>> {
-  if (!codes || Date.now() - codes.at > 5 * 60_000) codes = { at: Date.now(), set: liveRefCodes(appDb()) };
-  return codes.set;
-}
+const refCodesCached = refCodeCache(() => liveRefCodes(appDb()));
 
 export async function POST(request: Request): Promise<Response> {
   const done = new Response(null, { status: 204 });
@@ -40,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = clientIp(request.headers);
   const redis = valkey();
   try {
-    if (ip && !(await hit(redis, [[PER_IP, ip]])).ok) return done;
+    if (ip && !(await hit(redis, [[PER_IP, ipBlock(ip)]])).ok) return done;
     const ref = parsed.data.q && (await refCodesCached()).has(parsed.data.q.toLowerCase()) ? parsed.data.q.toLowerCase() : null;
     await countVisit(redis, {
       path: parsed.data.p,

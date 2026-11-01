@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { moderationAppeals, outboxEvents } from '../../db/schema';
@@ -100,7 +101,7 @@ export type AppealResult = { ok: true } | { ok: false; reason: 'not_found' | 'cl
 export async function appealDecision(db: Db, redis: Redis, userId: string, decisionId: string, body: string, now = new Date()): Promise<AppealResult> {
   const text = body.trim();
   if (text.length < 10 || text.length > 2000) return { ok: false, reason: 'invalid' };
-  if (!/^[0-9a-f-]{36}$/.test(decisionId)) return { ok: false, reason: 'not_found' };
+  if (!z.uuid().safeParse(decisionId).success) return { ok: false, reason: 'not_found' };
   return db.transaction(async (tx) => {
     const [n] = await decisionsAbout(tx, userId, { id: decisionId });
     if (!n) return { ok: false, reason: 'not_found' };

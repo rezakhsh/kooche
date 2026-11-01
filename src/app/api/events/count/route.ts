@@ -25,7 +25,14 @@ export async function GET(request: Request): Promise<Response> {
   const ip = clientIp(request.headers);
   if (ip && !(await hit(valkey(), [[COUNT_LIMIT, ip]]).catch(() => ({ ok: true }))).ok) return json({ count: null }, 429);
   const db = appDb();
-  const place = await eventsPlace(db, m[1]!, m[2] ? decodeURIComponent(m[2]) : null);
+  // A place that isn't a valid encoding (a lone «%») is no place (Check B, Oct 31, 2026)
+  let placeSlug: string | null = null;
+  try {
+    placeSlug = m[2] ? decodeURIComponent(m[2]) : null;
+  } catch {
+    return json({ count: null }, 404);
+  }
+  const place = await eventsPlace(db, m[1]!, placeSlug);
   if (!place) return json({ count: null }, 404);
   const query: EventsQuery = {};
   for (const [k, v] of params) {

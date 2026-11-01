@@ -1,15 +1,24 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { localDate } from '../src/modules/notifications/local-hour';
+import { GET as fontGlyphs } from '../src/app/map/fonts/[stack]/[range]/route';
+import { ipBlock } from '../src/lib/client-ip';
+import { admin } from '../src/messages/fa';
+import { isParticipant } from '../src/modules/chat/queries';
+import { appealDecision } from '../src/modules/moderation/appeals';
 import {
   archiveRefCode,
   countVisit,
   createRefCode,
+  DAILY_KEYS,
   deviceOf,
   flushVisitStats,
+  labelFor,
   pageGroup,
+  refCodeCache,
   recordSignupSource,
   sourceOf,
   STATS_TIME_ZONE,
@@ -115,6 +124,104 @@ describe('the owner’s links and new accounts', () => {
     await rollback(async (tx) => {
       await setRole(tx, 'classifieds_app');
       await expectError(tx.execute(sql`INSERT INTO visit_stats (day, dimension, key, views) VALUES ('2031-01-01', 'total', 'all', 1)`), INSUFFICIENT_PRIVILEGE);
+    });
+  });
+});
+
+// Check B, package 3 (visitor numbers, approved Nov 1, 2026)
+describe('the counter can’t be filled or broken from outside', () => {
+  it('at most 300 sources and 1,000 page groups a day; the rest count as «other»', async () => {
+    for (let i = 0; i < DAILY_KEYS.source + 20; i++) await countVisit(redis, visit({ referrer: `https://s${i}.example/`, ip: `2001:db8::${i.toString(16)}` }));
+    for (let i = 0; i < DAILY_KEYS.page + 20; i++) await countVisit(redis, visit({ path: `/x/${i}`, landing: false }));
+    expect(await redis.hlen(`vs:${DAY}:v:source`)).toBe(DAILY_KEYS.source + 1);
+    expect(await redis.hget(`vs:${DAY}:v:source`, 'other')).toBe('20');
+    expect((await redis.keys(`vs:${DAY}:u:source:*`)).length).toBe(DAILY_KEYS.source + 1);
+    expect(await redis.hlen(`vs:${DAY}:v:page`)).toBe(DAILY_KEYS.page + 1);
+    // A source the day already has still counts as itself
+    await countVisit(redis, visit({ referrer: 'https://s3.example/' }));
+    expect(await redis.hget(`vs:${DAY}:v:source`, 's3.example')).toBe('2');
+  });
+
+  it('a big day is written in chunks, and one bad list doesn’t stop the others', async () => {
+    const m = redis.multi();
+    for (let i = 0; i < 13_200; i++) m.hincrby(`vs:${DAY}:v:page`, `/p/${i}`, 1);
+    m.hincrby(`vs:${DAY}:v:total`, 'all', 5);
+    await m.exec();
+    expect(await flushVisitStats(redis, workerDb, NOW)).toBe(13_201);
+    // A count that isn't a number fails its own list only
+    await redis.hset(`vs:${DAY}:v:country`, 'DE', 'x');
+    await redis.hincrby(`vs:${DAY}:v:total`, 'all', 1);
+    await expect(flushVisitStats(redis, workerDb, NOW)).rejects.toThrow();
+    const [total] = await db.select().from(schema.visitStats).where(sql`day = ${DAY}::date AND dimension = 'total'`);
+    expect(total!.views).toBe(6);
+  });
+
+  it('«constructor» is just a name: no crash on «آمار بازدید»', () => {
+    expect(sourceOf('http://constructor/', 'peydoo.com', null)).toBe('constructor');
+    expect(labelFor(admin.stats.sources, 'constructor')).toBe('constructor');
+    expect(labelFor(admin.stats.sources, 'google')).toBe('گوگل');
+    expect(pageGroup('/constructor')).toBe('/constructor');
+    expect(pageGroup('/toString/x')).toBe('/toString/x');
+  });
+
+  it('a business invitation’s link is never stored', async () => {
+    expect(pageGroup('/business/invite/AbCdEfGhIjKlMnOpQrStUv')).toBe('invite');
+    // Counted before the change: left out when written
+    await redis.hincrby(`vs:${DAY}:v:page`, '/business/invite/AbCdEfGhIjKlMnOpQrStUv', 1);
+    await countVisit(redis, visit({ path: '/business/invite/ZyXwVuTsRqPoNmLkJiHgFe', landing: false }));
+    await flushVisitStats(redis, workerDb, NOW);
+    const pages = await db.select({ key: schema.visitStats.key }).from(schema.visitStats).where(sql`day = ${DAY}::date AND dimension = 'page'`);
+    expect(pages.map((p) => p.key)).toEqual(['invite']);
+  });
+
+  it('a failed ref-code lookup is asked again, not kept for 5 minutes', async () => {
+    let calls = 0;
+    const codes = refCodeCache(async () => {
+      calls++;
+      if (calls === 1) throw new Error('database restarting');
+      return new Set(['volek']);
+    });
+    expect(await codes()).toEqual(new Set());
+    expect(await codes()).toEqual(new Set(['volek']));
+    expect(await codes()).toEqual(new Set(['volek']));
+    expect(calls).toBe(2);
+  });
+
+  it('an IPv6 connection’s whole /64 shares one hourly limit', () => {
+    expect(ipBlock('2001:db8:1:2:3:4:5:6')).toBe('2001:db8:1:2::/64');
+    expect(ipBlock('2001:0DB8:0001:0002::9')).toBe('2001:db8:1:2::/64');
+    expect(ipBlock('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(ipBlock('203.0.113.5')).toBe('203.0.113.5');
+  });
+});
+
+describe('hand-edited addresses give «not found», not an error page', () => {
+  it('ids that aren’t ids, a lone «%», a font called «constructor»', async () => {
+    const me = await user();
+    expect(await isParticipant(appDb, me.id, '-'.repeat(36))).toBe(false);
+    expect(await isParticipant(appDb, me.id, 'a'.repeat(36))).toBe(false);
+    expect(await appealDecision(appDb, redis, me.id, '-'.repeat(36), 'لطفاً دوباره نگاه کنید.')).toEqual({ ok: false, reason: 'not_found' });
+    const font = (stack: string) => fontGlyphs(new Request('https://peydoo.test/'), { params: Promise.resolve({ stack, range: '0-255.pbf' }) });
+    expect((await font('%')).status).toBe(404);
+    expect((await font('constructor')).status).toBe(404);
+    expect((await font('Noto%20Sans%20Regular')).status).toBe(200);
+  });
+});
+
+describe('migration 0042', () => {
+  it('merges invitation links stored before into one «invite» row per day', async () => {
+    await rollback(async (tx) => {
+      await tx.execute(sql`INSERT INTO visit_stats (day, dimension, key, views) VALUES
+        ('2031-02-01', 'page', '/business/invite/AbCdEfGhIjKlMnOpQrStUv', 2), ('2031-02-01', 'page', '/business/invite/ZyXwVuTsRqPoNmLkJiHgFe', 3),
+        ('2031-02-02', 'page', '/business/invite/AbCdEfGhIjKlMnOpQrStUv', 1), ('2031-02-02', 'page', 'invite', 4), ('2031-02-02', 'page', 'listing', 9)`);
+      const file = readFileSync(new URL('../src/db/migrations/0042_invite_pages.sql', import.meta.url), 'utf8');
+      for (const statement of file.split('--> statement-breakpoint')) await tx.execute(sql.raw(statement));
+      const rows = await tx.execute<{ day: string; key: string; views: number }>(sql`SELECT day::text, key, views FROM visit_stats WHERE day IN ('2031-02-01', '2031-02-02') ORDER BY day, key`);
+      expect(rows.map((r) => [r.day, r.key, r.views])).toEqual([
+        ['2031-02-01', 'invite', 5],
+        ['2031-02-02', 'invite', 5],
+        ['2031-02-02', 'listing', 9],
+      ]);
     });
   });
 });

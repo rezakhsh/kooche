@@ -4302,7 +4302,7 @@ export const admin = {
     refCreated: 'لینک ساخته شد.',
     countriesTitle: 'کشورها',
     pagesTitle: 'پربازدیدترین صفحه‌ها',
-    pages: { '/': 'صفحهٔ اول', listing: 'صفحه‌های آگهی', event: 'صفحه‌های رویداد', seller: 'صفحه‌های فروشنده', chat: 'گفتگوها', account: 'حساب من', login: 'ورود', post: 'گذاشتن آگهی' } as Record<string, string>,
+    pages: { '/': 'صفحهٔ اول', listing: 'صفحه‌های آگهی', event: 'صفحه‌های رویداد', seller: 'صفحه‌های فروشنده', chat: 'گفتگوها', account: 'حساب من', login: 'ورود', post: 'گذاشتن آگهی', invite: 'دعوت به کسب‌وکار', other: 'صفحه‌های دیگر' } as Record<string, string>,
     devicesTitle: 'گوشی یا رایانه',
     devices: { phone: 'گوشی', tablet: 'تبلت', computer: 'رایانه' } as Record<string, string>,
     answersTitle: 'پاسخ «از کجا با پیدو آشنا شدید؟»',

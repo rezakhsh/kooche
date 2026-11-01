@@ -19,6 +19,15 @@ export const STATS_TIME_ZONE = 'Europe/Berlin';
 const KEEP_SECONDS = 3 * 86_400;
 const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse|curl|wget|python|httpclient|monitor|uptime/i;
 
+/**
+ * Different sources and page groups a day may have; past that they count as `other`. Every new
+ * one adds Valkey keys, and Valkey also holds sign-in limits and the job queues (Check B, Oct 31,
+ * 2026: made-up referrers and paths could fill it)
+ */
+export const DAILY_KEYS = { source: 300, page: 1_000 } as const;
+/** Rows per insert when the counters are written (postgres.js takes at most 65,534 parameters) */
+const FLUSH_CHUNK = 1_000;
+
 export type VisitDimension = 'total' | 'source' | 'country' | 'page' | 'device';
 /** Dimensions with a daily visitor count; pages count views only */
 const UNIQUE: VisitDimension[] = ['total', 'source', 'country', 'device'];
@@ -69,7 +78,9 @@ export function pageGroup(path: string): string {
   const [first] = parts;
   const sections: Record<string, string> = { v: 'listing', e: 'event', u: 'seller', chat: 'chat', my: 'account', account: 'account', login: 'login', new: 'post', favorites: 'account', alerts: 'account' };
   if (first === 'b' && parts[1]) return `/b/${parts[1]}`.slice(0, 120);
-  if (sections[first!]) return sections[first!]!;
+  // An invitation's link is a secret: never stored (Check B, Oct 31, 2026)
+  if (first === 'business' && parts[1] === 'invite') return 'invite';
+  if (Object.hasOwn(sections, first!)) return sections[first!]!;
   return `/${parts.slice(0, 3).join('/')}`.slice(0, 120);
 }
 
@@ -107,11 +118,11 @@ export async function countVisit(redis: Redis, v: Visit): Promise<boolean> {
   const who = await visitorOn(redis, day, v.ip, v.userAgent);
   const keys: Array<[VisitDimension, string]> = [
     ['total', 'all'],
-    ['page', pageGroup(v.path)],
+    ['page', await withinCap(redis, day, 'page', pageGroup(v.path))],
     ['country', v.country && /^[A-Z]{2}$/.test(v.country) ? v.country : 'XX'],
     ['device', deviceOf(v.userAgent)],
   ];
-  const source = v.landing ? sourceOf(v.referrer, v.ownHost, v.ref) : null;
+  const source = v.landing ? await withinCap(redis, day, 'source', sourceOf(v.referrer, v.ownHost, v.ref)) : null;
   if (source) keys.push(['source', source]);
   const m = redis.multi();
   for (const [dim, key] of keys) {
@@ -122,6 +133,13 @@ export async function countVisit(redis: Redis, v: Visit): Promise<boolean> {
   if (source) m.hsetnx(`vs:${day}:who`, who, source).expire(`vs:${day}:who`, KEEP_SECONDS);
   await m.exec();
   return true;
+}
+
+/** The key itself while the day has room for it (or already has it), else `other` */
+async function withinCap(redis: Redis, day: string, dim: keyof typeof DAILY_KEYS, key: string): Promise<string> {
+  const hash = `vs:${day}:v:${dim}`;
+  const [[, known], [, size]] = (await redis.multi().hexists(hash, key).hlen(hash).exec()) as [[unknown, number], [unknown, number]];
+  return known || size < DAILY_KEYS[dim] ? key : 'other';
 }
 
 /** Where someone signing up now came from today (or yesterday), worked out the same way; null if unknown */
@@ -148,28 +166,45 @@ export async function recordSignupSource(db: Queryable, redis: Redis, opts: { us
     WHERE id = ${opts.userId}::uuid AND signup_source IS NULL AND created_at > ${new Date(now.getTime() - 10 * 60_000).toISOString()}::timestamptz`);
 }
 
-/** Worker, every 10 minutes: today's and yesterday's counters into `visit_stats` (absolute numbers) */
+/**
+ * Worker, every 10 minutes: today's and yesterday's counters into `visit_stats` (absolute numbers).
+ * In chunks, each day and dimension on its own: one that fails doesn't keep the others (today's
+ * total too) from being written (Check B, Oct 31, 2026); the first failure is thrown at the end.
+ */
 export async function flushVisitStats(redis: Redis, db: Queryable, now: Date = new Date()): Promise<number> {
   let rows = 0;
+  let failed: unknown = null;
   for (const at of [new Date(now.getTime() - 86_400_000), now]) {
     const day = localDate(at, STATS_TIME_ZONE);
     for (const dim of ['total', 'source', 'country', 'page', 'device'] as const) {
-      const views = await redis.hgetall(`vs:${day}:v:${dim}`);
-      const entries = Object.entries(views).filter(([key]) => key.length >= 1 && key.length <= 120);
-      if (!entries.length) continue;
-      const values = [];
-      for (const [key, n] of entries) {
-        const visitors = UNIQUE.includes(dim) ? await redis.pfcount(`vs:${day}:u:${dim}:${key}`) : 0;
-        values.push(sql`(${day}::date, ${dim}, ${key}, ${Number(n)}, ${visitors})`);
+      try {
+        const views = await redis.hgetall(`vs:${day}:v:${dim}`);
+        // Invitation links counted before Nov 1, 2026 are left out (they hold a secret; migration 0042)
+        const entries = Object.entries(views).filter(([key]) => key.length >= 1 && key.length <= 120 && !(dim === 'page' && key.startsWith('/business/invite/')));
+        for (let i = 0; i < entries.length; i += FLUSH_CHUNK) {
+          const values = [];
+          for (const [key, n] of entries.slice(i, i + FLUSH_CHUNK)) {
+            const visitors = UNIQUE.includes(dim) ? await redis.pfcount(`vs:${day}:u:${dim}:${key}`) : 0;
+            values.push(sql`(${day}::date, ${dim}, ${key}, ${Number(n)}, ${visitors})`);
+          }
+          await db.execute(sql`
+            INSERT INTO visit_stats (day, dimension, key, views, visitors)
+            VALUES ${sql.join(values, sql`, `)}
+            ON CONFLICT (day, dimension, key) DO UPDATE SET views = EXCLUDED.views, visitors = EXCLUDED.visitors`);
+          rows += values.length;
+        }
+      } catch (e) {
+        failed ??= e;
       }
-      await db.execute(sql`
-        INSERT INTO visit_stats (day, dimension, key, views, visitors)
-        VALUES ${sql.join(values, sql`, `)}
-        ON CONFLICT (day, dimension, key) DO UPDATE SET views = EXCLUDED.views, visitors = EXCLUDED.visitors`);
-      rows += values.length;
     }
   }
+  if (failed) throw failed;
   return rows;
+}
+
+/** A key's label from a list of labels; the key itself when it has none (also for «constructor») */
+export function labelFor(labels: Record<string, string>, key: string): string {
+  return Object.hasOwn(labels, key) ? labels[key]! : key;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -200,6 +235,25 @@ export async function archiveRefCode(db: Db, staff: { userId: string }, id: stri
     if (done.length) await tx.insert(auditLog).values({ actorType: 'staff', actorUserId: staff.userId, action: 'stats.ref_code_archived', targetType: 'ref_code', targetId: id });
     return done.length > 0;
   });
+}
+
+/**
+ * The live codes for `/api/v`, looked up again every 5 minutes. A failed lookup isn't kept: that
+ * visit counts without its code and the next one asks again (Check B, Oct 31, 2026: one database
+ * hiccup dropped every ref visit for 5 minutes).
+ */
+export function refCodeCache(load: () => Promise<Set<string>>, maxAgeMs = 5 * 60_000): () => Promise<Set<string>> {
+  let codes: { at: number; set: Promise<Set<string>> } | null = null;
+  return () => {
+    if (!codes || Date.now() - codes.at > maxAgeMs) {
+      const set: Promise<Set<string>> = load().catch(() => {
+        if (codes?.set === set) codes = null;
+        return new Set<string>();
+      });
+      codes = { at: Date.now(), set };
+    }
+    return codes.set;
+  };
 }
 
 /** The live codes, for checking `?ref=` (cached by the caller) */

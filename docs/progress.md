@@ -1583,3 +1583,14 @@ Approved by the owner as planned. No migration.
 - **Business names and addresses** can't contain the reserved words of people's names (پیدو, پشتیبانی, peydoo, support, admin…); a business keeps a name it already had.
 - **Tests:** `tests/check-b-posting.test.ts` (14 of its tests fail on the old code), plus rewards and the events digest test. All 1,111 pass.
 - **Checked on staging** (028a910): web, worker and migrate on the commit, no errors in their logs; «پیام به فروشنده» signed in with a temporary account: 200 for a live listing, 404 for a rejected one and one under review (before: the form opened). No business on staging has a reserved name. Temporary accounts and listings removed.
+
+## Nov 1, 2026: Check B, package 3 (visitor numbers)
+
+Approved by the owner as planned. Migration 0042.
+- **Caps:** a day keeps at most 300 sources and 1,000 page groups in Valkey (`DAILY_KEYS`); later new ones count as `other` («سایت‌های دیگر», «صفحه‌های دیگر»). `/api/v`'s 600 an hour counts an IPv6 address by its /64 (`ipBlock()` in `src/lib/client-ip.ts`).
+- **Big days:** the flush writes 1,000 rows per insert (postgres.js refused about 13,000 at once), each day and list on its own; the first failure is thrown after the rest are written.
+- **«constructor»:** `labelFor()` (own keys only) for the labels on «آمار بازدید», and `pageGroup()`'s sections the same way.
+- **Invitation links:** `/business/invite/<token>` is the page group `invite` («دعوت به کسب‌وکار»); migration 0042 merges rows stored before into it, and the flush leaves out such keys still in Valkey.
+- **Ref links:** a failed code lookup isn't cached (`refCodeCache()`); that visit counts without its code.
+- **Hand-edited addresses:** `/api/events/count` with a lone «%» and a map font named «%» or «constructor» answer 404; ids checked with `z.uuid()` (chat, appeals, admin stats and cities) and the opening date with `z.iso.date()`, so a 36-dash id or `2026-13-45` is "not found" or ignored instead of a database error.
+- **Tests:** 8 new in `tests/visits.test.ts` (7 fail on the old code; the eighth checks migration 0042). All 1,119 pass.

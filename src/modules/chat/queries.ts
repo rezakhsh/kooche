@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { conversations } from '../../db/schema';
 import type { Queryable } from '../../db/drizzle';
 import { coverKeys } from '../listings/queries';
@@ -172,7 +173,7 @@ export type ConversationView = {
 
 /** One conversation for one of its participants, or null */
 export async function conversationFor(db: Queryable, userId: string, conversationId: string): Promise<ConversationView | null> {
-  if (!/^[0-9a-f-]{36}$/.test(conversationId)) return null;
+  if (!z.uuid().safeParse(conversationId).success) return null;
   const [r] = await db.execute<{
     id: string;
     buyer_user_id: string;
@@ -310,7 +311,7 @@ export async function messagesAfter(
   db: Queryable,
   opts: { userId: string; conversationId: string; afterId: string },
 ): Promise<MessageView[] | null> {
-  if (!/^[0-9a-f-]{36}$/.test(opts.afterId)) return null;
+  if (!z.uuid().safeParse(opts.afterId).success) return null;
   const rows = await db.execute<MessageRow & { anchor: boolean }>(sql`
     WITH anchor AS (SELECT created_at, id FROM messages WHERE id = ${opts.afterId} AND conversation_id = ${opts.conversationId})
     SELECT m.id, m.conversation_id, m.sender_user_id, m.kind, m.body, m.risk_flags, m.hidden_at, m.created_at
@@ -333,7 +334,7 @@ export async function messagesAfter(
 
 /** Whether the user takes part in the conversation */
 export async function isParticipant(db: Queryable, userId: string, conversationId: string): Promise<boolean> {
-  if (!/^[0-9a-f-]{36}$/.test(conversationId)) return false;
+  if (!z.uuid().safeParse(conversationId).success) return false;
   const [r] = await db.execute<{ ok: number }>(sql`SELECT 1 AS ok WHERE ${participant(conversationId, userId)}`);
   return !!r;
 }

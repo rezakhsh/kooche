@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
 import { purgeEnv, webEnv } from '../../../lib/env';
 import { purgeUrls } from '../../../modules/admin/purge';
@@ -15,7 +16,7 @@ import { browsePath } from '../../../modules/search/paths';
 // the waitlist with its goal, or changes the goal. Every change is in audit_log; the changed
 // cities' pages are purged from Cloudflare at once (else they follow within 60 seconds).
 
-const uuid = (v: FormDataEntryValue | null) => (typeof v === 'string' && /^[0-9a-f-]{36}$/.test(v) ? v : null);
+const uuid = (v: FormDataEntryValue | null) => (typeof v === 'string' && z.uuid().safeParse(v).success ? v : null);
 
 async function purge(country: string, slugs: string[]): Promise<void> {
   try {
