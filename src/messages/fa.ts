@@ -1176,6 +1176,7 @@ export const messages = {
       too_long: 'بلند است.',
       taken: 'گرفته شده است؛ نشانی دیگری انتخاب کنید.',
       reserved: 'این نشانی در دسترس نیست.',
+      reserved_name: 'این نام را نمی‌شود انتخاب کرد. نام پیدو، پشتیبانی یا مدیر سایت در آن نباشد.',
       place_not_found: 'این کد پستی یا شهر پیدا نشد.',
       pin_far: 'نقطهٔ روی نقشه باید نزدیک کد پستی کسب‌وکار باشد.',
       phone_invalid: 'شماره تلفن درست نیست.',
@@ -2610,7 +2611,7 @@ export const messages = {
     notices: {
       manage: 'تنظیم اعلان‌ها',
       open: 'دیدن رویداد',
-      reminderSubject: (title: string) => `فردا: ${title}`,
+      reminderSubject: (title: string, today = false) => `${today ? 'امروز' : 'فردا'}: ${title}`,
       reminderIntro: 'رویدادی که ذخیره کرده‌اید نزدیک است:',
       reminderFooter: 'این یادآوری را چون رویداد را ذخیره کرده‌اید می‌فرستیم.',
       followSubject: (name: string) => `رویداد تازه از ${name}`,

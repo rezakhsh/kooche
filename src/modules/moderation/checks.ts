@@ -1,10 +1,11 @@
 import { and, eq, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
-import { listingImages, listings, moderationDecisions } from '../../db/schema';
+import { listingImages, listings, moderationDecisions, outboxEvents } from '../../db/schema';
 import type { REASON_CODES } from '../../db/schema/_values';
 import { messages } from '../../messages/fa';
 import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
+import { liveUntil } from '../listings/listings';
 import { eventCheckFields } from '../events/events';
 import { checkLink } from '../events/links';
 import { lastTakeDown } from './history';
@@ -205,6 +206,9 @@ export async function runListingChecks(
         data: { rule: takeDown.rule, reason: takeDown.reason },
         moderationDecisionId: decision!.id,
       });
+      // The poster gets the statement as after a staff take-down: email, and Telegram when the bot
+      // reaches them (src/worker/moderation.ts; Check B, Oct 31, 2026)
+      await tx.insert(outboxEvents).values({ eventType: 'moderation.decided', aggregateType: 'moderation_decision', aggregateId: decision!.id, payload: { notifyUser: true } });
       return 'taken_down';
     }
 
@@ -241,7 +245,9 @@ export async function runListingChecks(
     // person decides again (it waits in the admin queue), so it can't be flipped back up unchanged
     if (listing.status === 'pending_review' && (await lastTakeDown(tx, listing.id))?.decidedBy === 'staff') return 'held';
     if (listing.status === 'pending_review') {
-      const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * 86_400_000;
+      const expiresAt = await liveUntil(tx, catalog, listing, now);
+      // An event whose last date passed while it waited ends at once
+      const to = expiresAt > now ? 'active' : 'expired';
       const [decision] = await tx
         .insert(moderationDecisions)
         .values({
@@ -255,20 +261,20 @@ export async function runListingChecks(
       await tx
         .update(listings)
         .set({
-          status: 'active',
+          status: to,
           statusChangedAt: now,
           publishedAt: listing.publishedAt ?? now,
           rankedAt: listing.rankedAt ?? now,
-          expiresAt: new Date(now.getTime() + duration),
+          expiresAt,
         })
         .where(eq(listings.id, listing.id));
       await recordChange(tx, {
         listingId: listing.id,
-        event: 'published',
-        outbox: LISTING_OUTBOX.published,
+        event: to === 'active' ? 'published' : 'expired',
+        outbox: to === 'active' ? LISTING_OUTBOX.published : LISTING_OUTBOX.expired,
         actorType: 'system',
         from: 'pending_review',
-        to: 'active',
+        to,
         revision: listing.revision,
         moderationDecisionId: decision!.id,
       });

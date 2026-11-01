@@ -288,6 +288,41 @@ export async function featuredPeriod(tx: Queryable, listingId: string, product: 
   return { startsAt, endsAt: new Date(startsAt.getTime() + (product.durationDays ?? 7) * DAY_MS) };
 }
 
+/**
+ * A featured event moved later: «ویژه تا پایان رویداد» follows its new last date, still at most 30
+ * days from the start (Check B, Oct 31, 2026). Entitlements are never rewritten, so the extra time is
+ * one more row of the same order (refunds and withdrawals end it with the order). Featured time
+ * that already ran out, or an event moved earlier, is left as it is. Run by the worker after
+ * `event.changed` (src/worker/events.ts); returns how many periods it extended.
+ */
+export async function followEventEnd(tx: Queryable, listingId: string, now: Date = new Date()): Promise<number> {
+  const [event] = await tx
+    .select({ lastEnd: sql<Date | null>`max(${eventDates.endsAt})`.mapWith((v) => (v ? new Date(v) : null)) })
+    .from(eventDates)
+    .where(eq(eventDates.listingId, listingId));
+  if (!event?.lastEnd) return 0;
+  const periods = await tx
+    .select({
+      orderId: entitlements.orderId,
+      userId: entitlements.userId,
+      organizationId: entitlements.organizationId,
+      startsAt: sql<Date>`min(${entitlements.startsAt})`.mapWith((v) => new Date(v)),
+      endsAt: sql<Date>`max(${entitlements.endsAt})`.mapWith((v) => new Date(v)),
+    })
+    .from(entitlements)
+    .where(and(eq(entitlements.listingId, listingId), eq(entitlements.type, 'featured'), isNull(entitlements.revokedAt), sql`${entitlements.orderId} IS NOT NULL`))
+    .groupBy(entitlements.orderId, entitlements.userId, entitlements.organizationId);
+  let extended = 0;
+  for (const p of periods) {
+    const until = new Date(Math.min(event.lastEnd.getTime(), p.startsAt.getTime() + FEATURED_EVENT_MAX_MS));
+    if (p.endsAt <= now || until <= p.endsAt) continue;
+    const holder = p.organizationId ? { organizationId: p.organizationId } : { userId: p.userId };
+    await tx.insert(entitlements).values({ ...holder, type: 'featured', listingId, orderId: p.orderId, features: {}, startsAt: p.endsAt, endsAt: until });
+    extended++;
+  }
+  return extended;
+}
+
 // ---------------------------------------------------------------------------
 // Subscriptions
 // ---------------------------------------------------------------------------

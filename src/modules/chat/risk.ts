@@ -13,6 +13,11 @@ export type RiskFlag = (typeof RISK_FLAGS)[number];
 export const BLOCKED_FOR_NEW_ACCOUNTS: readonly RiskFlag[] = ['link', 'iban'];
 
 const ZWNJ = /‌/g;
+// Direction marks (LRM, RLM, ALM, the embeddings and isolates) are invisible and fit between any
+// two characters; the Arabic thousands and decimal separators «٬ ٫» sit inside numbers like a
+// space (Check B, Oct 31, 2026: both let an IBAN or a phone number through)
+const BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
+const ARABIC_SEPARATORS = /[\u066b\u066c]/g;
 
 // Common top-level domains of links people paste, plus the messenger short links
 const TLDS =
@@ -100,11 +105,12 @@ export function isValidIban(candidate: string): boolean {
   return rest === 1;
 }
 
+// Up to 34 characters, written in groups of four (spaces, dashes or dots between) or in one piece
+const IBAN_RUN = /\b[a-z]{2}\d{2}(?:[ .-]?[a-z0-9]){11,32}/gi;
+
 function findIban(text: string): boolean {
-  // Up to 34 characters, written in groups of four or in one piece
-  const re = /\b[a-z]{2}\d{2}(?:[ -]?[a-z0-9]){11,32}/gi;
-  for (const m of text.matchAll(re)) {
-    const compact = m[0].replace(/[ -]/g, '');
+  for (const m of text.matchAll(IBAN_RUN)) {
+    const compact = m[0].replace(/[ .-]/g, '');
     // The match may run into the next word: try shorter prefixes, longest first
     for (let len = Math.min(compact.length, 34); len >= 15; len--) {
       if (isValidIban(compact.slice(0, len))) return true;
@@ -159,7 +165,7 @@ function findPhoneNumber(text: string): boolean {
 
 /** The risk flags of a message body, in the order of RISK_FLAGS */
 export function detectRisks(body: string): RiskFlag[] {
-  const text = normalizePersian(body).replace(ZWNJ, ' ');
+  const text = normalizePersian(body.replace(BIDI, '').replace(ARABIC_SEPARATORS, ' ')).replace(ZWNJ, ' ');
   const flags = new Set<RiskFlag>();
 
   const emails = text.match(EMAIL) ?? [];
@@ -173,7 +179,7 @@ export function detectRisks(body: string): RiskFlag[] {
     flags.add('off_platform_contact');
   }
   // An IBAN's digits are not also a phone number
-  const withoutIban = iban ? text.replace(/\b[a-z]{2}\d{2}(?:[ -]?[a-z0-9]){11,32}/gi, ' ') : text;
+  const withoutIban = iban ? text.replace(IBAN_RUN, ' ') : text;
   if (findPhoneNumber(withoutIban)) flags.add('phone_number');
 
   return RISK_FLAGS.filter((f) => flags.has(f));

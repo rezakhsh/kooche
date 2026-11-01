@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import type { StaffContext } from '../src/modules/admin/audit';
 import { grantWaitlistRewards, sendRewardNotices, usableRewards, useReward } from '../src/modules/launch/rewards';
+import { localParts } from '../src/modules/events/time';
 import { changeCityLaunch, openCountry } from '../src/modules/launch/waitlist';
 import { applyDueRewards } from '../src/modules/payments/bumps';
 import type { Mail } from '../src/modules/notifications/mailer';
@@ -64,6 +65,8 @@ describe('giving the reward', () => {
       const opened = Date.now();
       expect(new Date(rows[0]!.available_from).getTime()).toBeGreaterThan(opened + 3 * DAY - 120_000);
       expect(new Date(rows[0]!.ends_at).getTime()).toBeGreaterThan(opened + 60 * DAY - 120_000);
+      // To the end of that day on the city's clock, the day the emails name (Check B, Oct 31, 2026)
+      expect(localParts(new Date(rows[0]!.ends_at), 'Europe/Berlin')).toMatchObject({ h: 0, mi: 0 });
       // Opening again gives nobody a second one
       expect(await grantWaitlistRewards(tx, [cologne.id])).toBe(0);
     });

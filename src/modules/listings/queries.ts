@@ -154,6 +154,9 @@ export async function otherActiveListings(db: Queryable, l: { id: string; userId
   return row?.n ?? 0;
 }
 
+/** Statuses anyone may see on the listing page; the rest only the owner (with a notice) */
+export const PUBLIC_STATUSES: ReadonlySet<string> = new Set(['active', 'paused', 'sold', 'expired']);
+
 /** Everything the public listing page shows, by public token. Deleted listings are not found. */
 export async function publicListing(db: Queryable, token: string) {
   const [row] = await db

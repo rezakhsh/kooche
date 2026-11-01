@@ -1566,3 +1566,19 @@ Approved by the owner with three decisions: a business closes with its only owne
 - **Failed send jobs** are kept 30 days at most (they hold an address and a text).
 - **Tests:** `tests/check-b-people.test.ts` plus updates in profile, retention, moderation, waitlist, phone, people-privacy and grants. All 1,094 pass.
 - **Checked on staging** (34c998d): migrations 0040 and 0041 in place; the owner's sample desk listing taken down by hand (status and outbox event) moved its photo to `held/` within seconds (old address 404, held address 200 for staff), and back on restore. **Found there:** Cloudflare caches the 404 of a held photo for 4 hours, so the restore must purge the public addresses too; fixed (the purge list is always the public key) and the sample's cached 404 purged by hand. The owner then added `IMAGE_URL`, `IMGPROXY_KEY`, `IMGPROXY_SALT` to the staging worker (same as the web) and restarted it; tested again (c454f07): a cached photo address gave 404 (purged) right after the take-down and 200 right after the restore. **Production's worker needs the same three settings at the release.** The delete page with two sample businesses (one with a renewing plan) and a closed business page, phone light; pictures in `/root/peydoo-media/after-wave2/check-b/package-1/`. Sample data removed.
+
+## Nov 1, 2026: Check B, package 2 (posting, chat and events)
+
+Approved by the owner as planned. No migration.
+- **Rules on live edits:** an edit of a live, paused or expired listing may not turn it into one the posting rules refuse (a wanted post into a job offer, a licensed tick, a fourth car); what it already broke before (a limit lowered since) doesn't block its edits (`saveListing`, `postingRefusal(…, { asNew })`).
+- **Events going live again** (approved after a resubmission, restored) end with their last date, not 30 days later; one whose date passed meanwhile is expired at once (`liveUntil()` in `listings.ts`).
+- **Automatic take-downs** send the statement like a staff one (email, Telegram) through `moderation.decided`.
+- **Chat filter:** direction marks (LRM, RLM, ALM, embeddings, isolates) are dropped and «٬ ٫» read as spaces before the checks; an IBAN may have dots between its groups.
+- **«ویژه تا پایان رویداد»:** after `event.changed` the worker (`event_feature` job) adds the days up to the new last date, at most 30 days from the start, as one more entitlement row of the same order (`followEventEnd()` in `payments/apply.ts`). A withdrawal still divides the price over the period bought.
+- **Postponed events:** no reminder at the old time; «به تعویق افتاده» instead of the time in the weekly city email; the channel digest's payload has `postponedIds`.
+- **Reminders** go out on the calendar day before at the event's place («فردا»), or the same day when that was missed («امروز»); before, a morning event got «فردا» two days early.
+- **Appeals** stay open to the end of the day six calendar months later, Berlin time (`appealDeadline()`); 183 days closed some a day early.
+- **Waitlist free bump** runs to the end of day 60 on the city's clock, the day the emails and pages name.
+- **«پیام به فروشنده»** (`/chat/new`) opens only for listings the listing page shows (`PUBLIC_STATUSES`), not rejected, waiting or test accounts' ones.
+- **Business names and addresses** can't contain the reserved words of people's names (پیدو, پشتیبانی, peydoo, support, admin…); a business keeps a name it already had.
+- **Tests:** `tests/check-b-posting.test.ts` (14 of its tests fail on the old code), plus rewards and the events digest test. All 1,111 pass.

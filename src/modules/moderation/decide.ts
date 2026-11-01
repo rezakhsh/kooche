@@ -5,6 +5,7 @@ import { messages as messages_ } from '../../messages/fa';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
+import { liveUntil } from '../listings/listings';
 import { snapshot } from './checks';
 import { lastTakeDown } from './history';
 import { REASON_SECTIONS, type ReasonCode } from './reasons';
@@ -129,10 +130,10 @@ async function restoreRow(tx: Queryable, l: Listing, decisionId: string, actor: 
   let to: Listing['status'];
   const set: Partial<typeof listings.$inferInsert> = { statusChangedAt: now };
   if (l.status === 'pending_review') {
-    const catalog = await cachedCatalog(tx);
-    const days = catalog.byId.get(l.categoryId ?? '')?.listingDurationDays ?? 30;
-    to = 'active';
-    Object.assign(set, { publishedAt: l.publishedAt ?? now, rankedAt: l.rankedAt ?? now, expiresAt: new Date(now.getTime() + days * 86_400_000) });
+    const expiresAt = await liveUntil(tx, await cachedCatalog(tx), l, now);
+    // An event ends with its last date (Check B, Oct 31, 2026); one that passed meanwhile is over
+    to = expiresAt > now ? 'active' : 'expired';
+    Object.assign(set, { publishedAt: l.publishedAt ?? now, rankedAt: l.rankedAt ?? now, expiresAt });
   } else {
     const before = (await lastTakeDown(tx, l.id))?.fromStatus as Listing['status'] | undefined;
     to = before && (VISIBLE as readonly string[]).includes(before) ? before : 'active';

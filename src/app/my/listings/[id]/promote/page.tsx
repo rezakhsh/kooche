@@ -126,7 +126,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         {live && !isEvent && rewards[0] && (
           <div className="rounded-2xl border-2 border-saffron-100 bg-saffron-50 p-4">
             <h2 className="text-sm font-extrabold">{t.reward.title}</h2>
-            <p className="mt-1 text-sm leading-7 text-neutral-700">{t.reward.text(rewards[0].cityFa, formatDate(rewards[0].endsAt, zone))}</p>
+            <p className="mt-1 text-sm leading-7 text-neutral-700">{t.reward.text(rewards[0].cityFa, formatDate(new Date(rewards[0].endsAt.getTime() - 1), zone))}</p>
             <form action={useRewardAction} className="mt-3">
               <input type="hidden" name="listingId" value={listing.id} />
               <Button type="submit">

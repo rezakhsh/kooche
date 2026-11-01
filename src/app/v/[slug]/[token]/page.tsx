@@ -27,7 +27,7 @@ import { amountInputValue, formatPrice } from '../../../../modules/listings/pric
 import { isEventListing } from '../../../../modules/events/queries';
 import { eventPath } from '../../../../modules/events/slug';
 import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
-import { activeCountries, otherActiveListings, publicListing } from '../../../../modules/listings/queries';
+import { activeCountries, otherActiveListings, publicListing, PUBLIC_STATUSES } from '../../../../modules/listings/queries';
 import { browsePath } from '../../../../modules/search/paths';
 import { similarListings } from '../../../../modules/search/browse';
 import { sellerReplySpeed } from '../../../../modules/chat/response-time';
@@ -79,7 +79,7 @@ const load = cache(async (token: string) => {
 });
 
 /** Statuses anyone may see; the rest only the owner (with a notice) */
-const PUBLIC = new Set(['active', 'paused', 'sold', 'expired']);
+const PUBLIC = PUBLIC_STATUSES;
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { token } = await params;

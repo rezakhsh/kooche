@@ -8,6 +8,7 @@ import { PREPARING } from '../launch/countries';
 import { BUSINESS_LANGUAGES, BUSINESS_TYPES, type OpeningHours } from '../../db/schema/organizations';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { RESERVED_SLUGS } from '../../db/seed-checks';
+import { hasReservedPart } from '../users/profile';
 import { pinFromAddress } from '../maps/geocode';
 import { pinField, pinNear } from '../maps/pin';
 import { staffAudit, type StaffContext } from '../admin/audit';
@@ -210,7 +211,8 @@ export async function createBusiness(
 ): Promise<{ ok: true; slug: string; id: string } | { ok: false; reason: BusinessError; fields?: Record<string, string> }> {
   const parsed = businessInputSchema.safeParse(opts.input);
   if (!parsed.success) return { ok: false, reason: 'invalid', fields: fieldErrors(parsed.error) };
-  if (RESERVED_SLUGS.includes(parsed.data.slug)) return { ok: false, reason: 'slug_reserved', fields: { slug: 'reserved' } };
+  if (RESERVED_SLUGS.includes(parsed.data.slug) || hasReservedPart(parsed.data.slug)) return { ok: false, reason: 'slug_reserved', fields: { slug: 'reserved' } };
+  if (hasReservedPart(parsed.data.name)) return { ok: false, reason: 'invalid', fields: { name: 'reserved_name' } };
   const shop = await withShopPin(parsed.data, opts.countryCode, null);
   try {
     return await db.transaction(async (tx) => {
@@ -251,8 +253,10 @@ export async function updateBusiness(
 ): Promise<{ ok: true } | { ok: false; reason: BusinessError; fields?: Record<string, string> }> {
   const parsed = businessInputSchema.safeParse(opts.input);
   if (!parsed.success) return { ok: false, reason: 'invalid', fields: fieldErrors(parsed.error) };
-  const [saved] = await db.select({ countryCode: organizations.countryCode, street: organizations.addressLine1, pin: organizations.pin }).from(organizations).where(eq(organizations.id, opts.organizationId));
+  const [saved] = await db.select({ name: organizations.name, countryCode: organizations.countryCode, street: organizations.addressLine1, pin: organizations.pin }).from(organizations).where(eq(organizations.id, opts.organizationId));
   if (!saved) return { ok: false, reason: 'not_found' };
+  // A name kept from before the rule stays; a new one can't impersonate us (Check B, Oct 31, 2026)
+  if (parsed.data.name !== saved.name && hasReservedPart(parsed.data.name)) return { ok: false, reason: 'invalid', fields: { name: 'reserved_name' } };
   const shop = await withShopPin(parsed.data, saved.countryCode, saved);
   try {
     return await db.transaction(async (tx) => {

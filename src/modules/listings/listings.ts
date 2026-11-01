@@ -370,6 +370,17 @@ export type Refusal =
 export type Refused = { ok: false; reason: Refusal };
 
 /**
+ * When a listing that goes live again (approved after review, restored) ends: an event with the
+ * end of its last date, as when it was published, and anything else after its category's days
+ * (Check B, Oct 31, 2026: events got a flat 30 days).
+ */
+export async function liveUntil(tx: Queryable, catalog: Catalog, l: Pick<Listing, 'id' | 'categoryId'>, now: Date): Promise<Date> {
+  const [event] = await tx.execute<{ last: string | Date | null }>(sql`SELECT max(ends_at) AS last FROM event_dates WHERE listing_id = ${l.id}`);
+  if (event?.last) return new Date(event.last);
+  return new Date(now.getTime() + (catalog.byId.get(l.categoryId ?? '')?.listingDurationDays ?? 30) * DAY_MS);
+}
+
+/**
  * How many of the user's listings (or events) were first published in the 24 hours before `now`.
  * Deleted ones count too, so deleting and posting again doesn't help; a renewal keeps its old
  * published_at and doesn't count.
@@ -654,6 +665,17 @@ export async function saveListing(
     if (goingOut && !opts.extension && values.countryCode) {
       const border = await borderRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind, attributes: values.attributes, countryCode: values.countryCode }, actor!, now);
       if (border) return { ok: false, reason: border };
+    }
+    // An edit of a listing that is out keeps to the same rules: it may not turn the listing into
+    // one they refuse, like a wanted post into a job offer or a fourth car (Check B, Oct 31, 2026).
+    // What the listing already broke before (a limit lowered since) doesn't block its edits.
+    if (!goingOut && !opts.extension && listing.status !== 'draft' && listing.status !== 'rejected' && values.countryCode && (values.kind !== listing.kind || canonical(values.attributes) !== canonical(listing.attributes))) {
+      const base = { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, countryCode: values.countryCode };
+      const after = { ...base, kind: values.kind, attributes: values.attributes };
+      const before = { ...base, kind: listing.kind, attributes: listing.attributes };
+      const refused =
+        (await postingRefusal(tx, catalog, after, now, { asNew: listing.kind !== 'offer' && values.kind === 'offer' })) ?? (await borderRefusal(tx, catalog, after, actor!, now));
+      if (refused && !((await postingRefusal(tx, catalog, before, now)) ?? (await borderRefusal(tx, catalog, before, actor!, now)))) return { ok: false, reason: refused };
     }
 
     if (displayName) {

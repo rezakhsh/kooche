@@ -37,9 +37,14 @@ export function checkDisplayName(raw: string): { ok: true; name: string } | { ok
   if (!name) return { ok: false, error: 'required' };
   if ([...name].length > MAX_DISPLAY_NAME) return { ok: false, error: 'too_long' };
   if ([...name].length < MIN_DISPLAY_NAME) return { ok: false, error: 'too_short' };
-  const c = compact(name);
-  if (RESERVED.some((r) => c.includes(r))) return { ok: false, error: 'reserved' };
+  if (hasReservedPart(name)) return { ok: false, error: 'reserved' };
   return { ok: true, name };
+}
+
+/** Whether a name or page address contains the brand, staff or support (also for businesses) */
+export function hasReservedPart(text: string): boolean {
+  const c = compact(text).replace(/[-_.]+/g, '');
+  return RESERVED.some((r) => c.includes(r));
 }
 
 /** Whether the account still has the placeholder name it was created with */

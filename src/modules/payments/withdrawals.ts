@@ -103,7 +103,9 @@ export function withdrawalRefund(input: { totalMinor: number; refundedMinor: num
     const ran = bumps.filter((b) => b.appliedAt && b.appliedAt <= receivedAt).length;
     unused = (bumps.length - ran) / bumps.length;
   } else {
-    const f = granted.find((g) => g.type === 'featured' && g.endsAt);
+    // The period bought: an event moved later adds rows after it (./apply.ts, followEventEnd), which
+    // don't make the price's share of each day smaller
+    const f = granted.filter((g) => g.type === 'featured' && g.endsAt).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
     if (!f) return 0;
     const length = f.endsAt!.getTime() - f.startsAt.getTime();
     const stop = Math.min(receivedAt.getTime(), f.revokedAt?.getTime() ?? Infinity, f.endsAt!.getTime());

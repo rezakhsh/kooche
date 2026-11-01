@@ -11,6 +11,7 @@ import { DEFAULT_TIME_ZONE, eventsCityOf, noticeChannels, quietDelay, quietHours
 import { eventPriceText, formatEventStart } from './format';
 import { upcomingEvents, whenWindow } from './queries';
 import { eventPath } from './slug';
+import { dayNumber, localParts } from './time';
 
 // Event notices (wave 1, part 6), all through the shared send queues as ready-written messages
 // (`plain_telegram`, `plain_email`, src/worker/chat.ts), by the person's switches
@@ -94,9 +95,13 @@ function compose(
 // Reminders
 // ---------------------------------------------------------------------------------------------
 
-export type DueReminder = Recipient & { listingId: string; startsAt: Date; line: EventLine };
+export type DueReminder = Recipient & { listingId: string; startsAt: Date; line: EventLine; today: boolean };
 
-/** Saved events with a date 12 to 36 hours ahead that hasn't had its reminder */
+/**
+ * Saved events with a date 12 to 36 hours ahead that hasn't had its reminder, and on the next
+ * calendar day (or, when the day before was missed, today) at the event's place: «فردا» is never
+ * sent two days early for a morning event (Check B, Oct 31, 2026)
+ */
 export async function dueReminders(db: Queryable, appUrl: string, now = new Date()): Promise<DueReminder[]> {
   const rows = await db.execute<
     UserRow & { listing_id: string; title: string; public_token: string; starts_at: Date; time_zone: string; venue_name: string | null; city_fa: string | null; attendance: string }
@@ -108,7 +113,7 @@ export async function dueReminders(db: Queryable, appUrl: string, now = new Date
     FROM event_dates d
     JOIN favorites f ON f.listing_id = d.listing_id
     JOIN listings l ON l.id = d.listing_id AND l.status = 'active'
-    JOIN event_details e ON e.listing_id = l.id AND e.schedule_status <> 'cancelled'
+    JOIN event_details e ON e.listing_id = l.id AND e.schedule_status = 'scheduled'
     JOIN users u ON u.id = f.user_id AND u.status = 'active'
     LEFT JOIN locations c ON c.id = l.location_id
     WHERE d.starts_at > ${new Date(now.getTime() + 12 * 3_600_000).toISOString()}::timestamptz
@@ -117,10 +122,12 @@ export async function dueReminders(db: Queryable, appUrl: string, now = new Date
     ORDER BY f.listing_id, f.user_id, d.starts_at
     LIMIT 5000`);
   const base = appUrl.replace(/\/$/, '');
-  return rows.map((r) => ({
+  const daysAhead = (r: (typeof rows)[number]) => dayNumber(localParts(new Date(r.starts_at), r.time_zone)) - dayNumber(localParts(now, r.time_zone));
+  return rows.filter((r) => daysAhead(r) <= 1).map((r) => ({
     ...recipient(r),
     listingId: r.listing_id,
     startsAt: new Date(r.starts_at),
+    today: daysAhead(r) === 0,
     line: {
       title: r.title,
       url: `${base}${eventPath(r.title, r.public_token)}`,
@@ -143,7 +150,7 @@ export function reminderMessage(r: DueReminder, channels: NoticeChannel[], appUr
   const t = messages.events.notices;
   const base = appUrl.replace(/\/$/, '');
   return compose(r, channels, {
-    subject: t.reminderSubject(r.line.title),
+    subject: t.reminderSubject(r.line.title, r.today),
     intro: t.reminderIntro,
     items: [r.line],
     button: { text: t.open, url: r.line.url },
@@ -268,7 +275,8 @@ export async function weeklyMessageFor(
     return {
       title: e.title,
       url: `${base}${eventPath(e.title, e.publicToken)}`,
-      when: formatEventStart(e.startsAt, e.timeZone),
+      // A postponed event's dates no longer hold (Check B, Oct 31, 2026)
+      when: e.scheduleStatus === 'postponed' ? messages.events.scheduleStatus.postponed : formatEventStart(e.startsAt, e.timeZone),
       where: [e.attendance === 'online' ? messages.events.card.online : e.venueName, price].filter(Boolean).join('، ') || null,
     };
   });

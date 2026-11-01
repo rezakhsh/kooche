@@ -94,7 +94,7 @@ export default async function MyListingsPage({ searchParams }: { searchParams: P
         {rewards[0] && (
           <p className="flex gap-2 rounded-xl bg-saffron-50 p-3 text-sm leading-6 text-saffron-800">
             <Icon name="arrowUp" className="mt-1 size-4 shrink-0" />
-            {t.reward(rewards[0].cityFa, formatDate(rewards[0].endsAt, zone))}
+            {t.reward(rewards[0].cityFa, formatDate(new Date(rewards[0].endsAt.getTime() - 1), zone))}
           </p>
         )}
         {params.error && (

@@ -23,8 +23,9 @@ import { restrictedRoots } from './suspicions';
 // - a business's listings and events go live only once its legal details (the Impressum) are
 //   complete (owner, Oct 28, 2026; like Kleinanzeigen's «Rechtliche Angaben» for PRO accounts,
 //   § 5 DDG). Its page and drafts can start earlier.
-// Checked when a listing goes live: published, sent again, renewed or resumed. Listings already
-// live are never taken down by these rules.
+// Checked when a listing goes live: published, sent again, renewed or resumed, and when a live
+// listing is edited into one they refuse (Check B, Oct 31, 2026). Listings already live are never
+// taken down by these rules.
 
 /** Top categories whose offers count as services */
 export const SERVICE_ROOTS = ['services', 'lessons-courses'] as const;
@@ -115,6 +116,8 @@ export async function postingRefusal(
     attributes?: unknown;
   },
   now: Date = new Date(),
+  /** Counted as a new listing although it was out before: a live wanted post edited into an offer */
+  opts: { asNew?: boolean } = {},
 ): Promise<PostingRefusal | null> {
   if (!l.categoryId) return null;
   const category = catalog.byId.get(l.categoryId);
@@ -142,7 +145,7 @@ export async function postingRefusal(
     const [self] = await db.execute<{ published: boolean }>(sql`SELECT published_at IS NOT NULL AS published FROM listings WHERE id = ${l.id}`);
     if (limit.active !== null && (row?.live ?? 0) >= limit.active) return LIMIT_REFUSAL[group];
     // A listing that was out before (renewed, resumed, sent again) is not new
-    if (!self?.published && (row?.fresh ?? 0) >= limit.fresh.n) return LIMIT_REFUSAL[group];
+    if ((opts.asNew || !self?.published) && (row?.fresh ?? 0) >= limit.fresh.n) return LIMIT_REFUSAL[group];
     return null;
   }
 

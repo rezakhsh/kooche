@@ -28,12 +28,14 @@ export const REWARD_UNTIL_DAYS = 60;
 export async function grantWaitlistRewards(tx: Queryable, anchorIds: string[], now: Date = new Date()): Promise<number> {
   let granted = 0;
   for (const anchor of anchorIds) {
-    const [city] = await tx.execute<{ population: number | null }>(sql`SELECT population FROM locations WHERE id = ${anchor}::uuid`);
+    const [city] = await tx.execute<{ population: number | null; timezone: string | null }>(sql`SELECT population, timezone FROM locations WHERE id = ${anchor}::uuid`);
     if (!city) continue;
+    // Usable to the end of the 60th day on the city's clock, the day the emails name (Check B, Oct 31, 2026)
+    const zone = city.timezone || DEFAULT_ZONE;
     const rows = await tx.execute(sql`
       INSERT INTO waitlist_rewards (waitlist_id, location_id, available_from, ends_at)
       SELECT x.id, ${anchor}::uuid, ${new Date(now.getTime() + REWARD_FROM_DAYS * DAY_MS).toISOString()}::timestamptz,
-             ${new Date(now.getTime() + REWARD_UNTIL_DAYS * DAY_MS).toISOString()}::timestamptz
+             (date_trunc('day', ${new Date(now.getTime() + REWARD_UNTIL_DAYS * DAY_MS).toISOString()}::timestamptz AT TIME ZONE ${zone}) + interval '1 day') AT TIME ZONE ${zone}
       FROM (
         SELECT DISTINCT ON (w.email) w.id, w.confirmed_at FROM city_waitlist w
         WHERE w.confirmed_at IS NOT NULL
@@ -108,7 +110,8 @@ export async function sendRewardNotices(db: Queryable, mail: Mailer, appUrl: str
     // Marked first, so a retried run never sends twice
     const claimed = await db.execute(sql`UPDATE waitlist_rewards SET notified_at = ${now.toISOString()}::timestamptz WHERE id = ${r.id}::uuid AND notified_at IS NULL RETURNING 1`);
     if (!claimed.length) continue;
-    const until = formatDate(new Date(r.ends_at), r.timezone);
+    // The last day it can be used (it ends at midnight after it)
+    const until = formatDate(new Date(new Date(r.ends_at).getTime() - 1), r.timezone);
     try {
       await mail({
         to: r.email,

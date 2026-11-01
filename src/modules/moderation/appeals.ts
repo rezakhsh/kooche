@@ -3,13 +3,29 @@ import type { Redis } from 'ioredis';
 import type { Db, Queryable } from '../../db/drizzle';
 import { moderationAppeals, outboxEvents } from '../../db/schema';
 import { hit } from '../../lib/rate-limit';
+import { addDays, localParts, zonedToUtc } from '../events/time';
 
 // Decisions about a user, and their appeals (roadmap step 8; terms 7.4). Not required of a small
 // enterprise by the DSA (art. 19 exempts art. 20), offered anyway: one appeal per decision within
 // six months, against any restriction, also an automatic one. Staff answer it in the admin queue
 // with a new decision (decide.ts), and the person hears the answer like any statement.
 
-export const APPEAL_DAYS = 183;
+const APPEAL_ZONE = 'Europe/Berlin';
+
+/**
+ * An appeal is open until the end of the day six calendar months after the decision, on Berlin's
+ * clock (Check B, Oct 31, 2026: a flat 183 days closed some a day early)
+ */
+export function appealDeadline(decidedAt: Date): Date {
+  const p = localParts(decidedAt, APPEAL_ZONE);
+  const months = p.m - 1 + 6;
+  const y = p.y + Math.floor(months / 12);
+  const m = (months % 12) + 1;
+  // 31 August + 6 months is the last day of February
+  const d = Math.min(p.d, new Date(Date.UTC(y, m, 0)).getUTCDate());
+  return zonedToUtc({ ...addDays({ y, m, d }, 1), h: 0, mi: 0 }, APPEAL_ZONE);
+}
+
 export const APPEALABLE = ['reject', 'remove', 'hide', 'warn', 'sanction'] as const;
 export const APPEAL_LIMIT = { name: 'appeal:user:1d', max: 10, windowSeconds: 86_400 };
 
@@ -76,7 +92,7 @@ export async function decisionsAbout(db: Queryable, userId: string, opts: { limi
 
 /** Whether this notice can still be appealed */
 export function appealable(n: Notice, now = new Date()): boolean {
-  return (APPEALABLE as readonly string[]).includes(n.decision) && !n.appeal && now.getTime() - n.createdAt.getTime() < APPEAL_DAYS * 86_400_000;
+  return (APPEALABLE as readonly string[]).includes(n.decision) && !n.appeal && now < appealDeadline(n.createdAt);
 }
 
 export type AppealResult = { ok: true } | { ok: false; reason: 'not_found' | 'closed' | 'already' | 'invalid' | 'rate_limited'; retryAfterSeconds?: number };

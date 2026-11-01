@@ -384,12 +384,15 @@ describe('post-checks and digest', () => {
     const de = await publishEvent(u.id, { now: new Date('2028-03-01T00:00:00Z'), event: { startDate: '2028-03-08' } });
     await publishEvent(u.id, { now: new Date('2028-03-01T00:00:00Z'), event: { startDate: '2028-03-20' } });
     expect(await writeWeeklyDigests(workerDb, monday)).toBe(1);
-    const [row] = await db
-      .select()
-      .from(schema.outboxEvents)
-      .where(and(eq(schema.outboxEvents.eventType, 'event_digest.weekly'), eq(schema.outboxEvents.aggregateType, 'event_digest')))
-      .orderBy(schema.outboxEvents.id);
-    expect(row!.payload).toMatchObject({ country: 'DE', total: 1, listingIds: [de] });
+    // This week's (tests/check-b-posting.test.ts writes another week's)
+    const row = (
+      await db
+        .select()
+        .from(schema.outboxEvents)
+        .where(and(eq(schema.outboxEvents.eventType, 'event_digest.weekly'), eq(schema.outboxEvents.aggregateType, 'event_digest')))
+        .orderBy(schema.outboxEvents.id)
+    ).find((r) => (r.payload as { week?: string }).week === '2028-03-06');
+    expect(row!.payload).toMatchObject({ country: 'DE', total: 1, listingIds: [de], postponedIds: [] });
   });
 });
 

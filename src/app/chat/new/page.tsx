@@ -8,11 +8,11 @@ import { messages } from '../../../messages/fa';
 import { conversationIdForListing } from '../../../modules/chat/queries';
 import { eventPath } from '../../../modules/events/slug';
 import { isEventListing } from '../../../modules/events/queries';
-import { coverKeys, publicListing } from '../../../modules/listings/queries';
+import { coverKeys, publicListing, PUBLIC_STATUSES } from '../../../modules/listings/queries';
 import { listingPath } from '../../../modules/listings/slug';
 import { imageUrl } from '../../../modules/media/server';
 import { canSendMessage, loadActor } from '../../../modules/users/permissions';
-import { requireSession } from '../../../modules/users/server';
+import { requireSession, viewerSeesTest } from '../../../modules/users/server';
 import { Composer } from '../composer';
 import { isIranRequest } from '../../../lib/region';
 
@@ -27,7 +27,8 @@ export default async function NewConversationPage({ searchParams }: { searchPara
   const { user } = await requireSession(`/chat/new?l=${token}`);
   const db = appDb();
   const data = await publicListing(db, token);
-  if (!data || data.listing.status === 'draft') notFound();
+  // Only what the listing page shows: not a rejected, waiting or test account's listing (Check B, Oct 31, 2026)
+  if (!data || !PUBLIC_STATUSES.has(data.listing.status) || (data.testOwner && !(await viewerSeesTest()))) notFound();
   const l = data.listing;
   const isEvent = await isEventListing(db, l.id);
   const href = isEvent ? eventPath(l.title, l.publicToken) : listingPath(l.title, l.publicToken);
