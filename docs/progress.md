@@ -1582,3 +1582,4 @@ Approved by the owner as planned. No migration.
 - **«پیام به فروشنده»** (`/chat/new`) opens only for listings the listing page shows (`PUBLIC_STATUSES`), not rejected, waiting or test accounts' ones.
 - **Business names and addresses** can't contain the reserved words of people's names (پیدو, پشتیبانی, peydoo, support, admin…); a business keeps a name it already had.
 - **Tests:** `tests/check-b-posting.test.ts` (14 of its tests fail on the old code), plus rewards and the events digest test. All 1,111 pass.
+- **Checked on staging** (028a910): web, worker and migrate on the commit, no errors in their logs; «پیام به فروشنده» signed in with a temporary account: 200 for a live listing, 404 for a rejected one and one under review (before: the form opened). No business on staging has a reserved name. Temporary accounts and listings removed.
