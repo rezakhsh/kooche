@@ -34,6 +34,9 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     place: l.neighbourhood ? { text: l.neighbourhood, latin: false } : place.local ? { text: l.placeName!, latin: true } : place.city ? { text: place.city, latin: false } : null,
     // The last bump counts as new, as on Kleinanzeigen: a bumped listing says «۵ دقیقه پیش»
     ago: (l.rankedAt ?? l.publishedAt) ? formatAgo((l.rankedAt ?? l.publishedAt)!, timeZone) : null,
+    // Only a bump moves ranked_at after publication (src/modules/payments/bumps.ts), and a paid
+    // higher place must be visible in the list (UWG Annex no. 11a; docs/legal-review.md)
+    bumped: !!(l.rankedAt && l.publishedAt && l.rankedAt.getTime() > l.publishedAt.getTime()),
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
     tile: !l.coverKey && l.categoryId ? { label: catalog.byId.get(l.categoryId)?.nameFa ?? '' } : null,
     photoCount: l.photoCount,

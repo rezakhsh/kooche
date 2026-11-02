@@ -8,6 +8,9 @@ import { parseWebEnv } from '../src/lib/env';
 import { applyWebhookEvent, NotOurs, NotReady, PRO_GRACE_MS } from '../src/modules/payments/apply';
 import { allowancesLeft, grantAllowance, requestAllowance } from '../src/modules/payments/allowances';
 import { applyDueBumps } from '../src/modules/payments/bumps';
+import { cardOf } from '../src/modules/listings/card';
+import { loadCatalog } from '../src/modules/listings/catalog';
+import { cardsByIds } from '../src/modules/search/browse';
 import { openBillingPortal, resumeOrderCheckout, startListingCheckout, startPlanCheckout } from '../src/modules/payments/checkout';
 import { checkoutFunnel } from '../src/modules/admin/payments';
 import { checkoutOpen, ownOrders } from '../src/modules/payments/orders';
@@ -382,7 +385,12 @@ describe('refunds and disputes (worker role)', () => {
   it('a full refund revokes the order’s entitlements, and pending bumps never run', async () => {
     const { order, checkoutId, listing } = await buy('bump-3');
     const session = await pay(order, checkoutId);
+    // The card marks a paid higher place once a bump has run (UWG Annex no. 11a; docs/legal-review.md)
+    const catalog = await loadCatalog(appDb);
+    const bumped = async () => cardOf(catalog, (await cardsByIds(appDb, [listing.id], null))[0]!, 'Europe/Berlin').bumped;
+    expect(await bumped()).toBe(false);
     await applyDueBumps(workerDb, new Date()); // the first bump runs now
+    expect(await bumped()).toBe(true);
     await applyWebhookEvent(workerDb, new FakeGateway(), await storeEvent(event('refund.created', stripeRefund(session.payment_intent, 449))));
     expect((await orderRow(order.id)).status).toBe('refunded');
     const granted = await entitlementsOf({ orderId: order.id });

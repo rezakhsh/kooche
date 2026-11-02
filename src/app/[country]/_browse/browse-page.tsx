@@ -585,6 +585,11 @@ function SortMenu({ sorts, current, href }: { sorts: Sort[]; current: Sort; href
             </Link>
           </li>
         ))}
+        <li className="mt-1 border-t border-neutral-200 pt-1">
+          <Link href="/help#ranking" className="flex min-h-11 items-center rounded-lg px-3 text-xs text-neutral-600 underline hover:bg-neutral-50 hover:text-brand-800">
+            {tb.howOrder}
+          </Link>
+        </li>
       </ul>
     </details>
   );

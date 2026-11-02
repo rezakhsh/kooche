@@ -259,26 +259,30 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           <Icon name="chevronEnd" className="size-4 text-neutral-500" />
         </div>
       ) : (
-        <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-3 hover:opacity-90">
-          <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full bg-saffron-50 text-lg font-extrabold text-saffron-800">
-            {[...seller.displayName][0]}
-          </span>
-          <div className="min-w-0 flex-1">
-            {/* The seller's declaration (wave 2 part 4, round 9): a private person, not a business */}
-            <span className="flex items-center gap-1 text-xs text-neutral-600">
-              <Icon name="user" className="size-3.5" />
-              {messages.business.privateLabel}
+        <>
+          <Link href={sellerPath(seller.publicToken)} className="flex items-center gap-3 hover:opacity-90">
+            <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full bg-saffron-50 text-lg font-extrabold text-saffron-800">
+              {[...seller.displayName][0]}
             </span>
-            <span className="block truncate font-bold">
-              <bdi>{seller.displayName}</bdi>
-            </span>
-            <span className="block text-xs text-neutral-600">
-              {t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}
-              {replySpeed && `، ${t.reply[replySpeed]}`}
-            </span>
-          </div>
-          <Icon name="chevronEnd" className="size-4 text-neutral-500" />
-        </Link>
+            <div className="min-w-0 flex-1">
+              {/* The seller's declaration (wave 2 part 4, round 9): a private person, not a business */}
+              <span className="flex items-center gap-1 text-xs text-neutral-600">
+                <Icon name="user" className="size-3.5" />
+                {messages.business.privateLabel}
+              </span>
+              <span className="block truncate font-bold">
+                <bdi>{seller.displayName}</bdi>
+              </span>
+              <span className="block text-xs text-neutral-600">
+                {t.memberSince(formatMonth(seller.createdAt, env.APP_TIME_ZONE))}
+                {replySpeed && `، ${t.reply[replySpeed]}`}
+              </span>
+            </div>
+            <Icon name="chevronEnd" className="size-4 text-neutral-500" />
+          </Link>
+          {/* A deal with a private person is no consumer contract (§ 312l BGB with Art. 246d § 1 Nr. 5 EGBGB; docs/legal-review.md) */}
+          {l.kind !== 'wanted' && <p className="text-xs leading-5 text-neutral-600">{messages.business.privateNoConsumerRights}</p>}
+        </>
       )}
       <div className="flex flex-wrap gap-1.5">
         <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 text-xs font-bold leading-7 text-brand-800">

@@ -22,6 +22,8 @@ export type CardData = {
   facts: CardFact[];
   /** "حدود ۳ کیلومتر" when the page measures from a place; never more exact than the stored point */
   distance?: string | null;
+  /** A paid bump (or one of Pro's) moved it up since it was published: «نردبان» before the time */
+  bumped?: boolean;
   /** A running `featured` entitlement (computed, never stored on the listing) */
   featured?: boolean;
   /** Posted by a founding business while its badge runs */
@@ -141,6 +143,13 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
               {(card.distance || card.ago) && '،'}
             </span>
           </>
+        )}
+        {card.bumped && (
+          <span className="flex shrink-0 items-center gap-0.5 font-bold text-brand-700">
+            <Icon name="arrow-up" className="size-3" />
+            {t.bumped}
+            {(card.distance || card.ago) && '،'}
+          </span>
         )}
         {card.distance ? <span className="shrink-0 font-bold text-brand-700">{card.distance}</span> : card.ago && <span className="shrink-0">{card.ago}</span>}
       </p>
