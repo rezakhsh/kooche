@@ -63,6 +63,10 @@ export const invoiceSchema = z.object({
   customer: ref.nullable(),
   currency: z.string(),
   amount_paid: z.int(),
+  /** A failed payment (check B part 6): only a renewal's first failure tells the owner (./apply.ts) */
+  billing_reason: z.string().nullish(),
+  attempt_count: z.int().nullish(),
+  next_payment_attempt: z.int().nullish(),
   customer_address: z.object({ country }).nullable().optional(),
   parent: z
     .object({ subscription_details: z.object({ subscription: ref }).nullable() })

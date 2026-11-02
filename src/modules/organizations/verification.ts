@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
-import type { Queryable } from '../../db/drizzle';
+import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, organizations } from '../../db/schema';
 import type { ObjectStorage, PresignedPut } from '../media/storage';
 import { canPostListing, loadActor } from '../users/permissions';
+import { queueBusinessNotice } from './notices';
 import { legalComplete, VERIFICATION_DOC_KEEP_DAYS } from './organizations';
 
 // Business verification levels (wave 2 part 4, round 11; docs/setup.md, "Private or business"):
@@ -114,7 +115,7 @@ export type SubmitResult = { ok: true } | { ok: false; reason: 'not_owner' | 'le
 
 /** The owner asks for verification with the uploaded document: pending, the file kept privately, VIES checked */
 export async function submitVerification(
-  db: Queryable,
+  db: Db,
   storage: ObjectStorage,
   opts: { userId: string; organizationId: string; uploadKey: string; viesUrl?: string; fetchFn?: typeof fetch },
   now = new Date(),
@@ -137,11 +138,15 @@ export async function submitVerification(
   await storage.delete(opts.uploadKey).catch(() => undefined);
   if (org.verificationDocumentKey) await storage.delete(org.verificationDocumentKey).catch(() => undefined);
   const vat = await checkVat(opts.viesUrl, org, opts.fetchFn, now);
-  await db
-    .update(organizations)
-    .set({ verificationStatus: 'pending', verificationDocumentKey: key, verificationRequestedAt: now, verificationDocumentDeleteAt: null, ...(vat ? { vatCheck: vat } : {}) })
-    .where(eq(organizations.id, org.id));
-  await db.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.verification_requested', targetType: 'organization', targetId: org.id, data: { vies: vat?.valid ?? null } });
+  await db.transaction(async (tx) => {
+    await tx
+      .update(organizations)
+      .set({ verificationStatus: 'pending', verificationDocumentKey: key, verificationRequestedAt: now, verificationDocumentDeleteAt: null, ...(vat ? { vatCheck: vat } : {}) })
+      .where(eq(organizations.id, org.id));
+    await tx.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.verification_requested', targetType: 'organization', targetId: org.id, data: { vies: vat?.valid ?? null } });
+    // The owner's receipt (check B part 6)
+    await queueBusinessNotice(tx, org.id, 'verification_received');
+  });
   return { ok: true };
 }
 

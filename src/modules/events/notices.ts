@@ -19,7 +19,9 @@ import { dayNumber, localParts } from './time';
 // - reminders: a saved event the day before (12 to 36 hours ahead, the first hourly run outside
 //   quiet hours); favorites.reminded_for marks the date it went out for, so it goes once per date;
 // - follows: a followed business's new event, at most FOLLOW_NEWS_PER_DAY a day per person;
-// - weekly: «رویدادهای این هفته در شهر» on Monday mornings for those who asked («خبرم کن»).
+// - weekly: «رویدادهای این هفته در شهر» on Monday mornings for those who asked («خبرم کن»);
+// - saved: a saved event cancelled, postponed, or moved to another time or city (check B part 6),
+//   by the reminders switch, like the reminder itself.
 
 export const FOLLOW_NEWS_PER_DAY = 2;
 const WEEKLY_ITEMS = 6;
@@ -299,4 +301,71 @@ export async function weeklyMessageFor(
         manageUrl: `${base}/account/notifications`,
       }),
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// A saved event cancelled or changed
+// ---------------------------------------------------------------------------------------------
+
+/** What happened to the event, from its outbox event (null: nothing the savers need to hear) */
+export type SavedChange = 'cancelled' | 'postponed' | 'rescheduled' | 'dates' | 'place' | 'both';
+
+export function savedChange(eventType: string, payload: Record<string, unknown>): SavedChange | null {
+  if (eventType === 'event.cancelled') return 'cancelled';
+  if (payload.scheduleStatus === 'cancelled') return null;
+  if (payload.scheduleStatus === 'postponed' && payload.before !== 'postponed') return 'postponed';
+  if (payload.datesChanged && payload.placeChanged) return 'both';
+  if (payload.datesChanged) return 'dates';
+  if (payload.placeChanged) return 'place';
+  if (payload.before === 'postponed' && payload.scheduleStatus === 'scheduled') return 'rescheduled';
+  return null;
+}
+
+export type SavedNews = { listingId: string; line: EventLine; savers: Recipient[] };
+
+/**
+ * The event and who saved it (not its own poster), while it hasn't ended. Null when the listing is
+ * gone or no date is still ahead.
+ */
+export async function savedNews(db: Queryable, listingId: string, appUrl: string, now = new Date()): Promise<SavedNews | null> {
+  const [ev] = await db.execute<{ id: string; user_id: string; title: string; public_token: string; time_zone: string; venue_name: string | null; attendance: string; city_fa: string | null; starts_at: Date | null }>(sql`
+    SELECT l.id, l.user_id, l.title, l.public_token, e.time_zone, e.venue_name, e.attendance, c.name_fa AS city_fa,
+           (SELECT min(d.starts_at) FROM event_dates d WHERE d.listing_id = l.id AND d.ends_at > ${now.toISOString()}::timestamptz) AS starts_at
+    FROM listings l
+    JOIN event_details e ON e.listing_id = l.id
+    LEFT JOIN locations c ON c.id = l.location_id
+    WHERE l.id = ${listingId} AND l.status IN ('active', 'paused')`);
+  if (!ev?.starts_at) return null;
+  const rows = await db.execute<UserRow>(sql`
+    SELECT u.id AS user_id, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
+           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
+    FROM favorites f
+    JOIN users u ON u.id = f.user_id AND u.status = 'active'
+    WHERE f.listing_id = ${listingId} AND f.user_id <> ${ev.user_id}`);
+  return {
+    listingId: ev.id,
+    line: {
+      title: ev.title,
+      url: `${appUrl.replace(/\/$/, '')}${eventPath(ev.title, ev.public_token)}`,
+      when: formatEventStart(new Date(ev.starts_at), ev.time_zone),
+      where: ev.attendance === 'online' ? messages.events.card.online : [ev.venue_name, ev.city_fa].filter(Boolean).join('، ') || null,
+    },
+    savers: rows.map(recipient),
+  };
+}
+
+export function savedMessage(n: SavedNews, change: SavedChange, r: Recipient, channels: NoticeChannel[], appUrl: string): Outgoing {
+  const t = messages.events.notices;
+  // A cancelled or postponed event's date no longer holds
+  const line = change === 'cancelled' || change === 'postponed' ? { ...n.line, when: messages.events.scheduleStatus[change] } : n.line;
+  const subject = change === 'cancelled' ? t.cancelledSubject(n.line.title) : change === 'postponed' ? t.postponedSubject(n.line.title) : t.changedSubject(n.line.title);
+  const intro = change === 'cancelled' ? t.cancelledIntro : change === 'postponed' ? t.postponedIntro : t.changedIntro[change];
+  return compose(r, channels, {
+    subject,
+    intro,
+    items: [line],
+    button: { text: t.open, url: n.line.url },
+    footer: t.savedFooter,
+    manageUrl: `${appUrl.replace(/\/$/, '')}/account/notifications`,
+  });
 }

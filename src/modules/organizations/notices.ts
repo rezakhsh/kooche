@@ -13,9 +13,10 @@ import { onceFor } from '../notifications/send-once';
 // Suspensions already go through the moderation notices. Written to the outbox in the staff
 // action's transaction; the worker (queue `payments`) sends an email and, when the owner has
 // linked the bot and it can reach them, a Telegram message. Telegram never stops the email.
+// The owner's own request for verification gets a receipt the same way (check B part 6).
 
 export const BUSINESS_NOTICE = 'organization.notice';
-export const BUSINESS_NOTICE_KINDS = ['verified', 'unverified', 'rejected', 'founding'] as const;
+export const BUSINESS_NOTICE_KINDS = ['verified', 'unverified', 'rejected', 'founding', 'verification_received'] as const;
 export type BusinessNoticeKind = (typeof BUSINESS_NOTICE_KINDS)[number];
 
 /** In the staff action's transaction */

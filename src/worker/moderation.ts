@@ -12,6 +12,7 @@ import { cachedCatalog } from '../modules/listings/catalog';
 import { closeSwitched, findSuspicions } from '../modules/organizations/suspicions';
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import { sendOnce } from '../modules/notifications/send-once';
+import { queueEndedSanctionNotices } from '../modules/users/account-notices';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure, logText } from './monitoring';
@@ -23,7 +24,8 @@ import { reportJobFailure, logText } from './monitoring';
 //   bot can reach them) and the outcome to the reporters (email);
 // - `listing.rejected` / `listing.restored`: purge the plain browse pages it was on from
 //   Cloudflare (when configured) and rebuild the sitemaps a minute later;
-// - every 15 minutes: listings of suspensions that ran out come back;
+// - every 15 minutes: listings of suspensions that ran out come back; restrictions that ran out
+//   with nothing to bring back are told (src/modules/users/account-notices.ts);
 // - every minute: the system status snapshot for the admin page;
 // - Mondays at 05:00 UTC and a few minutes after each start: the software update check
 //   (src/modules/admin/software.ts) and the owner's alert for new security fixes;
@@ -198,6 +200,9 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
         case 'suspensions_ended': {
           const n = await restoreAfterSuspensions(db);
           if (n) console.log(`moderation: ${n} listings back after suspensions ended`);
+          // Restrictions that ran out without listings to bring back are told here (check B part 6)
+          const told = await queueEndedSanctionNotices(db);
+          if (told) console.log(`moderation: ${told} ended restrictions told`);
           return n;
         }
         default:

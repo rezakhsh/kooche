@@ -56,6 +56,9 @@ describe('the document', () => {
 
     const r = await submitVerification(db, store, { userId: ownerId, organizationId: org.id, uploadKey: upload, viesUrl: 'https://vies.example.test/check', fetchFn: vies({ valid: true, name: 'Testladen GmbH' }) });
     expect(r).toEqual({ ok: true });
+    // The owner's receipt (check B part 6)
+    const queued = await db.select().from(schema.outboxEvents).where(eq(schema.outboxEvents.aggregateId, org.id));
+    expect(queued.filter((e) => e.eventType === 'organization.notice').map((e) => (e.payload as { kind: string }).kind)).toEqual(['verification_received']);
     const o = await orgRow(org.id);
     expect(o).toMatchObject({ verificationStatus: 'pending', vatCheck: { valid: true, name: 'Testladen GmbH' } });
     expect(o.verificationDocumentKey).toMatch(new RegExp(`^verification/${org.id}/`));

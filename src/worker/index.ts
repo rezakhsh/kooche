@@ -107,6 +107,7 @@ async function main(): Promise<void> {
   const accountJobs = await startAccountJobs(db, connection, {
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
+    telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, undefined, undefined, inbox.chat) : null,
   });
   const meili = env.MEILI_URL && env.MEILI_WRITE_KEY ? new Meili({ url: env.MEILI_URL, key: env.MEILI_WRITE_KEY }) : null;
   const alertJobs = await startSearchAlertJobs(db, connection, { meili, send: chatJobs.queues, telegram: !!env.TELEGRAM_BOT_TOKEN, timeZone: env.APP_TIME_ZONE });

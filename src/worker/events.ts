@@ -15,6 +15,9 @@ import {
   followNews,
   isQuiet,
   reminderMessage,
+  savedChange,
+  savedMessage,
+  savedNews,
   takeFollowSlot,
   weeklyMessageFor,
   weeklyRecipients,
@@ -33,7 +36,9 @@ import { reportJobFailure, logText } from './monitoring';
 // - `event-weekly` (Mondays 09:00 on each city's clock): «رویدادهای این هفته در شهر» to those who asked;
 // - `event_follow` (from the outbox, an event published): the business's followers, once per
 //   event; those in their quiet hours get theirs in the morning (`event_follow_one`);
-// - `event_feature` (from the outbox, an event changed): featured time follows a later last date.
+// - `event_feature` (from the outbox, an event changed): featured time follows a later last date;
+// - `event_saved` (from the outbox, an event cancelled or changed): those who saved it, by their
+//   reminders switch; those in their quiet hours get theirs in the morning (`event_saved_one`).
 // Messages go out on the shared send queues (./chat.ts). Ending an event needs no job of its own:
 // its listing expires at the end of its last date (listing-expiry). The two Monday jobs run every
 // hour and send where it is their hour now (wave 2 part 7, src/modules/notifications/local-hour.ts).
@@ -124,6 +129,27 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     return sent;
   };
 
+  /** Those who saved a cancelled or changed event (`userId`: only theirs, after quiet hours) */
+  const savedOne = async (d: { listingId: string; change: NonNullable<ReturnType<typeof savedChange>>; key: string }, userId: string | null) => {
+    const news = await savedNews(db, d.listingId, opts.appUrl, now());
+    if (!news) return 0;
+    const at = now();
+    let sent = 0;
+    for (const r of news.savers) {
+      if (userId && r.userId !== userId) continue;
+      const channels = await channelsFor(connection, r, 'reminders');
+      if (!channels.length) continue;
+      if (!userId && isQuiet(r, at)) {
+        await queue.add('event_saved_one', { ...d, userId: r.userId }, { jobId: `saved_${d.key}_${r.userId}`, delay: quietDelay(at, r.timeZone) });
+        continue;
+      }
+      // Each channel once per person and change, also when a retry starts the list again
+      await deliver(savedMessage(news, d.change, r, channels, opts.appUrl), `saved_${d.key}_${r.userId}`);
+      sent++;
+    }
+    return sent;
+  };
+
   const weekly = async (at: Date) => {
     // Most hours it is Monday 9:00 nowhere: then nobody is loaded (code check, Oct 30, 2026)
     if (!(await anyCityAtHour(db, at, 9, MONDAY))) return 0;
@@ -183,6 +209,16 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
           const n = await db.transaction((tx) => followEventEnd(tx, (job.data as OutboxJobData).aggregateId, now()));
           return `${n} featured periods extended`;
         }
+        case 'event_saved': {
+          const data = job.data as OutboxJobData;
+          const change = savedChange(data.eventType, data.payload);
+          if (!change) return 'nothing to tell';
+          return `${await savedOne({ listingId: data.aggregateId, change, key: data.outboxId }, null)} savers`;
+        }
+        case 'event_saved_one': {
+          const d = job.data as { listingId: string; change: NonNullable<ReturnType<typeof savedChange>>; key: string; userId: string };
+          return `${await savedOne(d, d.userId)} sent`;
+        }
         case 'event_follow_one': {
           const d = job.data as { listingId: string; userId: string };
           const news = await followNews(db, d.listingId, opts.appUrl, now());
@@ -206,8 +242,8 @@ export async function startEventJobs(db: Db, connection: Redis, opts: EventJobOp
     [EVENT_OUTBOX.published]: toFollowers,
     'listing.published': toFollowers,
     // «ویژه تا پایان رویداد» follows an event moved later (src/modules/payments/apply.ts)
-    [EVENT_OUTBOX.changed]: [{ name: 'event_feature', queue }],
-    [EVENT_OUTBOX.cancelled]: [],
+    [EVENT_OUTBOX.changed]: [{ name: 'event_feature', queue }, { name: 'event_saved', queue }],
+    [EVENT_OUTBOX.cancelled]: [{ name: 'event_saved', queue }],
     [EVENT_OUTBOX.weeklyDigest]: [],
   };
   return {

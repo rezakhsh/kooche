@@ -159,7 +159,8 @@ function eventExtension(input: EventInput, listingInput: ListingInput, pinFound 
           else if (values.scheduleStatus === 'cancelled' && details.scheduleStatus !== 'cancelled') {
             await writeOutbox(tx, EVENT_OUTBOX.cancelled, listing.id, payload);
           } else if (datesChanged || placeChanged || values.scheduleStatus !== details.scheduleStatus) {
-            await writeOutbox(tx, EVENT_OUTBOX.changed, listing.id, { ...payload, scheduleStatus: values.scheduleStatus });
+            // What changed, for the notice to those who saved it (./notices.ts, savedChange)
+            await writeOutbox(tx, EVENT_OUTBOX.changed, listing.id, { ...payload, scheduleStatus: values.scheduleStatus, before: details.scheduleStatus, datesChanged, placeChanged });
           }
         },
       };

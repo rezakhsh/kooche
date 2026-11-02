@@ -1622,3 +1622,16 @@ Approved by the owner as planned (email and banner and proof per account; the «
 - **Tests:** `tests/legal-notices.test.ts` (15) and the grants test (57 tables). All 1,150 pass.
 - **Checked on staging** (c3ea869): migrate, web and worker on the commit, migration 0043 in, no errors in the logs. `/terms`, `/terms/de`, `/privacy`, `/privacy/de` unchanged (no version waiting, no note); the four `/next` pages send to the current ones. Admin › «خبر تغییر شرایط به همه» (temporary admin, removed; the admin address in no file and not on the page) on phone and computer, light and dark: «نسخهٔ تازه‌ای آماده نیست» for both and the explanation instead of the form, no sideways scroll, no banner on the admin page. Staging has no new version, so the form and its confirmation are covered by the tests only. A sample notice (privacy, Dec 15) written straight into the database for three test accounts only went out through the worker: 3 of 3, «تمام شد» in the history, mails to the test inbox, no address in the worker log. The banner «حریم خصوصی پیدو از ۱۵ دسامبر ۲۰۲۶ تغییر می‌کند. ببینید» (→ `/privacy/next`) showed signed in on phone and computer, light and dark, and «بستن» kept it closed after a reload. The sample notice was deleted afterwards, so nobody sees the banner. Pictures (also the email, Persian and German) in `/root/peydoo-media/after-wave2/check-b/part-5/`.
 
+
+## Nov 2, 2026: production opened for Stripe and Meta
+
+At the owner's request (Stripe's review deadline Nov 6): Cloudflare Access now covers only `coolify-prod.peydoo.com`; `peydoo.com` and `www` are public with the Oct 24 code, search engines still kept out. The owner's token `CLOUDFLARE_ACCESS_TOKEN` is in staging's `/root/.secrets/infra.env`. The owner answered Stripe (website, use case, no payments from Iran because of the sanctions). Details in `docs/setup.md`, "Cloudflare for production".
+
+## Nov 2, 2026: Check B, part 6 (missing notices)
+
+Approved by the owner: all four groups, with the not-needed ones left out. No migration. Details in `docs/setup.md`, "Payments and Pro" › "Every action tells the person it is about".
+- **Team:** invitation accepted or turned down (to the owner who sent it); role changed, made owner, removed (to the member); a former member's listings handed to an owner (with the count).
+- **Account and security:** the goodbye email after «حذف حساب», sent just before the address is wiped; a phone number confirmed («اگر شما نبودید», email only, number masked); a timed restriction that ran out with no listings to bring back; the receipt of a business's verification request. Peydoo has no Telegram sign-in, so the planned "new Telegram sign-in" notice is the phone notice's «حساب تلگرام وصل شد».
+- **Payments:** a Pro renewal's first failed payment: next try, how long Pro holds, the invoice's pay link, email and Telegram. Tests only (no Pro purchase on staging).
+- **Events:** a saved event cancelled, postponed, back on the programme, moved to new dates or another city reaches those who saved it, by their reminders switch and outside their quiet hours.
+- **Tests:** `tests/account-notices.test.ts` (12), 2 in `tests/events-wave1.test.ts`, the receipt in `tests/verification.test.ts`. All 1,164 pass.

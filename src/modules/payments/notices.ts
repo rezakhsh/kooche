@@ -16,7 +16,7 @@ import { onceFor } from '../notifications/send-once';
 import type { PaymentGateway } from './gateway';
 
 // Payment notices (owner's rule, Oct 26, 2026: users are always told). Pro started, renewed,
-// ended, revoked or restored for the business owner; a paid, revoked or restored order for its buyer; a bump that moved a listing for its
+// ended, revoked or restored, or its renewal's payment failed for the business owner; a paid, revoked or restored order for its buyer; a bump that moved a listing for its
 // seller. The first three are written to the outbox in the webhook's transaction (./apply.ts); the
 // bump notice hangs off the existing `listing.bumped` event. The worker sends an email with the
 // invoice's link (read from Stripe when sending), and Telegram when the bot can reach the person.
@@ -30,6 +30,8 @@ const payloadSchema = z.discriminatedUnion('kind', [
   // A full refund or a dispute took what a payment granted; a dispute closed in our favour gave it back (./apply.ts)
   z.object({ kind: z.literal('pro_revoked'), reason: z.enum(['refund', 'dispute']) }),
   z.object({ kind: z.literal('pro_restored') }),
+  // A renewal's payment failed (./apply.ts, paymentFailed); Stripe tries again
+  z.object({ kind: z.literal('pro_payment_failed'), invoiceId: z.string(), nextAttempt: z.string().nullable() }),
   z.object({ kind: z.literal('order_revoked'), reason: z.enum(['refund', 'dispute']) }),
   z.object({ kind: z.literal('order_restored') }),
   z.object({ kind: z.literal('order_paid'), invoiceId: z.string().nullable() }),
@@ -175,6 +177,20 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       link: billing,
       invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId),
     });
+  }
+  if (notice.kind === 'pro_payment_failed') {
+    const c = t.proPaymentFailed;
+    // Pro holds until the paid period's grace ends (./apply.ts, PRO_GRACE_MS)
+    const [e] = await db.execute<{ until: Date | null }>(sql`
+      SELECT max(ends_at) AS until FROM entitlements
+      WHERE organization_id = ${aggregateId} AND type = 'pro_plan' AND revoked_at IS NULL AND ends_at > now()`);
+    const lines = [
+      [c.intro(r.name), notice.nextAttempt ? c.retry(formatDate(new Date(notice.nextAttempt), r.tz)) : null, e?.until ? c.until(formatDate(new Date(e.until), r.tz)) : null]
+        .filter(Boolean)
+        .join(' '),
+      c.body,
+    ];
+    return deliver(redis, deps, to, { subject: c.subject(r.name), lines, button: c.button, link: billing, invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId) });
   }
   if (notice.kind === 'pro_revoked' || notice.kind === 'pro_restored') {
     const c = notice.kind === 'pro_revoked' ? t.proRevoked[notice.reason] : t.proRestored;

@@ -147,6 +147,7 @@ async function dispatch(tx: Queryable, type: string, object: Record<string, unkn
     case 'invoice.paid':
       return invoicePaid(tx, fetched, ctx);
     case 'invoice.payment_failed':
+      return paymentFailed(tx, fetched, ctx);
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
@@ -367,6 +368,24 @@ async function syncSubscription(tx: Queryable, sub: Subscription, ctx: Ctx) {
       .where(and(eq(entitlements.subscriptionId, row!.id), eq(entitlements.type, 'pro_plan'), isNull(entitlements.revokedAt), gt(entitlements.endsAt, ctx.now)));
   }
   return { row: row!, product: price.product, ended: ENDED.has(sub.status) };
+}
+
+/**
+ * A subscription invoice's payment failed: the subscription's state is synced, and the owner hears
+ * of a renewal's first failure (check B part 6) with the next try and how long Pro holds. The first
+ * payment at checkout is left out: the buyer sees it fail on Stripe's page. Later tries of the same
+ * invoice stay quiet; if they all fail, «اشتراک تمام شد» follows.
+ */
+async function paymentFailed(tx: Queryable, fetched: Fetched, ctx: Ctx) {
+  if (!fetched.subscription) return;
+  const { row, ended } = await syncSubscription(tx, fetched.subscription, ctx);
+  const invoice = fetched.invoice;
+  if (!invoice || !row.organizationId || ended || invoice.billing_reason === 'subscription_create' || (invoice.attempt_count ?? 1) > 1) return;
+  await queuePaymentNotice(tx, row.organizationId, {
+    kind: 'pro_payment_failed',
+    invoiceId: invoice.id,
+    nextAttempt: invoice.next_payment_attempt ? fromUnix(invoice.next_payment_attempt).toISOString() : null,
+  });
 }
 
 /** The business a subscription belongs to: its metadata (set at checkout), else its customer */

@@ -5,13 +5,17 @@ import { auditLog, conversations, listings, organizationInvitations, organizatio
 import { LISTING_OUTBOX } from '../listings/events';
 import { businessPlan } from '../payments/plans';
 import { activeSanctions, restrictsPosting } from '../moderation/sanctions';
+import { queueAccountNotice } from '../users/account-notices';
 import { canPostListing, loadActor } from '../users/permissions';
 import { lockAs, type Role } from './organizations';
 
 // Members of a business (docs/schema.md, section 7): owner (billing, members, everything),
 // manager (all listings of the business), staff (their own listings). Seats besides the owner
 // come from the plan: none without Pro, 1 on Pro, 5 on Pro Plus. "At least one owner" is kept
-// by locking the business row and counting the owners first.
+// by locking the business row and counting the owners first. Whoever a change is about hears of
+// it (../users/account-notices.ts, check B part 6): the owner who invited, when the invitation is
+// accepted or turned down; a member whose role changed or who was removed; the owner a former
+// member's listings passed to.
 
 const INVITATION_DAYS = 7;
 const DAY_MS = 86_400_000;
@@ -111,12 +115,16 @@ export async function declineInvitation(db: Db, opts: { userId: string; token: s
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(opts.token)) return false;
   const [me] = await db.select({ email: users.email }).from(users).where(eq(users.id, opts.userId));
   if (!me) return false;
-  const rows = await db
-    .update(organizationInvitations)
-    .set({ revokedAt: opts.now ?? new Date() })
-    .where(and(eq(organizationInvitations.tokenHash, tokenHash(opts.token)), eq(organizationInvitations.email, me.email.toLowerCase()), isNull(organizationInvitations.acceptedAt), isNull(organizationInvitations.revokedAt)))
-    .returning({ id: organizationInvitations.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(organizationInvitations)
+      .set({ revokedAt: opts.now ?? new Date() })
+      .where(and(eq(organizationInvitations.tokenHash, tokenHash(opts.token)), eq(organizationInvitations.email, me.email.toLowerCase()), isNull(organizationInvitations.acceptedAt), isNull(organizationInvitations.revokedAt)))
+      .returning({ id: organizationInvitations.id, by: organizationInvitations.invitedByUserId });
+    if (!row) return false;
+    if (row.by) await queueAccountNotice(tx, row.by, { kind: 'invite_declined', invitationId: row.id });
+    return true;
+  });
 }
 
 /**
@@ -150,6 +158,7 @@ export async function acceptInvitation(db: Db, opts: { userId: string; token: st
     await tx.insert(organizationMembers).values({ organizationId: org.id, userId: opts.userId, role: inv.role, invitedByUserId: inv.invitedByUserId });
     await tx.update(organizationInvitations).set({ acceptedAt: now, acceptedByUserId: opts.userId }).where(eq(organizationInvitations.id, inv.id));
     await tx.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.member_joined', targetType: 'organization', targetId: org.id, data: { role: inv.role } });
+    await queueAccountNotice(tx, inv.invitedByUserId!, { kind: 'invite_accepted', invitationId: inv.id });
     return { ok: true, slug: org.slug };
   });
 }
@@ -197,8 +206,10 @@ export async function changeMember(
         ? await tx.select({ id: organizationMembers.userId }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.role, 'owner'))).orderBy(asc(organizationMembers.createdAt)).limit(1)
         : [{ id: opts.userId }];
       if (heir) await handOver(tx, org.id, opts.memberId, heir.id);
+      if (!self) await queueAccountNotice(tx, opts.memberId, { kind: 'removed', organizationId: org.id });
     } else {
       await tx.update(organizationMembers).set({ role: opts.to }).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, opts.memberId)));
+      if (!self && member.role !== opts.to) await queueAccountNotice(tx, opts.memberId, { kind: 'role_changed', organizationId: org.id, role: opts.to });
     }
     await tx.insert(auditLog).values({ actorType: 'user', actorUserId: opts.userId, action: 'organization.member_changed', targetType: 'organization', targetId: org.id, data: { member: opts.memberId, from: member.role, to: opts.to } });
     return { ok: true };
@@ -230,4 +241,5 @@ async function handOver(tx: Queryable, organizationId: string, from: string, hei
     .where(and(inArray(conversations.listingId, ids), eq(conversations.sellerUserId, from), ne(conversations.buyerUserId, heir)));
   await tx.insert(outboxEvents).values(moved.map((l) => ({ eventType: LISTING_OUTBOX.updated, aggregateType: 'listing', aggregateId: l.id })));
   await tx.insert(auditLog).values({ actorType: 'system', action: 'organization.listings_handed_over', targetType: 'organization', targetId: organizationId, data: { from, to: heir, listings: ids.length } });
+  await queueAccountNotice(tx, heir, { kind: 'listings_handed', organizationId, fromUserId: from, count: ids.length });
 }

@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import { auditLog, phoneVerifications, users } from '../../db/schema';
 import { hmacSha256, linkToken, numericCode, sameBytes, sha256 } from '../../lib/tokens';
 import { messages } from '../../messages/fa';
+import { queueAccountNotice } from './account-notices';
 import { checkVerifiedNumber } from './phone-number';
 import type { SmsProvider } from './sms';
 
@@ -142,6 +143,8 @@ export async function completeVerification(
         targetId: v.userId,
         data: { method: v.method, verificationId: v.verificationId },
       });
+      // «شما نبودید؟» by email (check B part 6)
+      await queueAccountNotice(tx, v.userId, { kind: 'phone_verified', telegram: v.telegramUserId !== undefined });
     });
   } catch (e) {
     // Two accounts finishing with the same number at the same moment: the UNIQUE constraint decides

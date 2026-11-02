@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
-import { createEventDraft, saveEvent } from '../src/modules/events/events';
+import { cancelEvent, createEventDraft, saveEvent } from '../src/modules/events/events';
 import { follow, isFollowing, organizerFacts, unfollow } from '../src/modules/events/follows';
 import { eventInputSchema, type EventInput } from '../src/modules/events/input';
 import {
@@ -13,6 +13,9 @@ import {
   followMessage,
   followNews,
   reminderMessage,
+  savedChange,
+  savedMessage,
+  savedNews,
   takeFollowSlot,
   weeklyMessageFor,
   weeklyRecipients,
@@ -263,6 +266,81 @@ describe('reminders for saved events', () => {
     expect(await claimReminder(workerDb, id, fan.id, due!.startsAt)).toBe(true);
     expect(await claimReminder(workerDb, id, fan.id, due!.startsAt)).toBe(false);
     expect(await mine(dayBefore)).toHaveLength(0);
+  });
+});
+
+// Check B part 6: those who saved an event hear when it is cancelled, postponed or moved
+describe('a saved event cancelled or changed', () => {
+  const changes = async (id: string) =>
+    (await db.select().from(schema.outboxEvents).where(eq(schema.outboxEvents.aggregateId, id)).orderBy(schema.outboxEvents.id))
+      .filter((e) => e.eventType === 'event.changed' || e.eventType === 'event.cancelled')
+      .map((e) => savedChange(e.eventType, e.payload as Record<string, unknown>));
+
+  it('new dates, a postponement and a cancellation each reach those who saved it, not its poster', async () => {
+    const owner = await user();
+    const fan = await user();
+    const id = await publish(owner.id, { event: { startDate: '2026-11-08', startTime: '20:00' } });
+    const token = (await listing(id)).publicToken;
+    expect(await addFavorite(appDb, null, fan.id, token)).toMatchObject({ ok: true });
+    // The site doesn't let a poster save their own event; a row from before a hand-over could exist
+    await db.insert(schema.favorites).values({ userId: owner.id, listingId: id });
+
+    const edit = (event: Partial<EventInput>) => saveEvent(appDb, { userId: owner.id, listingId: id, input: listingIn(), event: eventIn({ startDate: '2026-11-08', startTime: '20:00', ...event }), intent: 'save', now: NOW });
+    expect(await edit({ startDate: '2026-11-15' })).toMatchObject({ ok: true });
+    expect(await edit({ startDate: '2026-11-15', scheduleStatus: 'postponed' })).toMatchObject({ ok: true });
+    expect(await edit({ startDate: '2026-11-15', scheduleStatus: 'scheduled' })).toMatchObject({ ok: true });
+    // Only the venue's name: no change event at all, so nothing to tell
+    expect(await edit({ startDate: '2026-11-15', venueName: `Other ${publicToken()}` })).toMatchObject({ ok: true });
+    expect(await cancelEvent(appDb, { userId: owner.id, listingId: id })).toEqual({ ok: true });
+    expect(await changes(id)).toEqual(['dates', 'postponed', 'rescheduled', 'cancelled']);
+    // A change event that only switched to «لغو شده» through the form is told as the cancellation
+    expect(savedChange('event.changed', { scheduleStatus: 'cancelled', before: 'scheduled' })).toBeNull();
+
+    const news = await savedNews(workerDb, id, APP, NOW);
+    expect(news?.savers.map((r) => r.userId)).toEqual([fan.id]);
+    const moved = savedMessage(news!, 'dates', news!.savers[0]!, ['email'], APP);
+    expect(moved.mail?.subject).toContain('تغییر در رویداد');
+    expect(moved.mail?.text).toContain('زمان رویدادی که ذخیره کرده‌اید تغییر کرد');
+    expect(moved.mail?.text).toContain('۱۵');
+    const cancelled = savedMessage(news!, 'cancelled', news!.savers[0]!, ['email', 'telegram'], APP);
+    expect(cancelled.mail?.subject).toContain('لغو شد');
+    expect(cancelled.mail?.text).toContain('لغو شده');
+    // No Telegram account linked: email only
+    expect(cancelled.telegram).toBeUndefined();
+    // Once it has ended there is nobody to tell
+    expect(await savedNews(workerDb, id, APP, new Date('2026-11-20T10:00:00Z'))).toBeNull();
+  });
+
+  it('the worker sends each saver one message, by the reminders switch', async () => {
+    const owner = await user();
+    const fan = await user();
+    const id = await publish(owner.id, { event: { startDate: '2026-11-08', startTime: '20:00' } });
+    expect(await addFavorite(appDb, null, fan.id, (await listing(id)).publicToken)).toMatchObject({ ok: true });
+    expect(await cancelEvent(appDb, { userId: owner.id, listingId: id })).toEqual({ ok: true });
+    const [row] = (await db.select().from(schema.outboxEvents).where(eq(schema.outboxEvents.aggregateId, id))).filter((e) => e.eventType === 'event.cancelled');
+
+    const prefix = `test-${publicToken()}`;
+    const connection = new Redis(process.env.TEST_REDIS_URL!, { maxRetriesPerRequest: null });
+    const email = new Queue('email-send', { connection, prefix });
+    const telegram = new Queue('telegram-send', { connection, prefix });
+    const jobs = await startEventJobs(workerDb, connection, { appUrl: APP, send: { email, telegram }, prefix, schedules: false, now: () => NOW });
+    const events = new QueueEvents('events', { connection: connection.duplicate(), prefix });
+    try {
+      const data = { outboxId: row!.id, eventType: row!.eventType, aggregateId: id, payload: row!.payload as Record<string, unknown> };
+      for (const attempt of [1, 2]) {
+        const job = await jobs.queue.add('event_saved', data, { jobId: `saved-test-${attempt}` });
+        expect(await job.waitUntilFinished(events, 30_000)).toBe('1 savers');
+      }
+      // The retry found both channels marked: one email in all
+      const mails = await email.getJobs(['waiting', 'delayed']);
+      expect(mails.filter((j) => (j.data as { mail: { to: string } }).mail.to === fan.email)).toHaveLength(1);
+    } finally {
+      await events.close();
+      await jobs.close();
+      await email.close();
+      await telegram.close();
+      await connection.quit();
+    }
   });
 });
 
