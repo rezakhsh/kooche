@@ -124,7 +124,7 @@ describe('the new pages are not browse pages', () => {
 });
 
 describe('paid services (roadmap step 6)', () => {
-  it('Stripe is in both privacy policies, with the 10-year retention of payment records', () => {
+  it('Stripe is in both privacy policies', () => {
     const text = (doc: LegalDoc) => JSON.stringify(doc.sections);
     expect(text(legalDe.privacy)).toContain('Stripe Payments Europe');
     expect(text(pages.privacy)).toContain('Stripe Payments Europe');
@@ -134,6 +134,45 @@ describe('paid services (roadmap step 6)', () => {
   it('both terms have the paid-services section the purchase form links to, with the §19 note', () => {
     expect(ids(legalDe.terms)).toContain('14.4');
     expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 19 UStG');
-    expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 356 Abs. 4 BGB');
+    expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 356 Abs. 5 Nr. 2 BGB');
+    expect(JSON.stringify(legalDe.terms.sections)).toContain('§ 357a Abs. 2 BGB');
+  });
+
+  it('terms 14.4 carries the statutory model withdrawal notice and form, with the operator filled in', () => {
+    const de = JSON.stringify(legalDe.terms.sections.find((s) => s.id === '14.4'));
+    expect(de).toContain('Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.');
+    expect(de).toContain('Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.');
+    expect(de).toContain('Muster-Widerrufsformular');
+    expect(de).toContain(operator.street);
+    expect(de).toContain(operator.email);
+    expect(JSON.stringify(pages.terms.sections.find((s) => s.id === '14.4'))).toContain(operator.street);
+  });
+});
+
+describe('legal rewrite (Nov 2, 2026, docs/legal-review.md)', () => {
+  const text = (doc: LegalDoc) => JSON.stringify(doc.sections);
+
+  it('both versions are binding; the labels no longer say only the German one is', () => {
+    expect(text(legalDe.terms)).toContain('beide Fassungen sind verbindlich');
+    expect(legalDe.binding).not.toContain('Diese deutsche Fassung ist rechtlich maßgeblich');
+    expect(pages.legal.germanBinding).not.toContain('برای راحتی شماست');
+  });
+
+  it('the terms have the blocking procedure, the ranking, the contract formation and the promotion conditions', () => {
+    for (const id of ['7.6', '13.4', '14.7', '14.8', '15', '15.1', '15.2', '15.3', '15.4', '16', '16.1', '16.2', '5.10', '5.11']) {
+      expect(ids(legalDe.terms), id).toContain(id);
+    }
+    expect(text(legalDe.terms)).toContain('30 Tagen');
+    expect(text(pages.terms)).toContain('/help#ranking');
+  });
+
+  it('the privacy policy shows the right to object separately and names the real recipients', () => {
+    expect(legalDe.privacy.sections.find((s) => s.id === '10.1')?.heading).toContain('Widerspruchsrecht');
+    expect(text(legalDe.privacy)).toContain('Telegram Messenger Inc.');
+    expect(text(legalDe.privacy)).not.toContain('Telegram FZ-LLC, Dubai, Vereinigte');
+    expect(text(legalDe.privacy)).toContain('Google Ireland Limited');
+    expect(text(legalDe.privacy)).toContain('legal_seen');
+    expect(text(legalDe.privacy)).not.toContain('§ 257 HGB');
+    expect(text(pages.privacy)).not.toContain('§ ۲۵۷ HGB');
   });
 });

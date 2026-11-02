@@ -1236,7 +1236,7 @@ Proposed periods. They go into the privacy policy and get checked by the lawyer.
 | Deleted `listings` (+ images, events, favorites) | 12 months after `deleted_at`, longer while referenced by a report, decision (also about one of its photos), order, entitlement or chat | Worker job `listing-purge` (queue `listings`, daily 02:50 UTC, `src/modules/listings/purge.ts`, built Oct 30, 2026 after the code check): one listing per transaction, cascades to images, events, favorites, history and matches; a listing anything else still points at is skipped. Its photo files are deleted from R2 after the commit. |
 | `reports`, `moderation_decisions` | 2 years after the decision | Function, called by worker job `history-retention`, daily |
 | Chats | 90 days after either participant deletes their account; longer while a report or decision points at one of their messages | Worker job `chat-retention`, daily |
-| `orders`, `payments`, `subscriptions` | 10 years (German retention rules for accounting records, §147 AO / §257 HGB) | Kept even after account deletion (GDPR art. 17(3)(b)) |
+| `orders`, `payments`, `subscriptions` | Invoices and accounting vouchers 8 years, books and records 10 years (§ 147 AO as amended by BEG IV; § 257 HGB doesn't apply to a non-merchant; tax advisor to confirm, `docs/legal-review.md`). The code still keeps 10 years, which covers both | Kept even after account deletion (GDPR art. 17(3)(b)) |
 | `users` tombstone | Permanently (ID only) | |
 
 **Account deletion (`erase_user`)**, in one transaction:

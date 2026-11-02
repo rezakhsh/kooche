@@ -9,7 +9,7 @@ import { operator } from '../messages/operator';
 import { currentVersion, dayDe, dayFa, nextVersion } from '../modules/legal/versions';
 import { LegalNav } from './legal-nav';
 
-// The terms of use and the privacy policy, in Persian (right to left) or the binding German
+// The terms of use and the privacy policy, in Persian (right to left) or the German
 // version (left to right inside the RTL page). Plain HTML: anchors per section, no JavaScript.
 
 type Lang = 'fa' | 'de';

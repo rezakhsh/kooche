@@ -1,5 +1,5 @@
 // The shape of a legal text (terms of use, privacy policy), shared by the Persian version in fa.ts
-// and the binding German one in legal-de.ts, and rendered by src/components/legal-doc.tsx.
+// and the German one in legal-de.ts (both binding, terms 13.2), rendered by src/components/legal-doc.tsx.
 // Section ids are the numbers people cite («بند ۵.۲», „Ziffer 5.2“) and the anchors (#s5-2); both
 // versions must have the same ids in the same order (tests/legal.test.ts).
 
