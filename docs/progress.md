@@ -1656,5 +1656,6 @@ At the owner's request ("start the release"), with their permission for the serv
 - **Cloudflare:** WAF rule `iran_read_only` deleted (the app's own rule applies now). robots.txt Worker and `SEARCH_INDEXING` off unchanged (not go-live).
 - **Seed** on production: 37 countries, 90 cities (Istanbul), 34,048 postal places, 10,268 postal areas, 97 neighbourhoods, 142 categories. The first run used the old code (the promote clone's `origin/production` was stale) and was refused by `countries_is_active_check` in its transaction, so nothing changed; the docs' copy command now fetches the branch explicitly.
 - **Checked through Cloudflare:** `/health`, home, `/germany`, `/germany/berlin`, `/germany/events`, `/turkey`, `/cities`, privacy, Impressum 200; `/sitemap.xml` 404 and `noindex` (indexing off); robots.txt from the Worker; `/germany` a HIT on the second visit; Sentry's meta tag on pages; no errors in web or worker logs.
-- **Open:** the owner adds `charge.dispute.closed` to the webhook of the Stripe sandbox `peydoo-production` (the API change was refused to Claude). Later: the street map on production (Germany + Austria tiles, `MAP_TILES_FILE`); go-live steps.
+- **Stripe:** the owner added `charge.dispute.closed` to the webhook of the sandbox `peydoo-production` (Workbench › Webhooks; the API change was refused to Claude); 14 events, checked through the API.
+- **Later:** the street map on production (Germany + Austria tiles, `MAP_TILES_FILE`); go-live steps.
 
