@@ -25,6 +25,7 @@ import {
   visitReport,
   type Visit,
 } from '../src/modules/stats/visits';
+import { withRef } from '../src/modules/stats/ref-param';
 import { appDb, redis, workerDb } from './accounts';
 import { db, expectError, INSUFFICIENT_PRIVILEGE, rollback, setRole } from './db';
 import { user } from './listings-fixtures';
@@ -118,6 +119,12 @@ describe('the owner’s links and new accounts', () => {
     const [row] = await db.select().from(schema.refCodes).where(eq(schema.refCodes.code, code));
     expect(await archiveRefCode(appDb, staff, row!.id)).toBe(true);
     expect((await visitReport(appDb, 7, now)).refs.find((r) => r.code === code)?.archived).toBe(true);
+  });
+
+  it('a redirect on the way keeps a ref code, and only a well-formed one', () => {
+    expect(withRef('', 'volek-events')).toBe('?ref=volek-events');
+    expect(withRef('?sort=price_asc', ['volek-events', 'other'])).toBe('?sort=price_asc&ref=volek-events');
+    for (const bad of [undefined, '', 'x', 'Volek', 'a&b=c', '-volek', `v${'o'.repeat(32)}k`]) expect(withRef('?sort=price_asc', bad)).toBe('?sort=price_asc');
   });
 
   it('the app reads the numbers but only the worker writes them', async () => {

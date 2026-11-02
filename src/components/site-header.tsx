@@ -207,7 +207,7 @@ function FooterColumn({ title, links }: { title: string; links: [ReactNode, stri
       <ul className="space-y-1">
         {links.map(([label, href]) => (
           <li key={href}>
-            <Link href={href} className="flex min-h-11 items-center py-1 text-sm leading-6 text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9 lg:py-0">
+            <Link href={href} prefetch={false} className="flex min-h-11 items-center py-1 text-sm leading-6 text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9 lg:py-0">
               {label}
             </Link>
           </li>
@@ -221,6 +221,8 @@ function FooterColumn({ title, links }: { title: string; links: [ReactNode, stri
  * The footer on every browsing page (wave 1, mockup ui.js footer(); built early at the owner's
  * request): help, legal (Impressum by its German name), Peydoo, the open countries with the ones
  * coming soon, and Peydoo's Telegram channel when TELEGRAM_CHANNEL is set. Task pages hide it.
+ * Its links don't prefetch: they were rarely opened, yet every page view rendered them all on the
+ * server (Nov 2, 2026).
  */
 export async function SiteFooter() {
   const db = appDb();
@@ -273,7 +275,7 @@ export async function SiteFooter() {
             <ul className="space-y-1">
               {countries.map((x) => (
                 <li key={x.code}>
-                  <Link href={`/${x.slug}`} className="flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9">
+                  <Link href={`/${x.slug}`} prefetch={false} className="flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9">
                     <Flag code={x.code} className="h-4 w-6" />
                     {x.nameFa}
                   </Link>
@@ -283,7 +285,7 @@ export async function SiteFooter() {
             {waiting.length > 0 && (
               <p className="mt-2 text-xs leading-6 text-neutral-600">
                 {t.soon(waiting.map((w) => w.nameFa).join('، '))}{' '}
-                <Link href="/cities" className="font-bold text-brand-800 hover:underline">
+                <Link href="/cities" prefetch={false} className="font-bold text-brand-800 hover:underline">
                   {t.notifyMe}
                 </Link>
               </p>
@@ -298,7 +300,7 @@ export async function SiteFooter() {
       {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
       <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">
         {LEGAL_LINKS.map(([key, href]) => (
-          <Link key={key} href={href} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
+          <Link key={key} href={href} prefetch={false} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
             <bdi>{t.legalLinks[key]}</bdi>
           </Link>
         ))}

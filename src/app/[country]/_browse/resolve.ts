@@ -10,6 +10,7 @@ import { resolveFilters, type PlaceNotice, type ResolvedPlace, type SearchFilter
 import { browseQuery, currentQuery, filterContext, parseBrowseParams, type BrowseState, type FilterContext, type RawParams } from '../../../modules/search/filters';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { cityOf, type City } from '../../../modules/search/places';
+import { withRef } from '../../../modules/stats/ref-param';
 
 // Shared by every browse page (country, category, city, city and category) and its metadata:
 // finds the country, city and category from the address, follows old and form addresses with a
@@ -109,7 +110,9 @@ async function resolve(countrySlug: string, placeSlug: string, categorySlug: str
   const ctx = filterContext(catalog, category, country.currency.minorUnit);
   const { state: parsed } = parseBrowseParams(rest, ctx);
   const canonical = browseQuery(parsed, ctx.minorUnit);
-  if (canonical !== currentQuery(raw)) redirect(`${path}${canonical}`);
+  // The owner's ref code stays for the visit beacon (src/modules/stats/ref-param.ts)
+  const kept = withRef(canonical, raw.ref);
+  if (kept !== currentQuery(raw)) redirect(`${path}${kept}`);
 
   const resolved = await resolveFilters(db, {
     countryCode: country.code,

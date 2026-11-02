@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, refCodes } from '../../db/schema';
 import { localDate } from '../notifications/local-hour';
+import { REF_CODE } from './ref-param';
 
 // Visitor numbers without cookies (owner, Oct 30, 2026: "Own counter + ref links", instead of
 // Google Analytics; docs/setup.md, "Visitor numbers"). Every page sends one small request
@@ -212,7 +213,7 @@ export function labelFor(labels: Record<string, string>, key: string): string {
 // ---------------------------------------------------------------------------------------------
 
 export const refCodeInput = z.object({
-  code: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/),
+  code: z.string().trim().toLowerCase().regex(REF_CODE),
   label: z.string().trim().min(1).max(80),
 });
 

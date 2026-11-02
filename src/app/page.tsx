@@ -15,6 +15,7 @@ import { cachedCatalog } from '../modules/listings/catalog';
 import { activeCountries, countryCounts } from '../modules/listings/queries';
 import { cachedCityCounts } from '../modules/search/browse';
 import { browsePath } from '../modules/search/paths';
+import { withRef } from '../modules/stats/ref-param';
 import { CountrySoon, openingDay } from './[country]/_browse/country-soon';
 import { StarterPage } from './[country]/_browse/starter-page';
 import { CategoryGrid } from './category-grid';
@@ -36,12 +37,12 @@ import { cityFoundingPlaces } from '../modules/payments/founding';
 
 const TRUST_ICONS: IconName[] = ['shield', 'chat', 'plus'];
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ choose?: string }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ choose?: string; ref?: string | string[] }> }) {
   const db = appDb();
-  const { choose } = await searchParams;
+  const { choose, ref } = await searchParams;
   if (choose === undefined) {
     const chosen = await chosenPageCountry(db);
-    if (chosen) redirect(`/${chosen.slug}`);
+    if (chosen) redirect(`/${chosen.slug}${withRef('', ref)}`);
   }
   const countries = await activeCountries(db);
   const here = visitorCountry(await headers());
@@ -51,7 +52,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   // isn't the redirect by IP that Google advises against.
   if (countries[0] && here === 'IR') {
     const city = (await keyCitiesOf(db, countries[0].code)).find((c) => c.status === 'open');
-    redirect(browsePath(countries[0].slug, city?.slug ?? null, null));
+    redirect(`${browsePath(countries[0].slug, city?.slug ?? null, null)}${withRef('', ref)}`);
   }
   const mine = here ? await countryByCode(db, here) : null;
   if (mine && mine.mode !== 'open' && (await isPlanned(db, mine))) return <CountrySoon country={mine} detected />;

@@ -199,6 +199,7 @@ Set up Oct 17, 2026. Zone `peydoo.com` on Cloudflare's Free plan.
 **Zone settings.** SSL Full (strict), minimum TLS 1.2, TLS 1.3 and HTTP/3 at the edge on. Two settings are off on purpose:
 - **Always Use HTTPS is off.** Traefik already redirects HTTP to HTTPS for every Coolify domain and leaves `/.well-known/acme-challenge/` alone. Let's Encrypt (HTTP-01, through Cloudflare) renews the server's certificates that way. In Full (strict), Cloudflare reaches the server over HTTP for HTTP requests, so the challenge gets through.
 - **Bot Fight Mode is off.** It would challenge GitHub's webhooks to Coolify and the n8n uptime checks.
+- **Smart Tiered Cache is on** (Nov 2, 2026, with the owner's approval; free, zone-wide, so production too): a Cloudflare location without a copy asks an upper-tier location before the server, so imgproxy renders a photo size once instead of once per location, and the server sends each JS chunk less often. Purges by host and by URL reach both tiers. Off again: `PATCH /zones/{zone}/cache/tiered_cache_smart_topology_enable` with `{"value":"off"}` (the infra token can).
 - **Email Address Obfuscation is off** (Scrape Shield, turned off Oct 21, 2026 with the owner's approval). It rewrote every email address in the HTML into `[email protected]` plus Cloudflare's `email-decode.min.js`, which the CSP blocks (it has no nonce), and the changed HTML broke React's hydration (#418) on `/account` and `/account/notifications`. It can't work under our CSP; the user's own email only appears behind sign-in.
 
 **Certificates.** Cloudflare's Universal SSL at the edge covers `peydoo.com` and `*.peydoo.com`, one level only. The server keeps its own Let's Encrypt certificates from Traefik, which Full (strict) requires.
@@ -751,12 +752,13 @@ and not starts_with(http.request.uri.path, "/_next/")
 and not starts_with(http.request.uri.path, "/api/")
 and not http.cookie contains "better-auth.session_token"
 and not http.cookie contains "view="
+and not http.cookie contains "theme="
 and not http.request.uri.query contains "_rsc"
 and not any(lower(http.request.headers.names[*])[*] eq "rsc")
 and ip.src.country ne "IR"
 ```
 
-(The host condition has been `http.host in {"staging.peydoo.com" "peydoo.com"}` since Oct 24, 2026; `ip.src.country ne "IR"` was added Oct 26, 2026 for the Iran banner, see "People in Iran".)
+(The host condition has been `http.host in {"staging.peydoo.com" "peydoo.com"}` since Oct 24, 2026; `ip.src.country ne "IR"` was added Oct 26, 2026 for the Iran banner, see "People in Iran"; `theme=` on Nov 2, 2026: the proxy already counted a chosen light or dark mode as personal, but without this condition a visitor with the cookie was served the shared copy, which has no `data-theme`, and saw the wrong colours.)
 
 Action: eligible for cache, edge TTL "use the Cache-Control header if present, bypass if not" (`bypass_by_default`), browser TTL from the origin. So the origin decides what is shared: only responses marked `public` are kept, and Next.js's `private, no-store` on every other page keeps them out. The cookie conditions matter for lookups: without them a signed-in visitor would be served the logged-out copy. The cookie match is a substring (`matches` is a Business feature), so `view=` also skips the cache for any other cookie ending in `view`; that only costs a cache hit. React Server Components requests are left out by the rule, not by the proxy: Next.js 16 removes the `RSC` header and the `_rsc` parameter before the proxy runs, and Cloudflare ignores `Vary`. Without that, one request with `RSC: 1` would store Next.js's 307 to `?_rsc` under the page's address for every visitor. Verified Oct 19, 2026 on `/austria`: logged out MISS, then HIT; after 60 s EXPIRED, then HIT again; with either session cookie or `view=list` DYNAMIC (`private, no-store`); `country=germany` HIT; `RSC: 1` and `?_rsc=` DYNAMIC, and a plain request right after the `RSC: 1` one was still the 200 page; POST DYNAMIC; a postal code BYPASS; `/`, `/login` BYPASS. A cached copy carries the CSP header and the HTML from the same render, so the nonce in both always matches.
 
@@ -767,6 +769,10 @@ Action: eligible for cache, edge TTL "use the Cache-Control header if present, b
 - No edge cache: keeps a nonce per request, but every logged-out page view renders on the 4 GB server.
 
 **Purged after each deploy, not on listing changes.** After a deploy, a cached copy would point at JavaScript chunks and server action ids of the previous build (the ♡ and "near me" would fail until it renews), so `classifieds-web` purges its host once the new container serves alone ("App deployment", "Cache purge after each web deploy"). Listing changes are not purged: 60 seconds is the bound there. A purge from the worker on listing changes doesn't fit cleanly (filtered and paged addresses can't be purged by URL). A browser tab left open on the old build still has the old server action ids until it reloads; the purge doesn't change that.
+
+**Prefetches can't be cached** (they are RSC requests, left out above), so every link Next.js prefetches is one more render on the server. The site footer's links don't prefetch (Nov 2, 2026): before, every page view rendered the help, safety, contact, Impressum, terms, privacy, Pro, founding, events and country pages in the background, about 40 times each a day on staging for one person testing, and they are rarely opened.
+
+**Ref links through redirects** (Nov 2, 2026): the home page's redirects (a returning visitor to their country, Iran to the first open city) and the browse pages' canonical redirect keep a well-formed `?ref=` code (`withRef()` in `src/modules/stats/ref-param.ts`), because the visit beacon reads it on the page where the visit lands. Before, a returning visitor's ref visit counted as direct. A browse address with `?ref=` is its own cached copy; its canonical link is the plain page.
 
 Sitemaps have no nonce and send `public, max-age=3600`; `robots.txt` gets Next.js's `public, max-age=0, must-revalidate` (Cloudflare revalidates it every time).
 
