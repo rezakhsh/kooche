@@ -170,7 +170,11 @@ describe('legal rewrite (Nov 2, 2026, docs/legal-review.md)', () => {
     expect(legalDe.privacy.sections.find((s) => s.id === '10.1')?.heading).toContain('Widerspruchsrecht');
     expect(text(legalDe.privacy)).toContain('Telegram Messenger Inc.');
     expect(text(legalDe.privacy)).not.toContain('Telegram FZ-LLC, Dubai, Vereinigte');
-    expect(text(legalDe.privacy)).toContain('Google Ireland Limited');
+    // Support mail moved from Gmail (via Cloudflare Email Routing) to Zoho Mail, EU data centres (owner, Nov 3, 2026)
+    expect(text(legalDe.privacy)).toContain('Zoho Corporation B.V.');
+    expect(text(legalDe.privacy)).not.toContain('Gmail');
+    expect(text(pages.privacy)).not.toContain('Gmail');
+    expect(text(legalDe.privacy)).not.toContain('Email Routing');
     expect(text(legalDe.privacy)).toContain('legal_seen');
     expect(text(legalDe.privacy)).not.toContain('§ 257 HGB');
     expect(text(pages.privacy)).not.toContain('§ ۲۵۷ HGB');
