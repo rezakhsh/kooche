@@ -40,9 +40,10 @@ describe('Persian and German versions', () => {
     }
   });
 
-  it.each(DOCS)('%s: both are marked as drafts until a lawyer has checked them', (_, fa, de) => {
-    expect(fa.draft).toBe(true);
-    expect(de.draft).toBe(true);
+  // The site is live; the owner has the lawyer check done separately and asked for the banner to go (Nov 2, 2026)
+  it.each(DOCS)('%s: no draft banner on either version', (_, fa, de) => {
+    expect(fa.draft).toBe(false);
+    expect(de.draft).toBe(false);
   });
 
   it('both versions show the operator where the German one does', () => {

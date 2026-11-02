@@ -18,6 +18,7 @@ import { activeCountries } from '../modules/listings/queries';
 import { currentSession } from '../modules/users/server';
 import { BottomNav } from './bottom-nav';
 import { Flag } from './flag';
+import { FooterLink } from './footer-link';
 import { Icon } from './icons';
 import { LEGAL_LINKS } from './legal-nav';
 import { LogoMark } from './logo';
@@ -207,9 +208,9 @@ function FooterColumn({ title, links }: { title: string; links: [ReactNode, stri
       <ul className="space-y-1">
         {links.map(([label, href]) => (
           <li key={href}>
-            <Link href={href} prefetch={false} className="flex min-h-11 items-center py-1 text-sm leading-6 text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9 lg:py-0">
+            <FooterLink href={href} className="flex min-h-11 items-center py-1 text-sm leading-6 text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9 lg:py-0">
               {label}
-            </Link>
+            </FooterLink>
           </li>
         ))}
       </ul>
@@ -275,19 +276,19 @@ export async function SiteFooter() {
             <ul className="space-y-1">
               {countries.map((x) => (
                 <li key={x.code}>
-                  <Link href={`/${x.slug}`} prefetch={false} className="flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9">
+                  <FooterLink href={`/${x.slug}`} className="flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-brand-800 hover:underline lg:min-h-9">
                     <Flag code={x.code} className="h-4 w-6" />
                     {x.nameFa}
-                  </Link>
+                  </FooterLink>
                 </li>
               ))}
             </ul>
             {waiting.length > 0 && (
               <p className="mt-2 text-xs leading-6 text-neutral-600">
                 {t.soon(waiting.map((w) => w.nameFa).join('، '))}{' '}
-                <Link href="/cities" prefetch={false} className="font-bold text-brand-800 hover:underline">
+                <FooterLink href="/cities" className="font-bold text-brand-800 hover:underline">
                   {t.notifyMe}
-                </Link>
+                </FooterLink>
               </p>
             )}
           </div>
@@ -300,9 +301,9 @@ export async function SiteFooter() {
       {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
       <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">
         {LEGAL_LINKS.map(([key, href]) => (
-          <Link key={key} href={href} prefetch={false} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
+          <FooterLink key={key} href={href} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
             <bdi>{t.legalLinks[key]}</bdi>
-          </Link>
+          </FooterLink>
         ))}
       </nav>
     </footer>

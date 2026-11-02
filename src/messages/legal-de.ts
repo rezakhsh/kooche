@@ -8,8 +8,8 @@ import type { LegalDoc } from './legal-types';
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 31. Oktober 2026',
-  draft: true,
+  updated: 'Stand: 2. November 2026',
+  draft: false,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Deutsch und auf Persisch vor; rechtlich maßgeblich ist diese deutsche Fassung (Ziffer 13.2).',
   ],
@@ -26,7 +26,7 @@ const terms: LegalDoc = {
       id: '2.1',
       heading: '2.1 Leistungen',
       body: [
-        'Peydoo ist ein Online-Marktplatz für Kleinanzeigen und Veranstaltungen von Iranerinnen und Iranern in Deutschland und Österreich. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen und Geschäftskonten gilt zusätzlich Ziffer 14.',
+        'Peydoo ist ein Online-Marktplatz für Kleinanzeigen und Veranstaltungen von Iranerinnen und Iranern außerhalb Irans, in den Ländern und Städten, in denen Peydoo geöffnet ist; welche das sind, steht auf der Website. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen und Geschäftskonten gilt zusätzlich Ziffer 14.',
       ],
     },
     {
@@ -373,7 +373,7 @@ const terms: LegalDoc = {
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
   updated: 'Stand: 31. Oktober 2026',
-  draft: true,
+  draft: false,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; maßgeblich ist diese deutsche Fassung.',
   ],
