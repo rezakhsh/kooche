@@ -152,7 +152,11 @@ function labelText(text: string, required: boolean): ReactNode {
 
 function ErrorText({ code }: { code?: FieldError }) {
   if (!code) return null;
-  return <span className="mt-1 block text-xs text-red-700">{t.errors[code] ?? t.errors.invalid}</span>;
+  return (
+    <span data-field-error className="mt-1 block text-xs text-red-700">
+      {t.errors[code] ?? t.errors.invalid}
+    </span>
+  );
 }
 
 const selectClass =
@@ -167,6 +171,8 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const v = props.values;
   // The step «ادامه» was pressed on; its answer decides where to go
   const leaving = useRef<Step | null>(null);
+  /** The furthest step whose «ادامه» was pressed */
+  const [tried, setTried] = useState<Step | 1>(1);
   const formRef = useRef<HTMLFormElement>(null);
   const [summary, setSummaryState] = useState<Summary>({});
   const onSummary = wizard?.onSummary;
@@ -183,11 +189,15 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     if (!wizard || !state?.at) return;
     const from = leaving.current;
     leaving.current = null;
+    if (from) setTried((s) => (from > s ? from : s));
     // A refused publish: back to the first step with something to fix
     const target = state.errors ? firstStepWithErrors(state.errors, 4) : from && state.missing ? (firstStepWithErrors(state.missing, from) ?? ((from + 1) as Step)) : null;
     if (target && target !== wizard.step) {
       wizard.setStep(target);
       window.scrollTo({ top: 0 });
+    } else if (target) {
+      // Something to fill on this step: bring the first one into view
+      requestAnimationFrame(() => formRef.current?.querySelector(`[data-step="${target}"] [data-field-error]`)?.scrollIntoView({ block: 'center' }));
     }
     // Only state changes move the steps
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -210,8 +220,12 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       postAs: props.postAs.options.find((o) => o.id === String(data.get('organizationId') ?? v.organizationId))?.name ?? `${t.myself}${props.userName ? ` (${props.userName})` : ''}`,
     });
   }, [props.defs, props.priceTypes, props.rent, props.postAs.options, props.country, props.userName, v.organizationId, setSummary]);
+  // On the step, not on `wizard`: the editor makes a new `wizard` object each render, and the
+  // summary sets the editor's state, so depending on it re-rendered without end from step 3 on and
+  // «ادامه»'s answer never landed (the owner's production test, Nov 3, 2026)
+  const summarizing = !!wizard && wizard.step >= 3;
   useEffect(() => {
-    if (!wizard || wizard.step < 3) return;
+    if (!summarizing) return;
     readSummary();
     const form = formRef.current;
     form?.addEventListener('input', readSummary);
@@ -220,9 +234,11 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       form?.removeEventListener('input', readSummary);
       form?.removeEventListener('change', readSummary);
     };
-  }, [wizard, readSummary]);
-  // While stepping, only the steps already left show their missing fields
-  const missingShown = wizard && state?.missing ? Object.fromEntries(Object.entries(state.missing).filter(([k]) => stepOf(k) < wizard.step)) : {};
+  }, [summarizing, readSummary]);
+  // While stepping, missing fields show on the steps already left and on a step whose «ادامه» was
+  // pressed (else a step with a missing field stayed put without a word)
+  const missingShown =
+    wizard && state?.missing ? Object.fromEntries(Object.entries(state.missing).filter(([k]) => stepOf(k) < wizard.step || stepOf(k) <= tried)) : {};
   const errors = state?.errors ?? missingShown;
   const shown = (n: Step) => !wizard || wizard.step === n;
   const section = (n: Step) => ({ 'data-step': wizard ? n : undefined, className: shown(n) ? 'space-y-6' : 'hidden' });
