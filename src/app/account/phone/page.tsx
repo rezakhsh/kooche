@@ -104,7 +104,7 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
         )}
         <p className="mt-2 text-center text-xs">
           <Link href="/privacy#s4-2" className="text-neutral-600 underline">
-            {t.privacy}
+            {wa ? t.privacyBoth : t.privacy}
           </Link>
         </p>
       </Main>

@@ -77,7 +77,7 @@ const terms: LegalDoc = {
       id: '3.2',
       heading: '3.2 Anmeldung und Telefonnummer',
       body: [
-        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram oder per SMS). Aus dem Iran kann ein Konto mit bestätigter E-Mail-Adresse auch ohne Telefonnummer Nachrichten senden. Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
+        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram, WhatsApp oder per SMS). Aus dem Iran kann ein Konto mit bestätigter E-Mail-Adresse auch ohne Telefonnummer Nachrichten senden. Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
       ],
     },
     {
@@ -752,7 +752,7 @@ const privacy: LegalDoc = {
       id: '4.2',
       heading: '4.2 Telefonnummer',
       body: [
-        'Um Spam und Betrug zu verhindern, muss vor dem Veröffentlichen und vor dem Senden von Nachrichten eine Telefonnummer bestätigt werden. Wir speichern die Nummer und die Art der Bestätigung. Bei Bestätigung über Telegram teilen Sie uns Ihre Nummer über unseren Telegram-Bot mit, und wir speichern zusätzlich Ihre Telegram-Nutzerkennung. Bestätigungsversuche löschen wir nach 90 Tagen.',
+        'Um Spam und Betrug zu verhindern, muss vor dem Veröffentlichen und vor dem Senden von Nachrichten eine Telefonnummer bestätigt werden. Wir speichern die Nummer und die Art der Bestätigung. Bei Bestätigung über Telegram teilen Sie uns Ihre Nummer über unseren Telegram-Bot mit, und wir speichern zusätzlich Ihre Telegram-Nutzerkennung. Bei Bestätigung über WhatsApp senden Sie eine vorbereitete Nachricht mit einem Einmalcode an unsere WhatsApp-Business-Nummer; WhatsApp übermittelt uns dabei Ihre Telefonnummer, und wir antworten mit einer kurzen Bestätigung. Den Code speichern wir nur als Hashwert, den Text Ihrer Nachricht gar nicht. Bestätigungsversuche löschen wir nach 90 Tagen.',
         'Wir nehmen nur Nummern aus den Ländern an, für die Peydoo eingerichtet ist, nicht aber Nummern aus Iran (+98) und anonyme Telegram-Nummern (+888): So lässt sich jedes Konto einem Land zuordnen, und Betrug und Missbrauch werden erschwert. Von einer abgelehnten Nummer speichern wir nur das Land, nicht die Nummer.',
         'Rechtsgrundlagen: Art. 6 Abs. 1 lit. b und lit. f DSGVO (Schutz der Nutzer vor Betrug).',
       ],
@@ -874,6 +874,7 @@ const privacy: LegalDoc = {
             'Zoho Corporation B.V., Beneluxlaan 4B, 3527 HT Utrecht, Niederlande: unser E-Mail-Postfach (Zoho Mail, Rechenzentren in der EU) für E-Mails an unsere Adressen (Ziffer 3.7), Nachrichten aus dem Kontaktformular und unsere Antworten. Ein Zugriff durch Zoho Corporation Pvt. Ltd. (Indien) als Unterauftragsverarbeiter, etwa für Betrieb und Support, ist nicht auszuschließen; dafür gelten Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO).',
             'Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland: Abwicklung von Zahlungen, Rechnungen und Kundenportal für Abonnements. Stripe erhebt die Zahlungsdaten (etwa Kartennummer oder IBAN) selbst; wir erhalten Name, E-Mail-Adresse, das Land der Rechnungsadresse (bei Abonnements die Rechnungsadresse), Betrag und Zahlungsstatus, nie Karten- oder Kontonummern. Stripe verarbeitet Daten auch in den USA (Stripe, Inc.; EU-U.S. Data Privacy Framework und Standardvertragsklauseln) und ist für die Betrugsprävention und eigene gesetzliche Pflichten selbst verantwortlich. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. c (Aufbewahrungspflichten).',
             'Functional Software, Inc. (Sentry), 45 Fremont Street, 8th Floor, San Francisco, CA 94105, USA: Fehlerberichte (Ziffer 3.1), gespeichert in der EU-Region (Frankfurt am Main, Deutschland). Ein Zugriff aus den USA ist nicht auszuschließen; Sentry ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
+            'WhatsApp Ireland Limited, Merrion Road, Dublin 4, D04 X2K5, Irland (Unternehmensgruppe Meta): die WhatsApp-Business-Plattform, über die wir Ihre Nachricht zur Bestätigung der Telefonnummer empfangen und beantworten (Ziffer 4.2). Meta speichert diese Nachrichten höchstens 30 Tage. Eine Übermittlung an WhatsApp LLC und Meta Platforms, Inc. in den USA ist möglich; sie stützt sich auf den Angemessenheitsbeschluss der EU-Kommission zum EU-US Data Privacy Framework, nach dem Meta zertifiziert ist. Ihre eigene Nutzung von WhatsApp richtet sich nach den Bedingungen und der Datenschutzerklärung von WhatsApp.',
             'n8n: Software für Benachrichtigungen, die wir selbst auf einem eigenen Server bei Hetzner in Helsinki betreiben. Sie erhält keine Kontodaten; Serverwarnungen und Hinweise auf neue Meldungen (nur Anzahlen, ohne Namen oder Inhalte) sendet sie an den Telegram-Zugang des Betreibers.',
           ],
         },

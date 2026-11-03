@@ -252,6 +252,7 @@ A void clause gives **no protection at all**: the statute applies instead (§ 30
 24. Do Austrian consumer law (KSchG § 6) or Dutch law need a country annex for the liability and change clauses?
 25. Is § 21 TDDDG disclosure (injured parties' data requests) relevant? Process for Art. 18 DSA threat reports.
 26. Waitlist and founding-offer conditions under § 6 DDG: are the annex texts enough?
+27. **WhatsApp verification** (Nov 3, 2026): which Meta company is our contract partner and processor for the WhatsApp Business Platform (Cloud API): WhatsApp Ireland Limited (as the privacy policy, section 8, now says) or Meta Platforms Ireland Limited under the newer platform terms? Is relying on the EU-US Data Privacy Framework for transfers to WhatsApp LLC and Meta Platforms, Inc. correct, and is the Meta business portfolio's owner ("Amoozeshe Zaban") the right contracting party for Peydoo?
 
 ### E2. For the tax advisor
 
