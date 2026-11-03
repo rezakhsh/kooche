@@ -2,8 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import type { Point } from '../../db/types';
 import { distanceMeters } from '../../lib/geo';
-import { webEnv } from '../../lib/env';
-import { mapVersion } from './pmtiles';
+import { streetMapFile } from './map-file';
 import { AREA_CIRCLE_M, type MultiPolygon, type StreetMapHome, type StreetMapView } from './view';
 
 // What a page's street map shows (docs/setup.md, "The street map"). A listing never shows a point:
@@ -16,8 +15,7 @@ export type { MultiPolygon, StreetMapHome, StreetMapView } from './view';
 
 /** The street map's version, or null when this server has no map file */
 export function streetMapVersion(): string | null {
-  const file = webEnv().MAP_TILES_FILE;
-  return file ? mapVersion(file) : null;
+  return streetMapFile()?.version ?? null;
 }
 
 /**

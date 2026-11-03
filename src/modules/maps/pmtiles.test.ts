@@ -1,13 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { afterAll, describe, expect, it } from 'vitest';
-import { PMTilesFile, mapVersion, zxyToTileId } from './pmtiles';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { PMTilesFile, bucketSource, mapVersion, zxyToTileId } from './pmtiles';
 
 // The street map's tile reader (docs/setup.md, "The street map") against the PMTiles v3 spec: tile
 // ids on the Hilbert curve, directories with run lengths and leaf directories, tiles outside the
-// file's area or zoom.
+// file's area or zoom; from a disk and from an R2 bucket by byte ranges.
 
 /** The spec's inverse, written independently: tile id → z/x/y */
 function tileIdToZxy(id: number): [number, number, number] {
@@ -153,6 +153,45 @@ describe('the street map’s tile reader', () => {
       fs.mkdirSync(path.dirname(later), { recursive: true });
       fs.copyFileSync(file, later);
     });
+    expect((await map.tile(0, 0, 0))?.toString()).toBe('world');
+  });
+});
+
+describe('the street map from the R2 bucket', () => {
+  const config = { endpoint: 'https://account.eu.r2.cloudflarestorage.com', region: 'auto', bucket: 'peydoo-maps', accessKeyId: 'id', secretAccessKey: 'secret' };
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** R2 as far as the reader needs it: signed Range requests on one object */
+  function bucket(bytes: Buffer, status?: number) {
+    const requests: { url: string; range: string | null; signed: boolean }[] = [];
+    vi.stubGlobal('fetch', async (input: Request) => {
+      const range = input.headers.get('range');
+      requests.push({ url: input.url, range, signed: !!input.headers.get('authorization')?.startsWith('AWS4-HMAC-SHA256') });
+      if (status) return new Response('no', { status });
+      const [, from, to] = /^bytes=(\d+)-(\d+)$/.exec(range ?? '')!;
+      return new Response(new Uint8Array(bytes.subarray(Number(from), Number(to) + 1)), { status: 206 });
+    });
+    return requests;
+  }
+
+  it('reads tiles and directories with one signed Range request each', async () => {
+    const { file, tiles } = makeFile(dir);
+    const requests = bucket(readFileSync(file));
+    const map = new PMTilesFile(bucketSource(config, '20261103.pmtiles'));
+    for (const [k, data] of tiles) expect((await map.tile(...(k.split('/').map(Number) as [number, number, number])))?.toString()).toBe(data.toString());
+    expect(await map.tile(2, 0, 0)).toBeNull();
+    expect(requests.every((r) => r.signed && r.url === 'https://account.eu.r2.cloudflarestorage.com/peydoo-maps/20261103.pmtiles')).toBe(true);
+    // Header, root, the leaf directory once (kept in memory), then one request per tile
+    expect(requests.map((r) => r.range).slice(0, 2)).toEqual(['bytes=0-126', expect.stringMatching(/^bytes=127-\d+$/)]);
+    expect(requests).toHaveLength(2 + 1 + tiles.size);
+  });
+
+  it('fails a tile when R2 refuses, and tries again on the next request', async () => {
+    const { file } = makeFile(dir);
+    bucket(Buffer.alloc(0), 403);
+    const map = new PMTilesFile(bucketSource(config, '20261103.pmtiles'));
+    await expect(map.tile(0, 0, 0)).rejects.toThrow('map bucket: GET failed with 403');
+    bucket(readFileSync(file));
     expect((await map.tile(0, 0, 0))?.toString()).toBe('world');
   });
 });

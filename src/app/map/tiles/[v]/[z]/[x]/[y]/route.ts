@@ -1,5 +1,4 @@
-import { webEnv } from '../../../../../../../lib/env';
-import { mapFile } from '../../../../../../../modules/maps/pmtiles';
+import { streetMapFile } from '../../../../../../../modules/maps/map-file';
 
 // /map/tiles/{version}/{z}/{x}/{y}: one vector tile of the street map (docs/setup.md, "The street
 // map"), copied out of the map file as stored (gzip). The version in the address changes with every
@@ -13,12 +12,12 @@ const KEEP = 'public, max-age=31536000, immutable';
 const INT = /^\d{1,8}$/;
 
 export async function GET(_: Request, { params }: { params: Promise<{ v: string; z: string; x: string; y: string }> }) {
-  const file = webEnv().MAP_TILES_FILE;
+  const file = streetMapFile();
   const { z, x, y } = await params;
   if (!file || !INT.test(z) || !INT.test(x) || !INT.test(y)) return new Response(null, { status: 404 });
   const [zn, xn, yn] = [Number(z), Number(x), Number(y)];
   if (zn > 22 || xn >= 2 ** zn || yn >= 2 ** zn) return new Response(null, { status: 404 });
-  const map = mapFile(file);
+  const { map } = file;
   let data: Buffer | null;
   let gzip: boolean;
   try {

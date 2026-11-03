@@ -119,8 +119,10 @@ const webSchema = z.object({
   IMGPROXY_KEY: optional(hex),
   IMGPROXY_SALT: optional(hex),
   // The street map (docs/setup.md, "The street map"): our own OpenStreetMap extract from Protomaps,
-  // one PMTiles file on the server's disk, mounted read-only (/maps/20261028.pmtiles). The file's
-  // name is its version in the tile addresses. Unset: pages show the outline map instead.
+  // one PMTiles file. Staging and production read the object MAP_TILES_OBJECT (20261103.pmtiles) in
+  // the R2 bucket MAP_S3_BUCKET with their own read-only key, at S3_ENDPOINT; development may use a
+  // file on its disk instead (MAP_TILES_FILE, /maps/20261028.pmtiles). The file's name is its
+  // version in the tile addresses. Neither: pages show the outline map instead.
   // The address search that puts an event's venue or a shop on the map from its street address
   // (src/modules/maps/geocode.ts): a Nominatim server, OpenStreetMap's own by default in the
   // environments that set it (https://nominatim.openstreetmap.org). Unset: no lookups, the
@@ -131,6 +133,10 @@ const webSchema = z.object({
   // staging and production. Unset: no automatic check; staff use the register links.
   VIES_URL: optional(z.url({ protocol: /^https$/ })),
   MAP_TILES_FILE: optional(z.string().regex(/^\/[A-Za-z0-9/_-]+\/[0-9A-Za-z_-]{1,40}\.pmtiles$/, 'an absolute path ending in .pmtiles')),
+  MAP_TILES_OBJECT: optional(z.string().regex(/^[0-9A-Za-z_-]{1,40}\.pmtiles$/, 'a file name ending in .pmtiles')),
+  MAP_S3_BUCKET: optional(z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/)),
+  MAP_S3_ACCESS_KEY_ID: optional(z.string().min(1)),
+  MAP_S3_SECRET_ACCESS_KEY: optional(z.string().min(1)),
   // Cloudflare Turnstile on sign-in and publishing (one widget per environment). The site key is
   // public (it goes into the page); the secret only checks tokens with siteverify. Unset in
   // development: no widget and no check.
@@ -172,6 +178,11 @@ const webSchema = z.object({
     (e) => new Set([e.WHATSAPP_BUSINESS_NUMBER, e.WHATSAPP_PHONE_NUMBER_ID, e.WHATSAPP_TOKEN, e.WHATSAPP_APP_SECRET, e.WHATSAPP_VERIFY_TOKEN].map((v) => !v)).size === 1,
     { message: 'WHATSAPP_BUSINESS_NUMBER, _PHONE_NUMBER_ID, _TOKEN, _APP_SECRET and _VERIFY_TOKEN are set together', path: ['WHATSAPP_TOKEN'] },
   )
+  .refine(
+    (e) => new Set([e.MAP_TILES_OBJECT, e.MAP_S3_BUCKET, e.MAP_S3_ACCESS_KEY_ID, e.MAP_S3_SECRET_ACCESS_KEY].map((v) => !v)).size === 1 && (!e.MAP_TILES_OBJECT || !!e.S3_ENDPOINT),
+    { message: 'MAP_TILES_OBJECT, MAP_S3_BUCKET, MAP_S3_ACCESS_KEY_ID and MAP_S3_SECRET_ACCESS_KEY are set together, with S3_ENDPOINT', path: ['MAP_TILES_OBJECT'] },
+  )
+  .refine((e) => !(e.MAP_TILES_OBJECT && e.MAP_TILES_FILE), { message: 'MAP_TILES_OBJECT or MAP_TILES_FILE, not both', path: ['MAP_TILES_FILE'] })
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
     path: ['SMTP_URL'],

@@ -1,7 +1,9 @@
 import { open, type FileHandle } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
+import { AwsClient } from 'aws4fetch';
 
-// Reads map tiles out of one PMTiles v3 file on the server's disk (the street map, docs/setup.md).
+// Reads map tiles out of one PMTiles v3 file (the street map, docs/setup.md): in the R2 bucket
+// peydoo-maps on staging and production, read by byte ranges; on a disk in development and tests.
 // The format: a 127-byte header, a root directory, leaf directories and the tiles, each directory
 // gzip-compressed and listing tiles by their Hilbert tile id
 // (https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md). Tiles are returned exactly as
@@ -82,24 +84,63 @@ export function findEntry(d: Directory, id: number): number | null {
   return null;
 }
 
+/** Where the file's bytes come from: `length` bytes at `offset`, exactly, or an error */
+export type ByteSource = { read(offset: number, length: number): Promise<Buffer> };
+
+/** A file on this server's disk */
+export function fileSource(path: string): ByteSource {
+  let file: Promise<FileHandle> | undefined;
+  return {
+    async read(offset, length) {
+      if (!file) {
+        file = open(path, 'r');
+        // A missing file is opened again on the next request (a new map is being copied in)
+        file.catch(() => (file = undefined));
+      }
+      const buf = Buffer.alloc(length);
+      const { bytesRead } = await (await file).read(buf, 0, length, offset);
+      if (bytesRead !== length) throw new Error('map file ends early');
+      return buf;
+    },
+  };
+}
+
+export type BucketConfig = { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string };
+
+/** A request for one tile waits this long for R2; then the tile answers 503 and the map retries */
+const BUCKET_TIMEOUT_MS = 5_000;
+
+/** An object in an S3 bucket (R2), read with one Range request per directory or tile */
+export function bucketSource(config: BucketConfig, key: string): ByteSource {
+  // One retry at most: a tile that keeps failing answers 503 at once and the map asks again later
+  const client = new AwsClient({ accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey, service: 's3', region: config.region, retries: 1 });
+  const url = `${config.endpoint.replace(/\/$/, '')}/${config.bucket}/${encodeURIComponent(key)}`;
+  return {
+    async read(offset, length) {
+      const res = await client.fetch(url, { headers: { Range: `bytes=${offset}-${offset + length - 1}` }, signal: AbortSignal.timeout(BUCKET_TIMEOUT_MS) });
+      if (res.status !== 206) {
+        await res.body?.cancel();
+        throw new Error(`map bucket: GET failed with ${res.status}`);
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length !== length) throw new Error('map file ends early');
+      return buf;
+    },
+  };
+}
+
 export class PMTilesFile {
   private header?: Promise<{ h: Header; root: Directory }>;
   private leaves = new Map<number, Promise<Directory>>();
-  private file?: Promise<FileHandle>;
+  private readonly source: ByteSource;
 
-  constructor(readonly path: string) {}
+  /** A path on this server's disk, or any other source of the file's bytes */
+  constructor(source: string | ByteSource) {
+    this.source = typeof source === 'string' ? fileSource(source) : source;
+  }
 
-  private async read(offset: number, length: number): Promise<Buffer> {
-    if (!this.file) {
-      this.file = open(this.path, 'r');
-      // A missing file is opened again on the next request (a new map is being copied in)
-      this.file.catch(() => (this.file = undefined));
-    }
-    const f = await this.file;
-    const buf = Buffer.alloc(length);
-    const { bytesRead } = await f.read(buf, 0, length, offset);
-    if (bytesRead !== length) throw new Error('map file ends early');
-    return buf;
+  private read(offset: number, length: number): Promise<Buffer> {
+    return this.source.read(offset, length);
   }
 
   private start() {
@@ -150,14 +191,6 @@ export class PMTilesFile {
     }
     return null;
   }
-}
-
-const files = new Map<string, PMTilesFile>();
-/** One reader per file for the process (the file name changes with every new map) */
-export function mapFile(path: string): PMTilesFile {
-  let f = files.get(path);
-  if (!f) files.set(path, (f = new PMTilesFile(path)));
-  return f;
 }
 
 /** The version in tile addresses: the file's name without .pmtiles (20261028) */
