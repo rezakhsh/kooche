@@ -51,7 +51,7 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
   };
 }
 
-function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null): string | null {
+export function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null): string | null {
   const kind = categoryId && priceMinor !== null ? rentKind(ancestry(catalog, categoryId)) : null;
   return kind ? messages.country.rentUnit[kind] : null;
 }

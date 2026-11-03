@@ -110,12 +110,19 @@ export async function queueAge(db: Queryable): Promise<{ count: number; oldest: 
  */
 export async function freshListings(db: Queryable, limit = 60) {
   const otherZone = sql`(l.number_country IS NOT NULL AND ${zoneSql(sql`l.number_country`)} <> ${zoneSql(sql`l.country_code`)})`;
-  return db.execute<{ id: string; title: string; token: string; ref_number: string; price_minor: number | null; currency: string | null; published_at: string | Date; seller: string; seller_since: string | Date; cover: string | null; is_event: boolean; other_zone: string | null }>(sql`
-    SELECT l.id, l.title, l.public_token AS token, l.ref_number, l.price_minor, l.currency, l.published_at, u.display_name AS seller, u.created_at AS seller_since,
-      (SELECT i.storage_key FROM listing_images i WHERE i.listing_id = l.id AND i.status = 'ready' ORDER BY i.position LIMIT 1) AS cover,
+  return db.execute<{
+    id: string; title: string; description: string | null; token: string; ref_number: string; category_id: string | null; price_type: string | null; price_minor: number | null; currency: string | null;
+    country_code: string | null; location_id: string | null; district: string | null; place_name: string | null; city: string | null; published_at: string | Date;
+    seller_id: string; seller: string; seller_since: string | Date; seller_others: number; same_text: number; images: string[]; is_event: boolean; other_zone: string | null;
+  }>(sql`
+    SELECT l.id, l.title, l.description, l.public_token AS token, l.ref_number, l.category_id, l.price_type, l.price_minor, l.currency,
+      l.country_code, l.location_id, l.district, l.place_name, loc.name_fa AS city, l.published_at, u.id AS seller_id, u.display_name AS seller, u.created_at AS seller_since,
+      (SELECT count(*)::int FROM listings o WHERE o.user_id = l.user_id AND o.id <> l.id AND o.status <> 'deleted') AS seller_others,
+      (SELECT count(*)::int FROM listings o WHERE o.user_id = l.user_id AND o.id <> l.id AND o.status <> 'deleted' AND length(l.description) >= 40 AND o.description = l.description) AS same_text,
+      COALESCE((SELECT array_agg(i.storage_key ORDER BY i.position) FROM listing_images i WHERE i.listing_id = l.id AND i.status = 'ready'), '{}') AS images,
       EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
       CASE WHEN ${otherZone} THEN l.number_country END AS other_zone
-    FROM listings l JOIN users u ON u.id = l.user_id
+    FROM listings l JOIN users u ON u.id = l.user_id LEFT JOIN locations loc ON loc.id = l.location_id
     WHERE l.status = 'active' AND l.published_at > now() - interval '48 hours' AND (u.created_at > now() - interval '7 days' OR ${otherZone})
       AND NOT EXISTS (SELECT 1 FROM moderation_decisions d WHERE d.listing_id = l.id AND d.decided_by = 'staff' AND d.listing_revision = l.revision)
     ORDER BY l.published_at DESC

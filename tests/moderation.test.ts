@@ -11,6 +11,7 @@ import { freshListings, moderationQueue } from '../src/modules/admin/queue';
 import { cachedCatalog, type Catalog } from '../src/modules/listings/catalog';
 import { appealDecision, decisionsAbout } from '../src/modules/moderation/appeals';
 import { runListingChecks } from '../src/modules/moderation/checks';
+import { REASON_SECTIONS } from '../src/modules/moderation/reasons';
 import {
   approveListing,
   hideMessage,
@@ -310,6 +311,24 @@ describe('messages, businesses, no violation', () => {
     expect((await freshListings(appDb, 1_000)).some((r) => r.id === l.id)).toBe(true);
     await approveListing(appDb, mod, l.id);
     expect((await freshListings(appDb, 1_000)).some((r) => r.id === l.id)).toBe(false);
+  });
+
+  it('the review of new listings shows every photo and the text, and a take-down there takes it off', async () => {
+    const mod = await staffMember();
+    const fresh = await user({ createdAt: new Date() });
+    const l = await makeListing(tx, fresh.id, { description: 'گوشی سالم، فقط با بیعانه می‌فرستم.' });
+    for (const position of [1, 0]) {
+      await db.insert(schema.listingImages).values({ listingId: l.id, uploaderUserId: fresh.id, position, storageKey: `listings/ab/${l.publicToken}${position}.webp`, status: 'ready', mimeType: 'image/webp', width: 10, height: 10, byteSize: 5, blurPlaceholder: 'x', phash: 1n, sha256: Buffer.alloc(32, position + 1), processedAt: new Date() } as never);
+    }
+    const row = (await freshListings(appDb, 1_000)).find((r) => r.id === l.id)!;
+    expect(row.images).toEqual([`listings/ab/${l.publicToken}0.webp`, `listings/ab/${l.publicToken}1.webp`]);
+    expect(row.description).toContain('بیعانه');
+    expect(row.seller_others).toBe(0);
+    // freshDecideAction: the reason's first terms section and the moderator's sentence
+    const r = await takeDownListing(appDb, mod, l.id, { reason: 'scam', section: REASON_SECTIONS.scam[0]!, legalGround: null, facts: 'در آگهی پیش از دیدن، بیعانه خواسته شده است.' }, { timeZone: TZ });
+    if (!r.ok) throw new Error(r.reason);
+    expect((await db.select().from(listings).where(eq(listings.id, l.id)))[0]!.status).not.toBe('active');
+    expect((await freshListings(appDb, 1_000)).some((x) => x.id === l.id)).toBe(false);
   });
 });
 

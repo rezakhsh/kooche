@@ -25,7 +25,9 @@ import {
   type Grounds,
 } from '../../modules/moderation/decide';
 import { appealFits } from '../../modules/moderation/appeals';
+import { REASON_CODES } from '../../db/schema/_values';
 import { REASON_SECTIONS } from '../../modules/moderation/reasons';
+import { z } from 'zod';
 
 // The decision form on an item page (src/app/admin/items). One action for every operation: the
 // staff check comes first, then the operation's own permission (src/modules/admin/ops.ts).
@@ -120,10 +122,33 @@ export async function decideAction(_prev: DecideState, form: FormData): Promise<
   redirect(adminHref(`${nextPath(form.get('next'))}?done=1`));
 }
 
-/** «مشکلی ندارد» on the review of new listings: back to the same list */
-export async function approveFreshAction(form: FormData): Promise<void> {
+export type FreshState = { done?: 'approve' | 'take_down'; error?: string } | undefined;
+
+const freshInput = z.object({
+  op: z.enum(['approve', 'take_down']),
+  id: z.string().uuid(),
+  reason: z.enum(REASON_CODES).optional(),
+  facts: z.string().trim().max(1000).optional().default(''),
+});
+
+/**
+ * Approve or take down from the review of new listings (Nov 3, 2026: everything on the card, no
+ * page per listing): the same decisions as the item page, a take-down with the reason's first
+ * terms section and the moderator's sentence. No redirect; the card leaves the list.
+ */
+export async function freshDecideAction(_prev: FreshState, form: FormData): Promise<FreshState> {
   const staff = await requireStaffAction('listing.moderate');
-  const id = String(form.get('id') ?? '');
-  if (/^[0-9a-f-]{36}$/.test(id)) await approveListing(appDb(), staff.ctx, id);
-  redirect(adminHref('/fresh'));
+  const parsed = freshInput.safeParse(Object.fromEntries([...form.entries()].filter(([k, v]) => typeof v === 'string' && v !== '' && !k.startsWith('$'))));
+  const t = admin.decide;
+  if (!parsed.success) return { error: t.errors.invalid };
+  const i = parsed.data;
+  const db = appDb();
+  let result: DecideResult;
+  if (i.op === 'approve') result = await approveListing(db, staff.ctx, i.id);
+  else {
+    if (!i.reason) return { error: t.errors.invalid };
+    const grounds: Grounds = { reason: i.reason, section: REASON_SECTIONS[i.reason][0]!, legalGround: null, facts: i.facts };
+    result = await takeDownListing(db, staff.ctx, i.id, grounds, { timeZone: webEnv().APP_TIME_ZONE });
+  }
+  return result.ok ? { done: i.op } : { error: t.errors[result.reason] };
 }
