@@ -365,17 +365,27 @@ export function EventForm(
     const entry = pt === 'fixed' ? (get('amount') ? `${messages.events.price.from(`${get('amount')} ${currencySymbol}`)}` : '') : pt ? st.entries[pt] : '';
     setSummary({ title: get('title'), when, where, entry });
   }, [currencySymbol]);
+  // As in the listing form (src/app/my/listings/[id]/form.tsx): on the step, not the new-each-render
+  // `wizard`, and a frame later, so a render here can't put a controlled field's old value back
+  // before React sees the key (the postal code took no typing, Nov 3, 2026)
+  const summarizing = !!wizard && wizard.step >= 3;
   useEffect(() => {
-    if (!wizard || wizard.step < 3) return;
+    if (!summarizing) return;
     readSummary();
-    const form = formRef.current;
-    form?.addEventListener('input', readSummary);
-    form?.addEventListener('change', readSummary);
-    return () => {
-      form?.removeEventListener('input', readSummary);
-      form?.removeEventListener('change', readSummary);
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(readSummary);
     };
-  }, [wizard, readSummary]);
+    const form = formRef.current;
+    form?.addEventListener('input', later);
+    form?.addEventListener('change', later);
+    return () => {
+      cancelAnimationFrame(frame);
+      form?.removeEventListener('input', later);
+      form?.removeEventListener('change', later);
+    };
+  }, [summarizing, readSummary]);
 
   function onSubmit(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();

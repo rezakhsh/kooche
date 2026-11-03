@@ -227,12 +227,21 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   useEffect(() => {
     if (!summarizing) return;
     readSummary();
+    // A frame later, never inside the event: this listener runs before React's own, and a render
+    // here put a controlled field's old value back before React saw the key, so the postal code
+    // took no typing at step 4 (the owner's phone, Nov 3, 2026)
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(readSummary);
+    };
     const form = formRef.current;
-    form?.addEventListener('input', readSummary);
-    form?.addEventListener('change', readSummary);
+    form?.addEventListener('input', later);
+    form?.addEventListener('change', later);
     return () => {
-      form?.removeEventListener('input', readSummary);
-      form?.removeEventListener('change', readSummary);
+      cancelAnimationFrame(frame);
+      form?.removeEventListener('input', later);
+      form?.removeEventListener('change', later);
     };
   }, [summarizing, readSummary]);
   // While stepping, missing fields show on the steps already left and on a step whose «ادامه» was
