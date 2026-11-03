@@ -34,7 +34,9 @@ import { locations } from './listings';
 // users, sessions, auth_accounts, verifications and two_factors follow Better Auth's core model
 // with snake_case columns. Better Auth's admin and organization plugins are not used.
 
-export const STAFF_ROLES = ['moderator', 'admin'] as const;
+// `owner` (Nov 3, 2026): the site's owner, one person, set only with scripts/make-staff.ts; an
+// admin who may also decide on their own listings
+export const STAFF_ROLES = ['moderator', 'admin', 'owner'] as const;
 export const USER_STATUSES = ['active', 'deactivated', 'deleted'] as const;
 /**
  * Test accounts (wave 2 part 1, src/modules/users/test-accounts.ts): `country` is one of the
@@ -97,6 +99,8 @@ export const users = pgTable(
       isIn(t.phoneVerificationMethod, PHONE_VERIFICATION_METHODS),
     ),
     check('users_staff_role_check', isIn(t.staffRole, STAFF_ROLES)),
+    // At most one owner
+    uniqueIndex('users_owner_key').on(t.staffRole).where(sql`${t.staffRole} = 'owner'`),
     check('users_test_account_check', isIn(t.testAccount, TEST_ACCOUNT_KINDS)),
     // The few test accounts, for the "is the owner a test account" checks on public queries
     index('users_test_account_idx').on(t.id).where(sql`${t.testAccount} IS NOT NULL`),

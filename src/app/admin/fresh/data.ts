@@ -2,6 +2,7 @@ import type { Queryable } from '../../../db/drizzle';
 import { formatAgo, formatDate } from '../../../lib/format';
 import { admin, faDigits, messages } from '../../../messages/fa';
 import { freshListings } from '../../../modules/admin/queue';
+import { decidesOwn, type StaffRole } from '../../../modules/admin/access';
 import { riskyParts } from '../../../modules/admin/risky';
 import { adminHref } from '../../../modules/admin/server';
 import { eventPath } from '../../../modules/events/slug';
@@ -22,7 +23,8 @@ export const FRESH_PAGE = 20;
 
 const RESTRICTING = new Set(['reject', 'remove', 'hide', 'warn', 'sanction', 'escalate']);
 
-export async function freshCards(db: Queryable, opts: { skip?: string[]; timeZone: string }) {
+/** `viewer`: who is looking; their own listings get a note instead of the buttons, unless they are the owner */
+export async function freshCards(db: Queryable, opts: { skip?: string[]; timeZone: string; viewer: { userId: string; role: StaffRole } }) {
   const [rows, catalog] = await Promise.all([freshListings(db), cachedCatalog(db)]);
   const t = admin.fresh;
   const it = admin.item;
@@ -64,6 +66,7 @@ export async function freshCards(db: Queryable, opts: { skip?: string[]; timeZon
     const sanction = r.sanction_type ? (admin.decide.ops[r.sanction_type] ?? r.sanction_type) : null;
     const card: FreshCard = {
       id: r.id,
+      own: r.seller_id === opts.viewer.userId && !decidesOwn(opts.viewer.role),
       title,
       titleText: r.title,
       description,

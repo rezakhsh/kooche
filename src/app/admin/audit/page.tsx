@@ -50,7 +50,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 <p>
                   <bdi className="font-bold">{r.actor ?? t.actorTypes[r.actorType] ?? r.actorType}</bdi>
                   {typeof (r.data as Record<string, unknown>).role === 'string' && (
-                    <span className="text-neutral-500"> {t.asRole(admin.roles[(r.data as { role: 'admin' | 'moderator' }).role] ?? '')}</span>
+                    <span className="text-neutral-500"> {t.asRole(admin.roles[(r.data as { role: 'admin' | 'moderator' | 'owner' }).role] ?? '')}</span>
                   )}{' '}
                   {t.actions[r.action] ?? <code dir="ltr" className="rounded bg-neutral-100 px-1.5 text-xs">{r.action}</code>}
                   {r.targetType && r.targetId && LINKS[r.targetType] && (

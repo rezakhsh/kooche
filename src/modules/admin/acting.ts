@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { and, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { outboxEvents, sessions, users } from '../../db/schema';
+import { isAdmin } from './access';
 import { ACTING_MINUTES, readReturn, sessionTokenOf } from './acting-cookies';
 import { staffAudit, type StaffContext } from './audit';
 
@@ -90,7 +91,7 @@ export async function actingState(db: Queryable, sessionId: string, now = new Da
   if (!s?.openedBy) return null;
   // The admin who opened it must still be an active admin (code check, Oct 30, 2026)
   const [opener] = await db.select({ role: users.staffRole, status: users.status }).from(users).where(eq(users.id, s.openedBy));
-  if (opener?.role !== 'admin' || opener.status !== 'active') return 'ended';
+  if (!isAdmin(opener?.role) || opener!.status !== 'active') return 'ended';
   // Better Auth may push expires_at forward while the session is used; the 30 minutes count from its start
   const until = new Date(s.createdAt.getTime() + ACTING_MINUTES * 60_000);
   if (until <= now) return 'ended';

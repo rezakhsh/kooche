@@ -14,8 +14,8 @@ import { freshCards } from './data';
 // card (./cards.tsx, ./data.ts).
 
 export default async function FreshPage() {
-  await requireStaff('listing.moderate');
-  const first = await freshCards(appDb(), { timeZone: webEnv().APP_TIME_ZONE });
+  const staff = await requireStaff('listing.moderate');
+  const first = await freshCards(appDb(), { timeZone: webEnv().APP_TIME_ZONE, viewer: { userId: staff.ctx.userId, role: staff.role } });
   const t = admin.fresh;
   const reasons = PUBLIC_REASONS.listing.map((code) => ({ code, label: messages.report.reasons[code] ?? code, template: admin.decide.templates[code] ?? '' }));
   return (

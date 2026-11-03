@@ -190,7 +190,7 @@ export async function staffRoleMail(db: Queryable, userId: string, change: { fro
   const [u] = await db.select({ email: users.email, status: users.status, test: users.testAccount }).from(users).where(eq(users.id, userId));
   if (!u || u.status === 'deleted' || u.test) return null;
   const t = messages.moderationMail;
-  const role = (r: string | null) => (r ? (admin.roles[r as 'moderator' | 'admin'] ?? r) : '');
+  const role = (r: string | null) => (r ? (admin.roles[r as 'moderator' | 'admin' | 'owner'] ?? r) : '');
   const url = `${appUrl}/contact`;
   const [subject, body] = change.to ? [t.staffRoleGivenSubject(role(change.to)), t.staffRoleGiven(role(change.to))] : [t.staffRoleRemovedSubject(role(change.from)), t.staffRoleRemoved(role(change.from))];
   return { to: u.email, subject, text: `${body}\n\n${t.staffActedLink}: ${url}`, html: html([body], { url, label: t.staffActedLink }) };

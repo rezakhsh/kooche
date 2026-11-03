@@ -246,7 +246,7 @@ describe('accounts', () => {
     expect(canPostListing(actor)).toEqual({ ok: false, reason: 'restricted' });
     expect(canSendMessage(actor)).toEqual({ ok: true });
     // Staff can't sanction themselves
-    expect(await sanctionUser(appDb, mod, { userId: mod.userId, kind: 'warning', days: null, ...scam }, { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await sanctionUser(appDb, mod, { userId: mod.userId, kind: 'warning', days: null, ...scam }, { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
   });
 });
 
@@ -282,10 +282,10 @@ describe('messages, businesses, no violation', () => {
   it('a moderator can’t clear reports about themselves or their own listing (Check B)', async () => {
     const mod = await staffMember();
     const own = await makeListing(tx, mod.userId);
-    expect(await noViolation(appDb, mod, { listingId: own.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
-    expect(await noViolation(appDb, mod, { reportedUserId: mod.userId }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await noViolation(appDb, mod, { listingId: own.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
+    expect(await noViolation(appDb, mod, { reportedUserId: mod.userId }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
     const org = await makeOrganization(tx, mod.userId);
-    expect(await noViolation(appDb, mod, { organizationId: org.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await noViolation(appDb, mod, { organizationId: org.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
   });
 
   it('no violation dismisses the reports and tells only the reporters', async () => {

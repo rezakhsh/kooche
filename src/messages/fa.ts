@@ -4517,7 +4517,7 @@ export const admin = {
     all: 'همهٔ بخش‌ها',
     close: 'بستن',
   },
-  roles: { moderator: 'ناظر', admin: 'مدیر' } as Record<'moderator' | 'admin', string>,
+  roles: { moderator: 'ناظر', admin: 'مدیر', owner: 'مالک' } as Record<'moderator' | 'admin' | 'owner', string>,
   // «احتمالاً کسب‌وکار» (wave 2 part 4, src/modules/organizations/suspicions.ts)
   businessQueue: {
     title: 'احتمالاً کسب‌وکار',
@@ -4661,6 +4661,7 @@ export const admin = {
     history: 'سابقهٔ آگهی‌دهنده',
     listingDecisions: 'تصمیم‌ها دربارهٔ این آگهی',
     noDecision: 'هنوز تصمیمی نیست',
+    own: 'آگهی خودتان است؛ همکار دیگری دربارهٔ آن تصمیم می‌گیرد.',
     byStaff: 'همکار',
     sanctionNow: 'محدودیت فعلی',
     until: (what: string, date: string) => `${what} تا ${date}`,
@@ -4828,6 +4829,7 @@ export const admin = {
       invalid: 'دلیل، بند و واقعیت‌ها (حداقل ۱۰ نویسه) لازم است و بند باید با دلیل بخواند.',
       not_found: 'این مورد دیگر پیدا نمی‌شود یا قبلاً تصمیمش گرفته شده است.',
       not_allowed: 'این کار در وضعیت فعلی ممکن نیست (مثلاً حساب صاحبش مسدود است).',
+      own: 'این مورد مال خودتان است؛ همکار دیگری باید دربارهٔ آن تصمیم بگیرد.',
     },
     ok: 'مشکلی ندارد',
     police:

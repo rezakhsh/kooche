@@ -13,7 +13,7 @@ import { staffAudit, type StaffContext } from './audit';
 // STEP_UP_HOURS. Staff without two-factor set up can only reach the setup page. Everyone else
 // gets a 404, signed in or not, so the page doesn't show that it exists.
 
-export type StaffRole = 'moderator' | 'admin';
+export type StaffRole = 'moderator' | 'admin' | 'owner';
 
 export const STEP_UP_HOURS = 8;
 
@@ -59,12 +59,26 @@ export const PERMISSIONS = {
   /** «احتمالاً کسب‌وکار» (src/modules/organizations/suspicions.ts): ask or dismiss; restricting is the owner's */
   'business.suspicion': 'moderator',
   'business.restrict': 'admin',
-} as const satisfies Record<string, StaffRole>;
+} as const satisfies Record<string, Exclude<StaffRole, 'owner'>>;
 
 export type StaffAction = keyof typeof PERMISSIONS;
 
+/** Admin or owner: the owner (one person, the site's owner) has every admin power */
+export function isAdmin(role: StaffRole | null | undefined): boolean {
+  return role === 'admin' || role === 'owner';
+}
+
 export function can(role: StaffRole, action: StaffAction): boolean {
-  return role === 'admin' || PERMISSIONS[action] === 'moderator';
+  return isAdmin(role) || PERMISSIONS[action] === 'moderator';
+}
+
+/**
+ * Whether this staff member may decide on content that is their own: only the owner (owner, Nov 3,
+ * 2026: «I should be the master admin who is able to approve anything»); everyone else leaves it to
+ * a colleague
+ */
+export function decidesOwn(role: StaffRole | null | undefined): boolean {
+  return role === 'owner';
 }
 
 export type StaffState =

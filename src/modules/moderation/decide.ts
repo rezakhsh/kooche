@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { listings, messages, moderationAppeals, moderationDecisions, organizationMembers, organizations, outboxEvents, reports, userSanctions, users } from '../../db/schema';
 import { messages as messages_ } from '../../messages/fa';
+import { decidesOwn, isAdmin } from '../admin/access';
 import { staffAudit, type StaffContext } from '../admin/audit';
 import { cachedCatalog } from '../listings/catalog';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
@@ -30,7 +31,8 @@ export type Grounds = {
   facts: string;
 };
 
-export type DecideResult = { ok: true; decisionId: string } | { ok: false; reason: 'not_found' | 'not_allowed' | 'invalid' };
+/** `own`: the staff member's own listing, account, business or message; a colleague decides (the owner may decide on their own listings) */
+export type DecideResult = { ok: true; decisionId: string } | { ok: false; reason: 'not_found' | 'not_allowed' | 'invalid' | 'own' };
 
 export type DecideOptions = { timeZone: string; now?: Date; appealId?: string };
 
@@ -200,8 +202,8 @@ export async function restoreListing(db: Db, staff: StaffContext, listingId: str
   return db.transaction(async (tx) => {
     const l = await lockListing(tx, listingId);
     if (!l) return { ok: false, reason: 'not_found' };
-    // Never one's own listing
-    if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
+    // Never one's own listing (except the owner's)
+    if (l.userId === staff.userId && !decidesOwn(staff.role)) return { ok: false, reason: 'own' };
     if (l.status !== 'rejected' && l.status !== 'pending_review') return { ok: false, reason: 'not_allowed' };
     // A listing of a suspended seller or business stays down until the suspension ends
     const [owner] = await tx.execute<{ blocked: boolean }>(sql`
@@ -241,18 +243,18 @@ export async function noViolation(db: Db, staff: StaffContext, target: Target, n
     if (target.listingId) {
       const l = await lockListing(tx, target.listingId);
       if (!l) return { ok: false, reason: 'not_found' };
-      if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
+      if (l.userId === staff.userId && !decidesOwn(staff.role)) return { ok: false, reason: 'own' };
       values = { listingId: l.id, listingRevision: l.revision, contentSnapshot: await snapshot(tx, l) };
     } else if (target.reportedUserId) {
-      if (target.reportedUserId === staff.userId) return { ok: false, reason: 'not_allowed' };
+      if (target.reportedUserId === staff.userId) return { ok: false, reason: 'own' };
       values = { userId: target.reportedUserId };
     } else if (target.organizationId) {
       const [member] = await tx.select({ id: organizationMembers.userId }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, target.organizationId), eq(organizationMembers.userId, staff.userId)));
-      if (member) return { ok: false, reason: 'not_allowed' };
+      if (member) return { ok: false, reason: 'own' };
       values = { organizationId: target.organizationId };
     } else if (target.messageId) {
       const [m] = await tx.select({ sender: messages.senderUserId }).from(messages).where(eq(messages.id, target.messageId));
-      if (m?.sender === staff.userId) return { ok: false, reason: 'not_allowed' };
+      if (m?.sender === staff.userId) return { ok: false, reason: 'own' };
       values = { messageId: target.messageId };
     } else return { ok: false, reason: 'invalid' };
     const [d] = await tx
@@ -274,7 +276,7 @@ export async function approveListing(db: Db, staff: StaffContext, listingId: str
   return db.transaction(async (tx) => {
     const l = await lockListing(tx, listingId);
     if (!l) return { ok: false, reason: 'not_found' };
-    if (l.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
+    if (l.userId === staff.userId && !decidesOwn(staff.role)) return { ok: false, reason: 'own' };
     const [d] = await tx
       .insert(moderationDecisions)
       .values({ listingId: l.id, listingRevision: l.revision, decision: 'approve', decidedBy: 'staff', moderatorUserId: staff.userId, contentSnapshot: await snapshot(tx, l) })
@@ -309,9 +311,9 @@ export async function sanctionUser(
   return db.transaction(async (tx) => {
     const [u] = await tx.select({ id: users.id, status: users.status, staffRole: users.staffRole }).from(users).where(eq(users.id, input.userId)).for('update');
     if (!u || u.status === 'deleted') return { ok: false, reason: 'not_found' };
-    if (u.id === staff.userId) return { ok: false, reason: 'not_allowed' };
-    // Rank: only an admin sanctions a moderator, and no one an admin from here
-    if (u.staffRole && (u.staffRole === 'admin' || staff.role !== 'admin')) return { ok: false, reason: 'not_allowed' };
+    if (u.id === staff.userId) return { ok: false, reason: 'own' };
+    // Rank: only an admin (or the owner) sanctions a moderator, and no one an admin or the owner from here
+    if (u.staffRole && (isAdmin(u.staffRole) || !isAdmin(staff.role))) return { ok: false, reason: 'not_allowed' };
     const endsAt = input.days ? new Date(now.getTime() + input.days * 86_400_000) : null;
     const listingTargets: Target[] = input.alsoListingId ? [{ listingId: input.alsoListingId }] : [];
     const onReport = await hasOpenReports(tx, [{ reportedUserId: u.id }, ...listingTargets]);
@@ -393,7 +395,7 @@ export async function liftSanction(db: Db, staff: StaffContext, sanctionId: stri
   return db.transaction(async (tx) => {
     const [s] = await tx.select().from(userSanctions).where(eq(userSanctions.id, sanctionId)).for('update');
     if (!s || s.revokedAt || (s.endsAt && s.endsAt <= now)) return { ok: false, reason: 'not_found' };
-    if (s.userId === staff.userId) return { ok: false, reason: 'not_allowed' };
+    if (s.userId === staff.userId) return { ok: false, reason: 'own' };
     await tx.update(userSanctions).set({ revokedAt: now, revokedByUserId: staff.userId, revokeNote: note.trim() || null }).where(eq(userSanctions.id, s.id));
     const t = messages_.moderation.staff;
     const [d] = await tx
@@ -569,7 +571,7 @@ export async function unhideMessage(db: Db, staff: StaffContext, messageId: stri
     const [m] = await tx.select({ id: messages.id, hiddenAt: messages.hiddenAt, sender: messages.senderUserId }).from(messages).where(eq(messages.id, messageId)).for('update');
     if (!m?.hiddenAt) return { ok: false, reason: 'not_found' };
     // Never one's own message (Check B, Oct 31, 2026)
-    if (m.sender === staff.userId) return { ok: false, reason: 'not_allowed' };
+    if (m.sender === staff.userId) return { ok: false, reason: 'own' };
     const t = messages_.moderation.staff;
     const [d] = await tx
       .insert(moderationDecisions)

@@ -20,6 +20,8 @@ export type FreshPhoto = { thumb: string | null; full: string | null };
 export type FreshPart = { text: string; risky: boolean };
 export type FreshCard = {
   id: string;
+  /** The viewer's own listing: a colleague decides (the owner decides on their own) */
+  own: boolean;
   title: FreshPart[];
   titleText: string;
   description: FreshPart[] | null;
@@ -366,6 +368,12 @@ function Card(props: { card: FreshCard; reasons: FreshReason[]; active: boolean;
             </div>
           </form>
         )}
+        {card.own ? (
+          <p className="flex items-center gap-2 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+            <Icon name="user" className="size-4 shrink-0" />
+            {t.own}
+          </p>
+        ) : (
         <div className="grid grid-cols-3 gap-2">
           <form action={action}>
             <input type="hidden" name="op" value="approve" />
@@ -382,6 +390,7 @@ function Card(props: { card: FreshCard; reasons: FreshReason[]; active: boolean;
             {t.review}
           </a>
         </div>
+        )}
       </div>
     </article>
   );

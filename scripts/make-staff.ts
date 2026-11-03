@@ -2,7 +2,8 @@
 // The only way to make an admin. Runs as classifieds_owner and writes audit_log
 // (staff.role_changed). The person sets up two-factor on their first visit to the admin page.
 //
-//   MIGRATION_DATABASE_URL=… npx tsx scripts/make-staff.ts <email> admin|moderator|none
+//   MIGRATION_DATABASE_URL=… npx tsx scripts/make-staff.ts <email> owner|admin|moderator|none
+//   (owner: the site's owner, one person; may also decide on their own listings)
 //   MIGRATION_DATABASE_URL=… npx tsx scripts/make-staff.ts <email> --reset-2fa   (lost phone and backup codes)
 
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -23,16 +24,16 @@ if (url && email && role === '--reset-2fa') {
   }
   process.exit();
 }
-if (!url || !email || !['admin', 'moderator', 'none'].includes(role ?? '')) {
-  throw new Error('usage: MIGRATION_DATABASE_URL=… npx tsx scripts/make-staff.ts <email> admin|moderator|none');
+if (!url || !email || !['owner', 'admin', 'moderator', 'none'].includes(role ?? '')) {
+  throw new Error('usage: MIGRATION_DATABASE_URL=… npx tsx scripts/make-staff.ts <email> owner|admin|moderator|none');
 }
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 try {
   const result = await drizzle(sql, { schema }).transaction((tx) =>
-    setStaffRole(tx, { email, role: role === 'none' ? null : (role as 'admin' | 'moderator'), by: null }),
+    setStaffRole(tx, { email, role: role === 'none' ? null : (role as 'owner' | 'admin' | 'moderator'), by: null }),
   );
   if (!result.ok) {
-    console.error(`${email}: ${{ not_found: 'no account with this email', inactive: 'account is not active', not_allowed: 'not allowed', unchanged: 'already has this role' }[result.reason]}`);
+    console.error(`${email}: ${{ not_found: 'no account with this email', inactive: 'account is not active', not_allowed: 'not allowed (another account is the owner?)', unchanged: 'already has this role' }[result.reason]}`);
     process.exitCode = 1;
   } else {
     console.log(`${email}: ${result.from ?? 'none'} → ${result.to ?? 'none'}`);

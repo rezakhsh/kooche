@@ -10,7 +10,7 @@ import { contactsListed } from '../../../../../modules/admin/users';
 import { businessForReview, decisionsOn, duplicateOf, listingForReview, messageInContext, personHistory, reportsOn, sameTextCount, type DecisionRow } from '../../../../../modules/admin/items';
 import { HELD_RESUBMISSIONS, moderationQueue } from '../../../../../modules/admin/queue';
 import { adminHref, requireStaff } from '../../../../../modules/admin/server';
-import { can } from '../../../../../modules/admin/access';
+import { can, decidesOwn } from '../../../../../modules/admin/access';
 import { eventPath } from '../../../../../modules/events/slug';
 import { ancestry, cachedCatalog } from '../../../../../modules/listings/catalog';
 import { formatPrice } from '../../../../../modules/listings/price';
@@ -214,6 +214,10 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
           </>
         }
         decide={decisionPanel(
+          // One's own listing: a colleague decides (the owner decides on their own; Nov 3, 2026)
+          l.userId === staff.ctx.userId && !decidesOwn(staff.role) ? (
+            <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">{admin.fresh.own}</p>
+          ) : (
           <DecisionForm
             kind="listing"
             id={l.id}
@@ -222,7 +226,8 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
             subject={{ title: l.title, isEvent: data.isEvent, resubmission, name: '' }}
             onReport={reportRows.some((r) => r.status === 'open' || r.status === 'in_review')}
             {...formProps}
-          />,
+          />
+          ),
         )}
       />
     );

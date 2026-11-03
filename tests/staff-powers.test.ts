@@ -10,7 +10,7 @@ import { opPermission } from '../src/modules/admin/ops';
 import { setStaffRole } from '../src/modules/admin/staff';
 import { contactsListed, signOutEverywhere } from '../src/modules/admin/users';
 import { appealFits } from '../src/modules/moderation/appeals';
-import { liftSanction, restoreListing, sanctionUser, takeDownListing, type Grounds } from '../src/modules/moderation/decide';
+import { approveListing, liftSanction, noViolation, restoreListing, sanctionUser, takeDownListing, type Grounds } from '../src/modules/moderation/decide';
 import { signedOutMail, staffRoleMail } from '../src/modules/moderation/notices';
 import { appDb, workerDb } from './accounts';
 import { db, makeListing, type Tx } from './db';
@@ -27,7 +27,7 @@ const TZ = 'Europe/Berlin';
 const APP = 'https://app.example.test';
 const scam: Grounds = { reason: 'scam', section: '6.1', legalGround: null, facts: 'در توضیحات پیش‌پرداخت با کارت هدیه خواسته شده است.' };
 
-async function staff(role: 'moderator' | 'admin'): Promise<StaffContext & { email: string }> {
+async function staff(role: 'moderator' | 'admin' | 'owner'): Promise<StaffContext & { email: string }> {
   const u = await user({ createdAt: new Date(Date.now() - 90 * DAY) });
   await db.update(schema.users).set({ staffRole: role, twoFactorEnabled: true }).where(eq(schema.users.id, u.id));
   const [s] = await db.insert(schema.sessions).values({ userId: u.id, token: randomUUID().replace(/-/g, ''), expiresAt: new Date(Date.now() + DAY), staffVerifiedAt: new Date() }).returning();
@@ -82,7 +82,7 @@ describe('granting an appeal', () => {
     const r = await sanctionUser(appDb, admin, { userId: mod.userId, kind: 'posting_restricted', days: 7, ...scam }, { timeZone: TZ });
     if (!r.ok) throw new Error(r.reason);
     const [s] = await db.select().from(schema.userSanctions).where(eq(schema.userSanctions.moderationDecisionId, r.decisionId));
-    expect(await liftSanction(appDb, mod, s!.id, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await liftSanction(appDb, mod, s!.id, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
   });
 });
 
@@ -116,7 +116,7 @@ describe('rank', () => {
     const mod = await staff('moderator');
     const l = await makeListing(tx, mod.userId);
     expect((await takeDownListing(appDb, admin, l.id, scam, { timeZone: TZ })).ok).toBe(true);
-    expect(await restoreListing(appDb, mod, l.id, 'اشتباه بود', { timeZone: TZ })).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await restoreListing(appDb, mod, l.id, 'اشتباه بود', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
     expect((await restoreListing(appDb, admin, l.id, 'اشتباه بود', { timeZone: TZ })).ok).toBe(true);
   });
 });
@@ -214,5 +214,42 @@ describe('contact details in lists', () => {
     expect(row!.data).toMatchObject({ list: 'users', ids: [a.id, b.id] });
     await contactsListed(appDb, admin, 'reports', []);
     expect(await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.action, 'staff.contacts_listed'), eq(schema.auditLog.actorUserId, admin.userId)))).toHaveLength(1);
+  });
+});
+
+describe('the owner', () => {
+  // One owner at a time (users_owner_key): these tests take the role and give it back
+  const noOwner = () => db.update(schema.users).set({ staffRole: null }).where(eq(schema.users.staffRole, 'owner'));
+
+  it('decides on their own listing; an admin or a moderator leaves theirs to a colleague', async () => {
+    await noOwner();
+    const owner = await staff('owner');
+    expect(can('owner', 'staff.manage') && can('owner', 'user.ban')).toBe(true);
+    const mine = await makeListing(tx, owner.userId);
+    expect((await approveListing(appDb, owner, mine.id)).ok).toBe(true);
+    const down = await takeDownListing(appDb, owner, mine.id, scam, { timeZone: TZ });
+    expect(down.ok).toBe(true);
+    expect((await restoreListing(appDb, owner, mine.id, '', { timeZone: TZ })).ok).toBe(true);
+    for (const role of ['admin', 'moderator'] as const) {
+      const s = await staff(role);
+      const theirs = await makeListing(tx, s.userId);
+      expect(await approveListing(appDb, s, theirs.id)).toEqual({ ok: false, reason: 'own' });
+      expect(await noViolation(appDb, s, { listingId: theirs.id }, '', { timeZone: TZ })).toEqual({ ok: false, reason: 'own' });
+    }
+    await noOwner();
+  });
+
+  it('is made only with the script, one at a time, and no admin changes the role from the admin page', async () => {
+    await noOwner();
+    const owner = await staff('owner');
+    const admin = await staff('admin');
+    const other = await someone();
+    expect(await db.transaction((t) => setStaffRole(t, { email: owner.email, role: null, by: admin }))).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await db.transaction((t) => setStaffRole(t, { email: other.email, role: 'owner', by: admin }))).toEqual({ ok: false, reason: 'not_allowed' });
+    // The script: a second owner only after the first gives it up
+    expect(await db.transaction((t) => setStaffRole(t, { email: other.email, role: 'owner', by: null }))).toEqual({ ok: false, reason: 'not_allowed' });
+    await db.transaction((t) => setStaffRole(t, { email: owner.email, role: 'admin', by: null }));
+    expect((await db.transaction((t) => setStaffRole(t, { email: other.email, role: 'owner', by: null }))).ok).toBe(true);
+    await noOwner();
   });
 });
