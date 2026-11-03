@@ -12,6 +12,8 @@ export const operator = {
   countryDe: 'Deutschland',
   countryFa: 'آلمان',
   email: 'support@peydoo.com',
+  /** Point of contact for authorities of the member states, the Commission and the Board (Art. 11 DSA; owner, Nov 3, 2026). Users write to `email` (Art. 12 DSA). */
+  authoritiesEmail: 'authorities@peydoo.com',
   phone: null as string | null,
   vatId: null as string | null,
   /** Register court and number, for a company */

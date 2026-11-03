@@ -7,7 +7,7 @@ import { FREE_BUSINESS, planFeatures, type PlanFeatures } from './features';
 // business is Pro is not a column"). Both web and worker read it.
 
 /** Subscription statuses that still hold a plan (past_due: retries and SEPA are under way) */
-const HOLDING = ['trialing', 'active', 'past_due', 'incomplete'] as const;
+export const HOLDING = ['trialing', 'active', 'past_due', 'incomplete'] as const;
 
 export type BusinessPlan = {
   /** Product code of the plan (`pro`, `pro-plus`), or null without Pro */

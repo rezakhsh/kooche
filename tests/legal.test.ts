@@ -180,3 +180,85 @@ describe('legal rewrite (Nov 2, 2026, docs/legal-review.md)', () => {
     expect(text(pages.privacy)).not.toContain('§ ۲۵۷ HGB');
   });
 });
+
+describe('protective rules and privacy additions (Nov 3, 2026)', () => {
+  const text = (doc: LegalDoc) => JSON.stringify(doc.sections);
+  const section = (doc: LegalDoc, id: string) => JSON.stringify(doc.sections.find((s) => s.id === id) ?? null);
+
+  it('the new sections exist in both versions, added at the end of their sections', () => {
+    for (const id of ['1.3', '3.6', '4.8', '5.12', '5.13', '6.4', '6.5', '11.3', '14.9', '14.10']) {
+      expect(ids(legalDe.terms), id).toContain(id);
+      expect(ids(pages.terms), id).toContain(id);
+    }
+    for (const id of ['4.4', '6.1', '10.3']) {
+      expect(ids(legalDe.privacy), id).toContain(id);
+      expect(ids(pages.privacy), id).toContain(id);
+    }
+  });
+
+  it('a few rules say what they should in both languages', () => {
+    // Contract transfer: notice and a right to end (§ 309 Nr. 10 BGB)
+    expect(section(legalDe.terms, '1.3')).toContain('vier Wochen');
+    expect(section(pages.terms, '1.3')).toContain('چهار هفته');
+    // One account per person
+    expect(section(legalDe.terms, '3.6')).toContain('nur ein Konto');
+    expect(section(pages.terms, '3.6')).toContain('فقط یک حساب');
+    // Puppies and kittens at least eight weeks
+    expect(section(legalDe.terms, '5.12')).toContain('acht Wochen');
+    expect(section(pages.terms, '5.12')).toContain('هشت هفته');
+    // Inactive accounts: a right ("können"), 24 months, 30 days' notice
+    expect(section(legalDe.terms, '11.3')).toContain('24 Monate');
+    expect(section(legalDe.terms, '11.3')).toContain('können wir');
+    expect(section(pages.terms, '11.3')).toContain('۲۴ ماه');
+    expect(section(pages.terms, '11.3')).toContain('۳۰ روز');
+    // Changes to running paid services
+    expect(section(legalDe.terms, '14.9')).toContain('§ 327r BGB');
+    expect(section(pages.terms, '14.9')).toContain('§ ۳۲۷r');
+  });
+
+  it('7.1 no longer promises immediate publication, and a warning is the mildest measure in 7.2', () => {
+    expect(text(legalDe.terms)).not.toContain('werden sofort veröffentlicht');
+    expect(section(legalDe.terms, '7.1')).toContain('zurückhalten');
+    expect(section(pages.terms, '7.1')).toContain('معمولاً بلافاصله');
+    expect(section(legalDe.terms, '7.2')).toContain('verwarnen');
+    expect(section(pages.terms, '7.2')).toContain('هشدار');
+  });
+
+  it('authorities have their own address; the Impressum address stays open to users', () => {
+    expect(operator.authoritiesEmail).toMatch(/^[^@\s]+@[^@\s]+\.[a-z]+$/);
+    expect(operator.authoritiesEmail).not.toBe(operator.email);
+    for (const doc of [legalDe.terms, pages.terms]) expect(section(doc, '8.2')).toContain(operator.authoritiesEmail);
+    expect(section(legalDe.terms, '8.2')).toContain('Art. 12');
+    expect(pages.impressum.dsa).toContain('Art. 12');
+    // Never a line that user enquiries to the Impressum address go unhandled (LG München I)
+    for (const s of [pages.impressum.dsa, pages.impressum.dsaFa]) expect(s).not.toMatch(/nicht bearbeitet|verzögert|دیرتر/);
+    expect(pages.impressum.post).toContain('Post');
+  });
+
+  it('privacy 3.7 describes the contact page: help first, guest confirmation within 24 hours, bot checks', () => {
+    for (const doc of [legalDe.privacy, pages.privacy]) {
+      const s = section(doc, '3.7');
+      expect(s).toContain('Valkey');
+      expect(s).toContain('Turnstile');
+      expect(s).toContain('Zoho Mail');
+      expect(s).toContain(operator.authoritiesEmail);
+    }
+    expect(section(legalDe.privacy, '3.7')).toContain('24 Stunden');
+    expect(section(pages.privacy, '3.7')).toContain('۲۴ ساعت');
+    expect(section(legalDe.privacy, '10.3')).toContain('Art. 12 Abs. 5 DSGVO');
+    expect(section(legalDe.privacy, '4.4')).toContain('18 Jahre');
+  });
+
+  it('both versions carry the date of this version', () => {
+    expect(legalDe.terms.updated).toBe('Stand: 3. November 2026');
+    expect(legalDe.privacy.updated).toBe('Stand: 3. November 2026');
+    expect(pages.terms.updated).toBe('به‌روزرسانی: ۳ نوامبر ۲۰۲۶');
+    expect(pages.privacy.updated).toBe('به‌روزرسانی: ۳ نوامبر ۲۰۲۶');
+  });
+
+  // The texts are our own; they never name the platform we compared ourselves with (owner, Nov 3, 2026)
+  it('no legal text names the marketplace we compared ourselves with', () => {
+    const all = [text(legalDe.terms), text(legalDe.privacy), text(pages.terms), text(pages.privacy), JSON.stringify(pages.impressum)].join('\n');
+    expect(all.toLowerCase()).not.toContain(['klein', 'anzeigen'].join(''));
+  });
+});

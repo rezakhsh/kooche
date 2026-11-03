@@ -14,7 +14,7 @@ const OPERATOR_LINE = `${operator.name}, ${operator.street}, ${operator.postalCo
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 2. November 2026',
+  updated: 'Stand: 3. November 2026',
   draft: false,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Persisch und auf Deutsch vor; beide Fassungen sind verbindlich (Ziffer 13.2).',
@@ -30,12 +30,20 @@ const terms: LegalDoc = {
         'Abweichende Bedingungen von Nutzern gelten nicht, auch wenn wir ihnen nicht ausdrücklich widersprechen.',
       ],
     },
+    {
+      id: '1.3',
+      heading: '1.3 Wechsel des Betreibers',
+      body: [
+        'Wir können Peydoo künftig von einer Gesellschaft betreiben lassen, zum Beispiel einer GmbH oder UG, und diesen Vertrag dann mit allen Rechten und Pflichten auf sie übertragen. Ihre Rechte aus diesem Vertrag bleiben dabei unverändert.',
+        'Eine solche Übertragung kündigen wir Ihnen mindestens vier Wochen vorher per E-Mail an und nennen dabei die Gesellschaft mit Namen und Anschrift. Sind Sie damit nicht einverstanden, können Sie den Vertrag bis zum Tag der Übertragung ohne Frist und ohne Kosten beenden, zum Beispiel indem Sie Ihr Konto löschen (Ziffer 11.1); für bereits bezahlte, noch nicht erbrachte Leistungen erstatten wir Ihnen dann den anteiligen Betrag.',
+      ],
+    },
     { id: '2', heading: '2. Was Peydoo ist', body: [] },
     {
       id: '2.1',
       heading: '2.1 Leistungen',
       body: [
-        'Peydoo ist ein persischsprachiger Online-Marktplatz für Kleinanzeigen und Veranstaltungen. Peydoo steht in den Ländern und Städten zur Verfügung, die auf der Website als geöffnet angezeigt werden; für andere Länder und Städte kann man sich auf eine Warteliste setzen. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen und Geschäftskonten gilt zusätzlich Ziffer 14.',
+        'Peydoo ist ein persischsprachiger Online-Marktplatz für Anzeigen und Veranstaltungen. Peydoo steht in den Ländern und Städten zur Verfügung, die auf der Website als geöffnet angezeigt werden; für andere Länder und Städte kann man sich auf eine Warteliste setzen. Nutzer können Anzeigen und Veranstaltungen veröffentlichen, durchsuchen und merken und über die Nachrichtenfunktion Kontakt aufnehmen. Die Grundfunktionen sind kostenlos. Für kostenpflichtige Zusatzleistungen und Geschäftskonten gilt zusätzlich Ziffer 14.',
         'Welche Länder, Städte, Kategorien und Funktionen wir anbieten, bestimmen wir; wir können sie erweitern, einschränken oder einstellen. Bereits bezahlte Leistungen erbringen wir in diesem Fall zu Ende oder erstatten den nicht genutzten Teil anteilig.',
         'Sind diesen Bedingungen Länderhinweise beigefügt, gelten sie ergänzend für Nutzer mit gewöhnlichem Aufenthalt in dem jeweiligen Land; bei Widersprüchen gehen sie diesen Bedingungen vor.',
       ],
@@ -93,6 +101,14 @@ const terms: LegalDoc = {
         'Sie geben wahrheitsgemäß an, ob Sie privat oder als Unternehmer anbieten: Unternehmer bieten über ein Geschäftskonto an (Ziffer 14.1), private Nutzer über ihr eigenes Konto. Peydoo zeigt anderen Nutzern diese Angabe bei jeder Anzeige an. Unternehmer erfüllen die gesetzlichen Pflichten gegenüber Verbrauchern selbst (zum Beispiel Anbieterkennzeichnung, Widerrufsbelehrung und Preisangaben).',
       ],
     },
+    {
+      id: '3.6',
+      heading: '3.6 Ein Konto je Person',
+      body: [
+        'Jede Person darf nur ein Konto haben. Unternehmensseiten verwalten Sie über dieses eine Konto; dafür brauchen Sie kein zweites.',
+        'Haben wir ein Konto nach Ziffer 7.6 dauerhaft gesperrt oder den Vertrag nach Ziffer 11.2 aus wichtigem Grund gekündigt, darf die betroffene Person kein neues Konto anlegen und kein Konto eines anderen nutzen. Frühestens zwei Jahre nach der Sperre kann sie uns bitten, das zu überprüfen.',
+      ],
+    },
     { id: '4', heading: '4. Anzeigen und Veranstaltungen', body: [] },
     {
       id: '4.1',
@@ -102,7 +118,10 @@ const terms: LegalDoc = {
     {
       id: '4.2',
       heading: '4.2 Richtige Kategorie, ein Angebot je Anzeige',
-      body: ['Wählen Sie die passende Kategorie und das Land, in dem das Angebot besteht. Jede Anzeige beschreibt ein Angebot. Veröffentlichen Sie dasselbe Angebot nicht mehrfach.'],
+      body: [
+        'Wählen Sie die passende Kategorie und das Land, in dem das Angebot besteht. Jede Anzeige beschreibt ein Angebot. Veröffentlichen Sie dasselbe Angebot nicht mehrfach.',
+        'Auch wer eine Anzeige löscht und dasselbe Angebot danach neu einstellt, damit es wieder oben in den Listen erscheint, veröffentlicht es mehrfach. Nach oben bringt eine Anzeige das Hochschieben (Ziffer 14.2).',
+      ],
     },
     {
       id: '4.3',
@@ -137,6 +156,14 @@ const terms: LegalDoc = {
       heading: '4.7 Laufzeit',
       body: [
         'Anzeigen laufen 30 Tage und können in den letzten drei Tagen und nach Ablauf verlängert werden. Veranstaltungen enden nach ihrem letzten Termin. Markieren Sie verkaufte Angebote als verkauft oder löschen Sie sie.',
+      ],
+    },
+    {
+      id: '4.8',
+      heading: '4.8 Passende Suchbegriffe, keine Werbung für andere Plattformen',
+      body: [
+        'Titel und Beschreibung handeln nur von Ihrem Angebot. Begriffe, Marken oder Orte, die damit nichts zu tun haben und nur bei mehr Suchen erscheinen sollen, sind nicht erlaubt.',
+        'Eine Anzeige muss selbst etwas anbieten oder suchen. Anzeigen, die vor allem Besucher auf andere Websites, Kanäle, Gruppen oder Apps lenken sollen, sind nicht erlaubt. Für Veranstaltungen gilt Ziffer 4.6.',
       ],
     },
     { id: '5', heading: '5. Verbotene Waren und Inhalte', body: ['Nicht erlaubt sind Anzeigen, Veranstaltungen und Nachrichten mit folgenden Inhalten:'] },
@@ -199,6 +226,28 @@ const terms: LegalDoc = {
       heading: '5.11 Kurzzeitvermietung ohne Registrierung',
       body: ['Kurzzeitvermietungen von Wohnraum ohne eine Registrierungsnummer oder Genehmigung, die am Ort der Unterkunft vorgeschrieben ist.'],
     },
+    {
+      id: '5.12',
+      heading: '5.12 Tiere',
+      body: [
+        'Tiere, die nach dem am Ort geltenden Recht nicht gehalten, abgegeben oder verkauft werden dürfen, insbesondere:',
+        {
+          list: [
+            'Tiere geschützter Arten ohne die vorgeschriebenen Nachweise und Papiere,',
+            'Hunde- und Katzenwelpen, die jünger als acht Wochen sind,',
+            'Tiere als Gewinn, Preis oder Belohnung (zum Beispiel bei einer Verlosung) und Tiere, die nur verschenkt werden, wenn man etwas anderes kauft oder eine andere Bedingung erfüllt.',
+          ],
+        },
+        'Wer ein Tier anbietet, macht wahre und vollständige Angaben zu Alter, Gesundheit und Impfungen.',
+      ],
+    },
+    {
+      id: '5.13',
+      heading: '5.13 Eintrittskarten',
+      body: [
+        'Gefälschte oder nachgemachte Eintrittskarten, Karten, die Sie nicht selbst besitzen (zum Beispiel solche, die Sie erst noch kaufen wollen), und personalisierte Karten, deren Weitergabe der Veranstalter nicht erlaubt.',
+      ],
+    },
     { id: '6', heading: '6. Nachrichten und Verhalten', body: [] },
     {
       id: '6.1',
@@ -219,12 +268,38 @@ const terms: LegalDoc = {
       heading: '6.3 Blockieren und Melden',
       body: ['Sie können andere Nutzer blockieren und Nachrichten melden. Nachrichten blockierter Nutzer erreichen Sie nicht.'],
     },
+    {
+      id: '6.4',
+      heading: '6.4 Technischer Missbrauch',
+      body: [
+        'Nicht erlaubt ist:',
+        {
+          list: [
+            'Inhalte oder Daten von Peydoo mit Programmen (zum Beispiel Bots, Scrapern oder Crawlern) automatisch abzurufen, zu kopieren oder zu sammeln, wenn wir es nicht vorher in Textform erlaubt haben; Suchmaschinen dürfen Peydoo so erfassen, wie es unsere robots.txt zulässt,',
+            'Telefonnummern, E-Mail-Adressen oder andere Angaben von Nutzern zu sammeln,',
+            'Sperren, Grenzen oder andere Schutzmaßnahmen von Peydoo zu umgehen (zum Beispiel nach den Ziffern 3.6, 6.2, 7.5 und 14.1),',
+            'Peydoo durch übermäßig viele Anfragen zu belasten oder seinen Betrieb auf andere Weise zu stören,',
+            'Schadsoftware, Viren oder andere schädliche Dateien oder Links zu verbreiten,',
+            'Spam zu senden, also unerwünschte Werbung, Kettenbriefe oder gleichlautende Nachrichten an viele Nutzer.',
+          ],
+        },
+      ],
+    },
+    {
+      id: '6.5',
+      heading: '6.5 Daten anderer Nutzer',
+      body: [
+        'Angaben, die Sie über Peydoo von anderen Nutzern erhalten (zum Beispiel Namen, Telefonnummern, Adressen und Nachrichten), verwenden Sie nur für den Kontakt und das Geschäft zu der jeweiligen Anzeige oder Veranstaltung. Soweit das Datenschutzrecht für Sie gilt, sind Sie für diese Daten selbst verantwortlich; das gilt besonders für Geschäftskonten.',
+      ],
+    },
     { id: '7', heading: '7. Moderation', body: [] },
     {
       id: '7.1',
-      heading: '7.1 Automatische Prüfungen',
+      heading: '7.1 Veröffentlichung und Prüfungen',
       body: [
-        'Anzeigen und Veranstaltungen werden sofort veröffentlicht. Nach jeder Veröffentlichung und Änderung prüfen wir sie automatisch, unter anderem auf verbotene Begriffe (Ziffer 5), bereits von anderen Konten verwendete Fotos (Ziffer 4.3) und unzulässige Links (Ziffer 4.6). Eine automatische Prüfung kann eine Anzeige sofort entfernen. Zusätzlich können Inhalte von Menschen geprüft werden.',
+        'Anzeigen und Veranstaltungen erscheinen in der Regel sofort. Gibt es Anzeichen für einen Verstoß oder Missbrauch, zum Beispiel bei einem sehr neuen Konto oder in einer Kategorie, in der häufig betrogen wird, können wir die Veröffentlichung zurückhalten, bis ein Mensch den Inhalt geprüft hat. Wir prüfen dann so schnell wie möglich; lehnen wir ab, begründen wir das (Ziffer 7.3).',
+        'Arten von Waren oder Leistungen, die erfahrungsgemäß oft für Betrug angeboten werden, können wir ganz ausschließen. Wir nehmen sie dann nach Ziffer 12 in Ziffer 5 auf.',
+        'Nach jeder Veröffentlichung und Änderung prüfen wir Anzeigen und Veranstaltungen automatisch, unter anderem auf verbotene Begriffe (Ziffer 5), bereits von anderen Konten verwendete Fotos (Ziffer 4.3) und unzulässige Links (Ziffer 4.6). Eine automatische Prüfung kann eine Anzeige sofort entfernen. Zusätzlich können Inhalte von Menschen geprüft werden.',
       ],
     },
     {
@@ -234,6 +309,7 @@ const terms: LegalDoc = {
         'Bei Verstößen gegen das Recht oder gegen diese Bedingungen – auch wenn ein Inhalt nicht rechtswidrig ist, aber gegen diese Bedingungen verstößt – können wir:',
         {
           list: [
+            'Sie verwarnen, als mildeste Maßnahme,',
             'Anzeigen, Veranstaltungen oder Fotos entfernen oder sperren,',
             'Nachrichten ausblenden oder Gespräche schließen,',
             'das Veröffentlichen oder Senden von Nachrichten einschränken,',
@@ -290,9 +366,11 @@ const terms: LegalDoc = {
     },
     {
       id: '8.2',
-      heading: '8.2 Kontaktstelle',
+      heading: '8.2 Kontaktstellen',
       body: [
-        'Die in Ziffer 1.1 genannte E-Mail-Adresse ist unsere zentrale Kontaktstelle für Behörden der Mitgliedstaaten, die Europäische Kommission und Nutzer (Art. 11 und 12 Digital Services Act). Sie erreichen uns auf Deutsch, Englisch und Persisch.',
+        'Kontaktstelle für Nutzer (Art. 12 Digital Services Act) sind die in Ziffer 1.1 genannte E-Mail-Adresse und das Kontaktformular unter peydoo.com/contact.',
+        `Kontaktstelle für Behörden der Mitgliedstaaten, die Europäische Kommission und das Europäische Gremium für digitale Dienste (Art. 11 Digital Services Act) ist die E-Mail-Adresse ${operator.authoritiesEmail}. Anfragen von Nutzern, die dort eingehen, bearbeiten wir ebenfalls, aber langsamer.`,
+        'Sie erreichen uns auf Deutsch, Englisch und Persisch.',
       ],
     },
     { id: '9', heading: '9. Rechte an Inhalten', body: [] },
@@ -328,7 +406,7 @@ const terms: LegalDoc = {
       id: '10.2',
       heading: '10.2 Inhalte der Nutzer',
       body: [
-        'Inhalte der Nutzer sind fremde Inhalte. Wir machen sie uns nicht zu eigen und prüfen sie nicht vor der Veröffentlichung. Wir haften für sie nur nach den gesetzlichen Vorschriften für Hostingdienste (Art. 6 Digital Services Act); rechtswidrige Inhalte, die uns bekannt werden, entfernen oder sperren wir zügig. Für Verträge zwischen Nutzern gilt Ziffer 2.2.',
+        'Inhalte der Nutzer sind fremde Inhalte. Wir machen sie uns nicht zu eigen und prüfen sie in der Regel nicht vor der Veröffentlichung (Ausnahme: Ziffer 7.1). Wir haften für sie nur nach den gesetzlichen Vorschriften für Hostingdienste (Art. 6 Digital Services Act); rechtswidrige Inhalte, die uns bekannt werden, entfernen oder sperren wir zügig. Für Verträge zwischen Nutzern gilt Ziffer 2.2.',
       ],
     },
     { id: '11', heading: '11. Ende der Nutzung', body: [] },
@@ -343,6 +421,13 @@ const terms: LegalDoc = {
       body: [
         'Wir können den Nutzungsvertrag mit einer Frist von zwei Wochen kündigen, für ein Geschäftskonto mit einer Frist von 30 Tagen; die Kündigung begründen wir per E-Mail. Laufende bezahlte Leistungen erstatten wir dann anteilig.',
         'Das Recht zur fristlosen Kündigung aus wichtigem Grund bleibt unberührt (§ 314 BGB), insbesondere bei schweren Verstößen (Ziffern 5 und 7) und in den Fällen der Ziffer 5.10; Ziffer 7.6 gilt. Auch diese Kündigung begründen wir per E-Mail.',
+      ],
+    },
+    {
+      id: '11.3',
+      heading: '11.3 Konten ohne Nutzung',
+      body: [
+        'Haben Sie sich 24 Monate lang nicht angemeldet und laufen für Ihr Konto keine bezahlten Leistungen, können wir Ihr Konto löschen und den Nutzungsvertrag damit beenden. Das kündigen wir Ihnen mindestens 30 Tage vorher per E-Mail an. Melden Sie sich in dieser Zeit an, bleibt Ihr Konto bestehen.',
       ],
     },
     {
@@ -476,6 +561,21 @@ const terms: LegalDoc = {
         'Peydoo hat Zugang zu allen Daten, die Geschäftskonten und ihre Kunden bei Peydoo angeben oder die bei der Nutzung entstehen. Wir verwenden sie nur, wie in der Datenschutzerklärung beschrieben, und geben sie an Dritte nur in den dort genannten Fällen weiter. Ihre eigenen Daten können Sie unter „Meine Daten und Konto löschen“ („داده‌های من و حذف حساب“) herunterladen.',
       ],
     },
+    {
+      id: '14.9',
+      heading: '14.9 Änderungen an laufenden bezahlten Leistungen',
+      body: [
+        'Eine bezahlte Leistung, die noch läuft (zum Beispiel eine Hervorhebung oder ein Abonnement), ändern wir nur aus einem triftigen Grund, etwa wegen neuer rechtlicher Vorgaben, aus Gründen der Sicherheit oder weil wir Peydoo technisch weiterentwickeln. Die Änderung kostet Sie nichts, und wir informieren Sie klar und verständlich darüber.',
+        'Wird Ihr Zugang zu der Leistung oder ihr Nutzen für Sie dadurch mehr als nur unerheblich schlechter, teilen wir Ihnen Art und Zeitpunkt der Änderung rechtzeitig vorher per E-Mail mit. Sie können den Vertrag dann innerhalb von 30 Tagen nach der Änderung (oder nach unserer Mitteilung, wenn sie später kommt) kostenlos beenden und erhalten den Betrag für den nicht mehr erbrachten Teil anteilig zurück (§ 327r BGB). Das gilt nicht, wenn Sie die Leistung ohne zusätzliche Kosten unverändert weiter nutzen können.',
+      ],
+    },
+    {
+      id: '14.10',
+      heading: '14.10 Leistungen gehören zum Konto',
+      body: [
+        'Gebuchte Leistungen und die in einem Abonnement enthaltenen Hochschiebungen, Hervorhebungen und Mitarbeiterzugänge gehören zu dem Konto oder der Unternehmensseite, für die sie gebucht wurden. Sie können sie weder verkaufen noch auf andere übertragen.',
+      ],
+    },
     { id: '15', heading: '15. Vertragsschluss und Vertragstext', body: [] },
     {
       id: '15.1',
@@ -526,7 +626,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 2. November 2026',
+  updated: 'Stand: 3. November 2026',
   draft: false,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, auf welcher Rechtsgrundlage, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; beide Fassungen haben denselben Inhalt.',
@@ -571,7 +671,7 @@ const privacy: LegalDoc = {
       id: '3.2',
       heading: '3.2 Schutz vor Missbrauch',
       body: [
-        'Um massenhafte Anfragen zu verhindern, zählen wir Anfragen je IP-Adresse, je Konto und bei der Anmeldung je E-Mail-Adresse. Diese Zähler werden nach höchstens einem Tag automatisch gelöscht (Art. 6 Abs. 1 lit. f DSGVO).',
+        'Um massenhafte Anfragen zu verhindern, zählen wir Anfragen je IP-Adresse, je Konto und bei der Anmeldung und beim Kontaktformular je E-Mail-Adresse; beim Kontaktformular ohne Anmeldung zählen wir außerdem alle Nachrichten einer Stunde zusammen. Diese Zähler werden nach höchstens einem Tag automatisch gelöscht (Art. 6 Abs. 1 lit. f DSGVO).',
         'Bei der Anmeldung, beim Veröffentlichen von Anzeigen und Veranstaltungen, beim Eintrag in eine Warteliste und beim Kontaktformular ohne Anmeldung prüft Cloudflare Turnstile (Ziffer 8), ob ein Mensch die Anfrage stellt. Dazu lädt Ihr Browser ein Programm von Cloudflare (challenges.cloudflare.com), das Ihre IP-Adresse und technische Merkmale von Browser und Gerät (zum Beispiel Browsertyp, Einstellungen und das Verhalten beim Laden der Seite) auswertet; wir erhalten nur das Ergebnis. Rechtsgrundlage ist unser berechtigtes Interesse, Konten und Nutzer vor automatisierten Angriffen und Spam zu schützen (Art. 6 Abs. 1 lit. f DSGVO). Der dafür nötige Zugriff auf Ihr Gerät ist für den von Ihnen gewünschten Dienst unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).',
       ],
     },
@@ -622,9 +722,21 @@ const privacy: LegalDoc = {
       id: '3.7',
       heading: '3.7 Kontaktformular und E-Mails an uns',
       body: [
-        'Wenn Sie uns über das Kontaktformular (peydoo.com/contact) schreiben, verarbeiten wir das gewählte Thema, Ihren Namen, Ihre E-Mail-Adresse und Ihre Nachricht sowie, wenn Sie angemeldet sind, einen Link zu Ihrem Konto, sonst Ihre IP-Adresse (zum Schutz vor Missbrauch). Daraus senden wir über Amazon SES (Ziffer 8) eine E-Mail an unsere Kontaktadresse und Ihnen eine Eingangsbestätigung, die Ihre Nachricht nicht wiederholt. Auf den Servern von Peydoo speichern wir davon nichts außer den Zählern gegen massenhafte Anfragen (Ziffer 3.2).',
-        'E-Mails an unsere Kontaktadresse, auch die aus dem Kontaktformular, landen in unserem Postfach bei Zoho Mail (Rechenzentren in der EU), wo wir sie lesen und beantworten (Ziffer 8).',
-        'Zweck ist die Bearbeitung Ihres Anliegens. Rechtsgrundlagen: Art. 6 Abs. 1 lit. b DSGVO, wenn es um Ihren Vertrag mit uns oder dessen Abschluss geht; lit. c bei Meldungen und Anfragen nach dem Digital Services Act und bei Anträgen nach der DSGVO; sonst lit. f (unser berechtigtes Interesse, Anfragen zu beantworten). Wir löschen die E-Mails, wenn Ihr Anliegen erledigt ist, es sei denn, eine gesetzliche Aufbewahrungspflicht oder ein laufender Rechtsstreit erfordert, sie länger aufzubewahren.',
+        'Die Kontaktseite (peydoo.com/contact) fragt zuerst, worum es geht. Zu dem gewählten Thema zeigt sie passende Antworten aus unserer Hilfe; erst wenn diese nicht weiterhelfen, öffnet sich das Formular. Wer welches Thema nutzen kann und was danach geschieht:',
+        {
+          list: [
+            '„Ich kann mich nicht anmelden“: ohne Anmeldung. Sie erhalten keine Eingangsbestätigung per E-Mail, nur einen Hinweis auf dem Bildschirm.',
+            'Anzeigen, Nachrichten und Unternehmensseiten; Zahlungen, Rechnungen und Pro; Widerspruch gegen eine Entscheidung: nur angemeldet. Ihrer Nachricht fügen wir einen Link zu Ihrem Konto bei.',
+            'Rechtswidrige Inhalte melden: auch ohne Anmeldung. Nötig sind ein Link zu dem Inhalt auf Peydoo und Ihre Bestätigung (Häkchen), dass Ihre Angaben richtig und vollständig sind. Sie erhalten eine Eingangsbestätigung per E-Mail (Art. 16 Abs. 4 Digital Services Act), die Ihre Nachricht nicht wiederholt.',
+            'Behörden: auch ohne Anmeldung; keine Eingangsbestätigung.',
+            'Datenschutz und Sonstiges: auch ohne Anmeldung. Ohne Anmeldung halten wir Ihre Nachricht bis zu 24 Stunden auf unserem Server (im Zwischenspeicher Valkey) und senden Ihnen eine E-Mail mit einem Bestätigungslink. Erst wenn Sie den Link anklicken, geht die Nachricht an uns; bestätigen Sie nicht, wird sie nach 24 Stunden gelöscht. Angemeldet geht die Nachricht sofort an uns.',
+          ],
+        },
+        'Wir verarbeiten dabei das Thema, Ihren Namen und Ihre E-Mail-Adresse, Ihre Nachricht und die Angaben, die das Thema verlangt (zum Beispiel einen Link), sowie, wenn Sie angemeldet sind, einen Link zu Ihrem Konto, sonst Ihre IP-Adresse (zum Schutz vor Missbrauch).',
+        'Schutz vor automatisierten Nachrichten (nur ohne Anmeldung): Cloudflare Turnstile (Ziffer 3.2), ein für Menschen unsichtbares Feld, das nur Programme ausfüllen, und eine Mindestzeit für das Ausfüllen des Formulars. Feld und Mindestzeit speichern nichts; von Turnstile erhalten wir nur das Ergebnis. Eine Nachricht darf höchstens zwei Links enthalten. Außerdem begrenzen wir die Zahl der Nachrichten je IP-Adresse, je E-Mail-Adresse und insgesamt je Stunde; dafür speichern wir nur Zähler, die von selbst ablaufen (Ziffer 3.2).',
+        'Die Nachricht senden wir über Amazon SES (Ziffer 8) an unser Postfach bei Zoho Mail; der Betreff enthält ein Kürzel für das Thema, damit wir sie richtig zuordnen können. Sind Sie angemeldet, erhalten Sie eine Eingangsbestätigung an die E-Mail-Adresse Ihres Kontos. Außer einer noch nicht bestätigten Nachricht (höchstens 24 Stunden) und den Zählern speichern wir auf den Servern von Peydoo nichts davon.',
+        `E-Mails an unsere Adressen (${operator.email} und ${operator.authoritiesEmail}), auch die aus dem Kontaktformular, landen in unserem Postfach bei Zoho Mail (Rechenzentren in der EU), wo wir sie lesen und beantworten (Ziffer 8).`,
+        'Zweck ist die Bearbeitung Ihres Anliegens. Rechtsgrundlagen: Art. 6 Abs. 1 lit. b DSGVO, wenn es um Ihren Vertrag mit uns oder dessen Abschluss geht; lit. c bei Meldungen und Anfragen nach dem Digital Services Act und bei Anträgen nach der DSGVO; sonst lit. f (unser berechtigtes Interesse, Anfragen zu beantworten). Bestätigungslink, Zähler und die anderen Schutzmaßnahmen beruhen auf unserem berechtigten Interesse, Spam und Missbrauch abzuwehren (lit. f). Wir löschen die E-Mails, wenn Ihr Anliegen erledigt ist, es sei denn, eine gesetzliche Aufbewahrungspflicht oder ein laufender Rechtsstreit erfordert, sie länger aufzubewahren.',
       ],
     },
     { id: '4', heading: '4. Ihr Konto', body: [] },
@@ -649,6 +761,13 @@ const privacy: LegalDoc = {
       id: '4.3',
       heading: '4.3 Weitere Angaben',
       body: ['Freiwillig: Ihr Anzeigename, ein gespeicherter Ort (Postleitzahl, Stadt, Stadtteil) für neue Anzeigen und Ihre Einstellungen für Benachrichtigungen.'],
+    },
+    {
+      id: '4.4',
+      heading: '4.4 Nur für Erwachsene',
+      body: [
+        'Peydoo richtet sich an Erwachsene; ein Konto darf nur anlegen, wer mindestens 18 Jahre alt ist (Nutzungsbedingungen Ziffer 3.1). Erfahren wir, dass ein Konto einer jüngeren Person gehört, schließen wir es und löschen ihre Daten, soweit wir sie nicht aus gesetzlichen Gründen aufbewahren müssen (Ziffer 9).',
+      ],
     },
     { id: '5', heading: '5. Anzeigen und Veranstaltungen', body: [] },
     {
@@ -706,6 +825,13 @@ const privacy: LegalDoc = {
       ],
     },
     {
+      id: '6.1',
+      heading: '6.1 Daten, die Sie von anderen Nutzern erhalten',
+      body: [
+        'Erfahren Sie über Peydoo Daten anderer Nutzer, zum Beispiel aus Nachrichten oder durch eine angezeigte Telefonnummer, sind Sie für deren weitere Verwendung selbst verantwortlich, soweit das Datenschutzrecht für Sie gilt. Verwenden Sie diese Daten nur für den Kontakt zu der jeweiligen Anzeige oder Veranstaltung (Nutzungsbedingungen Ziffer 6.5).',
+      ],
+    },
+    {
       id: '7',
       heading: '7. Moderation und Sicherheit',
       body: [
@@ -744,8 +870,8 @@ const privacy: LegalDoc = {
             'Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland: Server (Rechenzentrum Nürnberg, Deutschland) und verschlüsselte Sicherungskopien (Falkenstein, Deutschland).',
             'Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA: Schutz vor Angriffen, die Prüfung gegen automatisierte Zugriffe (Turnstile, Ziffer 3.2), Zwischenspeicher, DNS, Ermittlung des Landes einer Anfrage (Ziffer 3.1) und Speicherung der Fotos (R2, EU-Rechtsraum). Ein Zugriff aus den USA ist nicht auszuschließen; Cloudflare ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
             'OpenStreetMap Foundation, St John’s Innovation Centre, Cowley Road, Cambridge, CB4 0WS, Vereinigtes Königreich: Suche der Kartenposition zu einer Geschäfts- oder Veranstaltungsadresse (Nominatim), einmal beim Speichern; übermittelt wird nur die Adresse. Für das Vereinigte Königreich gilt ein Angemessenheitsbeschluss der EU-Kommission.',
-            'Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg: Versand von E-Mails (Amazon SES, Region Frankfurt), auch der Nachrichten aus dem Kontaktformular (Ziffer 3.7). Für einen möglichen Zugriff aus den USA gelten das EU-U.S. Data Privacy Framework und Standardvertragsklauseln.',
-            'Zoho Corporation B.V., Beneluxlaan 4B, 3527 HT Utrecht, Niederlande: unser E-Mail-Postfach (Zoho Mail, Rechenzentren in der EU) für E-Mails an unsere Kontaktadresse, Nachrichten aus dem Kontaktformular und unsere Antworten. Ein Zugriff durch Zoho Corporation Pvt. Ltd. (Indien) als Unterauftragsverarbeiter, etwa für Betrieb und Support, ist nicht auszuschließen; dafür gelten Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO).',
+            'Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg: Versand von E-Mails (Amazon SES, Region Frankfurt), auch der Nachrichten aus dem Kontaktformular und der Bestätigungslinks dafür (Ziffer 3.7). Für einen möglichen Zugriff aus den USA gelten das EU-U.S. Data Privacy Framework und Standardvertragsklauseln.',
+            'Zoho Corporation B.V., Beneluxlaan 4B, 3527 HT Utrecht, Niederlande: unser E-Mail-Postfach (Zoho Mail, Rechenzentren in der EU) für E-Mails an unsere Adressen (Ziffer 3.7), Nachrichten aus dem Kontaktformular und unsere Antworten. Ein Zugriff durch Zoho Corporation Pvt. Ltd. (Indien) als Unterauftragsverarbeiter, etwa für Betrieb und Support, ist nicht auszuschließen; dafür gelten Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO).',
             'Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland: Abwicklung von Zahlungen, Rechnungen und Kundenportal für Abonnements. Stripe erhebt die Zahlungsdaten (etwa Kartennummer oder IBAN) selbst; wir erhalten Name, E-Mail-Adresse, das Land der Rechnungsadresse (bei Abonnements die Rechnungsadresse), Betrag und Zahlungsstatus, nie Karten- oder Kontonummern. Stripe verarbeitet Daten auch in den USA (Stripe, Inc.; EU-U.S. Data Privacy Framework und Standardvertragsklauseln) und ist für die Betrugsprävention und eigene gesetzliche Pflichten selbst verantwortlich. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. c (Aufbewahrungspflichten).',
             'Functional Software, Inc. (Sentry), 45 Fremont Street, 8th Floor, San Francisco, CA 94105, USA: Fehlerberichte (Ziffer 3.1), gespeichert in der EU-Region (Frankfurt am Main, Deutschland). Ein Zugriff aus den USA ist nicht auszuschließen; Sentry ist nach dem EU-U.S. Data Privacy Framework zertifiziert, zusätzlich gelten Standardvertragsklauseln.',
             'n8n: Software für Benachrichtigungen, die wir selbst auf einem eigenen Server bei Hetzner in Helsinki betreiben. Sie erhält keine Kontodaten; Serverwarnungen und Hinweise auf neue Meldungen (nur Anzahlen, ohne Namen oder Inhalte) sendet sie an den Telegram-Zugang des Betreibers.',
@@ -762,7 +888,7 @@ const privacy: LegalDoc = {
       body: [
         {
           list: [
-            'Konto: bis Sie es löschen. Danach bleibt nur ein leerer Eintrag ohne persönliche Angaben, damit Verweise gültig bleiben.',
+            'Konto: bis Sie es löschen. Haben Sie sich 24 Monate lang nicht angemeldet und laufen keine bezahlten Leistungen, können wir es nach einer Ankündigung per E-Mail mindestens 30 Tage vorher ebenfalls löschen (Nutzungsbedingungen Ziffer 11.3). Danach bleibt nur ein leerer Eintrag ohne persönliche Angaben, damit Verweise gültig bleiben.',
             'Woher Sie bei der Anmeldung kamen und Ihre Antwort auf „Wie haben Sie von Peydoo erfahren?“: mit dem Konto; beim Löschen des Kontos entfernt.',
             'Abgelaufene Sitzungen: 30 Tage nach Ablauf.',
             'Anmeldecodes: höchstens einen Tag nach Ablauf.',
@@ -773,7 +899,7 @@ const privacy: LegalDoc = {
             'Unterhaltungen zu einer gelöschten Anzeige: mit der Anzeige, 12 Monate nach ihrer Löschung.',
             'E-Mail-Adressen auf der Warteliste einer Stadt und die Belohnung für frühe Anmeldungen: unbestätigt 30 Tage; bestätigt bis 90 Tage nach der Eröffnung der Stadt oder bis Sie sich austragen.',
             'Hashwerte und Tagesschlüssel der Besucherzählung: drei Tage; die Tagessummen enthalten keine personenbezogenen Daten.',
-            'Kontaktformular und E-Mails an uns: bis Ihr Anliegen erledigt ist (Ziffer 3.7).',
+            'Kontaktformular und E-Mails an uns: bis Ihr Anliegen erledigt ist; eine Nachricht ohne Anmeldung, die Sie nicht bestätigen: 24 Stunden (Ziffer 3.7).',
             'Meldungen und Moderationsentscheidungen: zwei Jahre nach der Entscheidung.',
             'Sicherheitsprotokoll: zwei Jahre; IP-Adressen und Browserangaben darin 90 Tage.',
             'Bestellungen, Zahlungen und Abonnements als Aufzeichnungen der Buchführung: zehn Jahre; Rechnungen und andere Buchungsbelege: acht Jahre (§ 147 AO, § 14b UStG), jeweils ab dem Ende des Kalenderjahres und auch nach Löschung des Kontos.',
@@ -809,6 +935,14 @@ const privacy: LegalDoc = {
       ],
     },
     {
+      id: '10.3',
+      heading: '10.3 Wie wir Anträge bearbeiten',
+      body: [
+        'Anträge nach dieser Ziffer 10 bearbeiten wir kostenlos. Ist ein Antrag offenkundig unbegründet oder, etwa weil er immer wieder gestellt wird, exzessiv, können wir ein angemessenes Entgelt verlangen oder ihn ablehnen (Art. 12 Abs. 5 DSGVO).',
+        'Haben wir begründete Zweifel, ob ein Antrag wirklich von Ihnen kommt, können wir zusätzliche Angaben verlangen, um Ihre Identität zu bestätigen (Art. 12 Abs. 6 DSGVO). Auskünfte und Daten zu einem Konto geben wir deshalb nur an die E-Mail-Adresse dieses Kontos oder nach der Anmeldung heraus.',
+      ],
+    },
+    {
       id: '11',
       heading: '11. Pflicht zur Angabe',
       body: ['Ohne E-Mail-Adresse können Sie kein Konto anlegen, ohne bestätigte Telefonnummer nichts veröffentlichen und keine Nachrichten senden (aus dem Iran sind Nachrichten auch mit einem reinen E-Mail-Konto möglich). Zum Stöbern brauchen Sie kein Konto.'],
@@ -816,7 +950,10 @@ const privacy: LegalDoc = {
     {
       id: '12',
       heading: '12. Änderungen',
-      body: ['Wenn wir neue Dienste einsetzen oder Funktionen ändern, passen wir diese Erklärung an. Über wesentliche Änderungen informieren wir angemeldete Nutzer per E-Mail.'],
+      body: [
+        'Wenn wir neue Dienste einsetzen oder Funktionen ändern, passen wir diese Erklärung an. Über wesentliche Änderungen informieren wir angemeldete Nutzer per E-Mail.',
+        'Übernimmt eine Gesellschaft den Betrieb von Peydoo (Nutzungsbedingungen Ziffer 1.3), wird sie Verantwortliche für Ihre Daten. Wir nennen sie Ihnen in der Ankündigung vorher.',
+      ],
     },
   ],
 };
