@@ -106,26 +106,41 @@ export async function queueAge(db: Queryable): Promise<{ count: number; oldest: 
 
 /**
  * New listings from accounts under 7 days, or posted with a number from another zone than the
- * listing's (wave 2 part 5, ../listings/zones.ts), out in the last 48 hours, not yet looked at by staff
+ * listing's (wave 2 part 5, ../listings/zones.ts), out in the last 48 hours, not yet looked at by
+ * staff; oldest first (they leave the list first). With the seller's history as on the item page
+ * (personHistory in ./items.ts) and the latest decision on the listing (Nov 3, 2026).
  */
-export async function freshListings(db: Queryable, limit = 60) {
+export async function freshListings(db: Queryable, limit = 2_000) {
   const otherZone = sql`(l.number_country IS NOT NULL AND ${zoneSql(sql`l.number_country`)} <> ${zoneSql(sql`l.country_code`)})`;
   return db.execute<{
     id: string; title: string; description: string | null; token: string; ref_number: string; category_id: string | null; price_type: string | null; price_minor: number | null; currency: string | null;
     country_code: string | null; location_id: string | null; district: string | null; place_name: string | null; city: string | null; published_at: string | Date;
-    seller_id: string; seller: string; seller_since: string | Date; seller_others: number; same_text: number; images: string[]; is_event: boolean; other_zone: string | null;
+    seller_id: string; seller: string; seller_since: string | Date; phone_verified: boolean; seller_others: number; same_text: number; images: string[]; is_event: boolean; other_zone: string | null;
+    decisions_against: number; reports_against: number; sanction_type: string | null; sanction_ends: string | Date | null;
+    listing_decisions: number; last_decision: string | null; last_decided_by: string | null;
   }>(sql`
     SELECT l.id, l.title, l.description, l.public_token AS token, l.ref_number, l.category_id, l.price_type, l.price_minor, l.currency,
       l.country_code, l.location_id, l.district, l.place_name, loc.name_fa AS city, l.published_at, u.id AS seller_id, u.display_name AS seller, u.created_at AS seller_since,
+      u.phone_verified_at IS NOT NULL AS phone_verified,
       (SELECT count(*)::int FROM listings o WHERE o.user_id = l.user_id AND o.id <> l.id AND o.status <> 'deleted') AS seller_others,
       (SELECT count(*)::int FROM listings o WHERE o.user_id = l.user_id AND o.id <> l.id AND o.status <> 'deleted' AND length(l.description) >= 40 AND o.description = l.description) AS same_text,
       COALESCE((SELECT array_agg(i.storage_key ORDER BY i.position) FROM listing_images i WHERE i.listing_id = l.id AND i.status = 'ready'), '{}') AS images,
       EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id) AS is_event,
-      CASE WHEN ${otherZone} THEN l.number_country END AS other_zone
+      CASE WHEN ${otherZone} THEN l.number_country END AS other_zone,
+      (SELECT count(*)::int FROM reports r LEFT JOIN listings rl ON rl.id = r.listing_id LEFT JOIN messages m ON m.id = r.message_id
+        WHERE r.reported_user_id = u.id OR rl.user_id = u.id OR m.sender_user_id = u.id) AS reports_against,
+      (SELECT count(*)::int FROM moderation_decisions d LEFT JOIN listings dl ON dl.id = d.listing_id LEFT JOIN messages m ON m.id = d.message_id
+        WHERE d.decision IN ('reject', 'remove', 'hide', 'warn', 'sanction') AND (d.user_id = u.id OR dl.user_id = u.id OR m.sender_user_id = u.id)) AS decisions_against,
+      s.type AS sanction_type, s.ends_at AS sanction_ends,
+      (SELECT count(*)::int FROM moderation_decisions d WHERE d.listing_id = l.id) AS listing_decisions,
+      ld.decision AS last_decision, ld.decided_by AS last_decided_by
     FROM listings l JOIN users u ON u.id = l.user_id LEFT JOIN locations loc ON loc.id = l.location_id
+      LEFT JOIN LATERAL (SELECT s.type, s.ends_at FROM user_sanctions s WHERE s.user_id = u.id AND s.revoked_at IS NULL AND s.starts_at <= now() AND (s.ends_at IS NULL OR s.ends_at > now())
+        ORDER BY s.starts_at DESC LIMIT 1) s ON true
+      LEFT JOIN LATERAL (SELECT d.decision, d.decided_by FROM moderation_decisions d WHERE d.listing_id = l.id ORDER BY d.created_at DESC LIMIT 1) ld ON true
     WHERE l.status = 'active' AND l.published_at > now() - interval '48 hours' AND (u.created_at > now() - interval '7 days' OR ${otherZone})
       AND NOT EXISTS (SELECT 1 FROM moderation_decisions d WHERE d.listing_id = l.id AND d.decided_by = 'staff' AND d.listing_revision = l.revision)
-    ORDER BY l.published_at DESC
+    ORDER BY l.published_at, l.id
     LIMIT ${limit}
   `);
 }

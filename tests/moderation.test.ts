@@ -330,6 +330,25 @@ describe('messages, businesses, no violation', () => {
     expect((await db.select().from(listings).where(eq(listings.id, l.id)))[0]!.status).not.toBe('active');
     expect((await freshListings(appDb, 1_000)).some((x) => x.id === l.id)).toBe(false);
   });
+
+  it('the review of new listings: oldest first, with the seller\'s history and the latest decision on the listing', async () => {
+    const mod = await staffMember();
+    const fresh = await user({ createdAt: new Date() });
+    const older = await makeListing(tx, fresh.id, { publishedAt: new Date(Date.now() - 3 * 3_600_000) });
+    const newer = await makeListing(tx, fresh.id, { publishedAt: new Date(Date.now() - 3_600_000) });
+    let rows = await freshListings(appDb, 2_000);
+    expect(rows.findIndex((r) => r.id === older.id)).toBeLessThan(rows.findIndex((r) => r.id === newer.id));
+    const before = rows.find((r) => r.id === newer.id)!;
+    expect(before).toMatchObject({ decisions_against: 0, reports_against: 0, sanction_type: null, listing_decisions: 0, last_decision: null });
+
+    // A take-down of the older one counts against the person on the newer one's card
+    const r = await takeDownListing(appDb, mod, older.id, { reason: 'spam', section: '6.1', legalGround: null, facts: 'همین متن چند بار فرستاده شده است.' }, { timeZone: TZ });
+    if (!r.ok) throw new Error(r.reason);
+    await db.insert(userSanctions).values({ userId: fresh.id, type: 'posting_restricted', moderationDecisionId: r.decisionId, endsAt: new Date(Date.now() + 7 * 86_400_000) } as never);
+    rows = await freshListings(appDb, 2_000);
+    expect(rows.some((x) => x.id === older.id)).toBe(false);
+    expect(rows.find((x) => x.id === newer.id)).toMatchObject({ decisions_against: 1, sanction_type: 'posting_restricted' });
+  });
 });
 
 describe('what people are told', () => {
