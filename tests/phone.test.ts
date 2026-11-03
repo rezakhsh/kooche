@@ -223,6 +223,7 @@ describe('Telegram verification', () => {
     expect(await attemptStatus(appDb, userId, verificationId)).toEqual({
       status: 'failed',
       failureReason: 'country_not_allowed',
+      iran: true,
     });
   });
 

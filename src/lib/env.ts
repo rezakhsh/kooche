@@ -95,6 +95,17 @@ const webSchema = z.object({
   // BotFather (src/modules/users/telegram-oidc.ts). Set together; unset, the bot is the only path.
   TELEGRAM_OIDC_CLIENT_ID: optional(z.string().regex(/^[0-9A-Za-z_-]{3,64}$/)),
   TELEGRAM_OIDC_CLIENT_SECRET: optional(z.string().min(16)),
+  // Phone verification with WhatsApp (src/modules/users/whatsapp.ts): the user sends a code to our
+  // WhatsApp Business number, Meta calls /api/whatsapp/webhook, we reply for free inside the 24-hour
+  // window. Meta app «Peydoo Verify»; the values are in /root/.secrets/whatsapp.env. The number is
+  // digits only (for wa.me links); the token belongs to the system user. Set together; unset, the
+  // button is hidden. Only one environment gets Meta's webhook at a time (docs/setup.md, "WhatsApp").
+  WHATSAPP_BUSINESS_NUMBER: optional(z.string().regex(/^[1-9][0-9]{6,14}$/, 'digits only, with the country code')),
+  WHATSAPP_PHONE_NUMBER_ID: optional(z.string().regex(/^[0-9]{5,30}$/)),
+  WHATSAPP_TOKEN: optional(z.string().min(20)),
+  WHATSAPP_APP_SECRET: optional(z.string().regex(/^[0-9a-f]{32}$/)),
+  WHATSAPP_VERIFY_TOKEN: optional(z.string().min(16)),
+  WHATSAPP_GRAPH_VERSION: z.string().regex(/^v[0-9]{2}\.[0-9]$/).default('v23.0'),
   // HMAC key for SMS codes stored in phone_verifications.code_hash. 32+ random characters.
   PHONE_CODE_SECRET: z.string().min(32),
   // `log` writes SMS codes to the log (development and staging). Real providers come later.
@@ -157,6 +168,10 @@ const webSchema = z.object({
     message: 'TELEGRAM_OIDC_CLIENT_ID and TELEGRAM_OIDC_CLIENT_SECRET are set together',
     path: ['TELEGRAM_OIDC_CLIENT_SECRET'],
   })
+  .refine(
+    (e) => new Set([e.WHATSAPP_BUSINESS_NUMBER, e.WHATSAPP_PHONE_NUMBER_ID, e.WHATSAPP_TOKEN, e.WHATSAPP_APP_SECRET, e.WHATSAPP_VERIFY_TOKEN].map((v) => !v)).size === 1,
+    { message: 'WHATSAPP_BUSINESS_NUMBER, _PHONE_NUMBER_ID, _TOKEN, _APP_SECRET and _VERIFY_TOKEN are set together', path: ['WHATSAPP_TOKEN'] },
+  )
   .refine((e) => e.NODE_ENV !== 'production' || (e.SMTP_URL && e.EMAIL_FROM), {
     message: 'SMTP_URL and EMAIL_FROM are required in production',
     path: ['SMTP_URL'],

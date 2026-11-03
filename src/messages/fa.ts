@@ -2123,6 +2123,7 @@ export const messages = {
     verified: (phone: string, method: string) => `شماره ${phone} با ${method} تأیید شده است.`,
     methodTelegram: 'تلگرام',
     methodSms: 'پیامک',
+    methodWhatsapp: 'واتس‌اپ',
     // "Log in with Telegram" (src/modules/users/telegram-oidc.ts), the main way since wave 0
     reasonTitle: 'برای جلوگیری از کلاهبرداری',
     reasonBody: 'فقط یک بار، پیش از اولین آگهی یا پیام. شماره‌تان به هیچ‌کس نشان داده نمی‌شود.',
@@ -2132,6 +2133,53 @@ export const messages = {
     verifiedBy: (method: string) => `تأیید شده با ${method}`,
     noneOfThem: 'تلگرام ندارم',
     noTelegramYet: 'فعلاً شماره فقط با تلگرام تأیید می‌شود؛ تأیید با پیامک به‌زودی می‌آید.',
+    // With WhatsApp on (mockup after-wave2/whatsapp-verify, Nov 3, 2026)
+    noneOfBoth: 'هیچ‌کدام را ندارم',
+    noMessengerYet: 'فعلاً شماره با تلگرام یا واتس‌اپ تأیید می‌شود؛ تأیید با پیامک به‌زودی می‌آید.',
+    iranTipBothTitle: 'تلگرام یا واتس‌اپ‌تان روی شمارهٔ ایران است؟',
+    iranTipBothBody: `شماره‌های ایران (${ltr('+98')}) پذیرفته نمی‌شوند. در تلگرام «افزودن حساب» یا در واتس‌اپ «حساب دوم» با شمارهٔ کشوری که در آن زندگی می‌کنید بسازید.`,
+    // Phone verification with WhatsApp (src/modules/users/whatsapp.ts): the user sends us a ready message
+    whatsapp: {
+      or: 'یا',
+      button: 'تأیید با واتس‌اپ',
+      hint: 'واتس‌اپ با یک پیام آماده باز می‌شود؛ فقط «فرستادن» را بزنید. لازم نیست شماره را تایپ کنید.',
+      title: 'تأیید با واتس‌اپ',
+      steps: ['واتس‌اپ باز می‌شود و پیام آماده است.', 'بدون تغییر، «فرستادن» را بزنید.', 'به همین صفحه برگردید؛ خودش تأیید می‌شود.'],
+      open: 'باز کردن واتس‌اپ',
+      openHere: 'واتس‌اپ روی همین کامپیوتر است؟ باز کنید',
+      scanIntro: 'با دوربین گوشی این کد را اسکن کنید. واتس‌اپ گوشی با پیام آماده باز می‌شود؛ «فرستادن» را بزنید.',
+      scan: 'اسکن با گوشی',
+      scanHint: 'صفحه را باز بگذارید؛ بعد از فرستادن پیام خودش تأیید می‌شود.',
+      qrLabel: 'کد QR برای باز کردن واتس‌اپ با پیام آماده',
+      preview: 'پیامی که می‌فرستید:',
+      waiting: 'منتظر پیام شما…',
+      expires: 'این کد تا ۱۵ دقیقه کار می‌کند.',
+      cancel: 'انصراف و برگشت',
+      // The ready message; the code is found even if the rest is changed
+      prefill: (code: string) => `سلام پیدو! کد تأیید شماره‌ام: ${code}`,
+      doneTitle: 'شماره‌تان تأیید شد',
+      doneBody: 'حالا می‌توانید آگهی بگذارید و پیام بفرستید.',
+      continue: 'ادامهٔ ثبت آگهی',
+      expired: 'کد منقضی شد. دوباره «تأیید با واتس‌اپ» را بزنید.',
+      unavailable: 'تأیید با واتس‌اپ فعلاً ممکن نیست. لطفاً با تلگرام تأیید کنید.',
+      failed: {
+        country_not_allowed: 'شماره‌های این کشور هنوز در پیدو پذیرفته نمی‌شوند. از واتس‌اپی که روی شمارهٔ کشور محل زندگی‌تان است دوباره امتحان کنید.',
+        no_country: 'این شماره پذیرفته نمی‌شود. از واتس‌اپی که روی شمارهٔ موبایل خودتان است دوباره امتحان کنید.',
+        phone_in_use: 'این شماره به حساب دیگری وصل است. اگر شماره مال شماست، با پشتیبانی تماس بگیرید.',
+      } as Record<string, string>,
+      // A +98 number sent on WhatsApp (mockup after-wave2/whatsapp-verify, screen 5)
+      iranScreen: {
+        title: 'شمارهٔ ایران پذیرفته نمی‌شود',
+        sent: 'شماره‌ای که از واتس‌اپ فرستادید',
+        heading: 'شمارهٔ ایران را نمی‌پذیریم',
+        body: 'پیدو برای ایرانیانِ خارج از ایران است و هر حساب باید شمارهٔ کشوری را داشته باشد که در آن زندگی می‌کند. شماره ذخیره نشد.',
+        whatTitle: 'چه کار کنید؟',
+        rows: [
+          { title: 'واتس‌اپ دوم با شمارهٔ محل زندگی', body: 'واتس‌اپ اجازهٔ دو حساب روی یک گوشی را می‌دهد.', href: '/account/phone' },
+          { title: 'تأیید با تلگرام', body: 'اگر تلگرام‌تان روی شمارهٔ محل زندگی است.', href: '/account/phone' },
+        ],
+      },
+    },
     iranScreen: {
       title: 'تأیید شماره',
       sent: 'شماره‌ای که در تلگرام فرستادید',
@@ -2239,6 +2287,18 @@ export const messages = {
     phoneInUse: 'این شماره به حساب دیگری در سایت وصل است. اگر شماره مال شماست، با پشتیبانی تماس بگیرید.',
     telegramInUse: 'این حساب تلگرام به حساب دیگری در سایت وصل است.',
     help: 'این ربات فقط برای تأیید شماره تلفن است. در سایت به «تأیید شماره تلفن» بروید.',
+  },
+  // Our answers on WhatsApp (src/modules/users/whatsapp.ts): short, free inside the 24-hour window.
+  // Never say "sanctions" (owner's rule, round 12)
+  whatsappReplies: {
+    verified: (account: string) => `✅ تأیید شد! این شماره به حساب ${account} در پیدو وصل شد. حالا به سایت برگردید.`,
+    unknownCode: 'این کد منقضی شده یا قبلاً استفاده شده است. در سایت دوباره «تأیید با واتس‌اپ» را بزنید و پیام تازه را بفرستید.',
+    iranNumber: `پیدو شماره‌های ایران (${ltr('+98')}) را نمی‌پذیرد. با واتس‌اپی که روی شمارهٔ کشور محل زندگی‌تان است دوباره امتحان کنید.`,
+    countryNotAllowed: 'شماره‌های این کشور هنوز در پیدو پذیرفته نمی‌شوند. اگر شمارهٔ کشوری را دارید که در آن زندگی می‌کنید، از واتس‌اپی که روی آن شماره است دوباره امتحان کنید.',
+    noCountry: 'این شماره پذیرفته نمی‌شود. از واتس‌اپی که روی شمارهٔ موبایل خودتان است دوباره امتحان کنید.',
+    invalidNumber: 'این شماره قابل قبول نیست.',
+    phoneInUse: 'این شماره به حساب دیگری در پیدو وصل است. اگر شماره مال شماست، از صفحهٔ تماس سایت به پشتیبانی بنویسید.',
+    help: 'این شماره فقط برای تأیید شماره تلفن در پیدو است و پیام‌های دیگر را نمی‌خوانیم. در سایت به «تأیید شماره تلفن» بروید و «تأیید با واتس‌اپ» را بزنید.',
   },
   email: {
     // Before the terms of use or the privacy policy change (src/modules/legal/notices.ts; terms 12)
@@ -4749,7 +4809,7 @@ export const admin = {
       reports: 'گزارش علیه او',
       sameText: 'متن مشابه',
     },
-    phoneVia: { telegram: 'تلگرام', telegram_oidc: 'تلگرام', sms: 'پیامک' } as Record<string, string>,
+    phoneVia: { telegram: 'تلگرام', telegram_oidc: 'تلگرام', sms: 'پیامک', whatsapp: 'واتس‌اپ' } as Record<string, string>,
     noPhone: 'تأییدنشده',
     noneYet: 'هیچ',
     sameText: (n: number) => (n ? `همین متن در ${n.toLocaleString('fa-IR')} آگهی دیگر همین حساب` : 'ندارد'),

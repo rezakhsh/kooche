@@ -7,10 +7,11 @@ import { queueAccountNotice } from './account-notices';
 import { checkVerifiedNumber } from './phone-number';
 import type { SmsProvider } from './sms';
 
-// Phone verification (docs/schema.md, section 6; docs/setup.md, decision 5): Telegram first, SMS
-// as the fallback. Every attempt is a phone_verifications row. A number is stored on the user only
-// when verified, by one transaction that also records the method and writes the audit log.
-// Used by the web app (start, SMS code, status), the worker (Telegram bot) and the tests.
+// Phone verification (docs/schema.md, section 6; docs/setup.md, decision 5): Telegram first,
+// WhatsApp second (./whatsapp.ts), SMS as the fallback. Every attempt is a phone_verifications row.
+// A number is stored on the user only when verified, by one transaction that also records the
+// method and writes the audit log. Used by the web app (start, SMS code, status, WhatsApp's
+// webhook), the worker (Telegram bot) and the tests.
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
 export const SMS_CODE_TTL_MS = 10 * 60_000;
@@ -64,7 +65,7 @@ export async function completeVerification(
     phoneE164: string;
     /** The number's country (checkVerifiedNumber or parseSmsNumber), kept on the attempt */
     numberCountry: string | null;
-    method: 'telegram' | 'telegram_oidc' | 'sms';
+    method: 'telegram' | 'telegram_oidc' | 'sms' | 'whatsapp';
     telegramUserId?: number;
   },
 ): Promise<CompleteResult> {
@@ -411,6 +412,8 @@ export async function checkSmsCode(
 export type AttemptStatus = {
   status: 'pending' | 'verified' | 'failed' | 'expired';
   failureReason: string | null;
+  /** Refused as an Iranian number: the page shows its own screen (mockup final/iran-phone) */
+  iran?: true;
 };
 
 /** The status of one of the user's own attempts (the page polls this while the bot works). */
@@ -423,11 +426,13 @@ export async function attemptStatus(
     .select({
       status: phoneVerifications.status,
       failureReason: phoneVerifications.failureReason,
+      numberCountry: phoneVerifications.numberCountry,
       expiresAt: phoneVerifications.expiresAt,
     })
     .from(phoneVerifications)
     .where(and(eq(phoneVerifications.id, verificationId), eq(phoneVerifications.userId, userId)));
   if (!row) return null;
   const expired = row.status === 'pending' && row.expiresAt.getTime() <= Date.now();
-  return { status: expired ? 'expired' : row.status, failureReason: row.failureReason };
+  const iran = row.failureReason === 'country_not_allowed' && row.numberCountry === 'IR';
+  return { status: expired ? 'expired' : row.status, failureReason: row.failureReason, ...(iran ? { iran: true as const } : {}) };
 }

@@ -38,7 +38,10 @@ export const ENTITLEMENT_TYPES = [
   'extended_radius',
 ] as const;
 
-/** telegram: the bot; telegram_oidc: "Log in with Telegram" with the phone scope (migration 0018) */
-export const PHONE_VERIFICATION_METHODS = ['telegram', 'telegram_oidc', 'sms'] as const;
+/**
+ * telegram: the bot; telegram_oidc: "Log in with Telegram" with the phone scope (migration 0018);
+ * whatsapp: the user sends us a code on WhatsApp (migration 0045)
+ */
+export const PHONE_VERIFICATION_METHODS = ['telegram', 'telegram_oidc', 'sms', 'whatsapp'] as const;
 
 export const ORGANIZATION_ROLES = ['owner', 'manager', 'staff'] as const;

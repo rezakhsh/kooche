@@ -17,14 +17,20 @@ import {
 } from '../../../modules/users/phone';
 import { maskPhone, parseSmsNumber } from '../../../modules/users/phone-number';
 import { smsAvailable } from '../../../modules/users/sms';
-import { requireSession, sms, telegramLogin } from '../../../modules/users/server';
+import { requireSession, sms, telegramLogin, whatsApp } from '../../../modules/users/server';
 import { startTelegramLogin } from '../../../modules/users/telegram-oidc';
+import { startWhatsAppVerification, whatsAppLink } from '../../../modules/users/whatsapp';
+import { qrPath, type QrPath } from '../../../lib/qr';
 import { redirect } from 'next/navigation';
 
 export type TelegramState =
   | { link: string; verificationId: string }
   | { error: string }
   | undefined;
+
+export type WhatsAppStart =
+  | { link: string; code: string; qr: QrPath; verificationId: string }
+  | { error: string };
 
 export type SmsState =
   | { step: 'number'; error?: string }
@@ -58,6 +64,18 @@ export async function startTelegram(_: TelegramState): Promise<TelegramState> {
     link: `https://t.me/${webEnv().TELEGRAM_BOT_USERNAME}?start=${token}`,
     verificationId,
   };
+}
+
+/** "Verify with WhatsApp": an attempt, the wa.me link with the ready message, and its QR code */
+export async function startWhatsAppAction(): Promise<WhatsAppStart> {
+  const { user } = await requireSession('/account/phone');
+  const config = whatsApp();
+  if (!config) return { error: messages.phone.whatsapp.unavailable };
+  const limited = await limitStart(user.id);
+  if (limited) return { error: limited };
+  const { verificationId, code } = await startWhatsAppVerification(appDb(), { userId: user.id, ip: clientIp(await headers()) });
+  const link = whatsAppLink(config.businessNumber, code);
+  return { link, code, qr: qrPath(link), verificationId };
 }
 
 /** "Log in with Telegram": an attempt, then off to Telegram (form-action allows oauth.telegram.org) */

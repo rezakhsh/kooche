@@ -9,6 +9,7 @@ import { viewAsCountry } from '../admin/view-as';
 import { valkey } from '../../lib/valkey';
 import { type Auth, createAuth } from './auth';
 import { smtpMailer } from './email';
+import type { WhatsAppConfig } from '../notifications/whatsapp-api';
 import { smsProvider, type SmsProvider } from './sms';
 import { seesTestContent } from './test-accounts';
 import { telegramTransport, type OidcConfig, type OidcTransport } from './telegram-oidc';
@@ -48,6 +49,20 @@ export function telegramLogin(): (OidcConfig & { transport: OidcTransport }) | n
     redirectUri: `${env.APP_URL}/account/phone/telegram/callback`,
     secret: env.PHONE_CODE_SECRET,
     transport: g.telegramTransport,
+  };
+}
+
+/** WhatsApp verification settings, or null when they aren't set (the button is hidden) */
+export function whatsApp(): WhatsAppConfig | null {
+  const env = webEnv();
+  if (!env.WHATSAPP_BUSINESS_NUMBER || !env.WHATSAPP_PHONE_NUMBER_ID || !env.WHATSAPP_TOKEN || !env.WHATSAPP_APP_SECRET || !env.WHATSAPP_VERIFY_TOKEN) return null;
+  return {
+    businessNumber: env.WHATSAPP_BUSINESS_NUMBER,
+    phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+    token: env.WHATSAPP_TOKEN,
+    appSecret: env.WHATSAPP_APP_SECRET,
+    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+    graphVersion: env.WHATSAPP_GRAPH_VERSION,
   };
 }
 

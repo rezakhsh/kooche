@@ -224,7 +224,7 @@ export const phoneVerifications = pgTable(
     phoneE164: text('phone_e164'),
     /**
      * Telegram: SHA-256 of the random token in the t.me/<bot>?start=<token> link; Telegram login:
-     * SHA-256 of the OpenID Connect `state`
+     * SHA-256 of the OpenID Connect `state`; WhatsApp: SHA-256 of the code in the message
      */
     linkTokenHash: bytea('link_token_hash').unique('phone_verifications_link_token_hash_key'),
     /** Accepted only when contact.user_id equals the sender's from.id (setup.md, decision 5) */
@@ -264,6 +264,8 @@ export const phoneVerifications = pgTable(
       'phone_verifications_telegram_check',
       sql`${t.method} NOT IN ('telegram', 'telegram_oidc') OR ${t.linkTokenHash} IS NOT NULL`,
     ),
+    // WhatsApp: the code the user sends us, hashed like the bot's token
+    check('phone_verifications_whatsapp_check', sql`${t.method} <> 'whatsapp' OR ${t.linkTokenHash} IS NOT NULL`),
     check(
       'phone_verifications_verified_check',
       sql`${t.status} <> 'verified' OR (${t.verifiedAt} IS NOT NULL AND ${t.phoneE164} IS NOT NULL)`,
