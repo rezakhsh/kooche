@@ -33,12 +33,6 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
   return (
     <PageShell title={t.title} wide>
       <p className="leading-7 text-neutral-700">{t.intro}</p>
-      <p className="mt-5 rounded-2xl border border-brand-200 bg-brand-50 p-5">
-        <span className="block text-sm text-neutral-600">{t.emailLabel}</span>
-        <a href={`mailto:${operator.email}`} dir="ltr" className="text-lg font-extrabold break-all text-brand-800 underline">
-          {operator.email}
-        </a>
-      </p>
       <section id="form" className="mt-8 scroll-mt-20">
         <h2 className="text-lg font-extrabold">{f.heading}</h2>
         {!topic ? (

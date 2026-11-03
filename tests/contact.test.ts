@@ -24,6 +24,12 @@ describe('contact topics', () => {
   });
 });
 
+describe('the contact page', () => {
+  it('shows no support address: the form instead, the address is in the Impressum (owner, Nov 3, 2026)', () => {
+    expect(JSON.stringify(pages.contact)).not.toContain(operator.email);
+  });
+});
+
 describe('contact form checks', () => {
   it('refuses short, unknown or oversized fields', () => {
     expect(contactInput.safeParse(ok).success).toBe(true);
