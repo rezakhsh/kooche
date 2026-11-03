@@ -11,6 +11,7 @@ import { LegalChangeBanner } from '../components/legal-change-banner';
 import { SiteFooter, SiteHeader } from '../components/site-header';
 import { ViewAsBanner } from '../components/view-as-banner';
 import { ActingBanner } from '../components/acting-banner';
+import { ScrollToTop } from '../components/scroll-to-top';
 import { Toaster } from '../components/toast';
 import { VisitBeacon } from '../components/visit-beacon';
 import { webEnv } from '../lib/env';
@@ -89,6 +90,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Toaster />
         <FormValidation />
         <AutoDirection />
+        <ScrollToTop />
         {!admin && <VisitBeacon />}
       </body>
     </html>

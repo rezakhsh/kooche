@@ -13,6 +13,7 @@ import type { AttributeDef } from '../../../../modules/listings/catalog';
 import { dependentOptions, parentOf } from '../../../../modules/listings/dependent-options';
 import type { FieldError } from '../../../../modules/listings/listings';
 import { formatTypedAmount } from '../../../../modules/listings/price';
+import type { RentKind } from '../../../../modules/listings/safety-kind';
 import { saveListingAction, type SaveState } from '../actions';
 import { firstStepWithErrors, stepOf, type Step } from './steps';
 
@@ -37,8 +38,8 @@ export type FormProps = {
   categoryPath: string[];
   /** The top category's slug: the description's prompts depend on it */
   rootSlug: string;
-  /** A room or flat to rent: the price is the cold rent a month */
-  rent: boolean;
+  /** A room or flat to rent: the price is the rent a month, cold for flats and houses */
+  rent: RentKind | null;
   /** Things that can be sent by post (not homes, services, jobs, lessons) */
   shippable: boolean;
   defs: AttributeDef[];
@@ -201,7 +202,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     });
     const type = String(data.get('priceType') ?? props.priceTypes[0] ?? '');
     const amount = String(data.get('amount') ?? '').trim();
-    const unit = props.rent ? ` ${messages.country.rentUnit}` : '';
+    const unit = props.rent ? ` ${messages.country.rentUnit[props.rent]}` : '';
     setSummary({
       title: String(data.get('title') ?? '').trim(),
       price: type === 'fixed' || type === 'negotiable' ? (amount ? `${formatTypedAmount(amount, props.country?.currencySymbol ?? '')}${unit}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
@@ -253,6 +254,13 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     if (submitter?.value === 'next' && wizard) leaving.current = wizard.step;
     startTransition(() => dispatch(data));
   }
+
+  // A refusal or a notice comes into view wherever the seller is on the page (field errors instead
+  // take the steps back to the field, above)
+  const alertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if ((state?.error && !state.errors) || state?.notice) alertRef.current?.scrollIntoView({ block: 'center' });
+  }, [state]);
 
   const stepNames: readonly string[] = t.steps;
 
@@ -346,7 +354,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
           {(priceType === 'fixed' || priceType === 'negotiable') && (
             <div>
               <label className="block">
-                <span className="mb-1.5 block text-sm font-bold">{props.rent ? t.rentAmount : t.amount}</span>
+                <span className="mb-1.5 block text-sm font-bold">{props.rent ? t.rentAmount[props.rent] : t.amount}</span>
                 <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
                   <input name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="min-w-0 flex-1 bg-transparent text-end text-base outline-none" />
                   {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
@@ -545,11 +553,14 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
         </section>
       )}
 
-      {state?.error && <Alert tone="error">{state.error}</Alert>}
-      {state?.notice && <Alert tone="success">{state.notice}</Alert>}
-
       {(draft || rejected) && turnstile.widget}
       {(draft || rejected) && <TermsNotice />}
+      </div>
+
+      {/* Outside the steps, so a refusal at step 2 or 3 shows too (owner, Nov 3, 2026: «ادامه» seemed to do nothing) */}
+      <div ref={alertRef} className="scroll-mt-20 space-y-3 empty:hidden">
+        {state?.error && <Alert tone="error">{state.error}</Alert>}
+        {state?.notice && <Alert tone="success">{state.notice}</Alert>}
       </div>
 
       {/* The plain buttons: a listing that is out, and the steps without JavaScript (<noscript> shows them) */}

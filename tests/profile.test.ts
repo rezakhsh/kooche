@@ -195,6 +195,13 @@ describe('delete my account', () => {
     expect((await row(me.id)).status).toBe('active');
   });
 
+  it('refuses a staff account: the only admin deleted themself on production (Nov 3, 2026)', async () => {
+    const me = await user();
+    await db.update(schema.users).set({ staffRole: 'admin' }).where(eq(schema.users.id, me.id));
+    expect(await requestErasure(appDb, me.id, me.email)).toEqual({ ok: false, error: 'staff' });
+    expect((await row(me.id)).status).toBe('active');
+  });
+
   it('deactivates, logs out every device and hands the erasure to the worker', async () => {
     const me = await user();
     const other = await user();

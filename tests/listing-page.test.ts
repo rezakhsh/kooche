@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as schema from '../src/db/schema';
 import { replySpeed, sellerReplySpeed } from '../src/modules/chat/response-time';
 import { otherActiveListings } from '../src/modules/listings/queries';
-import { safetyKind } from '../src/modules/listings/safety-kind';
+import { rentKind, safetyKind } from '../src/modules/listings/safety-kind';
 import { similarListings, SIMILAR_COUNT } from '../src/modules/search/browse';
 import { appDb } from './accounts';
 import { db, makeListing, makeUser, type Tx } from './db';
@@ -79,5 +79,14 @@ describe('the safety box', () => {
     expect(safetyKind([{ slug: 'leisure-hobbies' }, { slug: 'tickets' }])).toBe('tickets');
     expect(safetyKind([{ slug: 'jobs' }])).toBe('jobs');
     expect(safetyKind([])).toBe('general');
+  });
+});
+
+describe('the rent wording', () => {
+  it('a room is just the rent a month; flats and houses the cold rent (owner, Nov 3, 2026)', () => {
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'shared-rooms' }])).toBe('plain');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-rent' }])).toBe('cold');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-sale' }])).toBeNull();
+    expect(rentKind([{ slug: 'real-estate' }])).toBeNull();
   });
 });

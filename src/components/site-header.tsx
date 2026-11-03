@@ -298,12 +298,14 @@ export async function SiteFooter() {
           <ThemeSwitch current={theme} />
         </div>
       </div>
-      {/* Only on the posting pages, which have their own bar instead of the header (globals.css) */}
+      {/* Only on the posting pages, which have their own bar instead of the header (globals.css).
+          In a new tab, so a half-filled listing stays as it is (owner, Nov 3, 2026) */}
       <nav data-footer-slim aria-label={t.legalNav} className="mx-auto hidden max-w-3xl flex-wrap justify-center gap-x-4 px-4 py-4 text-xs">
         {LEGAL_LINKS.map(([key, href]) => (
-          <FooterLink key={key} href={href} className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
+          <a key={key} href={href} target="_blank" rel="noopener" className="flex min-h-11 items-center text-neutral-600 hover:text-brand-800 hover:underline lg:min-h-9">
             <bdi>{t.legalLinks[key]}</bdi>
-          </FooterLink>
+            <span className="sr-only"> {t.newTab}</span>
+          </a>
         ))}
       </nav>
     </footer>

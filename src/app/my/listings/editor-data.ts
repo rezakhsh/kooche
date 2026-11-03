@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { NOT_SHIPPED, RENT_SLUGS } from '../../../modules/listings/safety-kind';
+import { NOT_SHIPPED, rentKind } from '../../../modules/listings/safety-kind';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
@@ -79,7 +79,7 @@ export async function editorData(
       status: listing?.status ?? 'draft',
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
-      rent: ancestry(catalog, category.id).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate'),
+      rent: rentKind(ancestry(catalog, category.id)),
       shippable: !NOT_SHIPPED.has(ancestry(catalog, category.id)[0]?.slug ?? ''),
       defs,
       priceTypes: [...priceTypesFor(category.priceMode)],

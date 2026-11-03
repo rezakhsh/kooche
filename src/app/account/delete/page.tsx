@@ -13,7 +13,7 @@ export const metadata = { title: messages.account.delete.title, robots: { index:
 // Deleting the account (approved Oct 21, 2026): what happens, following the retention rules
 // (docs/schema.md, section 14), then a confirmation with the account's own email address.
 
-const ERRORS = new Set(['email_mismatch', 'not_confirmed', 'plan_running', 'acting'] as const);
+const ERRORS = new Set(['email_mismatch', 'not_confirmed', 'plan_running', 'acting', 'staff'] as const);
 type ErrorCode = typeof ERRORS extends Set<infer T> ? T : never;
 
 export default async function DeleteAccountPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {

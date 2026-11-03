@@ -246,7 +246,8 @@ export const messages = {
     more: 'آگهی‌های بیشتر',
     near: (city: string) => `نزدیک ${city}`,
     count: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
-    rentUnit: 'سرد، ماهانه',
+    /** After a rent on cards: rooms have one monthly rent, flats and houses the cold rent (owner, Nov 3, 2026) */
+    rentUnit: { cold: 'سرد، ماهانه', plain: 'ماهانه' },
     verifiedBadge: 'تأییدشده',
     anmeldungTitle: 'می‌توانید آدرس این خانه را ثبت کنید (Anmeldung)',
     // A paid bump (or one of Pro's) moved the listing up: shown on the card (UWG Annex no. 11a; docs/legal-review.md)
@@ -435,6 +436,7 @@ export const messages = {
     appearance: 'ظاهر',
     // The legal pages' own row and the one line under the posting pages (wave 1, part 8)
     legalNav: 'صفحه‌های حقوقی',
+    newTab: '(در برگهٔ تازه)',
     legalLinks: { impressum: 'Impressum', terms: 'شرایط (AGB)', privacy: 'حریم خصوصی (Datenschutz)', dsa: 'تماس DSA' },
     columns: {
       help: 'راهنما و پرسش‌ها',
@@ -736,7 +738,7 @@ export const messages = {
     stepHeadings: { 2: 'عکس و توضیح', 3: 'جزئیات و قیمت', 4: 'محل و انتشار' } as Record<number, string>,
     photosLead: (max: number) => `آگهی با عکس خیلی بیشتر دیده می‌شود. تا ${max.toLocaleString('fa-IR')} عکس.`,
     titleShort: 'عنوان',
-    rentAmount: 'اجارهٔ سرد ماهانه',
+    rentAmount: { cold: 'اجارهٔ سرد ماهانه', plain: 'اجارهٔ ماهانه' },
     untilOpen: 'نامحدود',
     postalShort: 'کد پستی',
     placeChosen: 'پیدا شد',
@@ -1843,6 +1845,7 @@ export const messages = {
         not_confirmed: 'ایمیل را بنویسید و تأیید را بزنید.',
         plan_running: 'یکی از کسب‌وکارهایی که تنها مالکش هستید اشتراک فعالی دارد که تمدید می‌شود. اول در صفحهٔ «اشتراک» آن، از «مدیریت اشتراک» اشتراک را لغو کنید.',
         acting: 'حذف حساب فقط با ورود خود صاحب حساب ممکن است، نه وقتی مدیر به جای او وارد شده است.',
+        staff: 'این حساب از کارکنان پیدو است و با آن به صفحهٔ مدیریت وارد می‌شوید. اول باید از کارکنان برداشته شود؛ بعد می‌توانید حساب را حذف کنید.',
       },
     },
     deleted: {

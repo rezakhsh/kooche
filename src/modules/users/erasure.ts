@@ -11,7 +11,7 @@ import type { Db } from '../../db/drizzle';
 export const ERASE_REQUESTED = 'user.erase_requested';
 export const ERASED = 'user.erased';
 
-export type ErasureResult = { ok: true } | { ok: false; error: 'email_mismatch' | 'plan_running' | 'not_active' };
+export type ErasureResult = { ok: true } | { ok: false; error: 'email_mismatch' | 'plan_running' | 'not_active' | 'staff' };
 
 /** The confirmation: the account's own email address, typed again (case and spaces ignored) */
 export function emailMatches(typed: string, email: string): boolean {
@@ -21,11 +21,14 @@ export function emailMatches(typed: string, email: string): boolean {
 /** Starts deleting the signed-in user's own account. The user id comes from the session only. */
 export async function requestErasure(db: Db, userId: string, typedEmail: string): Promise<ErasureResult> {
   return db.transaction(async (tx) => {
-    const [user] = await tx.execute<{ email: string; status: string }>(sql`
-      SELECT email, status FROM users WHERE id = ${userId} FOR UPDATE
+    const [user] = await tx.execute<{ email: string; status: string; staff_role: string | null }>(sql`
+      SELECT email, status, staff_role FROM users WHERE id = ${userId} FOR UPDATE
     `);
     if (!user || user.status !== 'active') return { ok: false, error: 'not_active' } as const;
     if (!emailMatches(typedEmail, user.email)) return { ok: false, error: 'email_mismatch' } as const;
+    // Staff leave the staff first (scripts/make-staff.ts … none): deleting the only admin locked
+    // the owner out of production's admin page (Nov 3, 2026)
+    if (user.staff_role) return { ok: false, error: 'staff' } as const;
     // A business the person owns alone closes with the account (erase_user, migration 0040); one
     // with a paid plan that still renews waits until the plan is cancelled (Check B, Oct 31, 2026)
     if ((await soleOwned(tx, userId)).some((b) => b.planRenews)) return { ok: false, error: 'plan_running' } as const;
