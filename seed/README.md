@@ -25,7 +25,7 @@ The loader (`src/db/seed.ts`) runs in one transaction and can be run again at an
 | `locations/at.ts` | The 9 Austrian Bundesländer and 29 cities (the largest and every state capital) |
 | `postal/<cc>.tsv` | Postal codes and their places (code, place, latitude, longitude) for DE, AT and the 9 planned countries (GB, FR, TR, CA, US, NL, IT, SE, AU; Nov 4, 2026), written by `scripts/import-postal-codes.mjs` with a rule per country (codes in the form `src/modules/listings/postal-code.ts` reads; never a street-level code); never edit by hand |
 | `categories.ts` | 14 root categories, 127 leaf categories (with the events section's 13 event types, Oct 18, 2026), 290 attributes (Anmeldung on WG rooms added Oct 28, 2026) and their options (Persian), fields per category as approved Oct 18, 2026 |
-| `postal-areas/` | Postal code areas for the street map: `<cc>.json` written by `scripts/import-postal-areas.mjs` (polylines; never edit by hand), `index.ts` decodes them. From OpenStreetMap |
+| `postal-areas/` | Postal code areas for the street map: `<cc>.json` (polylines; never edit by hand), `index.ts` decodes them. DE, AT, FR, TR from OpenStreetMap (`scripts/import-postal-areas.mjs`); US, CA, NL, AU from official files (`scripts/import-official-postal-areas.py`, Nov 4, 2026). GB, IT and SE have none (circles) |
 | `neighbourhoods/` | City districts, names as written locally (owner, Nov 3, 2026): `index.ts` lists the cities and sources, `<cc>-<city>.json` the boundaries (never edit by hand). Berlin: 97 Ortsteile from the Geoportal Berlin (Datenlizenz Deutschland Zero 2.0, `scripts/import-neighbourhoods.mjs`); 45 other cities of about 200,000 people or more from OpenStreetMap (`scripts/import-osm-neighbourhoods.mjs`) |
 | `car-models.ts` | 45 car makes and their models for the car `brand` and `model` selects |
 
@@ -46,6 +46,23 @@ article, Nov 4, 2026), checked, with wrong or missing ones written by hand.
 Postal code areas (`postal-areas/`) come from [OpenStreetMap](https://www.openstreetmap.org/copyright)
 (`boundary=postal_code` relations through the Overpass API, Oct 28, 2026), © OpenStreetMap
 contributors, licensed under the [ODbL](https://opendatacommons.org/licenses/odbl/). The street map
-shows «© OpenStreetMap» on every map. The districts of the cities other than Berlin
+shows «© OpenStreetMap» on every map. France's and Turkey's areas came the same way on Nov 4, 2026.
+
+Official postal code areas (`postal-areas/us.json`, `ca.json`, `nl.json`, `au.json`, Nov 4, 2026, by
+`scripts/import-official-postal-areas.py`; the map's corner names the source while its area is shown):
+
+- **US:** U.S. Census Bureau, 2020 ZIP Code Tabulation Areas, cartographic boundary file 1:500,000
+  (`cb_2020_us_zcta520_500k`), public domain. ZCTAs approximate ZIP delivery areas; PO-box and
+  single-company ZIPs have none.
+- **CA:** Statistics Canada, 2021 Census Forward Sortation Area Boundary File, cartographic
+  (`lfsa000b21a_e`, read from StatCan's map service `geo.statcan.gc.ca`). Contains information
+  licensed under the [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
+- **NL:** © CBS (Statistics Netherlands), postcode4 (PC4) 2024, from PDOK
+  (`api.pdok.nl/cbs/postcode4`), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **AU:** © Australian Bureau of Statistics, ASGS Edition 3, Postal Areas 2021 (GDA2020),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Postal areas approximate postcodes;
+  PO-box codes have none.
+
+All are simplified (Douglas-Peucker, about 15–20 m, more for big areas in proportion to their size). The districts of the cities other than Berlin
 (`neighbourhoods/`) come from OpenStreetMap the same way (`boundary=administrative` relations,
 Nov 3, 2026), under the same licence.

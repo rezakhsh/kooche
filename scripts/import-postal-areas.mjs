@@ -5,14 +5,16 @@
 // area index). A relation is kept only when its code is one of the country's postal codes
 // (seed/postal/<cc>.tsv) and one of that code's places lies within ~25 km of its outline, so a
 // neighbour's code can't slip in. It then joins each relation's ways into rings, simplifies them with Douglas-Peucker
-// at 0.0002° (about 15–20 m; the area is shown, not a street), and writes seed/postal-areas/<cc>.json:
+// at 0.0002° (about 15–20 m; the area is shown, not a street; a big area more, by its size: REL), and writes seed/postal-areas/<cc>.json:
 //
 //   { "13353": [["<outer ring>", "<hole>", …], …], … }
 //
 // one entry per postal code (relations with the same code are merged), each polygon a list of rings
 // in Google's polyline encoding at 5 decimals, longitude first. The seed decodes them.
 //
-//   [OVERPASS_URL=…] [OVERPASS_FALLBACK_URLS=…,…] [OVERPASS_CACHE=<dir>] node scripts/import-postal-areas.mjs DE      (or AT)
+//   [OVERPASS_URL=…] [OVERPASS_FALLBACK_URLS=…,…] [OVERPASS_CACHE=<dir>] [OVERPASS_BY_ID=1] node scripts/import-postal-areas.mjs DE      (or AT, FR, TR)
+//
+// OVERPASS_BY_ID=1 asks for the country's relations by id instead of box by box (FR and TR, Nov 4, 2026).
 //
 // Oct 28, 2026 (boxes from overpass.openstreetmap.fr, data of Aug 10; broken relations by id from
 // overpass-api.de and the mail.ru mirror): DE 8,037 of 8,172 postal codes, AT 2,231 (Austria's other
@@ -27,10 +29,15 @@ import { simplifyClosedRing } from './simplify-geometry.mjs';
 const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 const AGENT = 'peydoo-postal-import/1.0 (+https://peydoo.com)';
 const TOLERANCE = 0.0002;
+/** A big area is simplified more: REL times the square root of its size (postal codes step 5, Nov 4, 2026; the map zooms until an area fills about a quarter of it) */
+const REL = 0.004;
 /** The country's box [west, south, east, north] */
 const REGIONS = {
   DE: { bbox: [5.8, 47.2, 15.1, 55.1] },
   AT: { bbox: [9.5, 46.3, 17.2, 49.1] },
+  // Mainland France and Corsica (seed/postal/fr.tsv has no overseas codes)
+  FR: { bbox: [-5.2, 41.3, 9.6, 51.1] },
+  TR: { bbox: [25.6, 35.8, 44.9, 42.2] },
 };
 const STEP = 1.5;
 
@@ -96,6 +103,13 @@ function inside([x, y], ring) {
   return hit;
 }
 
+/** Shoelace area in square degrees (signed) */
+function ringArea(ring) {
+  let s = 0;
+  for (let i = 0; i < ring.length - 1; i++) s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  return s / 2;
+}
+
 function encode(ring) {
   let out = '';
   let px = 0;
@@ -145,8 +159,9 @@ function take(rel) {
   const outers = rings(ways('outer'));
   const holes = rings(ways('inner'));
   const polygons = outers.map((o) => [o, ...holes.filter((h) => inside(h[0], o))]);
+  const tolerance = Math.max(TOLERANCE, REL * Math.sqrt(outers.reduce((sum, o) => sum + Math.abs(ringArea(o)), 0)));
   const simplified = polygons
-    .map((p) => p.map((r) => simplifyClosedRing(r, TOLERANCE)))
+    .map((p) => p.map((r) => simplifyClosedRing(r, tolerance)))
     .filter((p) => p[0])
     .map((p) => p.filter(Boolean));
   if (simplified.length === 0) {
@@ -170,7 +185,22 @@ function take(rel) {
 }
 
 const [west, south, east, north] = region.bbox;
-for (let x = west; x < east; x += STEP) {
+if (process.env.OVERPASS_BY_ID) {
+  // Servers with an area index (the mail.ru mirror, Nov 4, 2026) answer the country's list of
+  // relations quickly but time out on boxes with geometry: the list first, then the relations by
+  // id, 50 at a time
+  const list = await overpass(`${cc}_ids`, `[out:json][timeout:600];area["ISO3166-1"="${cc}"][admin_level=2]->.a;rel[boundary=postal_code](area.a);out ids;`);
+  const ids = list.elements.map((r) => r.id);
+  console.log(`${cc}: ${ids.length} relations in the country`);
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50);
+    const data = await overpass(`${cc}_rel_${batch[0]}`, `[out:json][timeout:600];rel(id:${batch.join(',')});out geom;`);
+    data.elements.forEach(take);
+    await new Promise((s) => setTimeout(s, 2_000));
+  }
+  console.log(`${cc}: ${areas.size} postal codes with an area, ${broken.size} relations incomplete`);
+}
+for (let x = west; x < (process.env.OVERPASS_BY_ID ? west : east); x += STEP) {
   for (let y = south; y < north; y += STEP) {
     const part = `${cc}_${x.toFixed(1)}_${y.toFixed(1)}`;
     const box = [y, x, Math.min(y + STEP, north), Math.min(x + STEP, east)].map((n) => n.toFixed(2)).join(',');

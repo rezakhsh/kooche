@@ -3,7 +3,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, LayerSpecification, MapMouseEvent, StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import pkg from 'maplibre-gl/package.json';
-import { HOME_NEAR_KM, type MultiPolygon, type StreetMapView } from '../modules/maps/view';
+import { AREA_CREDITS, HOME_NEAR_KM, type MultiPolygon, type StreetMapView } from '../modules/maps/view';
 
 // The street map's drawing (docs/setup.md, "The street map"), loaded by src/components/street-map.tsx
 // only when a map scrolls into view: MapLibre with our own tiles, letters, icons and worker from
@@ -141,6 +141,13 @@ function shapeOf(view: StreetMapView): Geometry | null {
   return null;
 }
 
+/** The map corner's credit for an official postal code area (AREA_CREDITS), next to «© OpenStreetMap» */
+function credit(area: MultiPolygon | null | undefined): string | undefined {
+  const c = area?.credit ? AREA_CREDITS[area.credit] : undefined;
+  return c ? `<a href="${c.href}" target="_blank" rel="noopener noreferrer">${c.name}</a>` : undefined;
+}
+const credits = (view: StreetMapView) => `${credit(view.area) ?? ''}|${(view.home && nearHome(view) && credit(view.home.area)) || ''}`;
+
 /** Home and place share one map; within a kilometre they are the same area */
 const nearHome = (view: StreetMapView) => !!view.home && view.home.km <= HOME_NEAR_KM;
 const gapLine = (view: StreetMapView): Geometry | null =>
@@ -240,8 +247,8 @@ function style(view: StreetMapView, dark: boolean): StyleSpecification {
         maxzoom: 14,
         attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>',
       },
-      'peydoo-area': { type: 'geojson', data: feature(shapeOf(view)) as never },
-      'peydoo-home': { type: 'geojson', data: feature(home?.area && nearHome(view) ? home.area : null) as never },
+      'peydoo-area': { type: 'geojson', data: feature(shapeOf(view)) as never, attribution: credit(view.area) },
+      'peydoo-home': { type: 'geojson', data: feature(home?.area && nearHome(view) ? home.area : null) as never, attribution: credit(home?.area && nearHome(view) ? home.area : null) },
       'peydoo-gap': { type: 'geojson', data: feature(gapLine(view)) as never },
       'peydoo-hood-labels': { type: 'geojson', data: NOTHING as never },
       'peydoo-hood-lines': { type: 'geojson', data: NOTHING as never },
@@ -440,8 +447,11 @@ export function mountMap(
     },
     setView(next) {
       const changed = next.center[0] !== view.center[0] || next.center[1] !== view.center[1] || next.area !== view.area;
+      const recredit = credits(next) !== credits(view);
       view = next;
-      map.getSource<GeoJSONSource>('peydoo-area')?.setData(feature(shapeOf(view)) as never);
+      // A source's credit is part of the style: a form's new postal code from another source needs it again
+      if (recredit) map.setStyle(style(view, isDark));
+      else map.getSource<GeoJSONSource>('peydoo-area')?.setData(feature(shapeOf(view)) as never);
       if (changed) frame();
       setPin(view.pin);
     },

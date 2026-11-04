@@ -246,16 +246,25 @@ const AREA_BATCH = 200;
  * so the country's rows are replaced as a whole.
  */
 async function seedPostalAreas(tx: Tx, countryCode: string): Promise<number> {
-  const rows = seed.postalAreas(countryCode);
   await tx.delete(postalAreas).where(eq(postalAreas.countryCode, countryCode));
-  for (let i = 0; i < rows.length; i += AREA_BATCH) {
-    await tx.insert(postalAreas).values(rows.slice(i, i + AREA_BATCH).map((r) => ({ countryCode, postalCode: r.postalCode, boundary: multiPolygonEwkt(r.polygons) })));
+  let count = 0;
+  let batch: (typeof postalAreas.$inferInsert)[] = [];
+  const flush = async () => {
+    if (batch.length > 0) await tx.insert(postalAreas).values(batch);
+    batch = [];
+  };
+  // Decoded a batch at a time, so a big country's areas never sit in memory as points all at once
+  for (const r of seed.postalAreas(countryCode)) {
+    batch.push({ countryCode, postalCode: r.postalCode, boundary: multiPolygonEwkt(r.polygons) });
+    count++;
+    if (batch.length === AREA_BATCH) await flush();
   }
+  await flush();
   // Simplifying can make a ring touch or cross itself; PostGIS mends it (polygons only)
   await tx.execute(sql`
     UPDATE postal_areas SET boundary = ST_Multi(ST_CollectionExtract(ST_MakeValid(boundary::geometry), 3))::geography
     WHERE country_code = ${countryCode} AND NOT ST_IsValid(boundary::geometry)`);
-  return rows.length;
+  return count;
 }
 
 /** "SRID=4326;MULTIPOLYGON(((lng lat, …)), …)" for a geography column */

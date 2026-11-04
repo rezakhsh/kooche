@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { appDb } from '../../../../db/drizzle';
+import { postalArea } from '../../../../modules/maps/view';
 
 // /map/place-area/{postal place id}: the area of a postal place's code as GeoJSON, for the forms'
 // map while a place is being picked (the value of a postal suggestion is "p:{id}",
@@ -14,9 +15,9 @@ const DAY = { 'Cache-Control': 'public, max-age=86400' };
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) return new Response(null, { status: 404 });
-  const [r] = await appDb().execute<{ geojson: string }>(sql`
-    SELECT ST_AsGeoJSON(a.boundary, 5) AS geojson
+  const [r] = await appDb().execute<{ geojson: string; country: string }>(sql`
+    SELECT ST_AsGeoJSON(a.boundary, 5) AS geojson, a.country_code AS country
     FROM postal_places p JOIN postal_areas a ON a.country_code = p.country_code AND a.postal_code = p.postal_code
     WHERE p.id = ${id} AND p.is_active`);
-  return r ? new Response(r.geojson, { headers: { 'Content-Type': 'application/json', ...DAY } }) : new Response(null, { status: 404, headers: DAY });
+  return r ? new Response(JSON.stringify(postalArea(r.geojson, r.country)), { headers: { 'Content-Type': 'application/json', ...DAY } }) : new Response(null, { status: 404, headers: DAY });
 }

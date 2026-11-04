@@ -3,7 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import type { Point } from '../../db/types';
 import { distanceMeters } from '../../lib/geo';
 import { streetMapFile } from './map-file';
-import { AREA_CIRCLE_M, type MultiPolygon, type StreetMapHome, type StreetMapView } from './view';
+import { AREA_CIRCLE_M, postalArea, type StreetMapHome, type StreetMapView } from './view';
 
 // What a page's street map shows (docs/setup.md, "The street map"). A listing never shows a point:
 // its postal code's area is shaded, or, where we have no area, a circle around the stored point
@@ -52,7 +52,7 @@ export async function streetMapView(
           ORDER BY (place_name = ${place.placeName ?? ''}) DESC, place_name
           LIMIT 1) p ON true`)
     : [];
-  const area = r?.geojson ? (JSON.parse(r.geojson) as MultiPolygon) : null;
+  const area = postalArea(r?.geojson ?? null, place.countryCode);
   const postalCenter = r?.lng != null && r.lat != null ? ([r.lng, r.lat] as [number, number]) : null;
   const center = place.pin ? ([place.pin.lng, place.pin.lat] as [number, number]) : place.precision === 'area' ? postalCenter : place.point ? ([place.point.lng, place.point.lat] as [number, number]) : null;
   if (!center) return null;
@@ -84,8 +84,8 @@ async function cityWithNeighbourhoods(db: Queryable, [lng, lat]: [number, number
  * (src/proxy.ts); the distance is between two centres, so it never tells anyone's address.
  */
 export async function homeOf(db: Queryable, userId: string, to: [number, number]): Promise<StreetMapHome | null> {
-  const [r] = await db.execute<{ name: string | null; city: string; lng: number; lat: number; geojson: string | null }>(sql`
-    SELECT u.home_place_name AS name, l.name_local AS city,
+  const [r] = await db.execute<{ name: string | null; city: string; country: string; lng: number; lat: number; geojson: string | null }>(sql`
+    SELECT u.home_place_name AS name, l.name_local AS city, l.country_code AS country,
       ST_X(coalesce(p.center, l.center)::geometry) AS lng, ST_Y(coalesce(p.center, l.center)::geometry) AS lat,
       (SELECT ST_AsGeoJSON(a.boundary, 5) FROM postal_areas a WHERE a.country_code = l.country_code AND a.postal_code = u.home_postal_code) AS geojson
     FROM users u
@@ -99,5 +99,5 @@ export async function homeOf(db: Queryable, userId: string, to: [number, number]
   if (!r) return null;
   const center: [number, number] = [r.lng, r.lat];
   const km = distanceMeters({ lng: center[0], lat: center[1] }, { lng: to[0], lat: to[1] }) / 1000;
-  return { center, area: r.geojson ? (JSON.parse(r.geojson) as MultiPolygon) : null, name: r.name || r.city, km: Math.round(km * 10) / 10 };
+  return { center, area: postalArea(r.geojson, r.country), name: r.name || r.city, km: Math.round(km * 10) / 10 };
 }

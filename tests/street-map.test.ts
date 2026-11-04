@@ -22,6 +22,9 @@ async function postalCenter(code: string) {
   return r!;
 }
 
+/** Postal code areas per country (seed/postal-areas/; counts in docs/setup.md, "The street map") */
+const AREAS = { DE: 8_037, AT: 2_231, US: 33_642, CA: 1_630, NL: 4_070, AU: 2_641 };
+
 describe('postal code areas', () => {
   it('cover almost every German and Austrian postal code, with valid shapes', async () => {
     const [r] = await db.execute<{ de: number; at: number; invalid: number; orphan: number }>(sql`
@@ -37,12 +40,27 @@ describe('postal code areas', () => {
     expect(r!.orphan).toBeLessThan(50);
   });
 
+  it('cover the planned countries that have open areas (postal codes step 5), with valid shapes', async () => {
+    const rows = await db.execute<{ cc: string; n: number }>(sql`SELECT country_code AS cc, count(*)::int AS n FROM postal_areas GROUP BY 1`);
+    const n = Object.fromEntries(rows.map((r) => [r.cc, r.n]));
+    // Official files: US Census ZCTA, StatCan FSA, CBS PC4, ABS postal areas
+    expect(n).toMatchObject(AREAS);
+    // The UK has no open areas; Italy's and Sweden's few OpenStreetMap areas miss their cities: circles
+    expect(n.GB ?? 0).toBe(0);
+    expect(n.IT ?? 0).toBe(0);
+    expect(n.SE ?? 0).toBe(0);
+  });
+
   it('hold the places they are named after', async () => {
     for (const [cc, code, lng, lat] of [
       ['DE', '13353', 13.3536, 52.5418], // Wedding, Leopoldplatz
       ['DE', '12045', 13.4344, 52.4848], // Neukölln, Sonnenallee
       ['DE', '80331', 11.5755, 48.1374], // München, Marienplatz
       ['AT', '1010', 16.3725, 48.2085], // Wien, Stephansplatz
+      ['US', '10036', -73.9855, 40.758], // New York, Times Square
+      ['CA', 'M5V', -79.399, 43.644], // Toronto, King Street West (StatCan puts the CN Tower in M5J)
+      ['NL', '1012', 4.8924, 52.3731], // Amsterdam, Dam
+      ['AU', '2000', 151.2093, -33.8688], // Sydney, Town Hall
     ] as const) {
       const [r] = await db.execute<{ ok: boolean }>(sql`
         SELECT ST_Covers(boundary, ST_GeogFromText(${`SRID=4326;POINT(${lng} ${lat})`})) AS ok
@@ -66,6 +84,21 @@ describe('a page’s street map', () => {
     expect(view!.area?.type).toBe('MultiPolygon');
     expect(JSON.stringify(view)).not.toContain(String(cell.lng));
     expect(JSON.stringify(view)).not.toContain(String(cell.lat));
+  });
+
+  it('credits an official file’s area in the map corner, never OpenStreetMap’s own', async () => {
+    const at = { lng: -73.9855, lat: 40.758 };
+    const us = await streetMapView(appDb, { countryCode: 'US', postalCode: '10036', point: at, precision: 'postal_code' });
+    expect(us!.area).toMatchObject({ type: 'MultiPolygon', credit: 'US' });
+    for (const [cc, code] of [['CA', 'M5V'], ['NL', '1012'], ['AU', '2000']] as const) {
+      const view = await streetMapView(appDb, { countryCode: cc, postalCode: code, point: at, precision: 'postal_code' });
+      expect(view!.area?.credit, cc).toBe(cc);
+    }
+    for (const [cc, code] of [['DE', '13353']] as const) {
+      const view = await streetMapView(appDb, { countryCode: cc, postalCode: code, point: at, precision: 'postal_code' });
+      expect(view!.area?.type, cc).toBe('MultiPolygon');
+      expect(view!.area?.credit, cc).toBeUndefined();
+    }
   });
 
   it('draws a circle where a postal code has no area, and only the city for a city', async () => {
