@@ -20,7 +20,7 @@
 // overpass-api.de and the mail.ru mirror): DE 8,037 of 8,172 postal codes, AT 2,231 (Austria's other
 // codes are post-office boxes and large customers without an area).
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { simplifyClosedRing } from './simplify-geometry.mjs';
 
 // Any Overpass server with the full planet. On Oct 28, 2026 the main one answered 502 and the
@@ -190,11 +190,23 @@ if (process.env.OVERPASS_BY_ID) {
   // relations quickly but time out on boxes with geometry: the list first, then the relations by
   // id, 50 at a time
   const list = await overpass(`${cc}_ids`, `[out:json][timeout:600];area["ISO3166-1"="${cc}"][admin_level=2]->.a;rel[boundary=postal_code](area.a);out ids;`);
-  const ids = list.elements.map((r) => r.id);
-  console.log(`${cc}: ${ids.length} relations in the country`);
-  for (let i = 0; i < ids.length; i += 50) {
-    const batch = ids.slice(i, i + 50);
-    const data = await overpass(`${cc}_rel_${batch[0]}`, `[out:json][timeout:600];rel(id:${batch.join(',')});out geom;`);
+  const all = list.elements.map((r) => r.id);
+  // Batches fetched by an earlier run (any size) count; the rest OVERPASS_BATCH at a time (the
+  // mirror refused at random whatever the size, so big batches got through faster)
+  const done = new Set();
+  const cache = process.env.OVERPASS_CACHE;
+  for (const f of cache ? readdirSync(cache).filter((f) => f.startsWith(`${cc}_rel_`)) : []) {
+    for (const r of JSON.parse(readFileSync(`${cache}/${f}`, 'utf8')).elements) {
+      done.add(r.id);
+      take(r);
+    }
+  }
+  const ids = all.filter((id) => !done.has(id));
+  const size = Number(process.env.OVERPASS_BATCH) || 50;
+  console.log(`${cc}: ${all.length} relations in the country, ${done.size} from the cache`);
+  for (let i = 0; i < ids.length; i += size) {
+    const batch = ids.slice(i, i + size);
+    const data = await overpass(`${cc}_rel_${batch[0]}_${batch.length}`, `[out:json][timeout:900];rel(id:${batch.join(',')});out geom;`);
     data.elements.forEach(take);
     await new Promise((s) => setTimeout(s, 2_000));
   }
@@ -224,8 +236,9 @@ for (const url of (process.env.OVERPASS_FALLBACK_URLS ?? '').split(',').filter(B
   }
   console.log(`after ${new URL(url).host}: ${broken.size} broken`);
 }
-// Our codes still without an area (relations the first server didn't have), by code
-for (const url of (process.env.OVERPASS_FALLBACK_URLS ?? '').split(',').filter(Boolean)) {
+// Our codes still without an area (relations the first server didn't have), by code; not needed
+// when the country's list came from an area index (it names every relation)
+for (const url of process.env.OVERPASS_BY_ID ? [] : (process.env.OVERPASS_FALLBACK_URLS ?? '').split(',').filter(Boolean)) {
   const missing = [...centres.keys()].filter((c) => !areas.has(c));
   for (let i = 0; i < missing.length; i += 40) {
     const batch = missing.slice(i, i + 40);
