@@ -1987,3 +1987,7 @@ The owner's «release», 22:46–22:51 UTC. Database backup first (`classifieds-
 - Accounts that already have a +98 number from before Oct 26 (staging had one) can now message but not post; nothing to do unless the owner wants them told.
 - The Telegram login (switched off) now accepts +98 like the bot; if it is switched on again, its consent page still applies.
 - Production: on the owner's «release» (no migration). The legal texts change in place with it.
+
+### Messaging rule: released to production (Nov 4, 2026)
+
+The owner's «release», 23:45–23:49 UTC. Database backup first (`classifieds-backup`, restic snapshot `24e892f8`), then `peydoo-promote 5f20ca5 --yes`: production went from `d3471dc` to `5f20ca5` (`894183d` messaging needs a verified number everywhere, +98 through Telegram for messages only, no WhatsApp from Iran; `5f20ca5` Telegram buttons in dark mode). No migrations and no seed change, so no seed run. Checked: `/health`, home and `/help` 200; `/help` on production carries the new +98 text («… تلگرام تأیید می‌شود و فقط برای پیام دادن است …»); `/account/phone` sends signed-out visitors to sign in (307). No browser check on production (staging's check covered it). Staging's disk was at 91% again before the release; `peydoo-docker-cleanup` brought it back to 5.1 GB free.
