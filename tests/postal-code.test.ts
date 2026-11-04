@@ -9,6 +9,7 @@ import { normalizePostalCode, postalFilterCode, postalInputMode } from '../src/m
 import { activeCountries } from '../src/modules/listings/queries';
 import { browseQuery, filterContext, parseBrowseParams } from '../src/modules/search/filters';
 import { searchFiltersOf } from '../src/modules/search/saved';
+import { messages, PLACE_EXAMPLES } from '../src/messages/fa';
 import { appDb } from './accounts';
 import { db } from './db';
 import { city } from './listings-fixtures';
@@ -298,5 +299,23 @@ describe('the callers', () => {
     expect(sw1a!.label).toMatch(/^[^،]+، \u2066SW1A London\u2069$/);
     expect(mustPlace(await resolvePlace(db, 'GB', sw1a!.label))).toMatchObject({ postalCode: 'SW1A' });
     expect(mustPlace(await resolvePlace(db, 'GB', 'SW1A London'))).toMatchObject({ postalCode: 'SW1A' });
+  });
+
+  // Step 6 (Nov 4, 2026): staging showed Germany's «12045» under a British place field
+  it("the place field's hint gives each country's own code and town, and both are found", async () => {
+    for (const cc of POSTAL_COUNTRIES) {
+      const example = PLACE_EXAMPLES[cc];
+      expect(example, cc).toBeDefined();
+      const [typed, town] = example!;
+      expect(messages.form.placeHint(cc)).toContain(`«${typed}»`);
+      // Germany and Austria share one hint since wave 1 (a German code, an Austrian town): unchanged
+      if (cc === 'AT') continue;
+      expect(code(cc, typed), `${cc} ${typed}`).not.toBeNull();
+      expect(mustPlace(await resolvePlace(db, cc, typed)), `${cc} ${typed}`).toMatchObject({ kind: 'postal' });
+      if (cc !== 'DE') expect(mustPlace(await resolvePlace(db, cc, town)), `${cc} ${town}`).toBeTruthy();
+    }
+    expect(messages.form.placeHint('GB')).not.toContain('12045');
+    expect(messages.form.placeHint('DE')).toBe('مثلاً «12045» یا «Graz». خیابان و پلاک را ننویسید.');
+    expect(messages.form.placeHint('IE')).not.toMatch(/[0-9]/); // no postal data: towns only
   });
 });

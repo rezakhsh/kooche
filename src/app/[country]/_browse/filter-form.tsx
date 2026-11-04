@@ -130,7 +130,7 @@ export function FilterForm({
       </fieldset>
 
       {/* The place last (mockup final/filters): a postal code with a radius; the city is chosen on the first page */}
-      <fieldset className="flex flex-col gap-2">
+      <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className={legendClass}>{t.place}</legend>
         {b.city && <input type="hidden" name="city" value={b.city.slug} />}
         {!nearOn && (
@@ -158,8 +158,8 @@ export function FilterForm({
         <NearMe country={country.slug} countryName={country.nameFa} active={nearOn} />
       </fieldset>
 
-      {/* The shadow covers the sheet's bottom padding, so nothing shows through under the bar */}
-      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-neutral-100 bg-white px-1 pt-3 pb-1 shadow-[0_1.25rem_0_0_var(--color-white)]">
+      {/* The shadow covers the phone sheet's bottom padding, so nothing shows through under the bar; none in the computer's side panel, where it showed as a white strip under the card (postal codes step 6) */}
+      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-neutral-100 bg-white px-1 pt-3 pb-1 shadow-[0_1.25rem_0_0_var(--color-white)] lg:shadow-none">
         <Link href={`${b.path}${browseQuery(without(state, 'all'), ctx.minorUnit)}`} className="flex min-h-11 items-center px-1 text-sm font-medium text-neutral-700 hover:underline">
           {t.clearAll}
         </Link>

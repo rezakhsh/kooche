@@ -1909,3 +1909,43 @@ Peak memory fell because the seed now decodes a country's areas a batch of 200 a
 - `tests/search-sync.test.ts` failed once in an earlier full run (a BullMQ job 'active' instead of 'delayed' under load) and passed alone and in this run: a timing flake, not fixed here.
 
 **Next:** step 6, the staging seed and browser checks (phone and computer) of a few areas per country, screenshots to `/root/peydoo-media/`.
+
+### Postal codes: step 6, staging (Nov 4, 2026)
+
+**Owner's approval** (Nov 4, 2026, options dialog): «Open them briefly»: seed staging, open GB, FR, TR, CA, US, NL on staging for the checks, one sample listing per country, then close them again. Staging only; production untouched (no «release»).
+
+**Seed** (`a261075`, after its staging deploy; `npm run db:seed` as `classifieds_owner` from a throwaway `node:24.22.2-bookworm-slim` container on the `coolify` network, packages from the lockfile in a throwaway volume, one transaction): **78.7 s**, peak **350 MB** (the container's cgroup, npm included); exit 0. Database 131 MB → 354 MB (`postal_places` 35 → 154 MB, `postal_areas` 69 → 167 MB, dead rows included).
+
+**Counts in staging's database** (all as expected): regions **170**, cities **468**; postal places per country the same as `seed/postal/*.tsv` (AT 18,998, AU 18,340, CA 1,655, DE 15,050, FR 37,198, GB 26,763, IT 18,415, NL 4,321, SE 18,887, TR 36,306, US 40,976; 236,909 in all); areas US 33,642, CA 1,630, NL 4,070, AU 2,641, FR 5,969, TR 553, DE 8,037 and AT 2,231 unchanged; **no postal place without a city or a point**. Country modes and the first cities' launch values unchanged by the seed.
+
+**Opening for the checks.** Posting needs an open country and an open city (`country_not_open`, then `city_not_open`), so the six countries and their first cities (London, Paris, İstanbul, Toronto, Los Angeles, Amsterdam) were opened with the admin page's own functions (`setCountryMode`, `changeCityLaunch`; audit_log rows without an actor, user agent «postal codes step 6, staging browser check (Claude session)»; Cloudflare purge of the country and city pages). None of the six cities had waitlist signups, so opening granted no reward and sent nothing. Closed again afterwards: GB, FR, CA, US, NL `waitlist`, TR `guide`, each city `waitlist` with its goal (30, 20, 30, 30, 30, 15).
+
+**Sample listings** (kept, test accounts' only; «کتاب نمونهٔ کد پستی …», books, £/€/₺/$ 12): placed by the full code through `createDraft` + `saveListing` (`intent: publish`), the posting form's own code, since Turnstile doesn't finish in a headless browser. All six `active`, `location_precision = postal_code`: GB `8ycwbmzs35` (SW1A 1AA → SW1A London), FR `n7b73m5t5w` (75011 Paris), TR `fsek7f5a0p` (34710 Kadiköy, Caferağa), CA `qd6nwgb960` (M5V 3L9 → M5V Toronto, ON), US `ayv3xm4dr7` (90210-1234 → 90210 Beverly Hills, CA), NL `n929f571yw` (1012 AB → 1012 Amsterdam). Germany's existing sample `pk4ad1xyzq` (12047) for the DE check.
+
+**Browser checks** (headless Chromium, Playwright 1.63, one browser; signed in as each country's test account with a session cookie signed inside staging's web container, sessions deleted afterwards; phone 390 px and computer 1280 px, light and dark; 196 screenshots plus the mockups in `/root/peydoo-media/wave2/postal-codes/<cc>/`, report in `report-*.txt`, script `check.mjs`):
+
+| | place field: typed → suggestion | card (Latin) | map | filter postal + 10 km | errors / sideways scroll |
+|---|---|---|---|---|---|
+| GB | «SW1A 1AA» → «Westminster، SW1A London» | «Westminster» | circle | `SW1A` ✓ | 0 / no |
+| FR | «75011» → «Paris 11e، 75011 Paris» | «Paris 11e» | shape ✓ | `75011` ✓ | 0 / no |
+| TR | «34710» → «Kadıköy، 34710 Kadiköy, Caferağa» | «Kadıköy» | shape ✓ | `34710` ✓ | 0 / no |
+| CA | «M5V 3L9» → «Harbourfront-CityPlace، M5V Toronto, ON» | «Harbourfront-CityPlace» | shape ✓ (StatCan credit) | `M5V` ✓ | 0 / no |
+| US | «90210-1234» → «90210 Beverly Hills, CA» | «Beverly Hills, CA» | shape ✓ | `90210` ✓ | 0 / no |
+| NL | «1012 AB» → «1012 Amsterdam» | «Amsterdam» | shape ✓ | `1012` ✓ | 0 / no |
+| DE | «12047» → «Neukölln، 12047 Berlin» | «Neukölln» | shape ✓ | `12047` ✓ | 0 / no |
+
+The place field was checked on «محل من» (`/account/place`, the same `PlaceField` as the posting form; picked, never saved), including the area map under it. A full code in the filter is cut to the stored form and the URL follows (`?postal=SW1A+1AA` → `?postal=SW1A`). The filter sheet (phone) and side panel (computer) and the sort menu were opened. GB's form map asks `/map/place-area/…` and gets 404 by design (no area: circle); the browser logs it as a failed resource, not a script error. Compared with the approved mockups (`final/browse`, `final/browse-dark`, `final/filters`, `final/listing`, rendered next to the shots in `mockups/`) and with Germany's pages: the new countries' pages are the same as Germany's.
+
+**Fixed** (with this entry):
+- The place field's hint said «مثلاً «12045» یا «Graz»» in every country. Now per country (`PLACE_EXAMPLES` in `src/messages/fa.ts`): GB «SW1A 1AA» / «Leeds», FR «75011» / «Lyon», TR «34710» / «Kadıköy», CA «M5V 3L9» / «Ottawa», US «90210» / «Austin», NL «1012 AB» / «Utrecht», IT «00184» / «Torino», SE «113 51» / «Uppsala», AU «2000» / «Geelong»; Germany and Austria keep today's text; countries without postal data «نام شهر را بنویسید». Test in `tests/postal-code.test.ts` (each example code reads as the country's code, and code and town are found in the seeded data).
+- Filter side panel on computers, Germany included (`filter-form.tsx`): the postal box stuck out past the panel's left edge (a `<fieldset>`'s min-content width; `min-w-0`), and the bottom bar's white shadow, meant for the phone sheet, showed as a white strip under the card (`lg:shadow-none`). The mockup `final/filters` has neither. Checked on staging after the deploy (see below).
+
+**Open points:**
+- Cards cut a long Latin place name at its start on phones («…ris 11e», Germany «…zlauer Berg», «…rlottenburg»): the place sits in a `<bdi dir="ltr">` inside a right-to-left `truncate` span, so the ellipsis falls on the Latin text's start. Existing, all countries; needs a small bidi change on the card's place line.
+- The listing page's place line has a space before the Persian comma («12047 Berlin ، ۲۷ اکتبر», «Beverly Hills, CA ، …»), Germany too.
+- Turkey: the area name (OpenStreetMap «Kadıköy») and GeoNames' place («Kadiköy, Caferağa») spell the dotless ı differently in one label (step 4's open point).
+- US and NL cards show the town only (no district: Beverly Hills is its own town; Amsterdam 1012 has no neighbourhood in our data), as planned.
+- The district field's example «نزدیک هرمان‌پلاتس» (Berlin) is the same in every country.
+- `/map/place-area/` answers 404 for codes without an area (GB, IT, SE, and some elsewhere); a 204 would keep the browser console clean.
+
+**Next:** the owner decides on «release» (backup, `peydoo-promote`, then the production seed, by the master session).

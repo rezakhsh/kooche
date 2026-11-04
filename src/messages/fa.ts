@@ -14,6 +14,21 @@ export const faDigits = (s: string) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵�
  */
 export const ltr = (s: string) => `\u2066${s}\u2069`;
 
+/** The place field's hint per country: [a postal code as people type it, a town] (messages.form.placeHint) */
+export const PLACE_EXAMPLES: Record<string, readonly [string, string]> = {
+  DE: ['12045', 'Graz'],
+  AT: ['12045', 'Graz'],
+  GB: ['SW1A 1AA', 'Leeds'],
+  FR: ['75011', 'Lyon'],
+  TR: ['34710', 'Kad\u0131k\u00f6y'],
+  CA: ['M5V 3L9', 'Ottawa'],
+  US: ['90210', 'Austin'],
+  NL: ['1012 AB', 'Utrecht'],
+  IT: ['00184', 'Torino'],
+  SE: ['113 51', 'Uppsala'],
+  AU: ['2000', 'Geelong'],
+};
+
 export const messages = {
   // The browser's own form checks (required, type, pattern, min and max) in Persian, set by
   // src/components/form-validation.tsx. The server's Zod checks stay the real ones.
@@ -790,7 +805,12 @@ export const messages = {
     changeCountry: 'تغییر کشور',
     chooseCountryFirst: 'اول کشوری را که آگهی در آن ثبت می‌شود انتخاب کنید.',
     place: 'کد پستی یا شهر',
-    placeHint: 'مثلاً «12045» یا «Graz». خیابان و پلاک را ننویسید.',
+    // A postal code as the country writes it and a town there (postal codes step 6: a British form
+    // showed Germany's «12045»). Germany and Austria keep their text; without postal data, towns only.
+    placeHint: (country: string) => {
+      const example = PLACE_EXAMPLES[country];
+      return example ? `مثلاً «${example[0]}» یا «${example[1]}». خیابان و پلاک را ننویسید.` : 'نام شهر را بنویسید. خیابان و پلاک را ننویسید.';
+    },
     placeSearching: 'در حال جستجو…',
     placeNoMatch: 'جایی با این نام یا کد پیدا نشد.',
     district: 'محله یا نشانی تقریبی (اختیاری)',

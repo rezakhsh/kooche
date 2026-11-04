@@ -247,7 +247,7 @@ export function PlaceField({
         ) : (
         <Field
           label={t.place}
-          hint={t.placeHint}
+          hint={t.placeHint(country)}
           name="place"
           value={text}
           onChange={(e) => {
