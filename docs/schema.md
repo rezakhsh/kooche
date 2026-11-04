@@ -472,15 +472,14 @@ Postal codes and their places from GeoNames (migration 0008), reference data lik
 
 ### `neighbourhoods`
 
-A city's official neighbourhoods with Persian names (wave 1, migration 0022; owner, Oct 27, 2026): a listing card says «ودینگ» instead of «برلین». Reference data like `postal_places`: written only by the seed (`seed/neighbourhoods/`), `SELECT` for the app, worker and readonly roles. Berlin: the 97 Ortsteile (Geoportal Berlin, Datenlizenz Deutschland Zero 2.0), simplified to about 10 m. A listing's neighbourhood is never stored: `listingNeighbourhood` (`src/modules/listings/neighbourhood.ts`) picks the active neighbourhood of the listing's city that covers its point, only when the point came from a postal code or an area (`location_precision`), never for a city centre.
+A city's neighbourhoods (wave 1, migration 0022; owner, Oct 27, 2026): a listing card says «Wedding» instead of «برلین». Names as written locally, the same as on the map; the Persian names were dropped (migration 0046; owner, Nov 3, 2026). Reference data like `postal_places`: written only by the seed (`seed/neighbourhoods/`), `SELECT` for the app, worker and readonly roles. Berlin: the 97 Ortsteile (Geoportal Berlin, Datenlizenz Deutschland Zero 2.0); other big cities: their districts from OpenStreetMap (`scripts/import-osm-neighbourhoods.mjs`, ODbL); simplified to about 10 m. A listing's neighbourhood is never stored: `listingNeighbourhood` (`src/modules/listings/neighbourhood.ts`) picks the active neighbourhood of the listing's city that covers its point, only when the point came from a postal code or an area (`location_precision`), never for a city centre.
 
 | Column | Type | Notes |
 | --- | --- | --- |
 | `id`, `created_at`, `updated_at` | | Standard; `updated_at` by trigger |
 | `location_id` | `uuid` FK → `locations` | The city |
-| `key` | `text` | The city's official key (Berlin: the Ortsteil's 12-digit Schlüssel). `UNIQUE (location_id, key)`, 1–40 characters |
-| `name_local` | `text` | As written locally: `Wedding`, `Prenzlauer Berg` |
-| `name_fa` | `text` | «ودینگ», «پرنتسلاوئر برگ»; the seed refuses a neighbourhood without one |
+| `key` | `text` | The city's official key (Berlin: the Ortsteil's 12-digit Schlüssel) or `osm-<relation id>`. `UNIQUE (location_id, key)`, 1–40 characters |
+| `name_local` | `text` | As written locally, shown on cards, pages and the map: `Wedding`, `Prenzlauer Berg` (Greek or Cyrillic names in their English or Latin form) |
 | `boundary` | `geography(MultiPolygon,4326)` | `GIST` index; `ST_Covers(boundary, listings.point)` |
 | `is_active` | `boolean DEFAULT true` | Rows that leave the files are set inactive, never deleted |
 

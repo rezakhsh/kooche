@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 import type { NeighbourhoodSeed } from '../types';
 
-// City neighbourhoods (wave 1, Oct 27, 2026): a listing card says «ودینگ، ۲ ساعت پیش» instead of
-// «برلین». The boundaries are the cities' official ones, written by
-// scripts/import-neighbourhoods.mjs into <country>-<city>.json (never edit those by hand); the
-// Persian names are here, by the official local name, and the seed checks that every
-// neighbourhood has one. Add a city's file when it opens.
+// City neighbourhoods (wave 1, Oct 27, 2026): a listing card says «Wedding، ۲ ساعت پیش» instead of
+// «برلین». Names as written locally, never Persian (owner, Nov 3, 2026), the same as on the map.
+// Berlin's boundaries are the city's official ones (scripts/import-neighbourhoods.mjs); other
+// cities' come from OpenStreetMap (scripts/import-osm-neighbourhoods.mjs). Both write
+// <country>-<city>.json; never edit those by hand. A city without a file shows its own name.
 
-type CityNeighbourhoods = { countryCode: string; city: string; file: string; source: string; namesFa: Record<string, string> };
+type CityNeighbourhoods = { countryCode: string; city: string; file: string; source: string };
 
 const BERLIN: CityNeighbourhoods = {
   countryCode: 'DE',
@@ -15,111 +15,36 @@ const BERLIN: CityNeighbourhoods = {
   file: 'de-berlin.json',
   // Geoportal Berlin, ALKIS Ortsteile, Datenlizenz Deutschland Zero 2.0 (downloaded Oct 27, 2026)
   source: 'https://gdi.berlin.de/services/wfs/alkis_ortsteile',
-  namesFa: {
-    Adlershof: 'آدلرسهوف',
-    'Alt-Hohenschönhausen': 'آلت‌هوهن‌شون‌هاوزن',
-    'Alt-Treptow': 'آلت‌ترپتو',
-    Altglienicke: 'آلت‌گلینیکه',
-    Baumschulenweg: 'باوم‌شولن‌وگ',
-    Biesdorf: 'بیس‌دورف',
-    Blankenburg: 'بلانکن‌بورگ',
-    Blankenfelde: 'بلانکن‌فلده',
-    Bohnsdorf: 'بونس‌دورف',
-    Borsigwalde: 'بورزیگ‌والده',
-    Britz: 'بریتس',
-    Buch: 'بوخ',
-    Buckow: 'بوکو',
-    Charlottenburg: 'شارلوتنبورگ',
-    'Charlottenburg-Nord': 'شارلوتنبورگ شمالی',
-    Dahlem: 'دالم',
-    Falkenberg: 'فالکن‌برگ',
-    'Falkenhagener Feld': 'فالکن‌هاگنر فلد',
-    Fennpfuhl: 'فن‌پفول',
-    'Französisch Buchholz': 'فرانتسوزیش بوخ‌هولتس',
-    Friedenau: 'فریدناو',
-    Friedrichsfelde: 'فریدریش‌فلده',
-    Friedrichshagen: 'فریدریش‌هاگن',
-    Friedrichshain: 'فریدریش‌هاین',
-    Frohnau: 'فروناو',
-    Gatow: 'گاتو',
-    Gesundbrunnen: 'گزوندبرونن',
-    Gropiusstadt: 'گروپیوس‌اشتات',
-    Grunewald: 'گرونه‌والد',
-    Grünau: 'گروناو',
-    Hakenfelde: 'هاکن‌فلده',
-    Halensee: 'هالن‌زه',
-    Hansaviertel: 'هانزافیرتل',
-    Haselhorst: 'هازل‌هورست',
-    Heiligensee: 'هایلیگن‌زه',
-    Heinersdorf: 'هاینرس‌دورف',
-    Hellersdorf: 'هلرس‌دورف',
-    Hermsdorf: 'هرمس‌دورف',
-    Johannisthal: 'یوهانیس‌تال',
-    Karlshorst: 'کارلس‌هورست',
-    Karow: 'کارو',
-    Kaulsdorf: 'کاولس‌دورف',
-    Kladow: 'کلادو',
-    Konradshöhe: 'کنرادس‌هوهه',
-    Kreuzberg: 'کرویتسبرگ',
-    Köpenick: 'کوپنیک',
-    Lankwitz: 'لانکویتس',
-    Lichtenberg: 'لیشتنبرگ',
-    Lichtenrade: 'لیشتن‌راده',
-    Lichterfelde: 'لیشترفلده',
-    Lübars: 'لوبارس',
-    Mahlsdorf: 'مالس‌دورف',
-    Malchow: 'مالخو',
-    Mariendorf: 'مارین‌دورف',
-    Marienfelde: 'مارین‌فلده',
-    Marzahn: 'مارتسان',
-    Mitte: 'میته',
-    Moabit: 'موآبیت',
-    'Märkisches Viertel': 'مرکیشس فیرتل',
-    Müggelheim: 'موگل‌هایم',
-    'Neu-Hohenschönhausen': 'نوی‌هوهن‌شون‌هاوزن',
-    Neukölln: 'نویکلن',
-    Niederschöneweide: 'نیدرشونه‌وایده',
-    Niederschönhausen: 'نیدرشون‌هاوزن',
-    Nikolassee: 'نیکولاس‌زه',
-    Oberschöneweide: 'اوبرشونه‌وایده',
-    Pankow: 'پانکو',
-    Plänterwald: 'پلنتروالد',
-    'Prenzlauer Berg': 'پرنتسلاوئر برگ',
-    Rahnsdorf: 'رانس‌دورف',
-    Reinickendorf: 'راینیکن‌دورف',
-    Rosenthal: 'روزن‌تال',
-    Rudow: 'رودو',
-    Rummelsburg: 'روملس‌بورگ',
-    Schlachtensee: 'شلاختن‌زه',
-    Schmargendorf: 'شمارگن‌دورف',
-    Schmöckwitz: 'شموکویتس',
-    Schöneberg: 'شونه‌برگ',
-    Siemensstadt: 'زیمنس‌اشتات',
-    Spandau: 'اشپانداو',
-    Staaken: 'اشتاکن',
-    'Stadtrandsiedlung Malchow': 'اشتات‌راند‌زیدلونگ مالخو',
-    Steglitz: 'اشتگلیتس',
-    Tegel: 'تگل',
-    Tempelhof: 'تمپل‌هوف',
-    Tiergarten: 'تیرگارتن',
-    Waidmannslust: 'وایدمانس‌لوست',
-    Wannsee: 'وان‌زه',
-    Wartenberg: 'وارتنبرگ',
-    Wedding: 'ودینگ',
-    Weißensee: 'وایسن‌زه',
-    Westend: 'وست‌اند',
-    Wilhelmsruh: 'ویلهلمس‌روه',
-    Wilhelmstadt: 'ویلهلم‌اشتات',
-    Wilmersdorf: 'ویلمرس‌دورف',
-    Wittenau: 'ویتناو',
-    Zehlendorf: 'تسلن‌دورف',
-  },
 };
 
-export const NEIGHBOURHOOD_CITIES: CityNeighbourhoods[] = [BERLIN];
+// The other cities of about 200,000 people or more where OpenStreetMap maps their districts
+// completely (Nov 3, 2026). Left out: Chemnitz, Freiburg and Oberhausen (mapped in part only),
+// Amsterdam, Los Angeles, Milano and Sydney (no district level people use: their postal places
+// name the area).
+const FROM_OSM: Record<string, string> = {
+  AT: 'graz linz wien',
+  CA: 'toronto',
+  DE: 'aachen augsburg bielefeld bochum bonn braunschweig bremen dortmund dresden duesseldorf duisburg erfurt essen frankfurt gelsenkirchen hagen halle-saale hamburg hannover karlsruhe kassel kiel koeln krefeld leipzig luebeck magdeburg mainz mannheim moenchengladbach muenchen muenster nuernberg rostock stuttgart wiesbaden wuppertal',
+  FR: 'paris',
+  GB: 'london',
+  SE: 'stockholm',
+  TR: 'istanbul',
+};
 
-/** One city's neighbourhoods with their Persian names; a name missing in `namesFa` is an empty string (the seed checks refuse it) */
+export const NEIGHBOURHOOD_CITIES: CityNeighbourhoods[] = [
+  BERLIN,
+  ...Object.entries(FROM_OSM).flatMap(([countryCode, cities]) =>
+    cities.split(' ').map((city) => ({
+      countryCode,
+      city,
+      file: `${countryCode.toLowerCase()}-${city}.json`,
+      source: 'OpenStreetMap, boundary=administrative (© OpenStreetMap contributors, ODbL)',
+    })),
+  ),
+];
+
+/** One city's neighbourhoods */
 export function neighbourhoods(c: CityNeighbourhoods): NeighbourhoodSeed[] {
   const rows = JSON.parse(readFileSync(new URL(`./${c.file}`, import.meta.url), 'utf8')) as { key: string; name: string; polygons: number[][][][] }[];
-  return rows.map((r) => ({ key: r.key, nameLocal: r.name, nameFa: c.namesFa[r.name] ?? '', polygons: r.polygons }));
+  return rows.map((r) => ({ key: r.key, nameLocal: r.name, polygons: r.polygons }));
 }

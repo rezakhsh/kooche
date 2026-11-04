@@ -2,14 +2,14 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { listings } from '../../db/schema';
 
-// A listing's neighbourhood (wave 1): the Persian name of its city's neighbourhood that covers its
-// point (seed/neighbourhoods/), looked up when shown, never stored. Only for a point placed by
-// postal code or area: a listing placed by city sits on the city's centre, which says nothing
-// about where it is.
+// A listing's neighbourhood (wave 1): the local name of its city's neighbourhood that covers its
+// point (seed/neighbourhoods/; no Persian names since Nov 3, 2026, owner), looked up when shown,
+// never stored. Only for a point placed by postal code or area: a listing placed by city sits on
+// the city's centre, which says nothing about where it is.
 
-/** Select column: «ودینگ», or null (no point, a city-only place, or a city without neighbourhoods) */
+/** Select column: «Wedding», or null (no point, a city-only place, or a city without neighbourhoods) */
 export const listingNeighbourhood = sql<string | null>`(
-  SELECT n.name_fa FROM neighbourhoods n
+  SELECT n.name_local FROM neighbourhoods n
   WHERE ${listings.locationPrecision} IN ('postal_code', 'area')
     AND n.location_id = ${listings.locationId}
     AND n.is_active
@@ -18,13 +18,13 @@ export const listingNeighbourhood = sql<string | null>`(
   LIMIT 1)`;
 
 /**
- * Where the user lives, for the account's profile card («ودینگ، برلین») and the header's place
+ * Where the user lives, for the account's profile card («Wedding، برلین») and the header's place
  * chip: the saved place's city and, for a saved postal code, the neighbourhood covering its centre.
  */
 export async function homeArea(db: Queryable, userId: string): Promise<{ city: string; citySlug: string; countryCode: string; neighbourhood: string | null } | null> {
   const [r] = await db.execute<{ city: string; slug: string; country_code: string; neighbourhood: string | null }>(sql`
     SELECT l.name_fa AS city, l.slug, l.country_code,
-      (SELECT n.name_fa FROM neighbourhoods n
+      (SELECT n.name_local FROM neighbourhoods n
        WHERE n.location_id = l.id AND n.is_active AND ST_Covers(n.boundary, pp.center)
        ORDER BY n.key LIMIT 1) AS neighbourhood
     FROM users u

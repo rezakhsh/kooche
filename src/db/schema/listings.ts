@@ -239,8 +239,8 @@ export const neighbourhoods = pgTable(
       .references(() => locations.id),
     /** The city's official key (Berlin: the Ortsteil's Schlüssel, "110000010105") */
     key: text('key').notNull(),
+    /** As the city or OpenStreetMap writes it («Wedding»); shown everywhere, no Persian name (owner, Nov 3, 2026) */
     nameLocal: text('name_local').notNull(),
-    nameFa: text('name_fa').notNull(),
     boundary: geographyMultiPolygon('boundary').notNull(),
     isActive: boolean('is_active').notNull().default(true),
   },
@@ -248,7 +248,6 @@ export const neighbourhoods = pgTable(
     unique('neighbourhoods_location_id_key_key').on(t.locationId, t.key),
     check('neighbourhoods_key_check', sql`char_length(${t.key}) BETWEEN 1 AND 40`),
     check('neighbourhoods_name_local_check', sql`char_length(${t.nameLocal}) BETWEEN 1 AND 100`),
-    check('neighbourhoods_name_fa_check', sql`char_length(${t.nameFa}) BETWEEN 1 AND 100`),
     index('neighbourhoods_boundary_idx').using('gist', t.boundary),
   ],
 );

@@ -21,7 +21,7 @@ export type Place =
       placeName: string;
       locationId: string;
       center: Point;
-      /** The city neighbourhood covering the postal code's centre («ودینگ»), where the city has them */
+      /** The city neighbourhood covering the postal code's centre («Wedding»), where the city has them */
       area?: string | null;
     }
   | { kind: 'city'; id: string; countryCode: string; nameFa: string; nameLocal: string; locationId: string; center: Point };
@@ -41,7 +41,7 @@ export const toSuggestion = (p: Place): PlaceSuggestion => ({ value: placeValue(
 
 export function placeLabel(p: Place): string {
   if (p.kind === 'city') return `${p.nameFa} (${p.nameLocal})`;
-  // «ودینگ، 13351 Berlin»: the area people know first (design check, Oct 31, 2026; mockup post4).
+  // «Wedding، 13351 Berlin»: the area people know first (design check, Oct 31, 2026; mockup post4).
   // The code and town are isolated left to right, or after a Persian word they swap places.
   return p.area ? `${p.area}، \u2066${p.postalCode} ${p.placeName}\u2069` : `${p.postalCode} ${p.placeName}`;
 }
@@ -54,7 +54,7 @@ const postalColumns = {
   locationId: postalPlaces.locationId,
   center: postalPlaces.center,
   area: sql<string | null>`(
-    SELECT n.name_fa FROM neighbourhoods n
+    SELECT n.name_local FROM neighbourhoods n
     WHERE n.location_id = ${postalPlaces.locationId} AND n.is_active AND ST_Covers(n.boundary, ${postalPlaces.center})
     ORDER BY n.key LIMIT 1)`,
 };

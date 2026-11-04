@@ -96,13 +96,18 @@ describe('a page’s street map', () => {
 });
 
 describe('the map around a place', () => {
-  it('names a city’s districts where we have them (Berlin), nowhere else', async () => {
-    const [berlin] = await db.execute<{ id: string }>(sql`SELECT DISTINCT location_id AS id FROM neighbourhoods WHERE is_active LIMIT 1`);
+  it('names a city’s districts where we have them (Berlin, München), nowhere else', async () => {
+    const cityId = async (name: string) =>
+      (await db.execute<{ id: string }>(sql`SELECT id FROM locations WHERE country_code = 'DE' AND name_local = ${name} AND kind = 'city' LIMIT 1`))[0]!.id;
     const wedding = await postalCenter('13353');
     const view = await streetMapView(appDb, { countryCode: 'DE', postalCode: '13353', point: { lng: wedding.lng, lat: wedding.lat }, precision: 'postal_code' });
-    expect(view?.neighbourhoods).toBe(berlin!.id);
+    expect(view?.neighbourhoods).toBe(await cityId('Berlin'));
     const munich = await streetMapView(appDb, { countryCode: 'DE', postalCode: '80331', point: { lng: 11.5755, lat: 48.1374 }, precision: 'postal_code' });
-    expect(munich?.neighbourhoods).toBeNull();
+    expect(munich?.neighbourhoods).toBe(await cityId('München'));
+    // Chemnitz has none: OpenStreetMap maps only part of its districts
+    const chemnitz = await postalCenter('09111');
+    const without = await streetMapView(appDb, { countryCode: 'DE', postalCode: '09111', point: { lng: chemnitz.lng, lat: chemnitz.lat }, precision: 'postal_code' });
+    expect(without?.neighbourhoods).toBeNull();
   });
 
   it('shows the visitor their own saved place and how far it is, never anyone else', async () => {

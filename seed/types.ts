@@ -40,8 +40,8 @@ export type LocationsSeed = { countryCode: string; regions: RegionSeed[]; cities
 /** One row of seed/postal/<cc>.tsv */
 export type PostalPlaceSeed = { postalCode: string; placeName: string; lat: number; lng: number };
 
-/** A city neighbourhood (seed/neighbourhoods/): official key and name, Persian name, MultiPolygon coordinates (lng, lat) */
-export type NeighbourhoodSeed = { key: string; nameLocal: string; nameFa: string; polygons: number[][][][] };
+/** A city neighbourhood (seed/neighbourhoods/): its key and local name, MultiPolygon coordinates (lng, lat) */
+export type NeighbourhoodSeed = { key: string; nameLocal: string; polygons: number[][][][] };
 
 export type AttributeType = 'number' | 'select' | 'multi_select' | 'boolean' | 'text' | 'date';
 

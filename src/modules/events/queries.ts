@@ -211,7 +211,7 @@ export async function upcomingEvents(db: Queryable, f: EventFilter, now = new Da
     )
     SELECT l.id, l.public_token, l.title, l.category_id, l.country_code, l.price_type, l.price_minor, l.currency,
            l.postal_code, l.place_name, lc.name_fa AS city_fa,
-           (SELECT n.name_fa FROM neighbourhoods n
+           (SELECT n.name_local FROM neighbourhoods n
             WHERE l.location_precision IN ('postal_code', 'area') AND n.location_id = l.location_id AND n.is_active
               AND ST_Covers(n.boundary, l.point)
             ORDER BY n.key LIMIT 1) AS neighbourhood,
@@ -405,7 +405,7 @@ export async function venueSuggestions(db: Queryable, countryCode: string, text:
   const rows = await db.execute<{ venue_name: string; street_address: string | null; country_code: string; location_id: string; postal_code: string | null; place_name: string | null; neighbourhood: string | null; n: number }>(sql`
     SELECT DISTINCT ON (lower(e.venue_name_normalized), coalesce(e.street_address, ''))
            e.venue_name, e.street_address, l.country_code, l.location_id, l.postal_code, l.place_name,
-           (SELECT n.name_fa FROM neighbourhoods n
+           (SELECT n.name_local FROM neighbourhoods n
             WHERE l.location_precision IN ('postal_code', 'area') AND n.location_id = l.location_id AND n.is_active
               AND ST_Covers(n.boundary, l.point)
             ORDER BY n.key LIMIT 1) AS neighbourhood,

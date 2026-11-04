@@ -68,7 +68,7 @@ export type BrowseItem = {
   /** The listing's field values, for the card facts */
   attributes: Record<string, unknown>;
   photoCount: number;
-  /** «ودینگ»: the neighbourhood covering the listing's point (src/modules/listings/neighbourhood.ts) */
+  /** «Wedding»: the neighbourhood covering the listing's point (src/modules/listings/neighbourhood.ts) */
   neighbourhood: string | null;
   /** Posted by a founding business while its badge runs (foundingBadge(), src/modules/payments/founding.ts) */
   founding: boolean;

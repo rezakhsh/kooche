@@ -30,8 +30,8 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     href: listingPath(l.title, l.publicToken),
     title: l.title,
     price,
-    // The neighbourhood when the city has them («ودینگ»), else the place as written locally or the city
-    place: l.neighbourhood ? { text: l.neighbourhood, latin: false } : place.local ? { text: l.placeName!, latin: true } : place.city ? { text: place.city, latin: false } : null,
+    // The neighbourhood when the city has them («Wedding», as written locally), else the place as written locally or the city
+    place: l.neighbourhood ? { text: l.neighbourhood, latin: true } : place.local ? { text: l.placeName!, latin: true } : place.city ? { text: place.city, latin: false } : null,
     // The last bump counts as new, as on Kleinanzeigen: a bumped listing says «۵ دقیقه پیش»
     ago: (l.rankedAt ?? l.publishedAt) ? formatAgo((l.rankedAt ?? l.publishedAt)!, timeZone) : null,
     // Only a bump moves ranked_at after publication (src/modules/payments/bumps.ts), and a paid

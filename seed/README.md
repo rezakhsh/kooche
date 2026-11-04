@@ -26,7 +26,7 @@ The loader (`src/db/seed.ts`) runs in one transaction and can be run again at an
 | `postal/de.tsv`, `postal/at.tsv` | Postal codes and their places (code, place, latitude, longitude), written by `scripts/import-postal-codes.mjs`; never edit by hand |
 | `categories.ts` | 14 root categories, 127 leaf categories (with the events section's 13 event types, Oct 18, 2026), 290 attributes (Anmeldung on WG rooms added Oct 28, 2026) and their options (Persian), fields per category as approved Oct 18, 2026 |
 | `postal-areas/` | Postal code areas for the street map: `<cc>.json` written by `scripts/import-postal-areas.mjs` (polylines; never edit by hand), `index.ts` decodes them. From OpenStreetMap |
-| `neighbourhoods/` | City neighbourhoods with Persian names (wave 1): `index.ts` holds the Persian names and sources, `<cc>-<city>.json` the official boundaries written by `scripts/import-neighbourhoods.mjs` (never edit by hand). Berlin: 97 Ortsteile from the Geoportal Berlin (Datenlizenz Deutschland Zero 2.0) |
+| `neighbourhoods/` | City districts, names as written locally (owner, Nov 3, 2026): `index.ts` lists the cities and sources, `<cc>-<city>.json` the boundaries (never edit by hand). Berlin: 97 Ortsteile from the Geoportal Berlin (Datenlizenz Deutschland Zero 2.0, `scripts/import-neighbourhoods.mjs`); 45 other cities of about 200,000 people or more from OpenStreetMap (`scripts/import-osm-neighbourhoods.mjs`) |
 | `car-models.ts` | 45 car makes and their models for the car `brand` and `model` selects |
 
 To open a country, follow the checklist in `docs/setup.md`, "Countries, places and the map".
@@ -42,4 +42,6 @@ the slugs are our own.
 Postal code areas (`postal-areas/`) come from [OpenStreetMap](https://www.openstreetmap.org/copyright)
 (`boundary=postal_code` relations through the Overpass API, Oct 28, 2026), © OpenStreetMap
 contributors, licensed under the [ODbL](https://opendatacommons.org/licenses/odbl/). The street map
-shows «© OpenStreetMap» on every map.
+shows «© OpenStreetMap» on every map. The districts of the cities other than Berlin
+(`neighbourhoods/`) come from OpenStreetMap the same way (`boundary=administrative` relations,
+Nov 3, 2026), under the same licence.

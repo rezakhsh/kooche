@@ -69,7 +69,7 @@ export async function streetMapView(
   };
 }
 
-/** The city around a point that has its districts in `neighbourhoods` (Berlin), or null */
+/** The city around a point that has its districts in `neighbourhoods` (Berlin, München, London, …), or null */
 async function cityWithNeighbourhoods(db: Queryable, [lng, lat]: [number, number]): Promise<string | null> {
   const [r] = await db.execute<{ id: string }>(sql`
     SELECT location_id AS id FROM neighbourhoods

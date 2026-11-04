@@ -184,7 +184,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const numberFrom = !business && l.numberCountry && l.numberCountry !== l.countryCode ? l.numberCountry : null;
   // Back from a shared link: the listing's category in its city
   const backHref = countrySlug ? browsePath(countrySlug, city?.slug ?? null, crumbs.at(-1)?.slug ?? null) : '/';
-  // «ودینگ، 13351 Berlin» (mockup final/listing); without a postal code «ودینگ، برلین»
+  // «Wedding، 13351 Berlin» (mockup final/listing); without a postal code «Wedding، برلین»
   const placeText = neighbourhood ? (place.local ? null : cityFa ? `${neighbourhood}، ${cityFa}` : neighbourhood) : null;
   const factIcon = (key?: string): IconName => (key && FACT_ICONS[key]) || 'check';
   const canContact = !!chat && l.status === 'active';

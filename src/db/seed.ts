@@ -250,8 +250,8 @@ export function multiPolygonEwkt(polygons: number[][][][]): string {
 }
 
 /**
- * City neighbourhoods (seed/neighbourhoods/), by the city's official key. Rows no longer in the
- * files are set inactive, never deleted. Every neighbourhood needs its Persian name.
+ * City neighbourhoods (seed/neighbourhoods/), by their key. Rows no longer in the files are set
+ * inactive, never deleted.
  */
 async function seedNeighbourhoods(tx: Tx): Promise<number> {
   let count = 0;
@@ -262,16 +262,16 @@ async function seedNeighbourhoods(tx: Tx): Promise<number> {
       .where(and(eq(locations.countryCode, c.countryCode), eq(locations.slug, c.city), eq(locations.kind, 'city')));
     if (!city) throw new SeedCheckError([{ name: 'neighbourhoods', problems: [`no city ${c.countryCode}/${c.city}`] }]);
     const rows = seed.neighbourhoods(c);
-    const unnamed = rows.filter((r) => !r.nameFa).map((r) => r.nameLocal);
-    if (unnamed.length > 0) throw new SeedCheckError([{ name: 'neighbourhoods', problems: [`${c.city} without a Persian name: ${unnamed.join(', ')}`] }]);
+    const unnamed = rows.filter((r) => !r.nameLocal.trim()).map((r) => r.key);
+    if (unnamed.length > 0) throw new SeedCheckError([{ name: 'neighbourhoods', problems: [`${c.city} without a name: ${unnamed.join(', ')}`] }]);
     await tx.update(neighbourhoods).set({ isActive: false }).where(eq(neighbourhoods.locationId, city.id));
     for (const r of rows) {
       await tx
         .insert(neighbourhoods)
-        .values({ locationId: city.id, key: r.key, nameLocal: r.nameLocal, nameFa: r.nameFa, boundary: multiPolygonEwkt(r.polygons), isActive: true })
+        .values({ locationId: city.id, key: r.key, nameLocal: r.nameLocal, boundary: multiPolygonEwkt(r.polygons), isActive: true })
         .onConflictDoUpdate({
           target: [neighbourhoods.locationId, neighbourhoods.key],
-          set: { nameLocal: sql`excluded.name_local`, nameFa: sql`excluded.name_fa`, boundary: sql`excluded.boundary`, isActive: true },
+          set: { nameLocal: sql`excluded.name_local`, boundary: sql`excluded.boundary`, isActive: true },
         });
     }
     count += rows.length;
