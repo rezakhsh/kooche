@@ -1949,3 +1949,7 @@ The place field was checked on «محل من» (`/account/place`, the same `Plac
 - `/map/place-area/` answers 404 for codes without an area (GB, IT, SE, and some elsewhere); a 204 would keep the browser console clean.
 
 **Next:** the owner decides on «release» (backup, `peydoo-promote`, then the production seed, by the master session).
+
+### Postal codes: released to production (Nov 4, 2026)
+
+The owner's «release», 22:46–22:51 UTC. Database backup first (`classifieds-backup`, restic snapshot `e2cc1de2`), then `peydoo-promote d3471dc --yes`: production went from `4f7e549` to `d3471dc` (postal codes steps 1–6; no new migrations; migrate, web and worker in 4 minutes). Then the seed from a copy of `d3471dc` ("Scripts that need the code") in a throwaway `node:24.22.0-bookworm-slim` container: 74 s, exit 0, the same counts as staging (170 regions, 468 cities, 236,909 postal places, 58,773 postal areas, 1,866 districts); every postal place has a city. The copy and the node image were deleted afterwards. Country modes unchanged: DE open, TR guide, the rest waitlist. Checked: `/health`, home and `/germany/berlin` 200. No browser check on production (staging's step 6 covered the pages; production has real users' listings). Before the release staging's disk was at 91% (3.4 GB free); `peydoo-docker-cleanup` brought it to 5.2 GB free.
