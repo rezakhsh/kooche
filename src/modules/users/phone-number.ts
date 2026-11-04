@@ -56,15 +56,36 @@ export type NumberCheck =
   | { ok: false; reason: 'invalid' | 'country_not_allowed' | 'no_country'; country: string | null };
 
 /**
- * A number a messenger has already verified (Telegram now; Telegram login and WhatsApp later):
- * accepted only from PHONE_COUNTRIES. Unlike SMS it may be a landline: the messenger checked it.
+ * Iranian numbers (owner, Nov 4, 2026): accepted only through Telegram, and only for sending
+ * messages. An account verified with one can't post listings, events or businesses, or see
+ * sellers' numbers (./permissions.ts). WhatsApp (Meta doesn't deliver from +98) and SMS refuse them.
  */
-export function checkVerifiedNumber(e164: string): NumberCheck {
+export const MESSAGES_ONLY_COUNTRIES: ReadonlySet<string> = new Set(['IR']);
+
+/** The country of an already stored E.164 number, or null (Telegram's +888, a broken value) */
+export function numberCountry(e164: string): string | null {
+  return (E164.test(e164) ? parsePhoneNumberFromString(e164)?.country : undefined) ?? null;
+}
+
+/** A verified number good only for messages (+98), see MESSAGES_ONLY_COUNTRIES */
+export function isMessagesOnlyNumber(e164: string | null | undefined): boolean {
+  if (!e164) return false;
+  const country = numberCountry(e164);
+  return country !== null && MESSAGES_ONLY_COUNTRIES.has(country);
+}
+
+/**
+ * A number a messenger has already verified (Telegram, Telegram login, WhatsApp): accepted only
+ * from PHONE_COUNTRIES, plus Iran for the Telegram paths (`messagesOnly: true`, see
+ * MESSAGES_ONLY_COUNTRIES). Unlike SMS it may be a landline: the messenger checked it.
+ */
+export function checkVerifiedNumber(e164: string, opts: { messagesOnly?: boolean } = {}): NumberCheck {
   const phone = E164.test(e164) ? parsePhoneNumberFromString(e164) : undefined;
   if (!phone) return { ok: false, reason: 'invalid', country: null };
   const country = phone.country ?? null;
   if (!country) return { ok: false, reason: 'no_country', country: null };
-  if (!PHONE_COUNTRIES.has(country)) return { ok: false, reason: 'country_not_allowed', country };
+  const allowed = PHONE_COUNTRIES.has(country) || (opts.messagesOnly === true && MESSAGES_ONLY_COUNTRIES.has(country));
+  if (!allowed) return { ok: false, reason: 'country_not_allowed', country };
   if (!phone.isPossible()) return { ok: false, reason: 'invalid', country };
   return { ok: true, e164: phone.number, country };
 }

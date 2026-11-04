@@ -4,7 +4,7 @@ import { hit } from '../../lib/rate-limit';
 import { messages } from '../../messages/fa';
 import { clearUnreachable, markUnreachable } from '../notifications/telegram-reach';
 import { acceptTelegramContact, bindTelegramLink } from './phone';
-import { telegramNumberToE164 } from './phone-number';
+import { isMessagesOnlyNumber, telegramNumberToE164 } from './phone-number';
 
 // The phone verification bot's logic: one Telegram update in, replies out. The polling loop and
 // the HTTP client are in src/worker/telegram.ts. Private chats only; in a private chat the chat id
@@ -75,7 +75,8 @@ export async function handleUpdate(
       phoneE164: telegramNumberToE164(msg.contact.phone_number),
     });
     if (result.ok) {
-      await api.sendMessage(msg.chat.id, t.verified, REMOVE_KEYBOARD);
+      // An Iranian number works for messages only (owner, Nov 4, 2026): say so at once
+      await api.sendMessage(msg.chat.id, isMessagesOnlyNumber(result.phoneE164) ? t.verifiedMessagesOnly : t.verified, REMOVE_KEYBOARD);
       return;
     }
     const text = {

@@ -26,10 +26,14 @@ export default async function NewBusinessPage() {
     return (
       <PageShell title={t.wizard.title}>
         <Card className="space-y-4">
-          <p className="leading-relaxed text-neutral-700">{t.phoneRequired}</p>
-          <LinkButton href="/account/phone" className="w-full">
-            {messages.post.verifyPhone}
-          </LinkButton>
+          <p className="leading-relaxed text-neutral-700">
+            {allowed.reason === 'local_number_required' ? messages.post.localNumberRequired : allowed.reason === 'restricted' ? messages.post.restricted : t.phoneRequired}
+          </p>
+          {allowed.reason !== 'restricted' && (
+            <LinkButton href="/account/phone" className="w-full">
+              {allowed.reason === 'local_number_required' ? messages.post.verifyLocalNumber : messages.post.verifyPhone}
+            </LinkButton>
+          )}
         </Card>
       </PageShell>
     );

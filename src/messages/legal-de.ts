@@ -14,7 +14,7 @@ const OPERATOR_LINE = `${operator.name}, ${operator.street}, ${operator.postalCo
 
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 3. November 2026',
+  updated: 'Stand: 4. November 2026',
   draft: false,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Persisch und auf Deutsch vor; beide Fassungen sind verbindlich (Ziffer 13.2).',
@@ -77,7 +77,7 @@ const terms: LegalDoc = {
       id: '3.2',
       heading: '3.2 Anmeldung und Telefonnummer',
       body: [
-        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram, WhatsApp oder per SMS). Aus dem Iran kann ein Konto mit bestätigter E-Mail-Adresse auch ohne Telefonnummer Nachrichten senden. Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
+        'Die Anmeldung erfolgt mit einem Code, den wir an Ihre E-Mail-Adresse senden. Um Anzeigen oder Veranstaltungen zu veröffentlichen und Nachrichten zu senden, müssen Sie eine Telefonnummer bestätigen (über Telegram, WhatsApp oder per SMS). Eine iranische Nummer (+98) kann nur über Telegram bestätigt werden und berechtigt nur zum Senden von Nachrichten, nicht zum Veröffentlichen und nicht zum Anzeigen der Telefonnummern anderer Nutzer. Eine Telefonnummer kann nur mit einem Konto verbunden sein.',
       ],
     },
     {
@@ -626,7 +626,7 @@ const terms: LegalDoc = {
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 3. November 2026',
+  updated: 'Stand: 4. November 2026',
   draft: false,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, auf welcher Rechtsgrundlage, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; beide Fassungen haben denselben Inhalt.',
@@ -753,7 +753,7 @@ const privacy: LegalDoc = {
       heading: '4.2 Telefonnummer',
       body: [
         'Um Spam und Betrug zu verhindern, muss vor dem Veröffentlichen und vor dem Senden von Nachrichten eine Telefonnummer bestätigt werden. Wir speichern die Nummer und die Art der Bestätigung. Bei Bestätigung über Telegram teilen Sie uns Ihre Nummer über unseren Telegram-Bot mit, und wir speichern zusätzlich Ihre Telegram-Nutzerkennung. Bei Bestätigung über WhatsApp senden Sie eine vorbereitete Nachricht mit einem Einmalcode an unsere WhatsApp-Business-Nummer; WhatsApp übermittelt uns dabei Ihre Telefonnummer, und wir antworten mit einer kurzen Bestätigung. Den Code speichern wir nur als Hashwert, den Text Ihrer Nachricht gar nicht. Bestätigungsversuche löschen wir nach 90 Tagen.',
-        'Wir nehmen nur Nummern aus den Ländern an, für die Peydoo eingerichtet ist, nicht aber Nummern aus Iran (+98) und anonyme Telegram-Nummern (+888): So lässt sich jedes Konto einem Land zuordnen, und Betrug und Missbrauch werden erschwert. Von einer abgelehnten Nummer speichern wir nur das Land, nicht die Nummer.',
+        'Wir nehmen nur Nummern aus den Ländern an, für die Peydoo eingerichtet ist, keine anonymen Telegram-Nummern (+888) und Nummern aus Iran (+98) nur über Telegram und nur zum Senden von Nachrichten: So lässt sich jedes Konto, das veröffentlicht, einem Land zuordnen, und Betrug und Missbrauch werden erschwert. Von einer abgelehnten Nummer speichern wir nur das Land, nicht die Nummer.',
         'Rechtsgrundlagen: Art. 6 Abs. 1 lit. b und lit. f DSGVO (Schutz der Nutzer vor Betrug).',
       ],
     },
@@ -852,7 +852,7 @@ const privacy: LegalDoc = {
             'Eine Anzeige oder Veranstaltung wird nach dem Veröffentlichen oder Ändern sofort entfernt, wenn sie verbotene Begriffe, ein Foto, das schon ein anderes Konto verwendet hat, oder unzulässige Links wie Linkverkürzer enthält (Nutzungsbedingungen Ziffern 5, 4.3 und 4.6).',
             'Konten, die jünger als sieben Tage sind, können nur begrenzt veröffentlichen und Fotos hochladen und keine Links und Bankverbindungen in Nachrichten senden.',
             'Telefonnummern aus nicht unterstützten Ländern werden abgelehnt (Ziffer 4.2). Mit einer Nummer aus einer anderen Weltregion als das Land der Anzeige lassen sich nur bestimmte Anzeigen veröffentlichen (zum Beispiel Gesuche und Online-Dienstleistungen), und in der ersten Woche ist nur eine Anzeige außerhalb des Landes der Nummer möglich.',
-            'Kommt eine Anfrage nach dem von Cloudflare ermittelten Land aus Iran (Ziffer 3.1), sind Zahlungen nicht möglich; ein Konto ohne bestätigte Telefonnummer kann dann Nachrichten senden.',
+            'Kommt eine Anfrage nach dem von Cloudflare ermittelten Land aus Iran (Ziffer 3.1), sind Zahlungen nicht möglich, und die Bestätigung über WhatsApp wird nicht angeboten. Ein Konto mit einer iranischen Nummer (+98) kann Nachrichten senden, aber nichts veröffentlichen (Ziffer 4.2).',
             'Nachrichten mit typischen Betrugsmerkmalen erhalten beim Empfänger einen Warnhinweis (Ziffer 6).',
           ],
         },
@@ -946,7 +946,7 @@ const privacy: LegalDoc = {
     {
       id: '11',
       heading: '11. Pflicht zur Angabe',
-      body: ['Ohne E-Mail-Adresse können Sie kein Konto anlegen, ohne bestätigte Telefonnummer nichts veröffentlichen und keine Nachrichten senden (aus dem Iran sind Nachrichten auch mit einem reinen E-Mail-Konto möglich). Zum Stöbern brauchen Sie kein Konto.'],
+      body: ['Ohne E-Mail-Adresse können Sie kein Konto anlegen, ohne bestätigte Telefonnummer nichts veröffentlichen und keine Nachrichten senden (mit einer iranischen Nummer nur Nachrichten senden). Zum Stöbern brauchen Sie kein Konto.'],
     },
     {
       id: '12',

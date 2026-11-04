@@ -249,11 +249,20 @@ describe('protective rules and privacy additions (Nov 3, 2026)', () => {
     expect(section(legalDe.privacy, '4.4')).toContain('18 Jahre');
   });
 
+  it('describe the messaging rule of Nov 4, 2026: +98 through Telegram, messages only; no email-only exception', () => {
+    expect(section(legalDe.terms, '3.2')).toContain('nur über Telegram');
+    expect(section(pages.terms, '3.2')).toContain('فقط با تلگرام');
+    for (const doc of [legalDe.terms, legalDe.privacy]) expect(JSON.stringify(doc)).not.toContain('reinen E-Mail-Konto');
+    expect(section(legalDe.privacy, '4.2')).toContain('nur über Telegram und nur zum Senden von Nachrichten');
+    expect(section(pages.privacy, '4.2')).toContain('فقط با تلگرام و فقط برای فرستادن پیام');
+    expect(JSON.stringify(pages.privacy)).not.toContain('حسابی که فقط ایمیل دارد');
+  });
+
   it('both versions carry the date of this version', () => {
-    expect(legalDe.terms.updated).toBe('Stand: 3. November 2026');
-    expect(legalDe.privacy.updated).toBe('Stand: 3. November 2026');
-    expect(pages.terms.updated).toBe('به‌روزرسانی: ۳ نوامبر ۲۰۲۶');
-    expect(pages.privacy.updated).toBe('به‌روزرسانی: ۳ نوامبر ۲۰۲۶');
+    expect(legalDe.terms.updated).toBe('Stand: 4. November 2026');
+    expect(legalDe.privacy.updated).toBe('Stand: 4. November 2026');
+    expect(pages.terms.updated).toBe('به‌روزرسانی: ۴ نوامبر ۲۰۲۶');
+    expect(pages.privacy.updated).toBe('به‌روزرسانی: ۴ نوامبر ۲۰۲۶');
   });
 
   // The texts are our own; they never name the platform we compared ourselves with (owner, Nov 3, 2026)

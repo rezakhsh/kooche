@@ -2,10 +2,15 @@ import { eq } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { users } from '../../db/schema';
 import { activeSanctions, restrictsMessaging, restrictsPosting, type SanctionType } from '../moderation/sanctions';
+import { isMessagesOnlyNumber } from './phone-number';
 
-// Who may do what (decided Oct 16, 2026): browsing and favorites need no verification; posting a
-// listing and sending a chat message need a verified phone number. The posting and chat features
-// must call these before they write anything. Sanctions (user_sanctions) join here with moderation.
+// Who may do what (decided Oct 16, 2026; Iranian numbers, owner, Nov 4, 2026): browsing and
+// favorites need no verification; sending a chat message needs a verified phone number, in every
+// country (no exception by the visitor's country: many use a VPN); posting a listing, an event or a
+// business and seeing a seller's number need a verified number that isn't Iranian. A +98 number is
+// accepted only through Telegram, for messages only (./phone-number.ts, MESSAGES_ONLY_COUNTRIES).
+// The posting and chat features must call these before they write anything. Sanctions
+// (user_sanctions) join here with moderation.
 
 export type Actor = {
   id: string;
@@ -19,7 +24,8 @@ export type Actor = {
   restrictions?: readonly SanctionType[];
 };
 
-export type Denied = 'sign_in_required' | 'account_disabled' | 'phone_required' | 'restricted';
+/** `local_number_required`: the verified number is good for messages only (+98) */
+export type Denied = 'sign_in_required' | 'account_disabled' | 'phone_required' | 'local_number_required' | 'restricted';
 export type Decision = { ok: true } | { ok: false; reason: Denied };
 
 export async function loadActor(db: Queryable, userId: string | null | undefined): Promise<Actor | null> {
@@ -44,21 +50,33 @@ function verified(actor: Actor | null): Decision {
   return actor!.phoneVerifiedAt ? { ok: true } : { ok: false, reason: 'phone_required' };
 }
 
-/** Posting a listing, an event or a business: a verified phone and no posting restriction */
-export function canPostListing(actor: Actor | null): Decision {
+/** A verified number that may also post: not one of the messages-only countries (Iran) */
+function localNumber(actor: Actor | null): Decision {
   const base = verified(actor);
+  if (!base.ok) return base;
+  return isMessagesOnlyNumber(actor!.phoneE164) ? { ok: false, reason: 'local_number_required' } : { ok: true };
+}
+
+/** Posting a listing, an event or a business: a verified non-Iranian number and no posting restriction */
+export function canPostListing(actor: Actor | null): Decision {
+  const base = localNumber(actor);
   if (!base.ok) return base;
   return restrictsPosting(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
 }
 
 /**
- * Sending a chat message or seeing a phone number: a verified phone and no messaging restriction.
- * From Iran, an email account may send messages without one (owner's rule of Oct 27, 2026: +98
- * numbers are refused; built after the code check, Oct 30, 2026, for Iran only); seeing a phone
- * number still needs one.
+ * Sending a chat message: a verified number (an Iranian one too) and no messaging restriction, from
+ * any country. Replaces the Oct 30, 2026 exception that let email accounts write from Iran.
  */
-export function canSendMessage(actor: Actor | null, where: { fromIran?: boolean } = {}): Decision {
-  const base = where.fromIran ? signedIn(actor) : verified(actor);
+export function canSendMessage(actor: Actor | null): Decision {
+  const base = verified(actor);
+  if (!base.ok) return base;
+  return restrictsMessaging(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
+}
+
+/** Seeing a seller's phone number: as posting, a verified non-Iranian number, and no messaging restriction */
+export function canSeePhone(actor: Actor | null): Decision {
+  const base = localNumber(actor);
   if (!base.ok) return base;
   return restrictsMessaging(actor!.restrictions ?? []) ? { ok: false, reason: 'restricted' } : { ok: true };
 }

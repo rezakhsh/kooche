@@ -26,5 +26,6 @@ export async function GET(request: Request): Promise<Response> {
     error: params.get('error'),
     config,
   });
-  return back(result.ok ? 'ok' : result.reason === 'country_not_allowed' && result.country === 'IR' ? 'iran' : result.reason);
+  // An Iranian number is accepted since Nov 4, 2026 (messages only), so there is no ?telegram=iran any more
+  return back(result.ok ? 'ok' : result.reason);
 }

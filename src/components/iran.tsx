@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import { appDb } from '../db/drizzle';
 import { isIranRequest } from '../lib/region';
 import { messages } from '../messages/fa';
+import { loadActor } from '../modules/users/permissions';
 import { currentSession } from '../modules/users/server';
 import { Icon } from './icons';
 import { Alert } from './ui';
@@ -17,9 +19,12 @@ export async function IranBanner() {
   if (!(await fromIran())) return null;
   const t = messages.iran.banner;
   const session = await currentSession();
+  // Messages need a verified number, from Iran too (owner, Nov 4, 2026): +98 through Telegram
+  const noNumber = session ? !(await loadActor(appDb(), session.user.id))?.phoneVerifiedAt : false;
   const pill = 'flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-bold';
   // A card above the page (wave 1, mockup final/iran); the mockup's header pill «دیدن و پیام» and
-  // four-item bar are left out, since people in Iran may now do everything but pay (Oct 27, 2026)
+  // four-item bar are left out, since people in Iran may now do everything but pay (Oct 27, 2026);
+  // messaging needs a verified number, which may be Iranian (Telegram only, messages only; Nov 4, 2026)
   return (
     <div data-iran-banner className="mx-auto max-w-6xl px-4 pt-3 sm:px-6">
       <section className="rounded-2xl border border-brand-200 bg-brand-50 p-4 lg:flex lg:items-start lg:gap-4">
@@ -29,8 +34,14 @@ export async function IranBanner() {
         <div className="flex-1">
           <h2 className="text-base font-extrabold text-brand-800 lg:text-lg">{t.title}</h2>
           <p className="mt-1 text-sm leading-7 text-neutral-800">{t.body}</p>
-          <p className="mt-2 text-sm leading-7 text-neutral-800">{session ? t.traveling : t.guest}</p>
+          <p className="mt-2 text-sm leading-7 text-neutral-800">{!session ? t.guest : noNumber ? t.noNumber : t.traveling}</p>
           <div className="mt-3 flex flex-wrap gap-2">
+            {noNumber && (
+              <Link href="/account/phone" className={`${pill} bg-brand-700 text-white hover:bg-brand-800`}>
+                <Icon name="send" className="size-4" />
+                {t.verify}
+              </Link>
+            )}
             {!session && (
               <Link href="/login" className={`${pill} bg-brand-700 text-white hover:bg-brand-800`}>
                 <Icon name="mail" className="size-4" />

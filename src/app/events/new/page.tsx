@@ -23,10 +23,10 @@ export default async function NewEventPage({ searchParams }: { searchParams: Pro
     return (
       <PageShell title={messages.events.form.newTitle}>
         <Card className="space-y-4">
-          <p className="leading-relaxed text-neutral-700">{allowed.reason === 'phone_required' ? t.phoneRequired : allowed.reason === 'restricted' ? messages.post.restricted : t.accountDisabled}</p>
-          {allowed.reason === 'phone_required' && (
+          <p className="leading-relaxed text-neutral-700">{allowed.reason === 'phone_required' ? t.phoneRequired : allowed.reason === 'local_number_required' ? t.localNumberRequired : allowed.reason === 'restricted' ? messages.post.restricted : t.accountDisabled}</p>
+          {(allowed.reason === 'phone_required' || allowed.reason === 'local_number_required') && (
             <LinkButton href="/account/phone" className="w-full">
-              {t.verifyPhone}
+              {allowed.reason === 'local_number_required' ? t.verifyLocalNumber : t.verifyPhone}
             </LinkButton>
           )}
         </Card>

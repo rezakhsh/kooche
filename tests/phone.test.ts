@@ -205,26 +205,14 @@ describe('Telegram verification', () => {
     expect((await userRow(first.userId)).phoneE164).toBe(newPhone);
   });
 
-  it('refuses an Iranian number, keeping only its country', async () => {
+  it('accepts an Iranian number, for messages only (owner, Nov 4, 2026)', async () => {
     const { userId, tgId, verificationId } = await boundAttempt();
-    const result = await acceptTelegramContact(workerDb, {
-      fromId: tgId,
-      contactUserId: tgId,
-      phoneE164: '+989121234567',
-    });
-    expect(result).toEqual({ ok: false, reason: 'country_not_allowed', country: 'IR' });
-    expect(await attemptRow(verificationId)).toMatchObject({
-      status: 'failed',
-      failureReason: 'country_not_allowed',
-      numberCountry: 'IR',
-      phoneE164: null,
-    });
-    expect(await userRow(userId)).toMatchObject({ phoneE164: null, telegramUserId: null });
-    expect(await attemptStatus(appDb, userId, verificationId)).toEqual({
-      status: 'failed',
-      failureReason: 'country_not_allowed',
-      iran: true,
-    });
+    const phone = `+98912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    const result = await acceptTelegramContact(workerDb, { fromId: tgId, contactUserId: tgId, phoneE164: phone });
+    expect(result).toEqual({ ok: true, phoneE164: phone });
+    expect(await attemptRow(verificationId)).toMatchObject({ status: 'verified', numberCountry: 'IR' });
+    expect(await userRow(userId)).toMatchObject({ phoneE164: phone, telegramUserId: tgId });
+    expect(await attemptStatus(appDb, userId, verificationId)).toMatchObject({ status: 'verified' });
   });
 
   it('refuses an anonymous +888 number', async () => {
@@ -325,17 +313,18 @@ describe('Telegram bot', () => {
     expect((await userRow(user.id)).phoneE164).toBeNull();
   });
 
-  it('answers an Iranian number with the Iran text, never "sanctions"', async () => {
+  it('verifies an Iranian number and says it is for messages only, never "sanctions"', async () => {
     const user = await newUser();
     const { token } = await startTelegramVerification(appDb, { userId: user.id, ip: null });
     const tgId = ++telegramIds;
     const api = new FakeApi();
+    const digits = `98912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
     await handleUpdate(workerDb, redis, api, message(tgId, { text: `/start ${token}` }));
-    await handleUpdate(workerDb, redis, api, message(tgId, { contact: { phone_number: '989121234567', user_id: tgId } }));
-    expect(api.sent[1]!.text).toBe(messages.bot.iranNumber);
+    await handleUpdate(workerDb, redis, api, message(tgId, { contact: { phone_number: digits, user_id: tgId } }));
+    expect(api.sent[1]!.text).toBe(messages.bot.verifiedMessagesOnly);
     expect(api.sent[1]!.text).not.toContain('تحریم');
     expect(api.sent[1]!.markup).toEqual({ remove_keyboard: true });
-    expect((await userRow(user.id)).phoneE164).toBeNull();
+    expect((await userRow(user.id)).phoneE164).toBe(`+${digits}`);
   });
 
   it('answers +888 and other countries with their own texts', async () => {

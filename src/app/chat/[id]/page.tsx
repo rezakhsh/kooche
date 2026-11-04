@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
@@ -23,7 +22,6 @@ import { canSendMessage, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { archiveAction, blockAction } from '../actions';
 import { ReportButton, Thread } from './thread';
-import { isIranRequest } from '../../../lib/region';
 
 export const metadata = { title: messages.chat.title, robots: { index: false } };
 
@@ -50,7 +48,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   ]);
   const t = messages.chat;
   const env = webEnv();
-  const allowed = canSendMessage(actor, { fromIran: isIranRequest(await headers()) });
+  const allowed = canSendMessage(actor);
 
   let readOnly: ReactNode = null;
   if (view.status === 'closed') readOnly = t.readOnly.closed;
@@ -188,9 +186,18 @@ export default async function ConversationPage({ params, searchParams }: { param
           <Alert tone="success">{t[done]}</Alert>
         </div>
       )}
-      <p className="sr-only">
-        {otherName}، {t.memberSince(formatMonth(view.other.memberSince, env.APP_TIME_ZONE))}
-        {view.other.phoneVerified ? `، ${t.phoneVerified}` : ''}
+      {/* Who the other person is (owner, Nov 4, 2026): a positive mark for a verified number, never a
+          label for its absence; the same pill as the listing page's */}
+      <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-3 pt-2 text-xs text-neutral-600 sm:px-6">
+        <span>
+          <bdi className="font-bold text-neutral-800">{otherName}</bdi>، {t.memberSince(formatMonth(view.other.memberSince, env.APP_TIME_ZONE))}
+        </span>
+        {view.other.phoneVerified && (
+          <span data-verified-mark className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 font-bold leading-6 text-brand-800">
+            <Icon name="shield" className="size-3.5" />
+            {t.phoneVerified}
+          </span>
+        )}
       </p>
       <Thread
         conversationId={view.id}

@@ -175,7 +175,8 @@ export async function finishTelegramLogin(
   if (!claims || claims.phone_number_verified !== true || typeof claims.phone_number !== 'string') return fail('oidc_failed');
 
   const e164 = telegramNumberToE164(claims.phone_number);
-  const number = e164 ? checkVerifiedNumber(e164) : null;
+  // Iranian numbers too, for messages only, as in the bot (owner, Nov 4, 2026)
+  const number = e164 ? checkVerifiedNumber(e164, { messagesOnly: true }) : null;
   if (!number) return fail('oidc_failed');
   if (!number.ok) return number.reason === 'invalid' ? fail('oidc_failed') : fail(number.reason, number.country);
 

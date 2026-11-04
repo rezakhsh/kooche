@@ -44,6 +44,8 @@ function refusal(reason: string): string {
   switch (reason) {
     case 'phone_required':
       return t.post.phoneRequired;
+    case 'local_number_required':
+      return t.post.localNumberRequired;
     case 'account_disabled':
       return t.post.accountDisabled;
     case 'restricted':

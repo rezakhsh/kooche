@@ -234,7 +234,8 @@ export type ContactResult =
 /**
  * A contact shared in the bot. Accepted only when the contact is the sender's own
  * (contact.user_id === from.id): anyone can share someone else's contact card. The number must
- * pass checkVerifiedNumber(): a refused one fails the attempt and only its country is kept.
+ * pass checkVerifiedNumber() (Iran allowed, for messages only): a refused one fails the attempt
+ * and only its country is kept.
  */
 export async function acceptTelegramContact(
   db: Queryable,
@@ -260,7 +261,8 @@ export async function acceptTelegramContact(
     return { ok: false, reason: 'foreign_contact' };
   }
   if (!c.phoneE164) return { ok: false, reason: 'invalid_number' };
-  const number = checkVerifiedNumber(c.phoneE164);
+  // Iranian numbers too, for messages only (owner, Nov 4, 2026; ./phone-number.ts)
+  const number = checkVerifiedNumber(c.phoneE164, { messagesOnly: true });
   if (!number.ok) {
     if (number.reason === 'invalid') return { ok: false, reason: 'invalid_number' };
     await failVerification(db, row.id, number.reason, { telegramUserId: c.fromId, numberCountry: number.country });

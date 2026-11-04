@@ -106,14 +106,20 @@ describe('Telegram login', () => {
     expect(await finishTelegramLogin(appDb, tg.transport, { userId: u.id, state: tg.state, code: 'the-code', error: null, config })).toEqual({ ok: false, reason: 'invalid_state' });
   });
 
-  it('refuses +98 and +888, keeping only the country', async () => {
-    for (const [phone, reason, country] of [['989121234567', 'country_not_allowed', 'IR'], ['88804123456', 'no_country', null]] as const) {
-      const { u, url, verificationId } = await started();
-      const tg = fakeTelegram(url, (c) => ({ ...c, phone_number: phone }));
-      expect(await finishTelegramLogin(appDb, tg.transport, { userId: u.id, state: tg.state, code: 'the-code', error: null, config })).toEqual({ ok: false, reason, country });
-      expect(await attempt(verificationId)).toMatchObject({ status: 'failed', failureReason: reason, numberCountry: country, phoneE164: null });
-      expect((await account(u.id)).phoneE164).toBeNull();
-    }
+  it('refuses +888, keeping no number', async () => {
+    const { u, url, verificationId } = await started();
+    const tg = fakeTelegram(url, (c) => ({ ...c, phone_number: '88804123456' }));
+    expect(await finishTelegramLogin(appDb, tg.transport, { userId: u.id, state: tg.state, code: 'the-code', error: null, config })).toEqual({ ok: false, reason: 'no_country', country: null });
+    expect(await attempt(verificationId)).toMatchObject({ status: 'failed', failureReason: 'no_country', numberCountry: null, phoneE164: null });
+    expect((await account(u.id)).phoneE164).toBeNull();
+  });
+
+  it('accepts +98, for messages only, like the bot (owner, Nov 4, 2026)', async () => {
+    const { u, url } = await started();
+    const digits = `98912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    const tg = fakeTelegram(url, (c) => ({ ...c, phone_number: digits }));
+    expect(await finishTelegramLogin(appDb, tg.transport, { userId: u.id, state: tg.state, code: 'the-code', error: null, config })).toEqual({ ok: true, phoneE164: `+${digits}` });
+    expect((await account(u.id)).phoneE164).toBe(`+${digits}`);
   });
 
   it('records a refusal on Telegram’s page', async () => {

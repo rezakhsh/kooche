@@ -11,7 +11,7 @@ import { changeMember, invite } from '../src/modules/organizations/members';
 import { updateBusiness, type BusinessInput } from '../src/modules/organizations/organizations';
 import { blockUser } from '../src/modules/users/blocks';
 import { eraseRequestedUser, finishStuckErasures, requestErasure, stuckErasures } from '../src/modules/users/erasure';
-import { canSendMessage, loadActor } from '../src/modules/users/permissions';
+import { canPostListing, canSeePhone, canSendMessage, loadActor } from '../src/modules/users/permissions';
 import { acceptTelegramContact, bindTelegramLink, startTelegramVerification } from '../src/modules/users/phone';
 import { purgeAccountData } from '../src/modules/users/retention';
 import { smsAvailable } from '../src/modules/users/sms';
@@ -196,18 +196,71 @@ describe('banned people coming back', () => {
   });
 });
 
-describe('writing from Iran', () => {
-  it('an email account may send messages; seeing a number still needs a verified phone', async () => {
+describe('messages need a verified number; +98 through Telegram is for messages only (owner, Nov 4, 2026)', () => {
+  const iranian = () => `+98912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+  async function withTelegram(phone: string) {
+    const u = await person();
+    await db.update(schema.users).set({ phoneE164: null, phoneVerifiedAt: null, phoneVerificationMethod: null }).where(eq(schema.users.id, u.id));
+    const tg = ++telegramIds;
+    const { token } = await startTelegramVerification(appDb, { userId: u.id, ip: '203.0.113.9' });
+    await bindTelegramLink(workerDb, { token, telegramUserId: tg });
+    return { u, result: await acceptTelegramContact(workerDb, { fromId: tg, contactUserId: tg, phoneE164: phone }) };
+  }
+  const hello = 'سلام، هنوز موجود است؟';
+
+  it('an email account without a number can send nothing, from any country (the Iran exception is gone)', async () => {
     await redis.flushdb();
     const seller = await person();
     const l = await makeListing(tx, seller.id, { allowPhoneContact: true });
     const buyer = await user({ verified: false, createdAt: new Date(Date.now() - 30 * DAY) });
     const actor = await loadActor(appDb, buyer.id);
     expect(canSendMessage(actor)).toEqual({ ok: false, reason: 'phone_required' });
-    expect(canSendMessage(actor, { fromIran: true })).toEqual({ ok: true });
-    expect(await sendMessage(appDb, redis, { userId: buyer.id, target: { listingToken: l.publicToken }, body: 'سلام، هنوز موجود است؟' })).toMatchObject({ ok: false, reason: 'phone_required' });
-    expect(await sendMessage(appDb, redis, { userId: buyer.id, target: { listingToken: l.publicToken }, body: 'سلام، هنوز موجود است؟', fromIran: true })).toMatchObject({ ok: true });
+    expect(canPostListing(actor)).toEqual({ ok: false, reason: 'phone_required' });
+    expect(await sendMessage(appDb, redis, { userId: buyer.id, target: { listingToken: l.publicToken }, body: hello })).toMatchObject({ ok: false, reason: 'phone_required' });
     expect(await revealPhone(appDb, redis, { userId: buyer.id, token: l.publicToken, ip: null, userAgent: null })).toMatchObject({ ok: false, reason: 'phone_required' });
+  });
+
+  it('the Telegram bot verifies a +98 number: messages yes; posting and seeing numbers no', async () => {
+    await redis.flushdb();
+    const phone = iranian();
+    const { u, result } = await withTelegram(phone);
+    expect(result).toEqual({ ok: true, phoneE164: phone });
+    const [stored] = await db.select().from(schema.users).where(eq(schema.users.id, u.id));
+    expect(stored).toMatchObject({ phoneE164: phone, phoneVerificationMethod: 'telegram' });
+    expect(stored!.phoneVerifiedAt).not.toBeNull();
+
+    const actor = await loadActor(appDb, u.id);
+    expect(canSendMessage(actor)).toEqual({ ok: true });
+    expect(canPostListing(actor)).toEqual({ ok: false, reason: 'local_number_required' });
+    expect(canSeePhone(actor)).toEqual({ ok: false, reason: 'local_number_required' });
+
+    const seller = await person();
+    const l = await makeListing(tx, seller.id, { allowPhoneContact: true });
+    expect(await sendMessage(appDb, redis, { userId: u.id, target: { listingToken: l.publicToken }, body: hello })).toMatchObject({ ok: true });
+    expect(await revealPhone(appDb, redis, { userId: u.id, token: l.publicToken, ip: null, userAgent: null })).toMatchObject({ ok: false, reason: 'local_number_required' });
+  });
+
+  it('a +98 number is still one account only, and +888 stays refused', async () => {
+    await redis.flushdb();
+    const phone = iranian();
+    expect((await withTelegram(phone)).result).toMatchObject({ ok: true });
+    expect((await withTelegram(phone)).result).toMatchObject({ ok: false, reason: 'phone_in_use' });
+    expect((await withTelegram('+88812345678')).result).toMatchObject({ ok: false, reason: 'no_country' });
+  });
+
+  it('a foreign number does everything, as before; a messaging restriction still stops messages and reveals', async () => {
+    await redis.flushdb();
+    const seller = await person();
+    const l = await makeListing(tx, seller.id, { allowPhoneContact: true });
+    const buyer = await person();
+    const actor = await loadActor(appDb, buyer.id);
+    expect(canSendMessage(actor)).toEqual({ ok: true });
+    expect(canPostListing(actor)).toEqual({ ok: true });
+    expect(canSeePhone(actor)).toEqual({ ok: true });
+    expect(await revealPhone(appDb, redis, { userId: buyer.id, token: l.publicToken, ip: null, userAgent: null })).toMatchObject({ ok: true });
+    const restricted = { ...actor!, restrictions: ['messaging_restricted' as const] };
+    expect(canSendMessage(restricted)).toEqual({ ok: false, reason: 'restricted' });
+    expect(canSeePhone(restricted)).toEqual({ ok: false, reason: 'restricted' });
   });
 });
 

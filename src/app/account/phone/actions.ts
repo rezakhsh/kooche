@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
 import { clientIp } from '../../../lib/client-ip';
+import { isIranRequest } from '../../../lib/region';
 import { webEnv } from '../../../lib/env';
 import { hit } from '../../../lib/rate-limit';
 import { normalizePersian } from '../../../lib/normalize-persian';
@@ -71,6 +72,8 @@ export async function startWhatsAppAction(): Promise<WhatsAppStart> {
   const { user } = await requireSession('/account/phone');
   const config = whatsApp();
   if (!config) return { error: messages.phone.whatsapp.unavailable };
+  // No WhatsApp from Iran (owner, Nov 4, 2026; ../../../modules/users/phone-ways.ts): the button is hidden there
+  if (isIranRequest(await headers())) return { error: messages.phone.whatsapp.notFromIran };
   const limited = await limitStart(user.id);
   if (limited) return { error: limited };
   const { verificationId, code } = await startWhatsAppVerification(appDb(), { userId: user.id, ip: clientIp(await headers()) });
