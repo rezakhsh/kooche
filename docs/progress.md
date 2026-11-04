@@ -1867,6 +1867,45 @@ Results: `npx tsc --noEmit` clean; `npx vitest run` **1,228 tests in 101 files, 
 
 **Next:** step 5, the area shapes (see step 1's next steps), then step 6, the staging seed and browser checks.
 
-### Postal codes: step 5, areas: paused (Nov 4, 2026, owner left; to be finished)
+### Postal codes: step 5, areas (Nov 4, 2026)
 
-Owner approved the plan (Nov 4, 2026, «Yes, build it»): official files for US, CA, NL, AU; OpenStreetMap for FR and TR; circles for GB, IT, SE (details in `docs/setup.md`, "The street map"). **Done and committed, not pushed:** US 33,642 of 40,976, CA 1,630 of 1,651, NL 4,070 of 4,086, AU 2,641 of 3,170 (commit "part 1"); seed fresh 73 → 91 s, rerun 86 → 98 s, peak memory 455 → ~310 MB, `postal_areas` 32 → 114 MB; full tests passed except one BullMQ timing flake in `search-sync.test.ts` (passes alone). **TR:** `seed/postal-areas/tr.json` written (553 codes: İstanbul 243 of 277, İzmir 92 of 128, Ankara 67 of 116) but not yet in `POSTAL_AREA_COUNTRIES`. **FR: unfinished**: every Overpass server was overloaded (502/504/403); about 4,250 of 6,164 relations are fetched and cached in the session's scratchpad (`overpass-fr`); rerun `OVERPASS_BY_ID=1 OVERPASS_BATCH=200 OVERPASS_CACHE=<dir> OVERPASS_URL=https://maps.mail.ru/osm/tools/overpass/api/interpreter node scripts/import-postal-areas.mjs FR`. **Left:** FR import, FR and TR into `POSTAL_AREA_COUNTRIES` and `tests/street-map.test.ts` (counts, Tour Eiffel 75007, Kadıköy 34710), measure again, tests, the full step 5 entry, safety checks and push. Production's `/data` downloads are already deleted.
+Owner approved the plan (Nov 4, 2026, «Yes, build it»): official files where they exist, OpenStreetMap elsewhere, circles for the UK; for countries OpenStreetMap only partly covers, decided from practice (details and sources in `docs/setup.md`, "The street map"; licences in `seed/README.md`). **The staging seed was not run** (step 6); no migration.
+
+**Areas per country** (codes with a shape of the codes we store; the rest get the 1 km circle):
+
+| Country | Source | With a shape | Without |
+|---|---|---|---|
+| US | Census Bureau 2020 ZCTA 1:500k (public domain) | 33,642 of 40,976 | 7,334: PO-box and single-company ZIPs |
+| CA | StatCan 2021 FSA, from its map service (OGL Canada) | 1,630 of 1,651 | 21: office towers, government, PO boxes (M5K, G1A, H0M…) |
+| NL | CBS postcode4 2024, PDOK (CC BY 4.0) | 4,070 of 4,086 | 16 |
+| AU | ABS 2021 postal areas (CC BY 4.0) | 2,641 of 3,170 | 529: PO-box codes |
+| FR | OpenStreetMap, 6,164 relations | 5,969 of 6,064 | 95: Marseille's 17 districts, Nice 4, Montpellier 4, Nantes 4, Aix 4; city-wide 75000, 69000. Every Paris district has one |
+| TR | OpenStreetMap | 553 of 2,953 | the rest of the country: İstanbul 243 of 277, İzmir 92 of 128, Ankara 67 of 116 |
+| GB, IT, SE | none: circles | 0 | GB has no open areas; IT's and SE's OpenStreetMap areas miss Milano, Roma, Stockholm, Göteborg, so one look per country (Leboncoin, Kleinanzeigen, Blocket, Gumtree show one kind of area across a country) |
+
+DE (8,037) and AT (2,231) unchanged. The map's corner credits the official file while its area is shown (`AREA_CREDITS`).
+
+**Size and seed** (a fresh database from the template, measured in the test container, peak from the cgroup):
+
+| | Before (8bbfb79) | After |
+|---|---|---|
+| `seed/postal-areas/*.json` | 7.5 MB (DE, AT) | 32.3 MB (US 16.5, DE 6.0, FR 4.1, AU 1.7, AT 1.5, CA 1.1, NL 1.1, TR 0.3) |
+| `npm run db:seed`, fresh | 73 s, 417 MB peak | 88 s, 288 MB peak |
+| `npm run db:seed`, rerun | 86 s, 455 MB peak | 100 s, 296 MB peak |
+| `postal_areas` table | 32 MB | 131 MB (database 308 → 408 MB) |
+
+Peak memory fell because the seed now decodes a country's areas a batch of 200 at a time. Simplified by size (0.0002°, or 0.004 × √area for big rural areas).
+
+**How it was fetched.** Official files by `scripts/import-official-postal-areas.py` (Python's own modules, no GDAL), downloaded on production's `/data`, one country at a time, deleted afterwards; only the JSON came back. OpenStreetMap by `scripts/import-postal-areas.mjs` with the new `OVERPASS_BY_ID=1` mode (list the country's relations, fetch them by id, keep each batch in `OVERPASS_CACHE`), because every Overpass server answered box queries with 502/504 all afternoon; France took about 6 hours over two sittings.
+
+**Tests:** `npx tsc --noEmit` clean; `npx vitest run` 1,230 of 1,230 passed (101 files). `tests/street-map.test.ts` checks the counts per country, that GB, IT and SE have none, a landmark inside its area in each country (Times Square, King Street West, Dam, Sydney Town Hall, Tour Eiffel, Kadıköy) and the corner credit for the official files only.
+
+**Open points:**
+- Marseille and Nice have no OpenStreetMap areas, so they show circles among shapes. Marseille's 16 districts follow its arrondissements, which OpenStreetMap does have; could be filled from those later if France opens beyond Paris.
+- Turkey: 37 relations left out (over the border, or their code's places lie outside them) and 10 incomplete ones (12563599, 12563600, 12563601, 12563602, 12563608, 12563609, 12563619, 16319969, 18523343, 18665257).
+- StatCan puts the CN Tower and Rogers Centre in M5J, not M5V; the test uses King Street West.
+- 30 US, 5 CA, 1 NL and 4 AU areas lie more than 0.3° from their places (kept; the source is official).
+- Germany's and Austria's files are not re-simplified with the size rule (unchanged on purpose).
+- `tests/search-sync.test.ts` failed once in an earlier full run (a BullMQ job 'active' instead of 'delayed' under load) and passed alone and in this run: a timing flake, not fixed here.
+
+**Next:** step 6, the staging seed and browser checks (phone and computer) of a few areas per country, screenshots to `/root/peydoo-media/`.

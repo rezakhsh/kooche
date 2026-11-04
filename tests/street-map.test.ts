@@ -23,7 +23,7 @@ async function postalCenter(code: string) {
 }
 
 /** Postal code areas per country (seed/postal-areas/; counts in docs/setup.md, "The street map") */
-const AREAS = { DE: 8_037, AT: 2_231, US: 33_642, CA: 1_630, NL: 4_070, AU: 2_641 };
+const AREAS = { DE: 8_037, AT: 2_231, FR: 5_969, TR: 553, US: 33_642, CA: 1_630, NL: 4_070, AU: 2_641 };
 
 describe('postal code areas', () => {
   it('cover almost every German and Austrian postal code, with valid shapes', async () => {
@@ -43,7 +43,7 @@ describe('postal code areas', () => {
   it('cover the planned countries that have open areas (postal codes step 5), with valid shapes', async () => {
     const rows = await db.execute<{ cc: string; n: number }>(sql`SELECT country_code AS cc, count(*)::int AS n FROM postal_areas GROUP BY 1`);
     const n = Object.fromEntries(rows.map((r) => [r.cc, r.n]));
-    // Official files: US Census ZCTA, StatCan FSA, CBS PC4, ABS postal areas
+    // OpenStreetMap: DE, AT, FR, TR (Turkey: its three big cities). Official files: US Census ZCTA, StatCan FSA, CBS PC4, ABS postal areas
     expect(n).toMatchObject(AREAS);
     // The UK has no open areas; Italy's and Sweden's few OpenStreetMap areas miss their cities: circles
     expect(n.GB ?? 0).toBe(0);
@@ -61,6 +61,8 @@ describe('postal code areas', () => {
       ['CA', 'M5V', -79.399, 43.644], // Toronto, King Street West (StatCan puts the CN Tower in M5J)
       ['NL', '1012', 4.8924, 52.3731], // Amsterdam, Dam
       ['AU', '2000', 151.2093, -33.8688], // Sydney, Town Hall
+      ['FR', '75007', 2.2945, 48.8584], // Paris, Tour Eiffel
+      ['TR', '34710', 29.0254, 40.9903], // İstanbul, Kadıköy
     ] as const) {
       const [r] = await db.execute<{ ok: boolean }>(sql`
         SELECT ST_Covers(boundary, ST_GeogFromText(${`SRID=4326;POINT(${lng} ${lat})`})) AS ok
@@ -94,7 +96,7 @@ describe('a page’s street map', () => {
       const view = await streetMapView(appDb, { countryCode: cc, postalCode: code, point: at, precision: 'postal_code' });
       expect(view!.area?.credit, cc).toBe(cc);
     }
-    for (const [cc, code] of [['DE', '13353']] as const) {
+    for (const [cc, code] of [['DE', '13353'], ['FR', '75007'], ['TR', '34710']] as const) {
       const view = await streetMapView(appDb, { countryCode: cc, postalCode: code, point: at, precision: 'postal_code' });
       expect(view!.area?.type, cc).toBe('MultiPolygon');
       expect(view!.area?.credit, cc).toBeUndefined();

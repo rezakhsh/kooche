@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 // first, then holes) in Google's polyline encoding at 5 decimals, longitude first.
 
 /** Countries whose postal code areas are seeded; a postal code without an area gets a circle on the map */
-export const POSTAL_AREA_COUNTRIES = ['DE', 'AT', 'US', 'CA', 'NL', 'AU'] as const;
+export const POSTAL_AREA_COUNTRIES = ['DE', 'AT', 'FR', 'TR', 'US', 'CA', 'NL', 'AU'] as const;
 
 /** One ring from the polyline encoding, as [lng, lat] pairs */
 export function decodeRing(encoded: string): number[][] {
