@@ -1807,3 +1807,62 @@ From the owner's request ("the contact page could bring floods of mail and bots"
 - The placeholder «کد پستی» in the filter and the place field stays the same for every country.
 
 **Next:** step 4, the importer for the 9 countries' postal codes (see step 1's next steps).
+
+### Postal codes: step 4, import (Nov 4, 2026)
+
+**Owner's approval** (Nov 4, 2026, plan in plain English in the options dialog): «Yes, build it»: the 9 countries' postal codes with the cleanup below, every code joining its nearest city as in Germany (no distance limit), the two reader gaps, pushed to staging's code. **The staging seed was not run** (step 6); no area shapes (step 5), no migration.
+
+**What was built:** `scripts/import-postal-codes.mjs` now has a rule per country (`RULES`: rows left out, the stored code, the place name, how rows that end up as the same code and name are merged: at the mean of their points). Germany and Austria are written exactly as before (rebuilt from today's GeoNames files, the only differences were GeoNames' own updates since Oct 17: 17 Austrian points moved, a few German codes added or gone; the committed `de.tsv`/`at.tsv` were kept). `seed/postal/<cc>.tsv` for the 9 countries from GeoNames' plain postal files (CC BY 4.0, downloaded Nov 4; `GB_full` was not needed), `POSTAL_COUNTRIES` has all 11.
+
+| | places | codes | left out / changed |
+|---|---|---|---|
+| GB | 26,763 | 2,979 | outward codes only; Isle of Man, Guernsey, Jersey (not the UK) out; every Greater London code is «London» (Royal Mail's post town; the label shows the district: «Hackney، E8 London»); «(PO Boxes)» dropped |
+| FR | 37,198 | 6,064 | 14,346 CEDEX rows and Clipperton Island out; «Paris 11», «Lyon 03», «Marseille 08» are «Paris», «Lyon», «Marseille» at the arrondissement's point (GeoNames gives «Paris» the city centre) |
+| TR | 36,306 | 2,953 | neighbourhood after its district, like Austria's «Graz, Innere Stadt»: «Kadiköy, Caferağa»; one «… A Eklenecek» placeholder out |
+| CA | 1,655 | 1,651 | forward sortation areas (two whole codes cut); rural area = its main town («Eastern Alberta (St. Paul)» → «St. Paul, AB»), city area = the city («Calgary (Rundle / Whitehorn)» → «Calgary, AB», «Downtown Toronto» → «Toronto, ON», «Calgary Northeast» → «Calgary, AB»); Canada Post's PO-box and business-reply names trimmed; H0H (Santa Claus) out |
+| US | 40,976 | 40,976 | 511 APO/FPO/DPO rows, the Marshall Islands and Wake Island out; «Beverly Hills, CA» |
+| NL | 4,321 | 4,086 | as GeoNames («Bergen (NH)») |
+| IT | 18,415 | 4,736 | as GeoNames |
+| SE | 18,887 | 18,887 | as GeoNames («123 45») |
+| AU | 18,340 | 3,170 | mail and delivery centres («Sydney Dc», «… Bc», «… Mc») out where the code has a real suburb; «Bondi, NSW» |
+
+Rows without GeoNames' accuracy are kept in the 9 countries (step 1: only Germany's are company codes; elsewhere they are real places such as Manchester Airport M90, Swedish box codes, US unique ZIPs).
+
+**Size and seed:** seed files 1.1 MB → 8.0 MB in Git (Germany and Austria included). In PostgreSQL `postal_places` takes **74 MB** with all 11 countries (after `VACUUM FULL`; heap 29 MB, the rest its five indexes); right after two seeds, dead rows included, it went from 39 MB to 249 MB and the whole database from 133 MB to 342 MB. `npm run db:seed` on a fresh local database (node:24.22.2 container, this server): **20 s → 70 s** the first time, **23 s → 82 s** a rerun; peak memory unchanged (**~480 MB**, the seed's tsx process; the postal rows are read one country at a time). Most of the time is the nearest-city UPDATE, which writes each row a second time; finding the city while inserting was tried and was slower (94 s), so the seed is unchanged. Every test run seeds once, and two seed tests seed again: by those seed times the full suite takes about 3 minutes longer (the two tests now have a 240 s timeout; the full run took 430 s).
+
+**Join distances** (each code to the city it joins, PostgreSQL's distance on the seeded database; every code has a city):
+
+| | median | 95% | farthest |
+|---|---|---|---|
+| DE (today) | 43 km | 97 km | 180 km (Haidmühle → München) |
+| AT | 27 | 57 | 99 |
+| NL | 16 | 48 | 101 (Sluis → Breda) |
+| IT | 35 | 104 | 223 (Santa Teresa Gallura → Cagliari) |
+| TR | 58 | 144 | 230 (Kars villages → Erzurum) |
+| FR | 55 | 122 | 300 (Bonifacio → Nice) |
+| GB | 37 | 147 | 409 (Shetland → Aberdeen) |
+| SE | 39 | 219 | 524 (Karesuando → Umeå) |
+| US | 107 | 348 | 1,925 (Adak → Anchorage) |
+| CA | 16 | 350 | 3,202 (Nunavut → Edmonton) |
+| AU | 101 | 488 | 1,387 (outback → Darwin, Perth, Adelaide) |
+
+Codes more than 300 km from their city: US 3,042, AU 2,311, SE 286, GB 175, CA 129, FR 1. Owner's decision: keep Germany's rule. A distance limit would leave those codes without a city, and a code without a city can't be used at all (a rural seller couldn't post); Craigslist and Gumtree put remote places in the nearest big region too. A far code's place reads «نزدیک پرت».
+
+**Decided from practice (recorded, not asked):** Greater London is «London» (Royal Mail post town; Gumtree's «Hackney, London» comes from the district shown before it); Paris, Lyon, Marseille arrondissements are the city with the code (Leboncoin «Paris 75011»); Canada's FSA names are the town, as Kijiji shows «Calgary, AB»; Turkey's district comes first, as Sahibinden orders il / ilçe / mahalle; mail centres are no place to live in.
+
+**Reader and place field:**
+- `normalizePostalCode()` reads a country prefix before a code: the ISO code («NL-1012», «SE-123 45», «DE-10115») or the old one on letters («D-10115», «A-1010», «F-75001», «I-00184», «S-12345»; «UK-» for the UK). Only the page's country, and only where a code follows («D-Mark» stays a word). Long dashes count as a dash («90210–1234»).
+- `resolvePlace()`: a town typed alone matches the name before a comma, as cards read it (`place-text.ts`): «Malibu» finds «Malibu, CA», «Kadıköy» finds «Kadiköy, …». A name in two states («Beverly Hills»: California and Florida; «Springfield») is `ambiguous` and asks for the code, as in Germany.
+- `foldLatin()` writes the Turkish dotless ı as i (GeoNames writes «Kadiköy», people type «Kadıköy»); German and Austrian search forms don't change.
+
+**Tests:** `tests/postal-code.test.ts`: the prefix and dash cases, every seeded code of all 11 countries reads back as itself, and the place-field test now runs on the seeded codes (London, Toronto, Amsterdam, Stockholm, Beverly Hills, Sydney, Paris with «F-», Roma, Kadıköy; towns typed alone; suggestions; every country's first city has codes). `tests/seed.test.ts`: places and distinct codes per country, none without a city.
+Results: `npx tsc --noEmit` clean; `npx vitest run` **1,228 tests in 101 files, all pass** (node:24.22.2 with `npm ci` from the lockfile into a throwaway volume, as in step 2).
+
+**Open points:**
+- GeoNames' Turkish names mostly lack the dotless ı («Kadiköy», «Bulanik», «Akpinar»); search finds them either way, cards show them as GeoNames writes them.
+- Canada's rural FSA points are the middle of huge areas (X0A «Iqaluit, NU» lies at 79.6° N, Iqaluit is at 63.7° N); the map circle will be far from the town. Step 5's StatCan shapes help the map, not the point.
+- Corsica joins Nice (up to 300 km over the sea) and north Sweden Umeå (up to 524 km): right by the rule, worth a look when those countries open (a city there, or Leboncoin's «Corse» region).
+- Seed time 70–80 s and every test run seeds: if it gets in the way, the next step is to skip rows that didn't change instead of rewriting all of them.
+- Staging: the seed must run there (step 6) before the 9 countries' codes exist; until then nothing changes for users (all 9 countries are closed).
+
+**Next:** step 5, the area shapes (see step 1's next steps), then step 6, the staging seed and browser checks.

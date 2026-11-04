@@ -15,5 +15,5 @@ export function postalPlaces(countryCode: string): PostalPlaceSeed[] {
     });
 }
 
-/** Countries whose postal codes are seeded */
-export const POSTAL_COUNTRIES = ['DE', 'AT'] as const;
+/** Countries whose postal codes are seeded (the 9 planned countries since Nov 4, 2026: postal codes, step 4) */
+export const POSTAL_COUNTRIES = ['DE', 'AT', 'GB', 'FR', 'TR', 'CA', 'US', 'NL', 'IT', 'SE', 'AU'] as const;

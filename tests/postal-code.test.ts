@@ -1,5 +1,6 @@
+import { sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
-import * as schema from '../src/db/schema';
+import { POSTAL_COUNTRIES, postalPlaces } from '../seed/postal';
 import { PATTERNS } from '../src/db/schema/_columns';
 import { foldLatin } from '../src/lib/fold-latin';
 import { loadCatalog, type Catalog } from '../src/modules/listings/catalog';
@@ -9,12 +10,13 @@ import { activeCountries } from '../src/modules/listings/queries';
 import { browseQuery, filterContext, parseBrowseParams } from '../src/modules/search/filters';
 import { searchFiltersOf } from '../src/modules/search/saved';
 import { appDb } from './accounts';
-import { db, rollback, type Tx } from './db';
+import { db } from './db';
 import { city } from './listings-fixtures';
 
 // Postal codes step 3 (Nov 4, 2026): one reader for typed postal codes, per country, and its
 // callers (the place field, the browse filter, saved searches). Stored forms: docs/progress.md,
-// "Postal codes: step 1", decided from practice.
+// "Postal codes: step 1", decided from practice. Step 4: the country prefix ("D-10115"), long
+// dashes, and the seeded codes of the 9 planned countries.
 
 const read = (country: string, text: string) => normalizePostalCode(country, text);
 const code = (country: string, text: string) => read(country, text).code;
@@ -157,6 +159,40 @@ describe('normalizePostalCode', () => {
     expect(code('ch', '8001')).toBe('8001');
   });
 
+  it('a country prefix before the code and long dashes (postal codes step 4)', () => {
+    expect(code('DE', 'D-10115')).toBe('10115');
+    expect(code('DE', 'DE-10115')).toBe('10115');
+    expect(read('DE', 'D-10115 Berlin')).toEqual({ code: '10115', rest: 'berlin' });
+    expect(read('DE', 'Berlin, D-10115')).toEqual({ code: '10115', rest: 'berlin' });
+    expect(read('DE', 'Neukölln، D-12045 Berlin')).toEqual({ code: '12045', rest: 'berlin' });
+    expect(code('AT', 'A-1010')).toBe('1010');
+    expect(code('FR', 'F-75001')).toBe('75001');
+    expect(code('FR', 'fr-75001')).toBe('75001');
+    expect(code('IT', 'I-00184')).toBe('00184');
+    expect(code('SE', 'SE-123 45')).toBe('123 45');
+    expect(code('SE', 'S-12345')).toBe('123 45');
+    expect(code('NL', 'NL-1012')).toBe('1012');
+    expect(code('NL', 'nl-1012 ab')).toBe('1012');
+    expect(code('GB', 'GB-SW1A 1AA')).toBe('SW1A');
+    expect(code('US', 'US-90210')).toBe('90210');
+    expect(partial('DE', 'D-101')).toBe('101');
+    // Only this country's prefix, and only before a code
+    expect(code('DE', 'F-75001')).toBeNull();
+    expect(read('DE', 'D-Mark')).toEqual({ code: null, rest: 'd-mark' });
+    // Long dashes in a ZIP+4
+    expect(code('US', '90210–1234')).toBe('90210');
+    expect(code('US', '90210—1234')).toBe('90210');
+    expect(read('US', 'Beverly Hills, CA 90210–1234')).toEqual({ code: '90210', rest: 'beverly hills, ca' });
+  });
+
+  it('every seeded postal code reads as itself (seed/postal/*.tsv)', () => {
+    for (const country of POSTAL_COUNTRIES) {
+      const codes = [...new Set(postalPlaces(country).map((p) => p.postalCode))];
+      expect(codes.length, country).toBeGreaterThan(1000);
+      expect(codes.filter((c) => code(country, c) !== c || !STORED.test(c)), country).toEqual([]);
+    }
+  });
+
   it('every stored form fits the database check', () => {
     const samples: [string, string][] = [
       ['DE', '12045'], ['AT', '1100'], ['GB', 'EC1A 1BB'], ['GB', 'E8'], ['CA', 'm5v 3l9'], ['NL', '1012 AB'],
@@ -211,48 +247,56 @@ describe('the callers', () => {
     expect(f).toMatchObject({ countryCode: 'GB', postalCode: 'SW1A' });
   });
 
-  async function addPostal(tx: Tx, countryCode: string, slug: string, postalCode: string, placeName: string) {
-    const c = await city(slug);
-    await tx.insert(schema.postalPlaces).values({ countryCode, postalCode, placeName, placeSearch: foldLatin(placeName), center: c.center, locationId: c.id });
-  }
-
   const mustPlace = (p: Place | 'not_found' | 'ambiguous') => {
     if (typeof p === 'string') throw new Error(p);
     return p;
   };
 
-  it('the place field finds typed codes of the planned countries (rows only for this test)', async () => {
-    await rollback(async (tx) => {
-      await addPostal(tx, 'GB', 'london', 'SW1A', 'London');
-      await addPostal(tx, 'GB', 'london', 'E8', 'London');
-      await addPostal(tx, 'CA', 'toronto', 'M5V', 'Toronto');
-      await addPostal(tx, 'NL', 'amsterdam', '1012', 'Amsterdam');
-      await addPostal(tx, 'SE', 'stockholm', '111 22', 'Stockholm');
-      await addPostal(tx, 'US', 'los-angeles', '90012', 'Los Angeles, CA');
-      await addPostal(tx, 'AU', 'sydney', '2000', 'Sydney, NSW');
+  it('the place field finds typed codes of the planned countries (the seeded GeoNames codes, step 4)', async () => {
+    expect(mustPlace(await resolvePlace(db, 'GB', 'SW1A 1AA'))).toMatchObject({ kind: 'postal', postalCode: 'SW1A', placeName: 'London' });
+    expect(mustPlace(await resolvePlace(db, 'GB', 'London e8 3qd'))).toMatchObject({ postalCode: 'E8', placeName: 'London' });
+    expect(mustPlace(await resolvePlace(db, 'CA', 'm5v3l9'))).toMatchObject({ postalCode: 'M5V', placeName: 'Toronto, ON' });
+    expect(mustPlace(await resolvePlace(db, 'NL', '1012 AB Amsterdam'))).toMatchObject({ postalCode: '1012', placeName: 'Amsterdam' });
+    expect(mustPlace(await resolvePlace(db, 'SE', '11122'))).toMatchObject({ postalCode: '111 22', placeName: 'Stockholm' });
+    expect(mustPlace(await resolvePlace(db, 'US', '90210-3456'))).toMatchObject({ postalCode: '90210', placeName: 'Beverly Hills, CA' });
+    expect(mustPlace(await resolvePlace(db, 'US', 'Beverly Hills, CA 90210–3456'))).toMatchObject({ postalCode: '90210' });
+    expect(mustPlace(await resolvePlace(db, 'AU', 'Sydney NSW ۲۰۰۰'))).toMatchObject({ postalCode: '2000', placeName: 'Sydney, NSW' });
+    expect(mustPlace(await resolvePlace(db, 'FR', 'F-75011 Paris'))).toMatchObject({ postalCode: '75011', placeName: 'Paris' });
+    expect(mustPlace(await resolvePlace(db, 'IT', '00184 Roma'))).toMatchObject({ postalCode: '00184', placeName: 'Roma' });
+    expect(mustPlace(await resolvePlace(db, 'TR', '34710 Kadıköy'))).toMatchObject({ postalCode: '34710', placeName: 'Kadiköy, Caferağa' });
+    expect(await resolvePlace(db, 'GB', 'SW1B 1AA')).toBe('not_found');
 
-      expect(mustPlace(await resolvePlace(tx, 'GB', 'SW1A 1AA'))).toMatchObject({ kind: 'postal', postalCode: 'SW1A' });
-      expect(mustPlace(await resolvePlace(tx, 'GB', 'London e8 3qd'))).toMatchObject({ postalCode: 'E8' });
-      expect(mustPlace(await resolvePlace(tx, 'CA', 'm5v3l9'))).toMatchObject({ postalCode: 'M5V' });
-      expect(mustPlace(await resolvePlace(tx, 'NL', '1012 AB Amsterdam'))).toMatchObject({ postalCode: '1012' });
-      expect(mustPlace(await resolvePlace(tx, 'SE', '11122'))).toMatchObject({ postalCode: '111 22' });
-      expect(mustPlace(await resolvePlace(tx, 'US', '90012-3456'))).toMatchObject({ postalCode: '90012' });
-      expect(mustPlace(await resolvePlace(tx, 'AU', 'Sydney NSW ۲۰۰۰'))).toMatchObject({ postalCode: '2000' });
-      expect(await resolvePlace(tx, 'GB', 'SW1B 1AA')).toBe('not_found');
+    // Every code leads to a city of its country (the nearest one, as in Germany)
+    for (const [country, slug] of [['GB', 'london'], ['CA', 'toronto'], ['US', 'los-angeles'], ['AU', 'sydney'], ['TR', 'istanbul']] as const) {
+      const [p] = await db.execute(sql`SELECT count(*)::int AS n FROM postal_places WHERE country_code = ${country} AND location_id = ${(await city(slug)).id}`);
+      expect(p!.n, country).toBeGreaterThan(10);
+    }
 
-      // Suggestions while typing: the start of a code. A label may start with the city's area
-      // («Westminster، ⁦SW1A London⁩»): compared here without it
-      const labels = async (country: string, text: string) =>
-        (await searchPlaces(tx, country, text)).map((s) => s.label.replace(/^[^،]*،\s*/, '').replace(/[\u2066-\u2069]/g, ''));
-      expect(await labels('GB', 'sw1')).toEqual(['SW1A London']);
-      expect(await labels('CA', 'M5')).toEqual(['M5V Toronto']);
-      expect(await labels('SE', '1112')).toEqual(['111 22 Stockholm']);
-      expect(await labels('NL', '1012 a')).toEqual(['1012 Amsterdam']);
-      // A suggestion's label read back is its code, with or without the area
-      const [sw1a] = await searchPlaces(tx, 'GB', 'SW1A');
-      expect(sw1a!.label).toMatch(/^[^،]+، \u2066SW1A London\u2069$/);
-      expect(mustPlace(await resolvePlace(tx, 'GB', sw1a!.label))).toMatchObject({ postalCode: 'SW1A' });
-      expect(mustPlace(await resolvePlace(tx, 'GB', 'SW1A London'))).toMatchObject({ postalCode: 'SW1A' });
-    });
+    // A town typed alone: the name before the comma ("Malibu, CA"); one in two states needs the code
+    expect(mustPlace(await resolvePlace(db, 'US', 'Malibu'))).toMatchObject({ kind: 'postal', placeName: 'Malibu, CA' });
+    expect(mustPlace(await resolvePlace(db, 'US', 'Beverly Hills, CA'))).toMatchObject({ placeName: 'Beverly Hills, CA' });
+    expect(await resolvePlace(db, 'US', 'Beverly Hills')).toBe('ambiguous'); // California and Florida
+    expect(await resolvePlace(db, 'US', 'Springfield')).toBe('ambiguous');
+    // Turkish dotless ı typed, GeoNames without it
+    expect(mustPlace(await resolvePlace(db, 'TR', 'Kadıköy'))).toMatchObject({ kind: 'postal', locationId: (await city('istanbul')).id });
+    expect((mustPlace(await resolvePlace(db, 'TR', 'Kadıköy')) as { placeName: string }).placeName).toMatch(/^Kadiköy, /);
+    // A word that only starts a town name is no town ("Beverly" is one: Massachusetts, New Jersey…)
+    expect(await resolvePlace(db, 'US', 'Malib')).toBe('not_found');
+
+    // Suggestions while typing: the start of a code. A label may start with the city's area
+    // («Westminster، ⁦SW1A London⁩»): compared here without it
+    const labels = async (country: string, text: string) =>
+      (await searchPlaces(db, country, text)).map((s) => s.label.replace(/^[^،]*،\s*/, '').replace(/[\u2066-\u2069]/g, ''));
+    expect(await labels('GB', 'sw1a')).toEqual(['SW1A London']);
+    expect(await labels('CA', 'M5V')).toEqual(['M5V Toronto, ON']);
+    expect(await labels('SE', '11122')).toEqual(['111 22 Stockholm']);
+    expect(await labels('SE', '1112')).toContain('111 22 Stockholm');
+    expect(await labels('NL', '1012 a')).toEqual(['1012 Amsterdam']);
+    expect((await labels('TR', 'Kadıköy')).length).toBeGreaterThan(1);
+    // A suggestion's label read back is its code, with or without the area
+    const [sw1a] = await searchPlaces(db, 'GB', 'SW1A');
+    expect(sw1a!.label).toMatch(/^[^،]+، \u2066SW1A London\u2069$/);
+    expect(mustPlace(await resolvePlace(db, 'GB', sw1a!.label))).toMatchObject({ postalCode: 'SW1A' });
+    expect(mustPlace(await resolvePlace(db, 'GB', 'SW1A London'))).toMatchObject({ postalCode: 'SW1A' });
   });
 });

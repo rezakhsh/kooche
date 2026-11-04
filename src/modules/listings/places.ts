@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { countries, locations, postalPlaces, users } from '../../db/schema';
 import { PREPARING } from '../launch/countries';
@@ -180,12 +180,15 @@ export async function resolvePlace(db: Queryable, countryCode: string, text: str
   if (!text.trim()) return 'not_found';
   const [city] = await citiesByName(db, countryCode, text, true);
   if (city) return city;
+  // The town is the name before a comma, as on cards (place-text.ts): "Beverly Hills" is
+  // "Beverly Hills, CA", "Kadıköy" is "Kadiköy, Caferağa" (postal codes step 4)
   const rows = await db
     .select(postalColumns)
     .from(postalPlaces)
-    .where(and(activePostal(countryCode), eq(postalPlaces.placeSearch, rest)))
+    .where(and(activePostal(countryCode), or(eq(postalPlaces.placeSearch, rest), sql`${postalPlaces.placeSearch} LIKE ${prefix(`${rest} `)}`)))
     .orderBy(nearestToCity, asc(postalPlaces.placeName));
-  const places = rows.map(toPostal).filter((p) => p !== null);
+  const named = rows.filter((r) => foldLatin(r.placeName) === rest || foldLatin(r.placeName.split(',')[0]!) === rest);
+  const places = named.map(toPostal).filter((p) => p !== null);
   if (places.length === 0) return 'not_found';
   // One town with several postal codes is fine (any of them is right); one name in several towns isn't
   const towns = new Set(places.map((p) => p.locationId));

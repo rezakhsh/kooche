@@ -88,6 +88,19 @@ const withEnd = (re: RegExp) => ended.get(re) ?? ended.set(re, new RegExp(re.sou
 
 const ruleOf = (country: string) => RULES[country.toUpperCase()] ?? OTHER;
 
+/**
+ * Letters some people put before a code: the ISO country code ("NL-1012", "SE-123 45") or the old
+ * European one on letters ("D-10115", "A-1010", "F-75001", "I-00184", "S-123 45")
+ */
+const LETTER_PREFIXES: Record<string, string[]> = { DE: ['D'], AT: ['A'], FR: ['F'], IT: ['I'], SE: ['S'], GB: ['UK'] };
+const prefixes = new Map<string, RegExp>();
+/** The prefix and its dash, where a code follows (a digit within its first three characters: "D-Mark" stays) */
+const prefixOf = (country: string) => {
+  const cc = country.toUpperCase();
+  const names = [cc, ...(LETTER_PREFIXES[cc] ?? [])].filter((n) => /^[A-Z]{1,3}$/.test(n));
+  return prefixes.get(cc) ?? prefixes.set(cc, new RegExp(`(^|[\\s,،;])(?:${names.join('|')})-\\s?(?=[a-z]{0,2}\\d)`, 'gi')).get(cc)!;
+};
+
 /** A code at the start of `t`: its stored form and where it ends. `partial` covers every whole code too */
 function leading(rule: Rule, t: string, partial: boolean): { code: string; end: number } | null {
   const m = withEnd(partial ? rule.partial : rule.full).exec(t);
@@ -102,13 +115,15 @@ function leading(rule: Rule, t: string, partial: boolean): { code: string; end: 
  * "SW1A 1AA London"), after a label's area («Neukölln، 12045 Berlin», as the place field shows a
  * suggestion), or last, as people in the UK, US, Canada and Australia write it ("Sydney 2000",
  * "Beverly Hills, CA 90210"). Persian and Arabic digits, case and extra spaces don't matter.
+ * A country prefix ("D-10115", "SE-123 45") and long dashes ("90210–1234") are read too.
  * `partial`: the start of a code also counts ("120", "SW1", "M5"), for suggestions while typing;
  * a code at the end must still be whole.
  */
 export function normalizePostalCode(country: string, text: string, opts: { partial?: boolean } = {}): PostalRead {
   const rule = ruleOf(country);
   const partial = !!opts.partial;
-  const t = normalizePersian(text.replace(/[\u2066-\u2069]/g, ''));
+  // Long dashes as a plain one ("90210–1234"); a country prefix before the code dropped ("D-10115")
+  const t = normalizePersian(text.replace(/[\u2066-\u2069]/g, '').replace(/[\u2010-\u2015\u2212]/g, '-')).replace(prefixOf(country), '$1');
   const tidy = (s: string) => s.replace(SEPARATORS, '');
 
   const first = leading(rule, t, partial);

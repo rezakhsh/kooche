@@ -142,9 +142,21 @@ describe('seeded data', () => {
       (SELECT count(*) FROM category_attribute_options) AS o, (SELECT count(*) FROM locations) AS l`;
     const before = await db.execute(counts);
     const summary = await runSeed(process.env.TEST_DATABASE_URL!);
-    // Nov 4, 2026: the 9 planned countries' cities of 100,000+ people (postal codes, step 2): 145 regions, 387 cities
-    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25 + 145, cities: 81 + 387, postalPlaces: 15_050 + 18_998, neighbourhoods: 1866 });
+    // Nov 4, 2026: the 9 planned countries' cities of 100,000+ people (postal codes, step 2): 145 regions, 387 cities;
+    // their postal codes (step 4)
+    const postal = Object.values(POSTAL_PLACES).reduce((a, b) => a + b, 0);
+    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25 + 145, cities: 81 + 387, postalPlaces: postal, neighbourhoods: 1866 });
     expect(await db.execute(counts)).toEqual(before);
+  }, 240_000);
+
+  it('postal codes per country (GeoNames; step 4 for the 9 planned countries), each leading to a city', async () => {
+    const rows = await db.execute<{ cc: string; n: number; codes: number; cityless: number }>(sql`
+      SELECT country_code AS cc, count(*)::int AS n, count(DISTINCT postal_code)::int AS codes,
+        count(*) FILTER (WHERE location_id IS NULL)::int AS cityless
+      FROM postal_places WHERE is_active GROUP BY 1 ORDER BY 1`);
+    expect(Object.fromEntries(rows.map((r) => [r.cc, r.n]))).toEqual(POSTAL_PLACES);
+    expect(Object.fromEntries(rows.map((r) => [r.cc, r.codes]))).toEqual(POSTAL_CODES);
+    expect(rows.filter((r) => r.cityless > 0)).toEqual([]);
   });
 
   it('leaves the owner’s city launch alone when loaded again', async () => {
@@ -158,8 +170,16 @@ describe('seeded data', () => {
     } finally {
       await db.update(locations).set({ launchStatus: before!.launchStatus, businessGoal: before!.businessGoal }).where(hamburg);
     }
-  });
+  }, 240_000);
 });
+
+// Postal places (code and place) and distinct codes per country, as seed/postal/<cc>.tsv has them
+const POSTAL_PLACES: Record<string, number> = {
+  AT: 18_998, AU: 18_340, CA: 1_655, DE: 15_050, FR: 37_198, GB: 26_763, IT: 18_415, NL: 4_321, SE: 18_887, TR: 36_306, US: 40_976,
+};
+const POSTAL_CODES: Record<string, number> = {
+  AT: 2_501, AU: 3_170, CA: 1_651, DE: 8_172, FR: 6_064, GB: 2_979, IT: 4_736, NL: 4_086, SE: 18_887, TR: 2_953, US: 40_976,
+};
 
 // The planned countries' first cities (round 12) and their launch values: the only ones that are not `later`
 const FIRST_CITIES: Record<string, { slug: string; goal: number }> = {

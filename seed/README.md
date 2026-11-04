@@ -23,7 +23,7 @@ The loader (`src/db/seed.ts`) runs in one transaction and can be run again at an
 | `countries.ts` | EU, EEA, Switzerland, UK, Turkey, US, Canada, Australia, Malaysia, each with its web address (`slug`). Germany and Austria are open (`isActive`); Turkey is listed but closed. |
 | `locations/de.ts` | The 16 German Länder and the first set of German cities |
 | `locations/at.ts` | The 9 Austrian Bundesländer and 29 cities (the largest and every state capital) |
-| `postal/de.tsv`, `postal/at.tsv` | Postal codes and their places (code, place, latitude, longitude), written by `scripts/import-postal-codes.mjs`; never edit by hand |
+| `postal/<cc>.tsv` | Postal codes and their places (code, place, latitude, longitude) for DE, AT and the 9 planned countries (GB, FR, TR, CA, US, NL, IT, SE, AU; Nov 4, 2026), written by `scripts/import-postal-codes.mjs` with a rule per country (codes in the form `src/modules/listings/postal-code.ts` reads; never a street-level code); never edit by hand |
 | `categories.ts` | 14 root categories, 127 leaf categories (with the events section's 13 event types, Oct 18, 2026), 290 attributes (Anmeldung on WG rooms added Oct 28, 2026) and their options (Persian), fields per category as approved Oct 18, 2026 |
 | `postal-areas/` | Postal code areas for the street map: `<cc>.json` written by `scripts/import-postal-areas.mjs` (polylines; never edit by hand), `index.ts` decodes them. From OpenStreetMap |
 | `neighbourhoods/` | City districts, names as written locally (owner, Nov 3, 2026): `index.ts` lists the cities and sources, `<cc>-<city>.json` the boundaries (never edit by hand). Berlin: 97 Ortsteile from the Geoportal Berlin (Datenlizenz Deutschland Zero 2.0, `scripts/import-neighbourhoods.mjs`); 45 other cities of about 200,000 people or more from OpenStreetMap (`scripts/import-osm-neighbourhoods.mjs`) |
@@ -36,7 +36,8 @@ To open a country, follow the checklist in `docs/setup.md`, "Countries, places a
 City and region coordinates, population, time zones and IDs (`geonamesId`) come from
 [GeoNames](https://www.geonames.org/) (`cities15000`, `DE` and `AT` dumps, downloaded Oct 16–17, 2026; for GB, FR,
 TR, CA, US, NL, IT, SE and AU `cities15000` and the country dumps' regions, Nov 4, 2026; postal codes from
-`export/zip/DE.zip` and `AT.zip`, Oct 17, 2026),
+`export/zip/DE.zip` and `AT.zip`, Oct 17, 2026, and `GB.zip`, `FR.zip`, `TR.zip`, `CA.zip`, `US.zip`, `NL.zip`,
+`IT.zip`, `SE.zip`, `AU.zip`, Nov 4, 2026),
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The slugs are our own. The Persian
 names of Germany's and Austria's places are our own; those of the other countries' places are
 [Wikidata](https://www.wikidata.org/)'s Persian labels (CC0, found by GeoNames ID or the English Wikipedia
