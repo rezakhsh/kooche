@@ -51,7 +51,7 @@ export async function countForForm(db: Queryable, path: string, raw: RawParams, 
   }
   if (rest.postal || rest.near) city = null;
 
-  const ctx = filterContext(catalog, category, country.currency.minorUnit);
+  const ctx = filterContext(catalog, category, country.currency.minorUnit, country.code);
   const { state } = parseBrowseParams(rest, ctx);
   const { filters } = await resolveFilters(db, {
     countryCode: country.code,

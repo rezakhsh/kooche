@@ -10,6 +10,7 @@ import { messages } from '../../../messages/fa';
 import { Icon } from '../../../components/icons';
 import { ancestry } from '../../../modules/listings/catalog';
 import { NOT_SHIPPED, RENT_SLUGS } from '../../../modules/listings/safety-kind';
+import { postalInputMode } from '../../../modules/listings/postal-code';
 import { FilterSubmit } from './filter-submit';
 import { NearMe } from './near-me';
 import type { Browse } from './resolve';
@@ -141,7 +142,7 @@ export function FilterForm({
               name="postal"
               defaultValue={state.postal?.code ?? ''}
               placeholder={t.postalOrArea}
-              inputMode="numeric"
+              inputMode={postalInputMode(country.code)}
               autoComplete="postal-code"
               className="min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm"
             />

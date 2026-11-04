@@ -68,7 +68,7 @@ describe('date filters typed as day / month / year', () => {
     expect(joinDateParts({ 'a.day': '', 'a.month': '', 'a.year': '' })).toEqual({});
     expect(joinDateParts({ 'a.day': '', 'a.month': '3', 'a.year': '2027' })).toEqual({ a: '2027-3-' });
     const catalog = await cachedCatalog(appDb);
-    const ctx = filterContext(catalog, catalog.byId.get((await categoryBySlug('shared-rooms')).id)!, 2);
+    const ctx = filterContext(catalog, catalog.byId.get((await categoryBySlug('shared-rooms')).id)!, 2, 'DE');
     const { state } = parseBrowseParams({ 'available_from_from.day': '1', 'available_from_from.month': '12', 'available_from_from.year': '2026' }, ctx);
     expect(state.attributes).toEqual([expect.objectContaining({ key: 'available_from', type: 'date', from: '2026-12-01' })]);
   });

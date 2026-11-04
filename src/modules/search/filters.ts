@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { effectiveAttributes, type AttributeDef, type Catalog, type CategoryNode } from '../listings/catalog';
 import { amountInputValue, MAX_PRICE_MINOR, parseAmount } from '../listings/price';
+import { postalFilterCode } from '../listings/postal-code';
 
 // Browse filters (approved Oct 18, 2026): price, place and the category's own fields marked
 // filterable in category_attributes, never hard-coded per category. They live in the address in a
@@ -99,6 +100,8 @@ export type FilterContext = {
   minorUnit: number;
   /** False where the category has no prices (price_mode none) */
   priceAllowed: boolean;
+  /** The page's country: a postal code is read the way this country writes it (postal-code.ts) */
+  countryCode: string;
 };
 
 /**
@@ -112,8 +115,8 @@ export function filterableAttributes(catalog: Catalog, category: CategoryNode | 
 }
 
 /** The filter context of a category page */
-export function filterContext(catalog: Catalog, category: CategoryNode | null, minorUnit: number): FilterContext {
-  return { defs: filterableAttributes(catalog, category), minorUnit, priceAllowed: category?.priceMode !== 'none' };
+export function filterContext(catalog: Catalog, category: CategoryNode | null, minorUnit: number, countryCode: string): FilterContext {
+  return { defs: filterableAttributes(catalog, category), minorUnit, priceAllowed: category?.priceMode !== 'none', countryCode };
 }
 
 // ---------------------------------------------------------------------------
@@ -206,10 +209,12 @@ export function attributeParamSchema(def: AttributeDef, minorUnit: number): z.Zo
 const sortSchema = z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'distance']);
 const keywordSchema = z.string().max(1_000).transform((s, ctx) => cleanKeyword(s) ?? refused(ctx));
 const radiusSchema = z.enum(RADII_KM.map(String) as [string, ...string[]]).transform((s) => Number(s) as RadiusKm);
-const postalSchema = z
-  .string()
-  .transform((s) => normalizePersian(s).trim().toUpperCase().replace(/\s+/g, ' '))
-  .pipe(z.string().regex(/^[0-9A-Z][0-9A-Z -]{1,9}$/));
+/** The code as stored ("SW1A 1AA" → "SW1A", "12345" → "123 45" in Sweden), read by postal-code.ts */
+const postalSchema = (countryCode: string) =>
+  z
+    .string()
+    .max(100)
+    .transform((s, ctx) => postalFilterCode(countryCode, s) ?? refused(ctx));
 /** base64url of the encrypted point; its contents are checked by near.ts */
 const nearTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/);
 const cursorSchema = z.string().regex(/^[A-Za-z0-9_-]{8,200}$/);
@@ -236,7 +241,7 @@ export function browseParamsSchema(ctx: FilterContext) {
     ).optional(),
     ship: z.literal('1').optional(),
     seller: z.enum(['private', 'business']).optional(),
-    postal: postalSchema.optional(),
+    postal: postalSchema(ctx.countryCode).optional(),
     near: nearTokenSchema.optional(),
     r: radiusSchema.optional(),
     view: viewSchema.optional(),

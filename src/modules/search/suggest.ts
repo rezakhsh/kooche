@@ -108,7 +108,7 @@ const isBrowsable = (catalog: Catalog, c: CategoryNode | undefined): c is Catego
 
 /** The canonical address of a category page filtered by one option (and its make, for a model) */
 function fieldHref(scope: SuggestScope, catalog: Catalog, category: CategoryNode, def: AttributeDef, value: string): string | null {
-  const ctx = filterContext(catalog, category, scope.country.minorUnit);
+  const ctx = filterContext(catalog, category, scope.country.minorUnit, scope.country.code);
   const chosen: AttributeFilter[] = [];
   const parentValue = def.options.find((o) => o.value === value)?.parentValue ?? null;
   for (const d of ctx.defs) {

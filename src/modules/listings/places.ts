@@ -5,6 +5,7 @@ import { PREPARING } from '../launch/countries';
 import type { Point } from '../../db/types';
 import { foldLatin } from '../../lib/fold-latin';
 import { normalizePersian } from '../../lib/normalize-persian';
+import { normalizePostalCode } from './postal-code';
 
 // Where a listing is, from our own data only (decided Oct 17, 2026: no outside address service).
 // The seller types a postal code or a town, or uses the browser's location; we look it up in
@@ -73,12 +74,14 @@ const activeCity = (countryCode: string) =>
 /** LIKE pattern for a prefix; the text is ours after folding, but % and _ are escaped anyway */
 const prefix = (s: string) => `${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
-/** "12045 Berlin" → { code: "12045", rest: "berlin" }; "Graz" → { code: "", rest: "graz" } */
-function split(text: string): { code: string; rest: string } {
-  // A label read back («نویکلن، 12045 Berlin») is its postal code and town
-  const t = normalizePersian(text.replace(/[\u2066-\u2069]/g, '')).trim().replace(/^[^\d،]+،\s*(?=\d)/, '');
-  const m = /^([0-9][0-9A-Za-z]*)\s*(.*)$/.exec(t);
-  return m ? { code: m[1]!.toUpperCase(), rest: foldLatin(m[2]!) } : { code: '', rest: foldLatin(t) };
+/**
+ * "12045 Berlin" → { code: "12045", rest: "berlin" }; "Graz" → { code: "", rest: "graz" }. The code
+ * as stored ("SW1A 1AA" → "SW1A"), or its start while typing (`partial`); rest is folded for
+ * place_search. The reading itself is the shared one (postal-code.ts).
+ */
+function split(countryCode: string, text: string, partial: boolean): { code: string; rest: string } {
+  const r = normalizePostalCode(countryCode, text, { partial });
+  return { code: r.code ?? '', rest: foldLatin(r.rest) };
 }
 
 /** Cities whose Persian or local name is (or starts with) the text */
@@ -101,7 +104,7 @@ async function citiesByName(db: Queryable, countryCode: string, text: string, ex
 
 /** Suggestions while the seller types: postal codes by prefix, towns and cities by name */
 export async function searchPlaces(db: Queryable, countryCode: string, text: string): Promise<PlaceSuggestion[]> {
-  const { code, rest } = split(text.slice(0, 100));
+  const { code, rest } = split(countryCode, text.slice(0, 100), true);
   let places: Place[] = [];
   if (code) {
     const rows = await db
@@ -159,7 +162,7 @@ export async function placeByValue(db: Queryable, countryCode: string, value: st
  * in several places, which needs the postal code.
  */
 export async function resolvePlace(db: Queryable, countryCode: string, text: string): Promise<Place | 'not_found' | 'ambiguous'> {
-  const { code, rest } = split(text.slice(0, 100));
+  const { code, rest } = split(countryCode, text.slice(0, 100), false);
   const nearestToCity = sql`${postalPlaces.center} <-> (SELECT l.center FROM locations l WHERE l.id = ${postalPlaces.locationId})`;
   if (code) {
     const rows = await db

@@ -28,7 +28,7 @@ beforeAll(async () => {
 });
 
 const ctxFor = (slug: string | null, minorUnit = 2): FilterContext =>
-  filterContext(catalog, slug ? catalog.bySlug.get(slug)! : null, minorUnit);
+  filterContext(catalog, slug ? catalog.bySlug.get(slug)! : null, minorUnit, 'DE');
 
 const parse = (raw: RawParams, slug: string | null = 'cars') => parseBrowseParams(raw, ctxFor(slug));
 

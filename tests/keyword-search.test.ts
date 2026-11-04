@@ -230,7 +230,7 @@ describe('when Meilisearch fails', () => {
 });
 
 describe('the address', () => {
-  const ctx = () => filterContext(catalog, catalog.bySlug.get('cars')!, 2);
+  const ctx = () => filterContext(catalog, catalog.bySlug.get('cars')!, 2, 'DE');
 
   it('keeps the keyword as typed, sorts by relevance and writes it first', () => {
     const { state, refused } = parseBrowseParams({ q: '  پژو   ۲۰۶ ', brand: 'bmw' }, ctx());

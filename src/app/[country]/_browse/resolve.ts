@@ -107,7 +107,7 @@ async function resolve(countrySlug: string, placeSlug: string, categorySlug: str
   }
 
   const path = browsePath(country.slug, city?.slug ?? null, category?.slug ?? null);
-  const ctx = filterContext(catalog, category, country.currency.minorUnit);
+  const ctx = filterContext(catalog, category, country.currency.minorUnit, country.code);
   const { state: parsed } = parseBrowseParams(rest, ctx);
   const canonical = browseQuery(parsed, ctx.minorUnit);
   // The owner's ref code stays for the visit beacon (src/modules/stats/ref-param.ts)

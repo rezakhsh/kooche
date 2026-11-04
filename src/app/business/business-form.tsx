@@ -10,6 +10,7 @@ import { messages } from '../../messages/fa';
 import { suggestSlug } from '../../modules/organizations/slug';
 import { logoUploadAction } from './actions';
 import { needsRepresentative } from '../../modules/organizations/legal-forms';
+import { postalInputMode } from '../../modules/listings/postal-code';
 
 // The business form (wave 1, mockups final/business-new and business-legal; step 2 designed in the
 // same style). A new business is made in three steps in one form: about it, contact and hours, the
@@ -482,7 +483,7 @@ export function BusinessForm({
         {(company || otherForm) && <TextField name="representativeName" label={w.representative} v={v} f={f} optional={!needsRepresentative(legalForm)} ltr maxLength={120} />}
         <TextField name="addressLine1" label={w.street} v={v} f={f} ltr maxLength={120} autoComplete="address-line1" placeholder="Kantstraße 1" />
         <div className="grid grid-cols-[8rem_1fr] gap-x-3">
-          <TextField name="legalPostal" label={w.postal} v={v} f={f} ltr maxLength={20} autoComplete="postal-code" inputMode="numeric" />
+          <TextField name="legalPostal" label={w.postal} v={v} f={f} ltr maxLength={20} autoComplete="postal-code" inputMode={postalInputMode(country.code)} />
           <TextField name="addressLine2" label={w.street2} v={v} f={f} optional ltr maxLength={120} autoComplete="address-line2" />
         </div>
         {(company || otherForm) && (

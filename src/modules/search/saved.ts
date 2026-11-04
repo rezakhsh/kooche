@@ -68,7 +68,7 @@ export async function resolveTarget(db: Queryable, catalog: Catalog, path: strin
     category = browsableCategory(catalog, segments[2]);
     if (!category) return null;
   }
-  const ctx = filterContext(catalog, category, country.currency.minorUnit);
+  const ctx = filterContext(catalog, category, country.currency.minorUnit, country.code);
   if (query && !query.startsWith('?')) return null;
   const params = new URLSearchParams(query);
   const raw: Record<string, string | string[]> = {};
@@ -241,7 +241,7 @@ export function searchFiltersOf(
   const country = countries.find((c) => c.code === f.data.country);
   const category = f.data.categoryId ? catalog.byId.get(f.data.categoryId) : null;
   if (!country || category === undefined) return null;
-  const ctx = filterContext(catalog, category, country.currency.minorUnit);
+  const ctx = filterContext(catalog, category, country.currency.minorUnit, country.code);
   const { state } = parseBrowseParams(Object.fromEntries(new URLSearchParams(f.data.query)), ctx);
   const postal = state.postal;
   return {

@@ -190,7 +190,7 @@ describe('the rows', () => {
     expect(rows).toHaveLength(2);
     for (const r of rows) {
       const [path, query] = r.href.split('?');
-      const ctx = filterContext(catalog, catalog.bySlug.get(path!.split('/')[2]!)!, 2);
+      const ctx = filterContext(catalog, catalog.bySlug.get(path!.split('/')[2]!)!, 2, 'DE');
       const { state, refused } = parseBrowseParams(Object.fromEntries(new URLSearchParams(query)), ctx);
       expect(refused).toEqual([]);
       expect(browseQuery(state, 2)).toBe(`?${query}`);
