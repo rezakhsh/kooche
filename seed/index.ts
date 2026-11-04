@@ -3,7 +3,15 @@ import { countries } from './countries';
 import { currencies } from './currencies';
 import { austria } from './locations/at';
 import { germany } from './locations/de';
-import { australia, canada, france, italy, netherlands, sweden, turkey, unitedKingdom, unitedStates } from './locations/first-cities';
+import { australia } from './locations/au';
+import { canada } from './locations/ca';
+import { france } from './locations/fr';
+import { unitedKingdom } from './locations/gb';
+import { italy } from './locations/it';
+import { netherlands } from './locations/nl';
+import { sweden } from './locations/se';
+import { turkey } from './locations/tr';
+import { unitedStates } from './locations/us';
 import type { LocationsSeed } from './types';
 
 export { categories, countries, currencies };

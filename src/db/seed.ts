@@ -63,6 +63,10 @@ export async function runSeed(url: string): Promise<SeedSummary> {
         attributes: 0,
         options: 0,
       };
+      // A city's slug is its key: the same slug in a second country would take the first city's row
+      // (the database then refuses it, as its region is in another country; say why instead)
+      const repeated = repeatedCitySlugs(seed.locations);
+      if (repeated.length > 0) throw new Error(`City slugs used twice: ${repeated.join(', ')}`);
       for (const country of seed.locations) {
         const { regions, cities } = await seedLocations(tx, country);
         summary.regions += regions;
@@ -80,6 +84,17 @@ export async function runSeed(url: string): Promise<SeedSummary> {
   } finally {
     await client.end();
   }
+}
+
+/** City slugs that appear more than once across all seeded countries (they must be unique: /{country}/{city}) */
+export function repeatedCitySlugs(countries: LocationsSeed[]): string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const c of countries.flatMap((country) => country.cities)) {
+    if (seen.has(c.slug)) repeated.add(c.slug);
+    seen.add(c.slug);
+  }
+  return [...repeated];
 }
 
 async function seedCurrencies(tx: Tx): Promise<number> {

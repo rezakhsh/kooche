@@ -1,9 +1,14 @@
 import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { runSeed } from '../src/db/seed';
+import * as seed from '../seed';
+import { repeatedCitySlugs, runSeed } from '../src/db/seed';
 import { SEED_CHECKS, runSeedChecks } from '../src/db/seed-checks';
 import { categories, categoryAttributes, countries, locations } from '../src/db/schema';
 import { normalizePersian } from '../src/lib/normalize-persian';
+import { adminCountries } from '../src/modules/launch/countries';
+import { soonCountries } from '../src/modules/launch/country-page';
+import { keyCitiesOf, waitingCountries } from '../src/modules/launch/waitlist';
+import { activeCountries } from '../src/modules/listings/queries';
 import { category, db, location, makeListing, makeUser, rollback, type Tx } from './db';
 
 async function failingChecks(tx: Tx) {
@@ -137,7 +142,8 @@ describe('seeded data', () => {
       (SELECT count(*) FROM category_attribute_options) AS o, (SELECT count(*) FROM locations) AS l`;
     const before = await db.execute(counts);
     const summary = await runSeed(process.env.TEST_DATABASE_URL!);
-    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 34, cities: 90, postalPlaces: 15_050 + 18_998, neighbourhoods: 1866 });
+    // Nov 4, 2026: the 9 planned countries' cities of 100,000+ people (postal codes, step 2): 145 regions, 387 cities
+    expect(summary).toMatchObject({ countries: 37, currencies: 16, regions: 25 + 145, cities: 81 + 387, postalPlaces: 15_050 + 18_998, neighbourhoods: 1866 });
     expect(await db.execute(counts)).toEqual(before);
   });
 
@@ -152,5 +158,61 @@ describe('seeded data', () => {
     } finally {
       await db.update(locations).set({ launchStatus: before!.launchStatus, businessGoal: before!.businessGoal }).where(hamburg);
     }
+  });
+});
+
+// The planned countries' first cities (round 12) and their launch values: the only ones that are not `later`
+const FIRST_CITIES: Record<string, { slug: string; goal: number }> = {
+  CA: { slug: 'toronto', goal: 30 },
+  US: { slug: 'los-angeles', goal: 30 },
+  AU: { slug: 'sydney', goal: 20 },
+  GB: { slug: 'london', goal: 30 },
+  NL: { slug: 'amsterdam', goal: 15 },
+  IT: { slug: 'milano', goal: 15 },
+  SE: { slug: 'stockholm', goal: 20 },
+  FR: { slug: 'paris', goal: 20 },
+  TR: { slug: 'istanbul', goal: 30 },
+};
+
+describe('the planned countries’ cities (postal codes, step 2)', () => {
+  it('has their cities of 100,000+ people, at most 50 per country (US 100), with unique slugs', () => {
+    const per = Object.fromEntries(seed.locations.map((l) => [l.countryCode, l.cities.length]));
+    expect(per).toMatchObject({ GB: 50, FR: 38, TR: 50, CA: 50, US: 100, NL: 25, IT: 43, SE: 10, AU: 21 });
+    expect(repeatedCitySlugs(seed.locations)).toEqual([]);
+    expect(repeatedCitySlugs([...seed.locations, { countryCode: 'XX', regions: [], cities: [seed.locations[0]!.cities[0]!] }])).toEqual(['berlin']);
+    // A smaller city of the same name carries its state
+    const slugs = seed.locations.flatMap((l) => l.cities.map((c) => `${l.countryCode}:${c.slug}`));
+    expect(slugs).toEqual(expect.arrayContaining(['GB:london', 'CA:london-on', 'US:richmond', 'CA:richmond-bc']));
+  });
+
+  it('keeps each first city’s launch values and makes every other city `later`', async () => {
+    for (const [code, first] of Object.entries(FIRST_CITIES)) {
+      const country = seed.locations.find((l) => l.countryCode === code)!;
+      expect(country.cities.filter((c) => c.launch).map((c) => [c.slug, c.launch])).toEqual([[first.slug, { status: 'waitlist', goal: first.goal }]]);
+      const rows = await db
+        .select({ slug: locations.slug, status: locations.launchStatus, goal: locations.businessGoal })
+        .from(locations)
+        .where(and(eq(locations.countryCode, code), eq(locations.kind, 'city'), sql`${locations.launchStatus} <> 'later'`));
+      expect(rows).toEqual([{ slug: first.slug, status: 'waitlist', goal: first.goal }]);
+    }
+  });
+
+  it('change nothing in the country lists, the country pages or the city chooser', async () => {
+    const codes = Object.keys(FIRST_CITIES);
+    // Only Germany is open
+    expect((await activeCountries(db)).map((c) => c.code)).toEqual(['DE']);
+    // The chooser's «به‌زودی» list and the country pages name the first city, never a bigger later one
+    // (New York over Los Angeles, Rotterdam over Amsterdam, Roma over Milano)
+    const soon = (await soonCountries(db)).filter((c) => codes.includes(c.code));
+    expect(Object.fromEntries(soon.map((c) => [c.code, c.city?.slug]))).toEqual(Object.fromEntries(codes.map((c) => [c, FIRST_CITIES[c]!.slug])));
+    const waiting = (await waitingCountries(db)).filter((c) => codes.includes(c.code));
+    expect(Object.fromEntries(waiting.map((c) => [c.code, c.city.slug]))).toEqual(
+      Object.fromEntries(codes.filter((c) => c !== 'TR').map((c) => [c, FIRST_CITIES[c]!.slug])),
+    );
+    // A country page and the chooser list a country's key cities: still only the first one
+    for (const code of codes) expect((await keyCitiesOf(db, code)).map((k) => k.slug)).toEqual([FIRST_CITIES[code]!.slug]);
+    // Admin › countries and cities counts one planned city per country
+    const admin = (await adminCountries(db)).filter((c) => codes.includes(c.code));
+    expect(admin.map((c) => [c.code, c.cities, c.openCities]).sort()).toEqual(codes.map((c) => [c, 1, 0]).sort());
   });
 });

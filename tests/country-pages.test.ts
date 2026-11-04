@@ -43,6 +43,16 @@ async function keep(code: string) {
     await db.update(schema.countries).set({ mode: before!.mode, isActive: before!.isActive, opensOn: before!.opensOn, openedAt: before!.openedAt }).where(eq(schema.countries.code, code));
   });
 }
+/** Puts a country's cities' launch back too (opening a country opens them all) */
+async function keepCities(code: string) {
+  const before = await db
+    .select({ id: schema.locations.id, status: schema.locations.launchStatus, radius: schema.locations.launchRadiusKm, openedAt: schema.locations.openedAt })
+    .from(schema.locations)
+    .where(and(eq(schema.locations.countryCode, code), eq(schema.locations.kind, 'city')));
+  restore.push(async () => {
+    for (const c of before) await db.update(schema.locations).set({ launchStatus: c.status, launchRadiusKm: c.radius, openedAt: c.openedAt }).where(eq(schema.locations.id, c.id));
+  });
+}
 async function withMode(code: string, mode: CountryMode, over: { opensOn?: string | null; openedAt?: Date | null } = {}) {
   await keep(code);
   await db.update(schema.countries).set({ mode, isActive: mode === 'open', opensOn: over.opensOn ?? null, openedAt: over.openedAt ?? null }).where(eq(schema.countries.code, code));
@@ -93,6 +103,7 @@ describe('the starter weeks', () => {
 
   it('opening in admin starts them, saving it open again keeps the day, closing and opening again starts anew', async () => {
     await withMode('SE', 'waitlist');
+    await keepCities('SE');
     const ctx = await staff();
     restore.push(async () => {
       await db.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, ctx.userId));
@@ -113,13 +124,7 @@ describe('the starter weeks', () => {
 
   it('opening every city of a waiting country starts them too', async () => {
     await withMode('AU', 'waitlist');
-    const before = await db
-      .select({ id: schema.locations.id, status: schema.locations.launchStatus, radius: schema.locations.launchRadiusKm, openedAt: schema.locations.openedAt })
-      .from(schema.locations)
-      .where(and(eq(schema.locations.countryCode, 'AU'), eq(schema.locations.kind, 'city')));
-    restore.push(async () => {
-      for (const c of before) await db.update(schema.locations).set({ launchStatus: c.status, launchRadiusKm: c.radius, openedAt: c.openedAt }).where(eq(schema.locations.id, c.id));
-    });
+    await keepCities('AU');
     const ctx = await staff();
     // Its audit row would look like the newest opening to tests/waitlist.test.ts
     restore.push(async () => {

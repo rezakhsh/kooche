@@ -34,10 +34,13 @@ To open a country, follow the checklist in `docs/setup.md`, "Countries, places a
 ## Sources
 
 City and region coordinates, population, time zones and IDs (`geonamesId`) come from
-[GeoNames](https://www.geonames.org/) (`cities15000`, `DE` and `AT` dumps, downloaded Oct 16–17, 2026; postal codes from
+[GeoNames](https://www.geonames.org/) (`cities15000`, `DE` and `AT` dumps, downloaded Oct 16–17, 2026; for GB, FR,
+TR, CA, US, NL, IT, SE and AU `cities15000` and the country dumps' regions, Nov 4, 2026; postal codes from
 `export/zip/DE.zip` and `AT.zip`, Oct 17, 2026),
-licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The Persian names and
-the slugs are our own.
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The slugs are our own. The Persian
+names of Germany's and Austria's places are our own; those of the other countries' places are
+[Wikidata](https://www.wikidata.org/)'s Persian labels (CC0, found by GeoNames ID or the English Wikipedia
+article, Nov 4, 2026), checked, with wrong or missing ones written by hand.
 
 Postal code areas (`postal-areas/`) come from [OpenStreetMap](https://www.openstreetmap.org/copyright)
 (`boundary=postal_code` relations through the Overpass API, Oct 28, 2026), © OpenStreetMap
