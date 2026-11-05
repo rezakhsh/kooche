@@ -45,7 +45,7 @@ import { chatEntry } from '../../../../modules/chat/entry';
 import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { Contact } from './contact';
-import { opensEmployerContact } from '../../../../modules/listings/country-rules';
+import { countryCatalog, opensEmployerContact } from '../../../../modules/listings/country-rules';
 import { Gallery, type GalleryImage } from './gallery';
 import { BackButton, CopyLink, ShareButton } from './photo-bar';
 
@@ -119,7 +119,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const env = webEnv();
   const t = messages.listing;
   const catalog = await cachedCatalog(appDb());
-  const crumbs = l.categoryId ? ancestry(catalog, l.categoryId) : [];
+  // Named the listing country's way («کارآموزی حرفه‌ای (Lehre)» in Austria)
+  const crumbs = l.categoryId ? ancestry(countryCatalog(catalog, l.countryCode), l.categoryId) : [];
   const defs = l.categoryId ? effectiveAttributes(catalog, l.categoryId, l.countryCode) : [];
   const attrs = l.attributes as Record<string, unknown>;
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;

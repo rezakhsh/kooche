@@ -16,6 +16,9 @@ import {
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from '../src/modules/listings/limits';
 import { rentUnit } from '../src/modules/listings/card';
 import { REGISTRATION_WORD, registrationNumberRequired } from '../src/modules/listings/country-fields';
+import { countryCatalog } from '../src/modules/listings/country-rules';
+import { business } from './payments-fixtures';
+import { cardFacts } from '../src/modules/listings/attribute-text';
 import { exchangeAllowed, rentKind, rentPeriodOf, shippable } from '../src/modules/listings/safety-kind';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { firstStepWithErrors, stepOf } from '../src/app/my/listings/[id]/steps';
@@ -792,6 +795,74 @@ describe('posting fields per country', () => {
     expect(registrationNumberRequired({ countryCode: 'DE', citySlug: 'munich' }, { room_type: 'entire_place', rent_period: 'night' })).toBe(false);
     expect(registrationNumberRequired({ countryCode: 'IT', citySlug: 'milan' }, { room_type: 'entire_place', rent_period: 'week' })).toBe(true);
     expect(registrationNumberRequired({ countryCode: 'IT', citySlug: 'milan' }, { room_type: 'private_room', rent_period: 'week' })).toBe(false);
+  });
+});
+
+// Field audit part B (approved by the owner on Nov 5, 2026; docs/research/field-audit.md §20)
+describe('jobs and vehicles per country', () => {
+  const field = async (slug: string, country: string | null, key: string) => {
+    const catalog = await cachedCatalog(appDb);
+    return effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id, country).find((d) => d.key === key)!;
+  };
+
+  it("each country's contract types and language", async () => {
+    const types = async (c: string) => (await field('hospitality', c, 'employment_type')).options;
+    expect((await types('DE')).map((o) => o.value)).toEqual(['full_time', 'part_time', 'minijob', 'werkstudent', 'ausbildung', 'internship', 'freelance']);
+    expect((await types('DE')).find((o) => o.value === 'ausbildung')!.labelFa).toBe('آوسبیلدونگ (Ausbildung)');
+    expect((await types('AT')).find((o) => o.value === 'ausbildung')!.labelFa).toContain('Lehre');
+    expect((await types('AT')).map((o) => o.value)).not.toContain('werkstudent');
+    expect((await types('FR')).map((o) => o.labelFa)).toContain('قرارداد دائم (CDI)');
+    expect((await types('BE')).map((o) => o.value)).toEqual(['full_time', 'part_time', 'internship', 'freelance']);
+    expect((await field('hospitality', 'DE', 'german_level')).labelFa).toBe('سطح زبان آلمانی');
+    expect((await field('hospitality', 'NL', 'german_level')).labelFa).toBe('سطح زبان هلندی');
+    expect((await field('hospitality', 'GB', 'german_level')).labelFa).toBe('سطح زبان انگلیسی');
+    expect((await field('hospitality', 'BE', 'german_level')).labelFa).toBe('سطح زبان محلی');
+  });
+
+  it('salary: a range, required in Austria only', async () => {
+    expect((await field('hospitality', 'AT', 'salary')).isRequired).toBe(true);
+    expect((await field('hospitality', 'DE', 'salary')).isRequired).toBe(false);
+    expect((await field('hospitality', 'US', 'salary')).isRequired).toBe(false);
+    expect((await field('hospitality', 'DE', 'salary')).helpFa).toBe('اختیاری. ناخالص (Brutto)');
+    // Jobs are posted by a business
+    const u = await user();
+    const { org } = await business(u.id);
+    const id = await draftFor(u.id, 'hospitality');
+    const save = (attributes: Record<string, unknown>) =>
+      input({ title: 'آشپز (m/w/d)', attributes, priceType: 'on_request', amount: '', organizationId: org.id }).then((x) => saveListing(appDb, { userId: u.id, listingId: id, input: x, intent: 'publish' }));
+    expect(await save({ employment_type: 'full_time', salary: '3000', salary_ceiling: '2500' })).toMatchObject({ errors: { 'attr.salary_ceiling': 'too_small' } });
+    expect(await save({ employment_type: 'full_time', salary: '3000', salary_ceiling: '3500', salary_period: 'month' })).toMatchObject({ ok: true });
+    const catalog = await cachedCatalog(appDb);
+    const facts = cardFacts(catalog, catalog.bySlug.get('hospitality')!.id, 'DE', (await listing(id)).attributes as Record<string, unknown>, catalog.currencies.get('EUR'));
+    expect(facts.find((f) => f.key === 'salary')!.text).toBe('۳٬۰۰۰ تا ۳٬۵۰۰\u00a0€');
+  });
+
+  it('vehicles: inspection, miles and power the local way', async () => {
+    expect((await field('cars', 'DE', 'inspection_until')).labelFa).toBe('معاینه فنی (TÜV/HU) تا');
+    expect((await field('cars', 'GB', 'inspection_until')).labelFa).toContain('MOT');
+    expect((await field('cars', 'AU', 'inspection_until')).labelFa).toContain('rego');
+    expect((await field('cars', 'US', 'inspection_until')).isActive).toBe(false);
+    expect((await field('cars', 'GB', 'mileage_km')).unitFa).toBe('مایل');
+    expect((await field('cars', 'DE', 'mileage_km')).unitFa).toBe('کیلومتر');
+    expect((await field('cars', 'AU', 'power_hp')).unitFa).toBe('کیلووات (kW)');
+    expect((await field('cars', 'DE', 'power_hp')).unitFa).toBe('اسب بخار (PS)');
+    expect((await field('cars', 'US', 'emission_class')).isActive).toBe(false);
+    expect((await field('cars', 'GB', 'emission_class')).isActive).toBe(true);
+    expect((await field('cars', 'DE', 'service_history')).labelFa).toBe('دفترچه سرویس کامل (Scheckheft)');
+    expect((await field('cars', 'GB', 'service_history')).labelFa).toBe('دفترچه سرویس کامل');
+    expect((await field('motorcycles', 'AU', 'licence_class')).isActive).toBe(false);
+  });
+
+  it("categories named the country's way, the address unchanged", async () => {
+    const catalog = await cachedCatalog(appDb);
+    const name = (slug: string, c: string) => countryCatalog(catalog, c).bySlug.get(slug)!.nameFa;
+    expect(name('apprenticeships', 'DE')).toBe('آوسبیلدونگ (Ausbildung)');
+    expect(name('apprenticeships', 'AT')).toBe('کارآموزی حرفه‌ای (Lehre)');
+    expect(name('apprenticeships', 'BE')).toBe('کارآموزی حرفه‌ای');
+    expect(name('shared-rooms', 'GB')).toBe('اتاق و خانه اشتراکی (flatshare)');
+    expect(name('shared-rooms', 'DE')).toBe('اتاق و خانه اشتراکی (WG)');
+    // Turkey's closed categories stay closed
+    expect(countryCatalog(catalog, 'TR').bySlug.get('cars')!.isActive).toBe(false);
   });
 });
 

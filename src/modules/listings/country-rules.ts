@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { ancestry, type Catalog, type CategoryNode } from './catalog';
+import { hasLocalCategoryNames, localCategoryName } from './country-fields';
 
 // What a country's law closes or limits, in one place (Turkey plan, approved by the owner on
 // Nov 5, 2026; research: docs/design-options/research/round9-turkey.md §2; docs/setup.md,
@@ -146,11 +147,13 @@ const perCountry = new WeakMap<Catalog, Map<string, Catalog>>();
 /**
  * The catalog as a country sees it: its closed categories (and everything under them) inactive and
  * left out of their parents' children, so the category grid, the posting picker, browse addresses,
- * filters, suggestions and saved searches all skip them (an address answers 404). The catalog
- * itself when the country closes nothing. Cached per catalog object.
+ * filters, suggestions and saved searches all skip them (an address answers 404); and the
+ * categories named the country's way (`localCategoryName`: «کارآموزی حرفه‌ای (Lehre)» for
+ * Germany's «آوسبیلدونگ»; field audit, Nov 5, 2026). The catalog itself when the country changes
+ * nothing. Cached per catalog object.
  */
 export function countryCatalog(catalog: Catalog, country: string | null | undefined): Catalog {
-  if (!country || !hasClosedCategories(country)) return catalog;
+  if (!country || (!hasClosedCategories(country) && !hasLocalCategoryNames(country))) return catalog;
   let byCountry = perCountry.get(catalog);
   if (!byCountry) perCountry.set(catalog, (byCountry = new Map()));
   const cached = byCountry.get(country);
@@ -158,7 +161,8 @@ export function countryCatalog(catalog: Catalog, country: string | null | undefi
   const closed = new Set([...catalog.byId.values()].filter((c) => isClosedIn(catalog, c.id, country)).map((c) => c.id));
   const byId = new Map<string, CategoryNode>();
   for (const [id, c] of catalog.byId) {
-    byId.set(id, closed.has(id) ? { ...c, isActive: false, childIds: [] } : { ...c, childIds: c.childIds.filter((x) => !closed.has(x)) });
+    const nameFa = localCategoryName(c.slug, country) ?? c.nameFa;
+    byId.set(id, closed.has(id) ? { ...c, nameFa, isActive: false, childIds: [] } : { ...c, nameFa, childIds: c.childIds.filter((x) => !closed.has(x)) });
   }
   const bySlug = new Map([...catalog.bySlug].map(([slug, c]) => [slug, byId.get(c.id)!] as const));
   const view: Catalog = { ...catalog, byId, bySlug, rootIds: catalog.rootIds.filter((id) => !closed.has(id)) };

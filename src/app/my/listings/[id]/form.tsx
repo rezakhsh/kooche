@@ -42,6 +42,8 @@ export type FormProps = {
   rent: RentKind | null;
   /** A short let: its price is all-in */
   rentAllIn: boolean;
+  /** A job ad where the law wants the title for every gender (DE, AT): «(m/w/d)» */
+  neutralJobTitle: boolean;
   /** The rent's local name, after its label: «اجارهٔ کل ماهانه (Bruttomiete)» */
   rentLocalWord: string | null;
   /** Things that can be sent by post (not homes, services, jobs, lessons) */
@@ -349,6 +351,8 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               className="block h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-2 focus:border-brand-600"
             />
             {!wizard && <span className="mt-1 block text-xs text-neutral-600">{t.titleHint}</span>}
+            {/* A job ad in Germany or Austria: neutral wording is the law there (AGG §11, GlBG §9) */}
+            {props.neutralJobTitle && <span className="mt-1 block text-xs text-neutral-600">{t.neutralJobTitle}</span>}
           </label>
           <ErrorText code={errors.title} />
         </div>

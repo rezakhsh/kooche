@@ -59,3 +59,44 @@ export function registrationNumberRequired(where: { countryCode: string | null; 
   if (!whole || !short) return false;
   return (!!where.countryCode && REGISTRATION_NUMBER_COUNTRIES.has(where.countryCode)) || (!!where.citySlug && REGISTRATION_NUMBER_CITIES.has(where.citySlug));
 }
+
+/**
+ * Categories whose seed name is Germany's, named each country's way (field audit §20, part B): the
+ * page address stays the same. `*`: every country without its own name. Germany (and a country
+ * missing here) keeps the seed name.
+ */
+export const CATEGORY_NAMES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  apprenticeships: {
+    AT: 'کارآموزی حرفه‌ای (Lehre)',
+    GB: 'کارآموزی حرفه‌ای (apprenticeship)',
+    US: 'کارآموزی حرفه‌ای (apprenticeship)',
+    CA: 'کارآموزی حرفه‌ای (apprenticeship)',
+    AU: 'کارآموزی حرفه‌ای (apprenticeship)',
+    IT: 'کارآموزی حرفه‌ای (apprendistato)',
+    FR: 'کار و تحصیل (alternance)',
+    '*': 'کارآموزی حرفه‌ای',
+  },
+  'mini-jobs': {
+    AT: 'پاره‌وقت و کار کم‌ساعت (geringfügig)',
+    '*': 'پاره‌وقت و کار کم‌ساعت',
+  },
+  'healthcare-care': {
+    AT: 'درمانی و مراقبتی (Pflege)',
+    '*': 'درمانی و مراقبتی',
+  },
+  'shared-rooms': {
+    AT: 'اتاق و خانه اشتراکی (WG)',
+    GB: 'اتاق و خانه اشتراکی (flatshare)',
+    '*': 'اتاق و خانه اشتراکی',
+  },
+};
+
+/** Whether a country names any category its own way */
+export const hasLocalCategoryNames = (country: string): boolean => country !== 'DE';
+
+/** A category's name in a country, or null when it keeps the seed name */
+export function localCategoryName(slug: string, country: string): string | null {
+  if (country === 'DE') return null;
+  const names = CATEGORY_NAMES[slug];
+  return names ? (names[country] ?? names['*'] ?? null) : null;
+}

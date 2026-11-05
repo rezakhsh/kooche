@@ -247,6 +247,10 @@ async function prepare(
   const minorUnit = country ? catalog.currencies.get(country.defaultCurrency)?.minorUnit : undefined;
   const attrs = validateAttributes(defs, input.attributes, mode, minorUnit);
   if (!attrs.ok) for (const [k, code] of Object.entries(attrs.errors)) errors[`attr.${k}`] = code;
+  // A salary range («از … تا …», field audit part B): its ceiling isn't below its floor
+  if (attrs.ok && typeof attrs.value.salary === 'number' && typeof attrs.value.salary_ceiling === 'number' && attrs.value.salary_ceiling < attrs.value.salary) {
+    errors['attr.salary_ceiling'] = 'too_small';
+  }
   const attributes = {
     ...keepRetired(defs, current.attributes as Record<string, unknown>),
     ...(attrs.ok ? attrs.value : {}),

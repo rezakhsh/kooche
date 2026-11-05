@@ -64,6 +64,12 @@ export function cardFacts(
     if (def.type === 'boolean') text = value === true ? def.labelFa : null;
     else if (def.type === 'multi_select' && Array.isArray(value) && value.length > 2) {
       text = `${attributeText(def, value.slice(0, 2), currency)}${messages.listing.more}`;
+    } else if (def.key === 'salary' && typeof attributes.salary_ceiling === 'number') {
+      // A salary range reads «۳٬۰۰۰ تا ۳٬۵۰۰ €» (field audit part B)
+      const top = attributeText(def, attributes.salary_ceiling, currency);
+      // The floor without its currency symbol: «۳٬۰۰۰ تا ۳٬۵۰۰ €»
+      const low = attributeText(def, value, currency)?.split('\u00a0')[0];
+      text = low && top ? messages.listing.salaryRange(low, top) : top;
     } else {
       text = attributeText(def, value, currency);
       // A bare count says nothing on its own ("۲"): with its label ("تعداد اتاق ۲"). Years and amounts read fine.

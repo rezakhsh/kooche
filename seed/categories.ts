@@ -70,12 +70,13 @@ const year = (labelFa = 'سال ساخت', isRequired = false): AttributeSeed =>
   showOnCard: true,
 });
 
+/** Miles in the UK and US: typed and stored so, like sq ft (a listing never changes country; field audit §20 part B) */
 const mileageKm = (isRequired = false): AttributeSeed => ({
   key: 'mileage_km',
   type: 'number',
   labelFa: 'کارکرد',
   unitFa: 'کیلومتر',
-  validation: { min: 0, max: 2_000_000, integer: true },
+  validation: { min: 0, max: 2_000_000, integer: true, by_country: { GB: { unit: 'مایل' }, US: { unit: 'مایل' } } },
   isRequired,
   isFilterable: true,
   showOnCard: true,
@@ -134,7 +135,24 @@ const powerHp: AttributeSeed = {
   type: 'number',
   labelFa: 'قدرت موتور',
   unitFa: 'اسب بخار (PS)',
-  validation: { min: 1, max: 2000, integer: true },
+  // The unit people quote there; the number is typed in it (PS and hp are within 2%; AU gives kW)
+  validation: {
+    min: 1,
+    max: 2000,
+    integer: true,
+    by_country: {
+      ...deAt({ unit: 'اسب بخار (PS)' }),
+      GB: { unit: 'اسب بخار (bhp)' },
+      US: { unit: 'اسب بخار (hp)' },
+      CA: { unit: 'اسب بخار (hp)' },
+      AU: { unit: 'کیلووات (kW)' },
+      NL: { unit: 'اسب بخار (pk)' },
+      FR: { unit: 'اسب بخار (ch)' },
+      IT: { unit: 'اسب بخار (CV)' },
+      SE: { unit: 'اسب بخار (hk)' },
+      '*': { unit: 'اسب بخار' },
+    },
+  },
   isFilterable: true,
 };
 
@@ -169,12 +187,30 @@ const gearbox = (isRequired = false): AttributeSeed => ({
   ]),
 });
 
+/**
+ * The roadworthiness test under its local name (field audit §4, §20 part B); hidden in the US and
+ * Canada, where it depends on the state or province. Australia's ads give the registration's expiry
+ * ("rego expiry") instead.
+ */
 const inspectionUntil: AttributeSeed = {
   key: 'inspection_until',
   type: 'date',
-  labelFa: 'معاینه فنی (TÜV/HU یا Pickerl) تا',
+  labelFa: 'معاینه فنی تا',
   helpFa: 'ماه و سالی که روی برچسب معاینه فنی نوشته شده',
-  validation: { month: true },
+  validation: {
+    month: true,
+    hidden_in: ['US', 'CA'],
+    by_country: {
+      DE: { label: 'معاینه فنی (TÜV/HU) تا' },
+      AT: { label: 'معاینه فنی (Pickerl) تا' },
+      NL: { label: 'معاینه فنی (APK) تا' },
+      GB: { label: 'معاینه فنی (MOT) تا', help: 'ماه و سال پایان MOT' },
+      FR: { label: 'معاینه فنی (contrôle technique) تا', help: 'ماه و سال معاینهٔ بعدی' },
+      IT: { label: 'معاینه فنی (revisione) تا', help: 'ماه و سال معاینهٔ بعدی' },
+      SE: { label: 'معاینه فنی (besiktning) تا', help: 'ماه و سال معاینهٔ بعدی' },
+      AU: { label: 'اعتبار ثبت خودرو (rego) تا', help: 'ماه و سال پایان registration' },
+    },
+  },
   isFilterable: true,
 };
 
@@ -1234,7 +1270,8 @@ export const categories: CategorySeed[] = [
           {
             key: 'service_history',
             type: 'boolean',
-            labelFa: 'دفترچه سرویس کامل (Scheckheft)',
+            labelFa: 'دفترچه سرویس کامل',
+            validation: { by_country: deAt({ label: 'دفترچه سرویس کامل (Scheckheft)' }) },
             isFilterable: true,
           },
           {
@@ -1252,7 +1289,9 @@ export const categories: CategorySeed[] = [
             key: 'emission_class',
             type: 'select',
             labelFa: 'استاندارد آلایندگی',
-            helpFa: 'از روی مدارک خودرو (Schadstoffklasse)',
+            helpFa: 'از روی مدارک خودرو',
+            // European classes; in the UK they also tell whether the car may enter London's ULEZ
+            validation: { hidden_in: ['US', 'CA', 'AU'], by_country: deAt({ help: 'از روی مدارک خودرو (Schadstoffklasse)' }) },
             isFilterable: true,
             options: options([
               ['euro1', 'Euro 1'],
@@ -1334,6 +1373,8 @@ export const categories: CategorySeed[] = [
             key: 'licence_class',
             type: 'select',
             labelFa: 'گواهینامه لازم',
+            // EU and UK classes; licences work differently in the US, Canada and Australia
+            validation: { hidden_in: ['US', 'CA', 'AU'] },
             isFilterable: true,
             options: options([
               ['am', 'AM'],
@@ -1389,10 +1430,10 @@ export const categories: CategorySeed[] = [
       leaf('campers', 'کاروان و کمپر', {
         attributes: [
           kind('camper_type', 'نوع', [
-            ['caravan', 'کاروان (Wohnwagen)'],
-            ['motorhome', 'اتوکاروان (Wohnmobil)'],
+            ['caravan', 'کاروان'],
+            ['motorhome', 'اتوکاروان'],
             ['other', 'سایر'],
-          ], { isRequired: true }),
+          ], { isRequired: true, validation: { by_country: deAt({ option_labels: { caravan: 'کاروان (Wohnwagen)', motorhome: 'اتوکاروان (Wohnmobil)' } }) } }),
           {
             key: 'berths',
             type: 'number',
@@ -2396,12 +2437,42 @@ export const categories: CategorySeed[] = [
         isRequired: true,
         isFilterable: true,
         showOnCard: true,
+        // Each country's contract types (field audit §13, §20 part B). One value per kind of work, named
+        // the local way: Germany's Ausbildung is Austria's Lehre and the UK's apprenticeship.
+        validation: {
+          by_country: {
+            DE: { options: ['full_time', 'part_time', 'minijob', 'werkstudent', 'ausbildung', 'internship', 'freelance'] },
+            AT: {
+              options: ['full_time', 'part_time', 'minijob', 'ausbildung', 'internship', 'freelance'],
+              option_labels: { minijob: 'کار کم‌ساعت (geringfügig)', ausbildung: 'کارآموزی حرفه‌ای (Lehre)' },
+            },
+            NL: { options: ['full_time', 'part_time', 'zero_hours', 'internship', 'freelance'], option_labels: { zero_hours: 'قرارداد صفر ساعت (nul-urencontract)', internship: 'کارآموزی (stage)' } },
+            GB: { options: ['full_time', 'part_time', 'zero_hours', 'ausbildung', 'internship', 'freelance'], option_labels: { ausbildung: 'کارآموزی حرفه‌ای (apprenticeship)' } },
+            FR: { options: ['permanent', 'fixed_term', 'temp_agency', 'work_study', 'internship', 'freelance'], option_labels: { permanent: 'قرارداد دائم (CDI)', fixed_term: 'قرارداد موقت (CDD)', internship: 'کارآموزی (stage)' } },
+            IT: {
+              options: ['permanent', 'fixed_term', 'part_time', 'ausbildung', 'internship', 'freelance'],
+              option_labels: { permanent: 'قرارداد دائم (indeterminato)', fixed_term: 'قرارداد موقت (determinato)', ausbildung: 'کارآموزی حرفه‌ای (apprendistato)', internship: 'کارآموزی (tirocinio)' },
+            },
+            SE: { options: ['permanent', 'fixed_term', 'part_time', 'internship', 'freelance'], option_labels: { permanent: 'قرارداد دائم (tillsvidare)', fixed_term: 'قرارداد موقت (visstid)' } },
+            US: { options: ['full_time', 'part_time', 'contract', 'internship', 'freelance'] },
+            CA: { options: ['full_time', 'part_time', 'contract', 'internship', 'freelance'] },
+            AU: { options: ['full_time', 'part_time', 'casual', 'ausbildung', 'internship', 'freelance'], option_labels: { ausbildung: 'کارآموزی حرفه‌ای (apprenticeship)' } },
+            '*': { options: ['full_time', 'part_time', 'internship', 'freelance'] },
+          },
+        },
         options: options([
           ['full_time', 'تمام‌وقت'],
           ['part_time', 'پاره‌وقت'],
+          ['permanent', 'قرارداد دائم'],
+          ['fixed_term', 'قرارداد موقت'],
           ['minijob', 'مینی‌جاب'],
           ['werkstudent', 'ورک‌استودنت (Werkstudent)'],
           ['ausbildung', 'آوسبیلدونگ (Ausbildung)'],
+          ['zero_hours', 'قرارداد صفر ساعت (zero-hours)'],
+          ['casual', 'کار ساعتی (casual)'],
+          ['contract', 'قراردادی (contract)'],
+          ['temp_agency', 'کار از طریق آژانس (intérim)'],
+          ['work_study', 'کار و تحصیل (alternance)'],
           ['internship', 'کارآموزی'],
           ['freelance', 'فریلنس'],
         ]),
@@ -2419,10 +2490,25 @@ export const categories: CategorySeed[] = [
         ]),
       },
       {
+        // The level of the country's own language (the key keeps its first name; field audit §13)
         key: 'german_level',
         type: 'select',
-        labelFa: 'سطح زبان آلمانی',
+        labelFa: 'سطح زبان محلی',
         isFilterable: true,
+        validation: {
+          by_country: {
+            ...deAt({ label: 'سطح زبان آلمانی' }),
+            NL: { label: 'سطح زبان هلندی' },
+            FR: { label: 'سطح زبان فرانسوی' },
+            IT: { label: 'سطح زبان ایتالیایی' },
+            SE: { label: 'سطح زبان سوئدی' },
+            GB: { label: 'سطح زبان انگلیسی' },
+            US: { label: 'سطح زبان انگلیسی' },
+            AU: { label: 'سطح زبان انگلیسی' },
+            CA: { label: 'سطح زبان انگلیسی یا فرانسوی' },
+            TR: { label: 'سطح زبان ترکی' },
+          },
+        },
         options: options([
           ['none', 'لازم نیست'],
           ['a1', 'A1'],
@@ -2433,7 +2519,28 @@ export const categories: CategorySeed[] = [
           ['c2', 'C2'],
         ]),
       },
-      money('salary', 'حقوق', { helpFa: 'اختیاری. ناخالص (Brutto)', showOnCard: true }),
+      // A range, as on Indeed and StepStone: «از» here, «تا» in salary_ceiling (cards show «۳٬۰۰۰ تا ۳٬۵۰۰ €»).
+      // Required in Austria only: GlBG §9(2) wants the minimum pay in every job ad there. US states and
+      // Ontario want a range only above a staff size the form can't know, so a hint there (field audit §20).
+      money('salary', 'حقوق', {
+        helpFa: 'اختیاری. ناخالص',
+        showOnCard: true,
+        validation: {
+          by_country: {
+            DE: { help: 'اختیاری. ناخالص (Brutto)' },
+            AT: { label: 'حداقل حقوق', help: 'در اتریش قانون می‌خواهد حداقل حقوق (ناخالص، Brutto) در هر آگهی کار بیاید.', required: true },
+            NL: { help: 'اختیاری. ناخالص (bruto)' },
+            GB: { help: 'اختیاری. ناخالص (gross)' },
+            FR: { help: 'اختیاری. ناخالص (brut)' },
+            IT: { help: 'اختیاری. ناخالص (lordo)' },
+            SE: { help: 'اختیاری. ناخالص (brutto)' },
+            US: { help: 'در بسیاری از ایالت‌ها نوشتن بازهٔ حقوق در آگهی اجباری است. ناخالص (gross)' },
+            CA: { help: 'در انتاریو کارفرمای ۲۵ نفر یا بیشتر باید بازهٔ حقوق را بنویسد. ناخالص (gross)' },
+            AU: { help: 'اختیاری. ناخالص (gross)' },
+          },
+        },
+      }),
+      money('salary_ceiling', 'سقف حقوق', { helpFa: 'اگر حقوق یک بازه است، بیشترین مبلغ' }),
       {
         key: 'salary_period',
         type: 'select',

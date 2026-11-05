@@ -17,7 +17,7 @@ import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
 import { preparingCountries } from '../../../modules/launch/country-page';
-import { allowedPriceTypes, formNotes } from '../../../modules/listings/country-rules';
+import { allowedPriceTypes, countryCatalog, formNotes } from '../../../modules/listings/country-rules';
 
 // What the listing editor needs, for a saved listing or for a new one that exists only in the
 // browser so far (`listing` null). Server code only. The country is the listing's own, else the
@@ -82,11 +82,13 @@ export async function editorData(
       listingId: listing?.id ?? null,
       categoryId,
       status: listing?.status ?? 'draft',
-      categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
+      categoryPath: ancestry(countryCatalog(catalog, countryCode), category.id).map((c) => c.nameFa),
       rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
       rent,
       // A short let's price is all-in; a room's per week or month (GB, AU) isn't
       rentAllIn: ancestry(catalog, category.id).some((c) => PERIOD_RENT_SLUGS.has(c.slug)),
+      // Job ads in Germany and Austria: the title for every gender, «(m/w/d)» (AGG §11, GlBG §9)
+      neutralJobTitle: ancestry(catalog, category.id)[0]?.slug === 'jobs' && (countryCode === 'DE' || countryCode === 'AT'),
       // Only a flat's or house's whole or base rent has a local name (a WG room's rent is just a rent)
       rentLocalWord: countryCode && (rent === 'gross' || rent === 'net') ? (RENT_LOCAL_WORD[countryCode] ?? null) : null,
       shippable: shippable(ancestry(catalog, category.id)),

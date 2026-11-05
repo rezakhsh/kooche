@@ -754,6 +754,8 @@ export const messages = {
     removePhoto: 'حذف عکس',
     titleLabel: 'عنوان آگهی',
     titleHint: 'کوتاه و دقیق، مثلاً «دوچرخه شهری ۲۸ اینچ»',
+    /** Job ads in Germany and Austria: the law wants the title for every gender */
+    neutralJobTitle: 'عنوان باید برای همهٔ جنسیت‌ها باشد، مثلاً «آشپز (m/w/d)».',
     descriptionLabel: 'توضیحات',
     descriptionHint: 'وضعیت، ویژگی‌ها و هر چیزی که خریدار باید بداند. شماره تلفن یا آدرس دقیق ننویسید.',
     details: 'مشخصات',
@@ -1017,6 +1019,8 @@ export const messages = {
     phoneShort: 'شماره',
     warmRentShort: (amount: string) => `با هزینه‌های جانبی ${amount}`,
     coldWithCosts: (warm: string) => `اجارهٔ سرد، با هزینه‌ها ${warm}`,
+    /** A salary range on cards and the listing page's facts: «۳٬۰۰۰ تا ۳٬۵۰۰ €» */
+    salaryRange: (low: string, high: string) => `${low} تا ${high}`,
     /** NL, IT: the base rent with its service charges */
     withCharges: (total: string) => `با شارژ ${total}`,
     /** AT, FR: the whole rent includes its extra costs */
