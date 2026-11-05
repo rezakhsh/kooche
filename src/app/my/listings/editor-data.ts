@@ -75,6 +75,8 @@ export async function editorData(
     if (d.validation.money && typeof a === 'number') attributes[d.key] = amountInputValue(a, minorUnit);
   }
 
+  const rent = rentKind(ancestry(catalog, category.id), countryCode ?? null);
+
   return {
     form: {
       listingId: listing?.id ?? null,
@@ -82,10 +84,11 @@ export async function editorData(
       status: listing?.status ?? 'draft',
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
-      rent: rentKind(ancestry(catalog, category.id), countryCode ?? null),
+      rent,
       // A short let's price is all-in; a room's per week or month (GB, AU) isn't
       rentAllIn: ancestry(catalog, category.id).some((c) => PERIOD_RENT_SLUGS.has(c.slug)),
-      rentLocalWord: countryCode ? (RENT_LOCAL_WORD[countryCode] ?? null) : null,
+      // Only a flat's or house's whole or base rent has a local name (a WG room's rent is just a rent)
+      rentLocalWord: countryCode && (rent === 'gross' || rent === 'net') ? (RENT_LOCAL_WORD[countryCode] ?? null) : null,
       shippable: shippable(ancestry(catalog, category.id)),
       defs,
       // Cats and dogs in Turkey only for free (src/modules/listings/country-rules.ts)
