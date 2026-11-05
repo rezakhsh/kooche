@@ -3,6 +3,7 @@ import { clientIp } from '../../../../lib/client-ip';
 import { hit } from '../../../../lib/rate-limit';
 import { valkey } from '../../../../lib/valkey';
 import { cachedCatalog } from '../../../../modules/listings/catalog';
+import { countryCatalog } from '../../../../modules/listings/country-rules';
 import { activeCountries } from '../../../../modules/listings/queries';
 import { webMeili } from '../../../../modules/search/client';
 import { LISTINGS_INDEX } from '../../../../modules/search/documents';
@@ -40,7 +41,7 @@ export async function GET(request: Request): Promise<Response> {
     country: { code: country.code, slug: country.slug, nameFa: country.nameFa, minorUnit: country.currency.minorUnit },
     city: city ? { id: city.id, slug: city.slug, nameFa: city.nameFa } : null,
   };
-  const catalog = await cachedCatalog(db);
+  const catalog = countryCatalog(await cachedCatalog(db), country.code);
   const meili = webMeili();
   let found: Found | null = null;
   if (meili) {

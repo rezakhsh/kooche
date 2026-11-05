@@ -3,11 +3,13 @@ import { categoryIcon, Icon } from '../components/icons';
 import { messages } from '../messages/fa';
 import { EVENT_ROOT_SLUG, type Catalog } from '../modules/listings/catalog';
 import { browsePath, eventsPath } from '../modules/search/paths';
+import { CountryRulesNote } from '../components/country-rules-note';
 
 // The first page's row of top categories (mockup final/home), events first in saffron so people
 // find them at once (owner, Oct 27, 2026); also on a country's starter page (wave 2 part 8).
 
-export function CategoryGrid({ catalog, country }: { catalog: Catalog; country: string }) {
+/** `note`: the country closes categories (Turkey), so the grid says why some are missing */
+export function CategoryGrid({ catalog, country, note = false }: { catalog: Catalog; country: string; note?: boolean }) {
   const t = messages.home;
   // The mockup's order and short names («دیجیتال», «خانه»), the rest after them
   const order = Object.keys(t.categoryShort);
@@ -17,6 +19,7 @@ export function CategoryGrid({ catalog, country }: { catalog: Catalog; country: 
     .filter((c) => c.isActive && c.slug !== EVENT_ROOT_SLUG)
     .sort((a, b) => rank(a.slug) - rank(b.slug));
   return (
+    <>
     <ul className="mt-3 grid grid-cols-4 gap-2 lg:grid-cols-8">
       <li>
         <Link href={eventsPath(country, null)} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs font-bold hover:bg-saffron-50">
@@ -37,5 +40,7 @@ export function CategoryGrid({ catalog, country }: { catalog: Catalog; country: 
         </li>
       ))}
     </ul>
+    {note && <CountryRulesNote className="mt-3" />}
+    </>
   );
 }

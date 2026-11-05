@@ -4,7 +4,7 @@ import { appDb } from '../../../db/drizzle';
 import { admin } from '../../../messages/fa';
 import { adminHref, requireStaff } from '../../../modules/admin/server';
 import { adminCities } from '../../../modules/launch/waitlist';
-import { adminCountries, type AdminCountry, type CountryMode } from '../../../modules/launch/countries';
+import { adminCountries, OFFERED_MODES, type AdminCountry, type CountryMode } from '../../../modules/launch/countries';
 import { isStarter, starterUntil } from '../../../modules/launch/country-page';
 import { Icon } from '../../../components/icons';
 import { activePauses, PAUSE_MAX_DAYS } from '../../../modules/launch/pauses';
@@ -14,7 +14,6 @@ import { formatDate } from '../../../lib/format';
 import { webEnv } from '../../../lib/env';
 import { AdminTitle, Progress } from '../ui';
 import { cityLaunchAction, countryModeAction, liftPauseAction, openCountryAction, pauseAction } from './actions';
-import { COUNTRY_MODES } from '../../../db/schema';
 
 // Countries and cities (round 12, mockup admin-cities): one goal per city (verified businesses),
 // people waiting for information only, and the owner's one-click opening with a confirmation step.
@@ -184,7 +183,7 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
         <form action={countryModeAction} className="mt-3 space-y-3">
           <input type="hidden" name="country" value={country.code} />
           <fieldset className="grid gap-2 sm:grid-cols-2">
-            {COUNTRY_MODES.map((m) => (
+            {[...OFFERED_MODES, ...(OFFERED_MODES.includes(country.mode) ? [] : [country.mode])].map((m) => (
               <label key={m} className="flex cursor-pointer gap-2 rounded-xl border border-neutral-200 p-3 text-sm has-checked:border-brand-600 has-checked:bg-brand-50">
                 <input type="radio" name="mode" value={m} defaultChecked={m === country.mode} className="mt-1 accent-brand-700" />
                 <span>

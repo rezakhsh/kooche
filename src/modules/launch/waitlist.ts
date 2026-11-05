@@ -104,7 +104,7 @@ export async function keyCitiesOf(db: Queryable, countryCode: string): Promise<K
 /** A closed country's first city with its waitlist, for the city chooser («اول تورنتو: ۹ از ۳۰ کسب‌وکار») */
 export type WaitingCountry = { code: string; slug: string; nameFa: string; city: { slug: string; nameFa: string }; goal: number | null; businesses: number };
 
-/** Countries that aren't open, each with its first waitlist city (the largest goal, then the largest city); guide countries (Turkey) aren't waiting for a market */
+/** Countries that aren't open, each with its first waitlist city (the largest goal, then the largest city) */
 export async function waitingCountries(db: Queryable): Promise<WaitingCountry[]> {
   const rows = await db.execute<{ code: string; slug: string; name_fa: string; city_slug: string; city_fa: string; goal: number | null; businesses: number }>(sql`
     SELECT DISTINCT ON (c.code) c.code, c.slug, c.name_fa, l.slug AS city_slug, l.name_fa AS city_fa, l.business_goal AS goal,

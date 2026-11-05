@@ -44,6 +44,8 @@ export type FormProps = {
   shippable: boolean;
   defs: AttributeDef[];
   priceTypes: PriceType[];
+  /** What the country's law says about this category (src/modules/listings/country-rules.ts: Turkey) */
+  notes: string[];
   /**
    * The listing's country, fixed (decided Oct 17, 2026; src/modules/listings/posting-country.ts),
    * null when the visitor hasn't chosen one yet. Its currency is the listing's currency.
@@ -303,6 +305,16 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
               <span className="block truncate text-sm font-bold">{props.categoryPath.join('، ')}</span>
             </div>
           </div>
+        )}
+        {props.notes.length > 0 && (
+          <ul data-country-notes className="space-y-1.5 rounded-xl bg-saffron-50 px-3 py-2.5 text-sm leading-7 text-saffron-800">
+            {props.notes.map((n) => (
+              <li key={n} className="flex items-start gap-2">
+                <Icon name="shield" className="mt-1.5 size-4 shrink-0" />
+                <span>{n}</span>
+              </li>
+            ))}
+          </ul>
         )}
         <div>
           <label className="block">

@@ -10,6 +10,7 @@ import { PostingBar } from '../posting-bar';
 import { editorData } from '../../my/listings/editor-data';
 import { chosenCountry } from '../../country-choice';
 import { myBusinesses } from '../../../modules/organizations/organizations';
+import { isClosedIn } from '../../../modules/listings/country-rules';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
 
@@ -32,6 +33,8 @@ export default async function NewInCategoryPage({ params, searchParams }: { para
   if (isEventCategory(catalog, category.id)) redirect(`/events/new?type=${category.slug}`);
 
   const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null, kind);
+  // Closed by the posting country's law (src/modules/listings/country-rules.ts: Turkey's housing and cars)
+  if (editor.form.country && isClosedIn(catalog, category.id, editor.form.country.code)) redirect('/new?error=closed_in_country');
   // Steps 2–4 of posting (wave 1, src/app/my/listings/[id]/steps.ts); each step has its heading
   return (
     <>

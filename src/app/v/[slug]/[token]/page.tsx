@@ -44,6 +44,7 @@ import { chatEntry } from '../../../../modules/chat/entry';
 import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { Contact } from './contact';
+import { opensEmployerContact } from '../../../../modules/listings/country-rules';
 import { Gallery, type GalleryImage } from './gallery';
 import { BackButton, CopyLink, ShareButton } from './photo-bar';
 
@@ -234,6 +235,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   }));
   const posted = l.publishedAt ?? l.createdAt;
 
+  // A job in Turkey (src/modules/listings/country-rules.ts; İŞKUR's rule): the employer's public
+  // phone, email and website for everyone, no sign-in; Peydoo has no apply button and keeps no CVs
+  const employer =
+    business && opensEmployerContact(l.countryCode, crumbs[0]?.slug) && (business.phoneE164 || business.email || business.website) ? business : null;
   const sellerBox = (
     <Card className="space-y-4">
       {business ? (
@@ -282,6 +287,35 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           {/* A deal with a private person is no consumer contract (§ 312l BGB with Art. 246d § 1 Nr. 5 EGBGB; docs/legal-review.md) */}
           {l.kind !== 'wanted' && <p className="text-xs leading-5 text-neutral-600">{messages.business.privateNoConsumerRights}</p>}
         </>
+      )}
+      {employer && (
+        <section data-employer-contact aria-labelledby="employer-contact" className="rounded-xl bg-neutral-50 p-3">
+          <h2 id="employer-contact" className="text-sm font-extrabold">{messages.countryRules.employer.heading}</h2>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {employer.phoneE164 && (
+              <li className="flex items-center gap-2">
+                <Icon name="phone" className="size-4 text-neutral-500" />
+                <span className="sr-only">{messages.countryRules.employer.phone}</span>
+                <a href={`tel:${employer.phoneE164}`} dir="ltr" className="font-bold text-brand-800 hover:underline">{employer.phoneE164}</a>
+              </li>
+            )}
+            {employer.email && (
+              <li className="flex items-center gap-2">
+                <Icon name="mail" className="size-4 text-neutral-500" />
+                <span className="sr-only">{messages.countryRules.employer.email}</span>
+                <a href={`mailto:${employer.email}`} dir="ltr" className="font-bold text-brand-800 hover:underline">{employer.email}</a>
+              </li>
+            )}
+            {employer.website && (
+              <li className="flex items-center gap-2">
+                <Icon name="globe" className="size-4 text-neutral-500" />
+                <span className="sr-only">{messages.countryRules.employer.website}</span>
+                <a href={employer.website} dir="ltr" rel="nofollow noopener" className="font-bold text-brand-800 hover:underline">{employer.website.replace(/^https:\/\//, '')}</a>
+              </li>
+            )}
+          </ul>
+          <p className="mt-2 text-xs leading-6 text-neutral-600">{messages.countryRules.employer.note}</p>
+        </section>
       )}
       <div className="flex flex-wrap gap-1.5">
         <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 text-xs font-bold leading-7 text-brand-800">

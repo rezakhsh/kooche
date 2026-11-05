@@ -161,7 +161,9 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
     redirect(`${listingPath(parsed.data.title, r.publicToken)}?published=1`);
   }
   const t = messages.form;
-  return { notice: r.status === 'pending_review' ? t.submitted : t.saved, listingId: created };
+  // A new listing waits for review only for an item its country bans (src/modules/listings/country-rules.ts)
+  const held = r.status === 'pending_review' && own.listing.status === 'draft';
+  return { notice: held ? messages.countryRules.held : r.status === 'pending_review' ? t.submitted : t.saved, listingId: created };
 }
 
 const statusSchema = z.object({

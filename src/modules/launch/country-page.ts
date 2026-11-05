@@ -6,7 +6,7 @@ import { PREPARING, type CountryMode } from './countries';
 
 // A country's own first pages (wave 2 part 8, mockups final/home-waitlist, waitlist-announced,
 // countries and us-starter; docs/setup.md, "Country pages"):
-// - a planned country that isn't open (prestart, guide, or waitlist with a key city on its
+// - a planned country that isn't open (prestart, or waitlist with a key city on its
 //   waitlist) has a «پیدو به‌زودی در اتریش» page at /austria, also shown on the first page to
 //   visitors from there; with an announced day (prestart) it shows the day and what happens when;
 // - a waitlist country with no city planned has no page (404), as before: nothing is promised;

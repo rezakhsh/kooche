@@ -19,6 +19,7 @@ import { withRef } from '../modules/stats/ref-param';
 import { CountrySoon, openingDay } from './[country]/_browse/country-soon';
 import { StarterPage } from './[country]/_browse/starter-page';
 import { CategoryGrid } from './category-grid';
+import { countryCatalog, hasClosedCategories } from '../modules/listings/country-rules';
 import { chosenPageCountry } from './country-choice';
 import { NearestCity } from './nearest-city';
 import { cityFoundingPlaces } from '../modules/payments/founding';
@@ -62,7 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const country = detected ?? countries[0]!;
   const info = mine?.code === country.code ? mine : await countryByCode(db, country.code);
   if (info && isStarter(info)) return <StarterPage country={info} detected={!!detected} />;
-  const [cities, perCity, catalog] = await Promise.all([keyCitiesOf(db, country.code), cachedCityCounts(db, country.code), cachedCatalog(db)]);
+  const [cities, perCity, catalog] = await Promise.all([keyCitiesOf(db, country.code), cachedCityCounts(db, country.code), cachedCatalog(db).then((c) => countryCatalog(c, country.code))]);
   const t = messages.home;
   // The founding offer of the first open city, with its places left
   const firstOpen = cities.find((c) => c.status === 'open') ?? null;
@@ -128,7 +129,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </div>
 
         <SectionTitle title={t.popular} href={browsePath(country.slug, null, null)} className="mt-7" />
-        <CategoryGrid catalog={catalog} country={country.slug} />
+        <CategoryGrid catalog={catalog} country={country.slug} note={hasClosedCategories(country.code)} />
 
         <ul className="mt-7 grid gap-2 lg:grid-cols-3">
           {t.trust.map((x, i) => (
@@ -176,14 +177,13 @@ async function CountryChooser({ here }: { here: string | null }) {
 
 /**
  * The countries: open ones with their counts (the visitor's own first, the current one checked),
- * then «به‌زودی» and the guides. On the home page in a sheet over the page (mockup final/countries;
+ * then «به‌زودی» (Turkey too since Nov 5, 2026: its guide page is gone). On the home page in a sheet over the page (mockup final/countries;
  * design check, Oct 31, 2026), at `?choose` as its own page.
  */
 async function CountryList({ here, current }: { here: string | null; current: string | null }) {
   const db = appDb();
   const [countries, counts, planned] = await Promise.all([activeCountries(db), countryCounts(db), soonCountries(db)]);
-  const waiting = planned.filter((c) => c.mode !== 'guide');
-  const guides = planned.filter((c) => c.mode === 'guide');
+  const waiting = planned;
   const ordered = [...countries].sort((a, b) => Number(b.code === here) - Number(a.code === here));
   const t = messages.home;
   return (
@@ -228,25 +228,6 @@ async function CountryList({ here, current }: { here: string | null; current: st
                 </Link>
                 <Link href={`/${c.slug}`} className="rounded-full border border-brand-200 bg-brand-50 px-3 text-sm font-bold leading-8 text-brand-800 hover:bg-brand-100">
                   {t.notifyMe}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {guides.length > 0 && (
-        <>
-          <h2 className="mt-6 mb-1 text-sm font-bold text-neutral-600">{messages.countryPage.guide}</h2>
-          <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 px-4">
-            {guides.map((c) => (
-              <li key={c.code}>
-                <Link href={`/${c.slug}`} className="flex min-h-14 items-center gap-3 py-2">
-                  <Flag code={c.code} className="h-5 w-8" />
-                  <span className="flex flex-1 flex-col">
-                    <span className="text-base">{c.nameFa}</span>
-                    <span className="text-xs text-neutral-600">{messages.countryPage.guideLine}</span>
-                  </span>
-                  <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                 </Link>
               </li>
             ))}

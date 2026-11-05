@@ -4,12 +4,13 @@ import { listingImages, listings, moderationDecisions, outboxEvents } from '../.
 import type { REASON_CODES } from '../../db/schema/_values';
 import { messages } from '../../messages/fa';
 import { cachedCatalog } from '../listings/catalog';
+import { heldTerm } from '../listings/country-rules';
 import { LISTING_OUTBOX, recordChange } from '../listings/events';
 import { liveUntil } from '../listings/listings';
 import { eventCheckFields } from '../events/events';
 import { checkLink } from '../events/links';
 import { lastTakeDown } from './history';
-import { bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from './terms';
+import { bannedTermGround, COUNTRY_ITEMS_SECTION, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from './terms';
 
 // Automatic checks after publishing (decided Oct 17, 2026). Listings go live at once; the worker
 // runs these checks on every publish, edit, photo change and resubmission, and a check can take a
@@ -26,7 +27,8 @@ type ReasonCode = (typeof REASON_CODES)[number];
 export type CheckOutcome =
   | { verdict: 'pass' }
   | {
-      verdict: 'take_down' | 'flag';
+      /** hold: like a flag, and a listing waiting for review stays waiting for a person */
+      verdict: 'take_down' | 'flag' | 'hold';
       rule: string;
       reason: ReasonCode;
       /** Section of our terms of use, e.g. terms-5.2 (policyGround() in ./terms.ts) */
@@ -128,7 +130,22 @@ const eventFields: ListingCheck = {
   },
 };
 
-export const CHECKS: readonly ListingCheck[] = [bannedTerms, duplicatePhotos, eventFields];
+/**
+ * Items the listing's country bans (src/modules/listings/country-rules.ts; Turkey, owner Nov 5,
+ * 2026): a person decides. saveListing() already sent a new listing to review instead of live;
+ * this keeps it there with the reason for the queue. A live listing edited to mention one is
+ * flagged and stays up.
+ */
+const countryItems: ListingCheck = {
+  name: 'country_items',
+  async run({ listing }) {
+    const found = heldTerm(listing.countryCode, `${listing.title}\n${listing.description}`, { business: !!listing.organizationId });
+    if (!found) return { verdict: 'pass' };
+    return { verdict: 'hold', rule: 'country_items', reason: 'prohibited', policyGround: policyGround(COUNTRY_ITEMS_SECTION), detail: { ...found, country: listing.countryCode } };
+  },
+};
+
+export const CHECKS: readonly ListingCheck[] = [bannedTerms, duplicatePhotos, eventFields, countryItems];
 
 /** Statuses the checks look at: live, paused (can come back) and waiting for review */
 const CHECKED = new Set<Listing['status']>(['active', 'paused', 'pending_review']);
@@ -215,7 +232,7 @@ export async function runListingChecks(
     // Flags: once per revision and rule, so a re-run doesn't fill the queue
     let flagged = false;
     for (const o of outcomes) {
-      if (o.verdict !== 'flag') continue;
+      if (o.verdict !== 'flag' && o.verdict !== 'hold') continue;
       const [existing] = await tx
         .select({ id: moderationDecisions.id })
         .from(moderationDecisions)
@@ -244,6 +261,8 @@ export async function runListingChecks(
     // A resubmitted listing that passes goes live again, unless a person took it down: then a
     // person decides again (it waits in the admin queue), so it can't be flipped back up unchanged
     if (listing.status === 'pending_review' && (await lastTakeDown(tx, listing.id))?.decidedBy === 'staff') return 'held';
+    // A banned item of the country waits for a person too (the escalation above is its queue entry)
+    if (listing.status === 'pending_review' && outcomes.some((o) => o.verdict === 'hold')) return 'held';
     if (listing.status === 'pending_review') {
       const expiresAt = await liveUntil(tx, catalog, listing, now);
       // An event whose last date passed while it waited ends at once

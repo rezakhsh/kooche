@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
-import { countries, COUNTRY_MODES, locations } from '../../db/schema';
+import { countries, locations, type COUNTRY_MODES } from '../../db/schema';
 import { staffAudit, type StaffContext } from '../admin/audit';
 
 // Country modes (wave 2 part 2, owner Oct 29, 2026; mockup final/admin-countries; docs/setup.md,
@@ -10,7 +10,10 @@ import { staffAudit, type StaffContext } from '../admin/audit';
 // - waitlist: its key cities' waitlist pages and «خبرم کن»; nobody posts;
 // - prestart: as waitlist for visitors; businesses can make their page and everyone can save drafts
 //   (events too), to go live on the announced day (`opens_on`); nothing is published before;
-// - guide: guide pages only (Turkey); until they are written it shows like waitlist;
+// - guide: retired (Nov 5, 2026). Turkey had it, with a guide page and no marketplace; it is now a
+//   normal country like Austria (src/modules/listings/country-rules.ts closes housing and cars
+//   there). The value stays allowed in the database so production's Turkey keeps working until the
+//   owner switches it to waitlist in admin; it shows like waitlist and admin no longer offers it.
 // - open: everything, with the cities' own launch (./cities.ts).
 // `countries.is_active` is true exactly in 'open' (a CHECK keeps them together), so every place
 // that asks "is this country open" keeps working.
@@ -19,6 +22,8 @@ export type CountryMode = (typeof COUNTRY_MODES)[number];
 
 /** Modes in which drafts may be saved and business pages made (publishing needs 'open') */
 export const PREPARING: ReadonlySet<CountryMode> = new Set(['prestart', 'open']);
+/** Modes admin offers (guide is retired: shown only while a country still has it) */
+export const OFFERED_MODES: readonly CountryMode[] = ['hidden', 'waitlist', 'prestart', 'open'];
 /** Modes whose waitlist pages are shown (hidden has none) */
 export const LISTED: ReadonlySet<CountryMode> = new Set(['waitlist', 'prestart', 'guide']);
 
@@ -66,7 +71,7 @@ export type ModeChange = { mode: CountryMode; opensOn?: string | null };
  * country's slug for the cache purge, or null when nothing changed or the input is wrong.
  */
 export async function setCountryMode(tx: Queryable, ctx: StaffContext, code: string, change: ModeChange): Promise<{ slug: string | null; citySlugs: string[] } | null> {
-  if (!COUNTRY_MODES.includes(change.mode)) return null;
+  if (!OFFERED_MODES.includes(change.mode)) return null;
   const opensOn = change.mode === 'prestart' && change.opensOn && z.iso.date().safeParse(change.opensOn).success ? change.opensOn : null;
   const [before] = await tx.select({ mode: countries.mode, opensOn: countries.opensOn }).from(countries).where(eq(countries.code, code)).for('update');
   if (!before || (before.mode === change.mode && before.opensOn === opensOn)) return null;

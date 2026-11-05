@@ -18,6 +18,14 @@ export const operator = {
   vatId: null as string | null,
   /** Register court and number, for a company */
   register: null as string | null,
+  /**
+   * Turkey's data-controller representative (KVKK Art. 16, VERBIS; owner, Nov 5, 2026: to be
+   * appointed before Turkey opens on production). null until appointed: the privacy policy (13)
+   * and the Turkish notice (/privacy/tr) then say it isn't appointed yet. Never a guess.
+   */
+  turkeyRepresentative: null as { name: string; address: string; email: string } | null,
+  /** VERBIS registration number, once registered */
+  verbisNumber: null as string | null,
   /** Data protection supervisory authority of the operator's Land (Berlin) */
   authority: {
     name: 'Berliner Beauftragte für Datenschutz und Informationsfreiheit',

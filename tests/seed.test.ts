@@ -225,10 +225,9 @@ describe('the planned countries’ cities (postal codes, step 2)', () => {
     // (New York over Los Angeles, Rotterdam over Amsterdam, Roma over Milano)
     const soon = (await soonCountries(db)).filter((c) => codes.includes(c.code));
     expect(Object.fromEntries(soon.map((c) => [c.code, c.city?.slug]))).toEqual(Object.fromEntries(codes.map((c) => [c, FIRST_CITIES[c]!.slug])));
+    // Turkey waits for İstanbul like the others since Nov 5, 2026 (its guide mode is retired)
     const waiting = (await waitingCountries(db)).filter((c) => codes.includes(c.code));
-    expect(Object.fromEntries(waiting.map((c) => [c.code, c.city.slug]))).toEqual(
-      Object.fromEntries(codes.filter((c) => c !== 'TR').map((c) => [c, FIRST_CITIES[c]!.slug])),
-    );
+    expect(Object.fromEntries(waiting.map((c) => [c.code, c.city.slug]))).toEqual(Object.fromEntries(codes.map((c) => [c, FIRST_CITIES[c]!.slug])));
     // A country page and the chooser list a country's key cities: still only the first one
     for (const code of codes) expect((await keyCitiesOf(db, code)).map((k) => k.slug)).toEqual([FIRST_CITIES[code]!.slug]);
     // Admin › countries and cities counts one planned city per country

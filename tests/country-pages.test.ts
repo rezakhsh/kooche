@@ -59,7 +59,7 @@ async function withMode(code: string, mode: CountryMode, over: { opensOn?: strin
 }
 
 describe('which countries have a «به‌زودی» page', () => {
-  it('a waitlist country with a city on its waitlist, prestart and guide do; one with no city planned and hidden ones don’t', async () => {
+  it('a waitlist country with a city on its waitlist and prestart do (a country still in the retired guide mode too); one with no city planned and hidden ones don’t', async () => {
     const at = (await countryBySlug(db, 'austria'))!;
     expect(at).toMatchObject({ code: 'AT', mode: 'waitlist', currency: { code: 'EUR' } });
     expect(await isPlanned(db, at)).toBe(true);

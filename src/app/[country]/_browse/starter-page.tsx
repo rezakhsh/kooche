@@ -16,6 +16,7 @@ import { cityFoundingPlaces } from '../../../modules/payments/founding';
 import { browsePath, eventsPath } from '../../../modules/search/paths';
 import { viewerSeesTest } from '../../../modules/users/server';
 import { CategoryGrid } from '../../category-grid';
+import { countryCatalog, hasClosedCategories } from '../../../modules/listings/country-rules';
 import { RememberCountry } from '../remember-country';
 import { cachedOnlineCounts } from '../../../modules/listings/online';
 import { OnlineLink, onlineSummary } from './online-link';
@@ -56,7 +57,7 @@ function SectionHead({ title, href }: { title: string; href?: string }) {
 export async function StarterPage({ country, detected = false, remember = false }: { country: CountryInfo; detected?: boolean; remember?: boolean }) {
   const db = appDb();
   const withTest = await viewerSeesTest();
-  const catalog = await cachedCatalog(db);
+  const catalog = countryCatalog(await cachedCatalog(db), country.code);
   const jobsRoot = catalog.bySlug.get('jobs');
   const [cities, events, businesses, jobs, online] = await Promise.all([
     keyCitiesOf(db, country.code),
@@ -228,7 +229,7 @@ export async function StarterPage({ country, detected = false, remember = false 
       </div>
 
       <h2 className="mt-8 text-lg font-extrabold">{messages.home.popular}</h2>
-      <CategoryGrid catalog={catalog} country={country.slug} />
+      <CategoryGrid catalog={catalog} country={country.slug} note={hasClosedCategories(country.code)} />
     </main>
   );
 }

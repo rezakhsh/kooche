@@ -32,6 +32,8 @@ export const BANNED_TERMS: Record<string, readonly string[]> = {
 export const BANNED_TERM_SECTION: Record<string, string> = { weapons: '5.2', drugs: '5.3', money_transfer: '5.4' };
 export const OWN_PHOTOS_SECTION = '4.3';
 export const EVENT_LINKS_SECTION = '4.6';
+/** Items Turkey's law bans, held for review (src/modules/listings/country-rules.ts) */
+export const COUNTRY_ITEMS_SECTION = '17.3';
 
 export const policyGround = (section: string) => `terms-${section}`;
 

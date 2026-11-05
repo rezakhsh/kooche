@@ -5,7 +5,7 @@ import { legalDe } from '../src/messages/legal-de';
 import type { LegalDoc } from '../src/messages/legal-types';
 import { operator } from '../src/messages/operator';
 import { REASON_SECTIONS } from '../src/modules/moderation/reasons';
-import { BANNED_TERM_SECTION, BANNED_TERMS, bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from '../src/modules/moderation/terms';
+import { BANNED_TERM_SECTION, BANNED_TERMS, COUNTRY_ITEMS_SECTION, bannedTermGround, EVENT_LINKS_SECTION, findBannedTerm, groundSection, OWN_PHOTOS_SECTION, policyGround } from '../src/modules/moderation/terms';
 import { browseCacheControl, browseCountry } from '../src/proxy';
 
 // Legal pages (roadmap step 2, approved Oct 21, 2026). The Persian terms and privacy policy follow
@@ -68,7 +68,7 @@ describe('policy grounds name real sections of the terms', () => {
   const sections = new Set(ids(legalDe.terms));
 
   it('every section the automatic checks cite exists in both versions', () => {
-    for (const s of [...Object.values(BANNED_TERM_SECTION), OWN_PHOTOS_SECTION, EVENT_LINKS_SECTION]) {
+    for (const s of [...Object.values(BANNED_TERM_SECTION), OWN_PHOTOS_SECTION, EVENT_LINKS_SECTION, COUNTRY_ITEMS_SECTION]) {
       expect(sections.has(s), s).toBe(true);
       expect(ids(pages.terms)).toContain(s);
     }
@@ -259,10 +259,10 @@ describe('protective rules and privacy additions (Nov 3, 2026)', () => {
   });
 
   it('both versions carry the date of this version', () => {
-    expect(legalDe.terms.updated).toBe('Stand: 4. November 2026');
-    expect(legalDe.privacy.updated).toBe('Stand: 4. November 2026');
-    expect(pages.terms.updated).toBe('به‌روزرسانی: ۴ نوامبر ۲۰۲۶');
-    expect(pages.privacy.updated).toBe('به‌روزرسانی: ۴ نوامبر ۲۰۲۶');
+    expect(legalDe.terms.updated).toBe('Stand: 5. November 2026');
+    expect(legalDe.privacy.updated).toBe('Stand: 5. November 2026');
+    expect(pages.terms.updated).toBe('به‌روزرسانی: ۵ نوامبر ۲۰۲۶');
+    expect(pages.privacy.updated).toBe('به‌روزرسانی: ۵ نوامبر ۲۰۲۶');
   });
 
   // The texts are our own; they never name the platform we compared ourselves with (owner, Nov 3, 2026)

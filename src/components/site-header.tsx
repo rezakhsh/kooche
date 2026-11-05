@@ -5,6 +5,7 @@ import { visitorCountry } from '../lib/client-ip';
 import { homeArea } from '../modules/listings/neighbourhood';
 import { cityOf } from '../modules/search/places';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
+import { countryCatalog } from '../modules/listings/country-rules';
 import { browsePath, eventsPath, foundingPath } from '../modules/search/paths';
 import { keyCitiesOf, waitingCountries } from '../modules/launch/waitlist';
 import { webEnv } from '../lib/env';
@@ -80,7 +81,7 @@ export async function SiteHeader() {
   const mine = chosen ? null : await chosenPageCountry(appDb()).catch(() => null);
   const mineClosed = mine && !open.some((c) => c.slug === mine.slug) ? mine : null;
   const shownClosed = closedHere ?? (mineClosed && !(first && open.some((c) => c.slug === first)) ? mineClosed : null);
-  const catalog = country && segments[1] ? await cachedCatalog(appDb()) : null;
+  const catalog = country && segments[1] ? countryCatalog(await cachedCatalog(appDb()), country.code) : null;
   const category = catalog ? browsableCategory(catalog, decode(city ? segments[2] : segments[1])) : null;
   // On the events pages the box searches the events (wave 1, mockup final/events: «جستجو در رویدادهای برلین…»)
   const onEvents = !!country && (segments[1] === 'events' || (!!city && segments[2] === 'events'));

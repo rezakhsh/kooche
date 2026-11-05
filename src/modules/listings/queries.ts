@@ -169,7 +169,8 @@ export async function publicListing(db: Queryable, token: string) {
       /** Posted by a test account: the page shows it only to staff and test accounts */
       testOwner: sql<boolean>`${users.testAccount} IS NOT NULL`,
       // Posted for a business (roadmap step 6): the business is the seller shown
-      business: { name: organizations.name, slug: organizations.slug, verificationStatus: organizations.verificationStatus, createdAt: organizations.createdAt },
+      // Its public phone, email and website (shown on its own page too) open a Turkish job's employer box (./country-rules.ts)
+      business: { name: organizations.name, slug: organizations.slug, verificationStatus: organizations.verificationStatus, createdAt: organizations.createdAt, phoneE164: organizations.phoneE164, email: organizations.email, website: organizations.website },
     })
     .from(listings)
     .innerJoin(users, eq(users.id, listings.userId))

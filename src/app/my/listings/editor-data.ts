@@ -16,6 +16,7 @@ import { turnstileSiteKey } from '../../../modules/security/server';
 import { photoView, type PhotoView } from './photo-view';
 import type { FormProps } from './[id]/form';
 import { preparingCountries } from '../../../modules/launch/country-page';
+import { allowedPriceTypes, formNotes } from '../../../modules/listings/country-rules';
 
 // What the listing editor needs, for a saved listing or for a new one that exists only in the
 // browser so far (`listing` null). Server code only. The country is the listing's own, else the
@@ -82,7 +83,9 @@ export async function editorData(
       rent: rentKind(ancestry(catalog, category.id)),
       shippable: !NOT_SHIPPED.has(ancestry(catalog, category.id)[0]?.slug ?? ''),
       defs,
-      priceTypes: [...priceTypesFor(category.priceMode)],
+      // Cats and dogs in Turkey only for free (src/modules/listings/country-rules.ts)
+      priceTypes: allowedPriceTypes(catalog, category.id, countryCode, priceTypesFor(category.priceMode)),
+      notes: formNotes(catalog, category.id, countryCode).map((n) => messages.countryRules.notes[n]!),
       country: country ? { code: country.code, nameFa: country.nameFa, currencySymbol: country.currency.symbol, currencyName: country.currency.nameFa } : null,
       // Only a listing that has no country yet may still take another one
       countryChangeable: !listing?.countryCode,

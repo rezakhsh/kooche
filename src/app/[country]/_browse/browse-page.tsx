@@ -40,6 +40,8 @@ import { ActiveFilters, filterChips } from './chips';
 import { formatPrice } from '../../../modules/listings/price';
 import { FilterForm } from './filter-form';
 import { OnlineLink, onlineSummary } from './online-link';
+import { CountryRulesNote } from '../../../components/country-rules-note';
+import { hasClosedCategories } from '../../../modules/listings/country-rules';
 import { cachedOnlineCounts, onlineCounts, sectionOf, type OnlineCounts } from '../../../modules/listings/online';
 import { SaveSearchButton } from './save-search';
 import type { Browse } from './resolve';
@@ -427,6 +429,10 @@ export async function BrowsePage({ b }: { b: Browse }) {
               </span>
             </p>
           )}
+
+          {/* Why Turkey has no housing or cars (src/modules/listings/country-rules.ts): on the country's
+              and its cities' first pages and on vehicles, where cars would be */}
+          {hasClosedCategories(country.code) && (!category || category.slug === 'vehicles') && <CountryRulesNote className="mb-3" />}
 
           {notice && (
             <p role="status" className="mb-3 rounded-xl border border-saffron-100 bg-saffron-50 px-3 py-2 text-sm text-saffron-800">

@@ -7,9 +7,8 @@ import { purgeEnv, webEnv } from '../../../lib/env';
 import { purgeUrls } from '../../../modules/admin/purge';
 import { adminHref, requireStaffAction } from '../../../modules/admin/server';
 import { changeCityLaunch, openCountry, type LaunchChange } from '../../../modules/launch/waitlist';
-import { setCountryMode, type CountryMode } from '../../../modules/launch/countries';
+import { OFFERED_MODES, setCountryMode, type CountryMode } from '../../../modules/launch/countries';
 import { liftPause, pauseCategory } from '../../../modules/launch/pauses';
-import { COUNTRY_MODES } from '../../../db/schema';
 import { browsePath } from '../../../modules/search/paths';
 
 // Countries and cities (round 12): the owner opens a city or the whole country, moves a city to
@@ -58,7 +57,7 @@ export async function countryModeAction(form: FormData): Promise<void> {
   const staff = await requireStaffAction('cities.manage');
   const code = String(form.get('country') ?? '');
   const mode = String(form.get('mode') ?? '') as CountryMode;
-  if (!/^[A-Z]{2}$/.test(code) || !COUNTRY_MODES.includes(mode)) redirect(adminHref('/cities'));
+  if (!/^[A-Z]{2}$/.test(code) || !OFFERED_MODES.includes(mode)) redirect(adminHref('/cities'));
   if ((mode === 'open' || mode === 'hidden') && form.get('sure') !== 'on') redirect(adminHref(`/cities?country=${code}&mode=sure`));
   const r = await appDb().transaction((tx) => setCountryMode(tx, staff.ctx, code, { mode, opensOn: String(form.get('opensOn') ?? '') }));
   if (r?.slug) await purge(r.slug, r.citySlugs);

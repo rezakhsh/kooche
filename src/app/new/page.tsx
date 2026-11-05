@@ -19,6 +19,8 @@ import { pickCategory } from './actions';
 import { preparingCountries } from '../../modules/launch/country-page';
 import { numberCountry, zoneOf, countryNameFa } from '../../modules/listings/zones';
 import { SERVICE_ROOTS } from '../../modules/organizations/limits';
+import { countryCatalog, hasClosedCategories } from '../../modules/listings/country-rules';
+import { CountryRulesNote } from '../../components/country-rules-note';
 import type { IconName } from '../../components/icons';
 
 export const metadata = { title: messages.post.title, robots: { index: false } };
@@ -55,12 +57,14 @@ export default async function NewListingPage({
 
   const params = await searchParams;
   const db = appDb();
-  const [catalog, countries, chosen, saved, businesses] = await Promise.all([cachedCatalog(db), preparingCountries(db), chosenPostingCountry(db), savedPlace(db, user.id), myBusinesses(db, user.id)]);
+  const [fullCatalog, countries, chosen, saved, businesses] = await Promise.all([cachedCatalog(db), preparingCountries(db), chosenPostingCountry(db), savedPlace(db, user.id), myBusinesses(db, user.id)]);
   // Business-only categories open for members of a business (roadmap step 6)
   const member = businesses.length > 0;
   // The country a new listing goes into (decided Oct 17, 2026); changing it happens on the home page
   const code = postingCountry({ listingCountry: null, chosen: chosen?.code ?? null, saved: saved?.place.countryCode ?? null, countries });
   const country = countries.find((c) => c.code === code);
+  // The categories the country's law leaves open (src/modules/listings/country-rules.ts: Turkey)
+  const catalog = countryCatalog(fullCatalog, code);
   const parent = params.c ? catalog.bySlug.get(params.c) : undefined;
   const ids = parent?.isActive ? parent.childIds : catalog.rootIds;
   const items = ids.map((id) => catalog.byId.get(id)!).filter((c) => c.isActive);
@@ -79,6 +83,8 @@ export default async function NewListingPage({
       ? t.tooManyDrafts
       : params.error === 'business_only'
         ? t.businessOnly
+        : params.error === 'closed_in_country'
+          ? messages.countryRules.refused.closed_in_country
         : params.error
           ? t.categoryNotPostable
           : null;
@@ -139,6 +145,7 @@ export default async function NewListingPage({
           </Alert>
         )}
         {error && <Alert tone="error">{error}</Alert>}
+        {!params.listing && hasClosedCategories(code) && <CountryRulesNote />}
         {showBorder && country && from ? (
           <BorderPanel from={from} country={country} verifiedBusiness={businesses.some((b) => b.verificationStatus === 'verified')} />
         ) : (

@@ -1,5 +1,6 @@
 import type { Queryable } from '../../db/drizzle';
 import { browsableCategory, cachedCatalog, subtreeIds, type CategoryNode } from '../listings/catalog';
+import { countryCatalog } from '../listings/country-rules';
 import { activeCountries } from '../listings/queries';
 import { countListings } from './browse';
 import { resolveFilters } from './index';
@@ -21,7 +22,8 @@ export async function countForForm(db: Queryable, path: string, raw: RawParams, 
   const [, countrySlug, first, second] = m;
   const country = (await activeCountries(db)).find((c) => c.slug === countrySlug);
   if (!country) return null;
-  const catalog = await cachedCatalog(db);
+  // The categories the country's law leaves open (../listings/country-rules.ts)
+  const catalog = countryCatalog(await cachedCatalog(db), country.code);
   let city: City | null = null;
   let category: CategoryNode | null = null;
   const decode = (s: string) => {

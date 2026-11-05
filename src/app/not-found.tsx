@@ -13,6 +13,7 @@ import { activeCountries, listingTopic } from '../modules/listings/queries';
 import { browseListings, categoryCounts, similarListings, type BrowseItem } from '../modules/search/browse';
 import { browsePath, eventsPath } from '../modules/search/paths';
 import { CategoryGrid } from './category-grid';
+import { countryCatalog } from '../modules/listings/country-rules';
 import { chosenCountry } from './country-choice';
 
 // Replaces Next's built-in 404 page (English, inline styles the CSP blocks). Most people come from
@@ -36,7 +37,7 @@ export default async function NotFound() {
   const cities = (await keyCitiesOf(db, country.code)).filter((c) => c.status === 'open');
   const city = cities.find((c) => c.id === topic?.locationId) ?? (segments[0] === country.slug ? cities.find((c) => c.slug === segments[1]) : undefined) ?? cities[0] ?? null;
   const place = city?.nameFa ?? country.nameFa;
-  const category = topic?.categoryId ? catalog.byId.get(topic.categoryId) ?? null : null;
+  const category = topic?.categoryId ? countryCatalog(catalog, country.code).byId.get(topic.categoryId) ?? null : null;
 
   const [counts, cards] = await Promise.all([
     category ? categoryCounts(db, country.code, city?.id ?? null) : null,
@@ -91,7 +92,7 @@ export default async function NotFound() {
 
       <h2 className="mt-7 text-lg font-extrabold">{t.categories}</h2>
       <div className="mt-3">
-        <CategoryGrid catalog={catalog} country={country.slug} />
+        <CategoryGrid catalog={countryCatalog(catalog, country.code)} country={country.slug} />
       </div>
 
       {cards.length > 0 && (

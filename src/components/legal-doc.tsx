@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { LegalDocument } from '../db/schema';
 import { pages } from '../messages/fa';
 import { legalDe } from '../messages/legal-de';
+import { aydinlatmaPage } from '../messages/legal-tr';
 import { type LegalBlock, type LegalDoc, sectionAnchor } from '../messages/legal-types';
 import { operator } from '../messages/operator';
 import { currentVersion, dayDe, dayFa, nextVersion } from '../modules/legal/versions';
@@ -12,15 +13,16 @@ import { LegalNav } from './legal-nav';
 // The terms of use and the privacy policy, in Persian (right to left) or the German
 // version (left to right inside the RTL page). Plain HTML: anchors per section, no JavaScript.
 
-type Lang = 'fa' | 'de';
+/** tr: only the Turkish privacy notice (/privacy/tr, src/messages/legal-tr.ts) */
+type Lang = 'fa' | 'de' | 'tr';
 
 /** Name, address and email of the operator (src/messages/operator.ts); German data, labels per language */
 export function OperatorBlock({ lang }: { lang: Lang }) {
-  const t = pages.legal.operator;
+  const t = lang === 'tr' ? { ...pages.legal.operator, ...aydinlatmaPage.operator } : pages.legal.operator;
   const de = lang === 'de';
   const rows: [string, ReactNode][] = [
     [de ? 'Name' : t.name, operator.name],
-    [de ? 'Anschrift' : t.address, <span key="a" dir="ltr">{`${operator.street}, ${operator.postalCode} ${operator.city}, ${de ? operator.countryDe : operator.countryFa}`}</span>],
+    [de ? 'Anschrift' : t.address, <span key="a" dir="ltr">{`${operator.street}, ${operator.postalCode} ${operator.city}, ${lang === 'fa' ? operator.countryFa : lang === 'tr' ? 'Almanya' : operator.countryDe}`}</span>],
     [de ? 'E-Mail' : t.email, <a key="e" href={`mailto:${operator.email}`} dir="ltr" className="text-brand-800 underline">{operator.email}</a>],
   ];
   if (operator.phone) rows.push([de ? 'Telefon' : t.phone, <span key="p" dir="ltr">{operator.phone}</span>]);
@@ -47,6 +49,15 @@ function Block({ block, lang }: { block: LegalBlock; lang: Lang }) {
           <li key={item}>{item}</li>
         ))}
       </ul>
+    );
+  }
+  if ('link' in block) {
+    return (
+      <p className="my-3 leading-7">
+        <Link href={block.link} className="font-semibold text-brand-800 underline">
+          {block.text}
+        </Link>
+      </p>
     );
   }
   return <OperatorBlock lang={lang} />;
@@ -76,12 +87,15 @@ export function LegalDocPage({
   notice?: { text: string; href: string; label: string };
 }) {
   const de = lang === 'de';
-  const labels = de
-    ? { draft: legalDe.draft, other: legalDe.persianVersion, note: legalDe.binding, contents: legalDe.contents }
-    : { draft: pages.legal.draft, other: pages.legal.germanVersion, note: pages.legal.germanBinding, contents: pages.legal.contents };
+  const labels =
+    lang === 'tr'
+      ? { draft: aydinlatmaPage.draft, other: aydinlatmaPage.persian, note: aydinlatmaPage.note, contents: aydinlatmaPage.contents }
+      : de
+        ? { draft: legalDe.draft, other: legalDe.persianVersion, note: legalDe.binding, contents: legalDe.contents }
+        : { draft: pages.legal.draft, other: pages.legal.germanVersion, note: pages.legal.germanBinding, contents: pages.legal.contents };
   const main = doc.sections.filter((s) => !s.id.includes('.'));
   return (
-    <main lang={lang} dir={de ? 'ltr' : 'rtl'} className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+    <main lang={lang} dir={lang === 'fa' ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
       {nav && <LegalNav current={nav} />}
       <h1 className="mb-2 text-2xl font-extrabold">{doc.title}</h1>
       <p className="mb-4 text-sm text-neutral-500">{doc.updated}</p>
@@ -96,7 +110,7 @@ export function LegalDocPage({
       )}
       <p className="mb-4 text-sm text-neutral-600">
         {labels.note}{' '}
-        <Link href={other} hrefLang={de ? 'fa' : 'de'} className="font-semibold text-brand-800 underline">
+        <Link href={other} hrefLang={lang === 'fa' ? 'de' : 'fa'} className="font-semibold text-brand-800 underline">
           {labels.other}
         </Link>
       </p>
@@ -137,7 +151,7 @@ export function LegalDocPage({
  * its day (src/modules/legal/versions.ts). Each points to the other while both exist; the next
  * page sends to the current one when nothing waits.
  */
-export function LegalVersionPage({ doc, lang, next = false }: { doc: LegalDocument; lang: Lang; next?: boolean }) {
+export function LegalVersionPage({ doc, lang, next = false }: { doc: LegalDocument; lang: 'fa' | 'de'; next?: boolean }) {
   const now = new Date();
   const de = lang === 'de';
   const base = `/${doc}${de ? '/de' : ''}`;

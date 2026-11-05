@@ -5,6 +5,7 @@ import { webEnv } from '../../../lib/env';
 import { viewerSeesTest } from '../../../modules/users/server';
 import { browsableCategory, cachedCatalog, EVENT_ROOT_SLUG, isEventCategory, subtreeIds, type Catalog, type CategoryNode } from '../../../modules/listings/catalog';
 import { cityLaunch } from '../../../modules/launch/waitlist';
+import { countryCatalog } from '../../../modules/listings/country-rules';
 import { activeCountries, closedCountry, type Country } from '../../../modules/listings/queries';
 import { resolveFilters, type PlaceNotice, type ResolvedPlace, type SearchFilters } from '../../../modules/search';
 import { browseQuery, currentQuery, filterContext, parseBrowseParams, type BrowseState, type FilterContext, type RawParams } from '../../../modules/search/filters';
@@ -61,7 +62,9 @@ async function resolve(countrySlug: string, placeSlug: string, categorySlug: str
   const db = appDb();
   const country = (await activeCountries(db)).find((c) => c.slug === countrySlug) ?? (await waitingIn(countrySlug, placeSlug, categorySlug));
   if (!country) notFound();
-  const catalog = await cachedCatalog(db);
+  // The categories the country's law leaves open (Turkey: no housing or cars); a closed one's
+  // address answers 404 (src/modules/listings/country-rules.ts)
+  const catalog = countryCatalog(await cachedCatalog(db), country.code);
 
   let city: City | null = null;
   let category: CategoryNode | null = null;

@@ -13,7 +13,7 @@ import { appDb } from './accounts';
 import { db, publicToken } from './db';
 import { categoryBySlug, city, user } from './listings-fixtures';
 
-// Country modes and emergency pauses (wave 2 part 2): hidden, waitlist, prestart, guide, open;
+// Country modes and emergency pauses (wave 2 part 2): hidden, waitlist, prestart, open (guide retired Nov 5, 2026);
 // drafts in prestart, publishing only when open; a category paused in a country or one city.
 
 const DAY = 86_400_000;
@@ -57,9 +57,9 @@ async function post(intent: 'save' | 'publish', over: Partial<ListingInput> = {}
 }
 
 describe('the modes', () => {
-  it('start as before: Germany open, Turkey guide, the rest waitlist; is_active follows the mode', async () => {
+  it('start as before: Germany open, the rest waitlist (Turkey too since Nov 5, 2026); is_active follows the mode', async () => {
     expect(await countryMode(db, 'DE')).toBe('open');
-    expect(await countryMode(db, 'TR')).toBe('guide');
+    expect(await countryMode(db, 'TR')).toBe('waitlist');
     expect(await countryMode(db, 'AT')).toBe('waitlist');
     const rows = await db.select({ mode: schema.countries.mode, isActive: schema.countries.isActive }).from(schema.countries);
     for (const r of rows) expect(r.isActive).toBe(r.mode === 'open');
@@ -84,7 +84,7 @@ describe('the modes', () => {
     ]);
   });
 
-  it('a hidden country has no pages and isn’t listed; prestart and guide show like waitlist', async () => {
+  it('a hidden country has no pages and isn’t listed; prestart shows like waitlist', async () => {
     expect(await closedCountry(db, 'austria')).toMatchObject({ code: 'AT' });
     await withMode('AT', 'hidden');
     expect(await closedCountry(db, 'austria')).toBeNull();

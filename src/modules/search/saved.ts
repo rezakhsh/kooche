@@ -7,6 +7,7 @@ import type { Point } from '../../db/types';
 import { normalizePersian } from '../../lib/normalize-persian';
 import { messages } from '../../messages/fa';
 import { browsableCategory, subtreeIds, type Catalog, type CategoryNode } from '../listings/catalog';
+import { countryCatalog } from '../listings/country-rules';
 import { activeCountries, type Country } from '../listings/queries';
 import type { SearchFilters } from './browse';
 import { browseQuery, defaultSort, filterContext, parseBrowseParams, type BrowseState, type FilterContext } from './filters';
@@ -54,6 +55,8 @@ export async function resolveTarget(db: Queryable, catalog: Catalog, path: strin
   if (segments.length < 1 || segments.length > 3 || segments.some((s) => !/^[a-z0-9-]{1,80}$/.test(s))) return null;
   const country = (await activeCountries(db)).find((c) => c.slug === segments[0]);
   if (!country) return null;
+  // A category the country's law closes can't be saved there (../listings/country-rules.ts)
+  catalog = countryCatalog(catalog, country.code);
   let city: City | null = null;
   let category: CategoryNode | null = null;
   if (segments[1]) {

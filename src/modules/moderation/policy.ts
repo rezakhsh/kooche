@@ -15,10 +15,12 @@ export type ReviewContext = {
   userId: string;
   /** A listing the checks took down and the seller edited and sent again */
   resubmission: boolean;
+  /** Mentions an item the listing's country bans (src/modules/listings/country-rules.ts: Turkey) */
+  screened?: boolean;
 };
 
 export function reviewPolicy(ctx: ReviewContext): ReviewPolicy {
   // A taken-down listing is checked before it goes live again, so it can't be flipped back up
-  // unchanged.
-  return ctx.resubmission ? 'hold' : 'publish';
+  // unchanged. An item the country's law bans waits for a person (Turkey, owner Nov 5, 2026).
+  return ctx.resubmission || ctx.screened ? 'hold' : 'publish';
 }

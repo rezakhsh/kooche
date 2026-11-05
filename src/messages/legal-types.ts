@@ -3,8 +3,8 @@
 // Section ids are the numbers people cite («بند ۵.۲», „Ziffer 5.2“) and the anchors (#s5-2); both
 // versions must have the same ids in the same order (tests/legal.test.ts).
 
-/** A paragraph, a bulleted list, or the operator's details from operator.ts */
-export type LegalBlock = string | { readonly list: readonly string[] } | { readonly operator: true };
+/** A paragraph, a bulleted list, the operator's details from operator.ts, or a link to another of our pages */
+export type LegalBlock = string | { readonly list: readonly string[] } | { readonly operator: true } | { readonly link: string; readonly text: string };
 
 /** `id` without a dot is a main section (h2), with a dot a subsection (h3) */
 export type LegalSection = { readonly id: string; readonly heading: string; readonly body: readonly LegalBlock[] };

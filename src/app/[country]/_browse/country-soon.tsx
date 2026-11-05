@@ -13,7 +13,8 @@ import { eventsPath } from '../../../modules/search/paths';
 import { turnstileSiteKey } from '../../../modules/security/server';
 import { currentSession } from '../../../modules/users/server';
 import { RememberCountry } from '../remember-country';
-import { CountryGuide } from './country-guide';
+import { CountryRulesNote } from '../../../components/country-rules-note';
+import { hasClosedCategories } from '../../../modules/listings/country-rules';
 import { prepareInAction } from './prepare-action';
 import { WaitlistForm } from './waitlist-form';
 
@@ -56,8 +57,6 @@ export async function CountrySoon({ country, detected = false }: { country: Coun
   const db = appDb();
   const [cities, open, session] = await Promise.all([keyCitiesOf(db, country.code), activeCountries(db), currentSession()]);
   const waiting = cities.filter((c) => c.status === 'waitlist');
-  // Guide mode (Turkey): the guide page, with its first city's waitlist as «خبرم کن»
-  if (country.mode === 'guide') return <CountryGuide country={country} detected={detected} waiting={waiting.map((c) => ({ id: c.id, nameFa: c.nameFa }))} elsewhere={open[0] ?? null} />;
   const first = waiting[0] ?? null;
   const [launch, founding, drafts] = await Promise.all([
     first ? cityLaunch(db, first.id) : null,
@@ -88,6 +87,8 @@ export async function CountrySoon({ country, detected = false }: { country: Coun
           </p>
           <h1 className="mt-3 text-[26px] font-black leading-[1.5] text-balance lg:text-4xl">{day ? t.titleOn(country.nameFa, day) : t.title(country.nameFa)}</h1>
           <p className="mt-2 text-base leading-8 text-neutral-700">{day ? t.introOn : t.intro}</p>
+          {/* Turkey: housing and cars stay closed (src/modules/listings/country-rules.ts) */}
+          {hasClosedCategories(country.code) && <CountryRulesNote className="mt-3" />}
         </div>
       </section>
 

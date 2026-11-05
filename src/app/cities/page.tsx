@@ -147,13 +147,13 @@ export default async function CitiesPage({ searchParams }: { searchParams: Promi
                       <span className="text-xs text-neutral-600">
                         {c.opensOn
                           ? messages.countryPage.soonOn(openingDay(c.opensOn, true))
-                          : c.mode === 'guide' || !c.city
-                            ? messages.countryPage.guideLine
+                          : !c.city
+                            ? null
                             : c.goal && c.businesses > 0
                               ? t.firstCity(c.city.nameFa, c.businesses, c.goal)
                               : null}
                       </span>
-                      {!c.opensOn && c.mode !== 'guide' && c.city && (c.goal && c.businesses > 0 ? <Bar value={c.businesses} max={c.goal} /> : <FirstOne text={t.firstCityNoGoal(c.city.nameFa)} />)}
+                      {!c.opensOn && c.city && (c.goal && c.businesses > 0 ? <Bar value={c.businesses} max={c.goal} /> : <FirstOne text={t.firstCityNoGoal(c.city.nameFa)} />)}
                     </span>
                     <Icon name="chevronEnd" className="size-4 text-neutral-400" />
                   </Link>

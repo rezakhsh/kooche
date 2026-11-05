@@ -9,6 +9,7 @@ import { checkDisplayName, isPlaceholderName } from '../users/profile';
 import { publicToken } from '../../lib/tokens';
 import { reviewPolicy } from '../moderation/policy';
 import { borderRefusal, numberCountry, type BorderRefusal } from './zones';
+import { countryRuleRefusal, heldTerm, isClosedIn, type CountryRuleRefusal } from './country-rules';
 import { businessLegalComplete, manageableBy, postingRefusal } from '../organizations/limits';
 import { roleIn } from '../organizations/organizations';
 import { isNewAccount } from '../users/new-account';
@@ -366,7 +367,9 @@ export type Refusal =
   /** An emergency pause on this category and place (src/modules/launch/pauses.ts) */
   | 'paused'
   /** Posting across borders (./zones.ts) */
-  | BorderRefusal;
+  | BorderRefusal
+  /** What a country's law closes or limits (./country-rules.ts: Turkey) */
+  | CountryRuleRefusal;
 export type Refused = { ok: false; reason: Refusal };
 
 /**
@@ -609,6 +612,10 @@ export async function saveListing(
     if (goingOut && !isPostable(catalog, category.id)) {
       return { ok: false, reason: 'category_not_postable' };
     }
+    // A category the country's law closes (./country-rules.ts: Turkey's housing and cars) is refused
+    // before the fields are checked, so the seller reads why rather than a list of missing fields
+    const placeCountry = listing.countryCode ?? (opts.input.countryCode.toUpperCase() || null);
+    if (goingOut && !opts.extension && isClosedIn(catalog, category.id, placeCountry)) return { ok: false, reason: 'closed_in_country' };
     // "Post as": chosen while the listing is a draft, fixed once it is out
     let organizationId = listing.organizationId;
     if (listing.status === 'draft' && opts.input.organizationId !== listing.organizationId) {
@@ -661,6 +668,12 @@ export async function saveListing(
     if (goingOut && values.countryCode && (await pauseFor(tx, { categoryId: category.id, countryCode: values.countryCode, locationId: values.locationId ?? null }, now))) {
       return { ok: false, reason: 'paused' };
     }
+    // The country's own rules (./country-rules.ts): closed categories, adoption only, verified
+    // employers, refused services; for anyone, from any number
+    if (goingOut && !opts.extension && values.countryCode) {
+      const refused = await countryRuleRefusal(tx, catalog, { ...values, categoryId: category.id, countryCode: values.countryCode, organizationId });
+      if (refused) return { ok: false, reason: refused };
+    }
     // Posting across borders (./zones.ts): the number's zone decides what goes out where
     if (goingOut && !opts.extension && values.countryCode) {
       const border = await borderRefusal(tx, catalog, { id: listing.id, userId: listing.userId, organizationId, categoryId: category.id, kind: opts.input.kind, attributes: values.attributes, countryCode: values.countryCode }, actor!, now);
@@ -676,6 +689,14 @@ export async function saveListing(
       const refused =
         (await postingRefusal(tx, catalog, after, now, { asNew: listing.kind !== 'offer' && values.kind === 'offer' })) ?? (await borderRefusal(tx, catalog, after, actor!, now));
       if (refused && !((await postingRefusal(tx, catalog, before, now)) ?? (await borderRefusal(tx, catalog, before, actor!, now)))) return { ok: false, reason: refused };
+    }
+    // Nor into one the country's rules refuse (a cat given away, then priced), unless it already was
+    if (!goingOut && !opts.extension && listing.status !== 'draft' && listing.status !== 'rejected' && values.countryCode) {
+      const base = { categoryId: category.id, countryCode: values.countryCode, organizationId };
+      const refused = await countryRuleRefusal(tx, catalog, { ...base, kind: values.kind, priceType: values.priceType, title: values.title, description: values.description });
+      if (refused && !(await countryRuleRefusal(tx, catalog, { ...base, kind: listing.kind, priceType: listing.priceType, title: listing.title, description: listing.description }))) {
+        return { ok: false, reason: refused };
+      }
     }
 
     if (displayName) {
@@ -699,6 +720,8 @@ export async function saveListing(
         categoryId: category.id,
         userId: opts.userId,
         resubmission: listing.status === 'rejected',
+        // Items the country's law bans (./country-rules.ts: Turkey) wait for a person
+        screened: !opts.extension && !!heldTerm(values.countryCode, `${values.title}\n${values.description}`, { business: !!organizationId }),
       });
       if (policy === 'publish') {
         status = 'active';
@@ -821,7 +844,8 @@ export async function changeListingStatus(
     if ((opts.action === 'renew' || opts.action === 'resume') && !isEventCategory(catalog, listing.categoryId)) {
       const refused =
         (await postingRefusal(tx, catalog, listing, now)) ??
-        (listing.categoryId && listing.countryCode ? await borderRefusal(tx, catalog, { ...listing, categoryId: listing.categoryId, countryCode: listing.countryCode }, actor!, now) : null);
+        (listing.categoryId && listing.countryCode ? await borderRefusal(tx, catalog, { ...listing, categoryId: listing.categoryId, countryCode: listing.countryCode }, actor!, now) : null) ??
+        (listing.categoryId && listing.countryCode ? await countryRuleRefusal(tx, catalog, { ...listing, categoryId: listing.categoryId, countryCode: listing.countryCode }) : null);
       if (refused) return { ok: false, reason: refused };
     }
     const duration = (catalog.byId.get(listing.categoryId ?? '')?.listingDurationDays ?? 30) * DAY_MS;

@@ -12,9 +12,17 @@ import { operator } from './operator';
 /** Name, postal address and email of the operator, as the model withdrawal notice asks */
 const OPERATOR_LINE = `${operator.name}, ${operator.street}, ${operator.postalCode} ${operator.city}, ${operator.countryDe}${operator.phone ? `, Telefon: ${operator.phone}` : ''}, E-Mail: ${operator.email}`;
 
+/**
+ * Turkey's representative (KVKK Art. 16; operator.ts), or the placeholder until the owner has
+ * appointed one (Turkey plan, Nov 5, 2026; a draft for the Turkish adviser)
+ */
+const TR_REPRESENTATIVE = operator.turkeyRepresentative
+  ? `${operator.turkeyRepresentative.name}, ${operator.turkeyRepresentative.address}, E-Mail: ${operator.turkeyRepresentative.email}`
+  : '[Name und Anschrift des Vertreters in der Türkei: noch nicht benannt]';
+
 const terms: LegalDoc = {
   title: 'Nutzungsbedingungen',
-  updated: 'Stand: 4. November 2026',
+  updated: 'Stand: 5. November 2026',
   draft: false,
   intro: [
     'Diese Nutzungsbedingungen regeln die Nutzung von Peydoo (پیدو). Sie liegen auf Persisch und auf Deutsch vor; beide Fassungen sind verbindlich (Ziffer 13.2).',
@@ -621,12 +629,79 @@ const terms: LegalDoc = {
         'Das Angebot umfasst sechs Monate Pro ohne Kosten (monatliches Abonnement, ohne Angabe einer Zahlungsart) und das Kennzeichen „بنیان‌گذار“ (Gründer) auf der Unternehmensseite, ein Jahr ab deren Erstellung. Hinterlegen Sie keine Zahlungsart, endet das Abonnement nach den sechs Monaten von selbst; hinterlegen Sie eine, läuft es zu dem bei Beginn geltenden Preis weiter (Ziffer 14.5). Wir erinnern Sie 14 und 3 Tage vor dem Ende per E-Mail. Jedes Unternehmen erhält höchstens einen kostenlosen Zeitraum; das Angebot ist nicht übertragbar und wird nicht in Geld ausgezahlt.',
       ],
     },
+    // Turkey (owner, Nov 5, 2026; src/modules/listings/country-rules.ts). A draft for the Turkish
+    // adviser (docs/progress.md); it applies once Peydoo opens in Turkey.
+    { id: '17', heading: '17. Länderhinweise: Türkei', body: [] },
+    {
+      id: '17.1',
+      heading: '17.1 Geltung',
+      body: [
+        'Diese Länderhinweise (Ziffer 2.1) gelten für Anzeigen und Veranstaltungen in der Türkei und für Nutzer mit gewöhnlichem Aufenthalt in der Türkei, sobald Peydoo dort geöffnet ist. Solange die Türkei auf Peydoo nicht geöffnet ist, kann dort nichts veröffentlicht werden. Im Übrigen gelten diese Bedingungen.',
+      ],
+    },
+    {
+      id: '17.2',
+      heading: '17.2 Geschlossene Kategorien',
+      body: [
+        'Nach türkischem Recht dürfen Anzeigen für Immobilien und Kraftfahrzeuge nur nach einer Prüfung über das staatliche System e-Devlet (EİDS) erscheinen, die Peydoo nicht anbieten kann. In der Türkei sind deshalb geschlossen:',
+        { list: ['Immobilien jeder Art: Miete und Kauf, Zimmer, Wohngemeinschaften, Untermiete, Kurzzeitmiete, Gewerbe, Grundstücke und Stellplätze, Angebote und Gesuche;', 'Autos, Motorräder, Wohnmobile und Nutzfahrzeuge.'] },
+        'Fahrräder, Boote, Autoteile, Reifen und Felgen sowie Motorradteile bleiben offen. Makler und Autohändler können eine Unternehmensseite haben, aber keine Anzeigen in diesen Kategorien veröffentlichen.',
+      ],
+    },
+    {
+      id: '17.3',
+      heading: '17.3 Verbotene und eingeschränkte Waren',
+      body: [
+        'Zusätzlich zu Ziffer 5 sind in der Türkei nicht erlaubt:',
+        {
+          list: [
+            'Mobiltelefone ohne registrierte IMEI-Nummer;',
+            'die Bezeichnung „yenilenmiş“ (generalüberholt) durch private Verkäufer;',
+            'Alkohol und Tabakwaren, einschließlich E-Zigaretten;',
+            'Arzneimittel;',
+            'Waffen, Schreckschusswaffen, Elektroschocker und Pfefferspray;',
+            'Kulturgüter, Antiquitäten aus Ausgrabungen, alte Münzen und Handschriften;',
+            'Devisen und Gold (Barren, Münzen, Ankauf und Verkauf);',
+            'SIM-Karten und Telefonanschlüsse;',
+            'Ausweise, Pässe, Aufenthaltskarten, Führerscheine und andere Dokumente.',
+          ],
+        },
+        'Anzeigen, die auf eine dieser Waren hinweisen, prüfen wir vor der Veröffentlichung; bis dahin erscheinen sie nicht.',
+      ],
+    },
+    {
+      id: '17.4',
+      heading: '17.4 Tiere',
+      body: ['Hunde und Katzen dürfen in der Türkei nur zur kostenlosen Abgabe angeboten werden, nicht verkauft.'],
+    },
+    {
+      id: '17.5',
+      heading: '17.5 Dienstleistungen und Unterricht',
+      body: [
+        'Nicht erlaubt sind Anzeigen für Hilfe bei Visum, Aufenthaltserlaubnis (ikamet) oder Staatsangehörigkeit sowie für Geldtransfer und Geldwechsel.',
+        'Wer in der Türkei Dienstleistungen oder Unterricht anbietet, ist selbst dafür verantwortlich, eine nötige Arbeitserlaubnis (çalışma izni) zu haben.',
+      ],
+    },
+    {
+      id: '17.6',
+      heading: '17.6 Stellenanzeigen',
+      body: [
+        'Stellenanzeigen in der Türkei veröffentlichen nur geprüfte Unternehmen (Ziffer 14.1). Telefonnummer und E-Mail-Adresse des Unternehmens stehen für alle sichtbar, auch ohne Anmeldung, bei der Anzeige. Peydoo bietet keine Bewerbungsfunktion an und sammelt keine Lebensläufe.',
+      ],
+    },
+    {
+      id: '17.7',
+      heading: '17.7 Behördliche Anordnungen',
+      body: [
+        'Verlangt eine türkische Behörde oder ein türkisches Gericht die Entfernung einer Anzeige, löschen wir die Anzeige; wir verbergen sie nicht nur in der Türkei. Wir teilen das dem Anbieter mit Begründung mit (Ziffer 7), soweit die Anordnung es nicht verbietet.',
+      ],
+    },
   ],
 };
 
 const privacy: LegalDoc = {
   title: 'Datenschutzerklärung',
-  updated: 'Stand: 4. November 2026',
+  updated: 'Stand: 5. November 2026',
   draft: false,
   intro: [
     'Diese Erklärung beschreibt, welche personenbezogenen Daten Peydoo verarbeitet, wozu, auf welcher Rechtsgrundlage, wie lange und an wen sie gehen. Sie liegt auf Deutsch und auf Persisch vor; beide Fassungen haben denselben Inhalt.',
@@ -957,6 +1032,35 @@ const privacy: LegalDoc = {
       body: [
         'Wenn wir neue Dienste einsetzen oder Funktionen ändern, passen wir diese Erklärung an. Über wesentliche Änderungen informieren wir angemeldete Nutzer per E-Mail.',
         'Übernimmt eine Gesellschaft den Betrieb von Peydoo (Nutzungsbedingungen Ziffer 1.3), wird sie Verantwortliche für Ihre Daten. Wir nennen sie Ihnen in der Ankündigung vorher.',
+      ],
+    },
+    // Turkey (owner, Nov 5, 2026): a draft for the Turkish adviser (docs/progress.md)
+    { id: '13', heading: '13. Türkei (KVKK)', body: [] },
+    {
+      id: '13.1',
+      heading: '13.1 Geltung und Verantwortlicher',
+      body: [
+        'Für Personen in der Türkei gilt zusätzlich das türkische Gesetz Nr. 6698 zum Schutz personenbezogener Daten (KVKK). Verantwortlicher (veri sorumlusu) ist der in Ziffer 1 genannte Betreiber. Unser Vertreter in der Türkei (Art. 16 KVKK) ist:',
+        TR_REPRESENTATIVE,
+        'Wir lassen uns vor der Eröffnung der Türkei im Register der Verantwortlichen (VERBIS) eintragen.',
+      ],
+    },
+    {
+      id: '13.2',
+      heading: '13.2 Zwecke, Rechtsgrundlagen und Übermittlung ins Ausland',
+      body: [
+        'Wir verarbeiten Ihre Daten zu den Zwecken in den Ziffern 3 bis 8, soweit es für den Vertrag über die Nutzung von Peydoo nötig ist, eine rechtliche Pflicht uns dazu verpflichtet oder unser berechtigtes Interesse es erfordert (Art. 5 Abs. 2 lit. c, ç und f KVKK), und für die Warteliste mit Ihrer ausdrücklichen Einwilligung (Art. 5 Abs. 1 KVKK).',
+        'Peydoo wird aus Deutschland betrieben; Ihre Daten liegen auf Servern in der Europäischen Union und bei den Dienstleistern in Ziffer 8. Für die Übermittlung aus der Türkei schließen wir die Standardverträge der türkischen Datenschutzbehörde und melden sie ihr fristgerecht (Art. 9 KVKK).',
+      ],
+    },
+    {
+      id: '13.3',
+      heading: '13.3 Ihre Rechte nach Art. 11 KVKK',
+      body: [
+        'Sie können erfahren, ob und welche Daten wir über Sie verarbeiten, zu welchem Zweck und an wen wir sie übermitteln; ihre Berichtigung, Löschung oder Vernichtung verlangen und dass wir Empfänger darüber informieren; einer ausschließlich automatisierten Auswertung widersprechen, die Ihnen schadet; und Ersatz eines Schadens aus rechtswidriger Verarbeitung verlangen.',
+        'Schreiben Sie an die E-Mail-Adresse in Ziffer 1 oder an unseren Vertreter in der Türkei. Wir antworten spätestens innerhalb von 30 Tagen (Art. 13 KVKK). Sie können sich bei der türkischen Datenschutzbehörde (Kişisel Verileri Koruma Kurumu, kvkk.gov.tr) beschweren.',
+        'Die Informationen nach Art. 10 KVKK auf Türkisch:',
+        { link: '/privacy/tr', text: 'Aydınlatma Metni (Türkçe)' },
       ],
     },
   ],
