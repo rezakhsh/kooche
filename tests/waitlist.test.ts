@@ -10,10 +10,13 @@ import {
   deleteUnconfirmedWaitlist,
   exportWaitlist,
   joinWaitlist,
+  keyCitiesOf,
   leaveWaitlist,
   openCountry,
   rewardPlaces,
+  waitingCountries,
 } from '../src/modules/launch/waitlist';
+import { soonCountries } from '../src/modules/launch/country-page';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { appDb, workerSql } from './accounts';
 import { db, expectError, INSUFFICIENT_PRIVILEGE, publicToken, rollback, setRole, type Tx } from './db';
@@ -24,7 +27,7 @@ import { city, user } from './listings-fixtures';
 
 const email = () => `wait-${randomUUID().slice(0, 8)}@example.test`;
 
-async function business(locationSlug: string, verified: boolean, status: 'active' | 'suspended' = 'active') {
+async function business(locationSlug: string, verified: boolean, status: 'active' | 'suspended' = 'active', countryCode = 'DE') {
   const loc = await city(locationSlug);
   const owner = await user();
   const slug = `b-${publicToken()}`;
@@ -33,7 +36,7 @@ async function business(locationSlug: string, verified: boolean, status: 'active
     slug,
     name: 'کسب‌وکار آزمایشی',
     nameNormalized: normalizePersian('کسب‌وکار آزمایشی'),
-    countryCode: 'DE',
+    countryCode,
     locationId: loc.id,
     status,
     verificationStatus: verified ? 'verified' : 'pending',
@@ -70,6 +73,35 @@ describe('a waiting city', () => {
     expect(after.businesses).toBe(before.businesses + 1);
     expect(after.waiting).toBe(before.waiting + 1);
     expect(after.reward).toEqual({ places: 200, left: 200 - after.waiting });
+  });
+
+  it('never counts a test account’s business: the city page, the chooser, the key cities, the country lists', async () => {
+    // Turkey plan check, Nov 5, 2026: the Turkey test account's verified business made /cities say «۱ از ۳۰»
+    const hamburg = await city('hamburg');
+    const counts = async () => ({
+      page: (await cityLaunch(appDb, hamburg.id))!.businesses,
+      key: (await keyCitiesOf(appDb, 'DE')).find((k) => k.slug === 'hamburg')!.businesses,
+    });
+    const before = await counts();
+    const slug = await business('hamburg', true);
+    const [org] = await db.select({ owner: schema.organizations.createdByUserId }).from(schema.organizations).where(eq(schema.organizations.slug, slug));
+    await db.update(schema.users).set({ testAccount: 'country' }).where(eq(schema.users.id, org!.owner));
+    expect(await counts()).toEqual(before);
+    // Austria's first city: the chooser and /cities (soonCountries) and the city chooser (waitingCountries)
+    const wien = await city('wien');
+    const at = async () => ({
+      soon: (await soonCountries(appDb)).find((c) => c.code === 'AT')!.businesses,
+      waiting: (await waitingCountries(appDb)).find((c) => c.code === 'AT')!.businesses,
+    });
+    const atBefore = await at();
+    const owner = await user();
+    await db.update(schema.users).set({ testAccount: 'country' }).where(eq(schema.users.id, owner.id));
+    await db.insert(schema.organizations).values({ createdByUserId: owner.id, slug: `b-${publicToken()}`, name: 'آزمایشی', nameNormalized: 'آزمایشی', countryCode: 'AT', locationId: wien.id, verificationStatus: 'verified' });
+    expect(await at()).toEqual(atBefore);
+    const real = await business('wien', true, 'active', 'AT');
+    expect(await at()).toEqual({ soon: atBefore.soon + 1, waiting: atBefore.waiting + 1 });
+    // Other test files expect Vienna without businesses
+    await db.delete(schema.organizations).where(eq(schema.organizations.slug, real));
   });
 
   it('counts Bonn with Cologne, under Cologne’s goal', async () => {

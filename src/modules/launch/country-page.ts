@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/drizzle';
 import { countries, currencies, listings } from '../../db/schema';
 import type { Country } from '../listings/queries';
 import { PREPARING, type CountryMode } from './countries';
+import { testOwned } from '../users/test-accounts';
 
 // A country's own first pages (wave 2 part 8, mockups final/home-waitlist, waitlist-announced,
 // countries and us-starter; docs/setup.md, "Country pages"):
@@ -87,7 +88,9 @@ export async function soonCountries(db: Queryable): Promise<SoonCountry[]> {
     SELECT c.code, c.slug, c.name_fa, c.mode, c.opens_on::text AS opens_on, f.slug AS city_slug, f.name_fa AS city_fa, f.business_goal AS goal,
       (SELECT count(*)::int FROM organizations o
         WHERE o.location_id IN (SELECT g.id FROM locations g WHERE g.id = f.id OR g.launch_with_id = f.id)
-          AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
+          AND o.status = 'active' AND o.verification_status = 'verified'
+          -- Test accounts' businesses never count towards a goal (as on the city's own page and in admin)
+          AND NOT ${testOwned(sql`o.created_by_user_id`)}) AS businesses
     FROM countries c
     LEFT JOIN LATERAL (
       SELECT l.id, l.slug, l.name_fa, l.business_goal FROM locations l

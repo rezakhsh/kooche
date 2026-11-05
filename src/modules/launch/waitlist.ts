@@ -93,7 +93,9 @@ export async function keyCitiesOf(db: Queryable, countryCode: string): Promise<K
     SELECT l.id, l.slug, l.name_fa, l.launch_status AS status, l.business_goal AS goal,
       (SELECT count(*)::int FROM organizations o
         WHERE o.location_id IN (SELECT g.id FROM locations g WHERE g.id = l.id OR g.launch_with_id = l.id)
-          AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
+          AND o.status = 'active' AND o.verification_status = 'verified'
+          -- Test accounts' businesses never count towards a goal (as on the city's own page and in admin)
+          AND NOT ${testOwned(sql`o.created_by_user_id`)}) AS businesses
     FROM locations l
     WHERE l.country_code = ${countryCode} AND l.kind = 'city' AND l.launch_with_id IS NULL
       AND l.launch_status IN ('open', 'waitlist')
@@ -110,7 +112,9 @@ export async function waitingCountries(db: Queryable): Promise<WaitingCountry[]>
     SELECT DISTINCT ON (c.code) c.code, c.slug, c.name_fa, l.slug AS city_slug, l.name_fa AS city_fa, l.business_goal AS goal,
       (SELECT count(*)::int FROM organizations o
         WHERE o.location_id IN (SELECT g.id FROM locations g WHERE g.id = l.id OR g.launch_with_id = l.id)
-          AND o.status = 'active' AND o.verification_status = 'verified') AS businesses
+          AND o.status = 'active' AND o.verification_status = 'verified'
+          -- Test accounts' businesses never count towards a goal (as on the city's own page and in admin)
+          AND NOT ${testOwned(sql`o.created_by_user_id`)}) AS businesses
     FROM countries c
     JOIN locations l ON l.country_code = c.code AND l.kind = 'city' AND l.is_active AND l.launch_with_id IS NULL AND l.launch_status = 'waitlist'
     WHERE c.mode IN ('waitlist', 'prestart') AND c.slug IS NOT NULL
