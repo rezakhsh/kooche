@@ -535,7 +535,7 @@ Items 1–4 are useful in Germany today. Items 5–9 must be ready before Austri
 
 ---
 
-## 19. Plan for items 1–4 (Nov 5, 2026; waiting for the owner's approval)
+## 19. Items 1–4 (approved by the owner on Nov 5, 2026; built, see `docs/progress.md`)
 
 All new fields are optional, so posting stays quick. Where the owner had a choice, the plan picks what the big sites do (listed after each item).
 
