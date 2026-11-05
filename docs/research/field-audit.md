@@ -56,6 +56,7 @@ Pictures: `/root/peydoo-media/wave2/field-audit/staging/germany/` (step 3 of eac
    - **Fix.** Energy fields per country; for Germany, the full set.
 5. **«Anmeldung» answers the owner's question.** It exists in some other countries under other names, and not in others. Full answer in section 2.
    - **Fix.** Use the local word where it exists. Hide it where it doesn't (UK, FR, US, CA, AU).
+   - **The chip on the photo too.** Cards put a white «Anmeldung» label over the room's photo; the word is fixed in the code (`src/components/listing-card.tsx`), in every country. It should show the country's own word (Meldezettel, inschrijving, folkbokföring, residenza) and not appear at all in countries without registration. The same goes for its tooltip and the filter.
    - Also ask it for monthly temporary lets (Zwischenmiete), where it matters most. Today it's only on WG rooms, though a code comment says short lets should ask it too.
 6. **Room in a shared flat: "entire place" is offered, and "bills included?" is missing.**
    - **Problem.** «کل واحد» (entire place) doesn't belong in a WG-room category. The questions every room site asks are missing.
