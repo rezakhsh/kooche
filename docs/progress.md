@@ -2219,3 +2219,27 @@ The owner said "Yes, build Part B" (plan: `docs/research/field-audit.md` §20). 
 
 **Next:** Part C (sizes, exams, language lists, service units, rideshare) after the owner's go.
 
+
+### Smooth loading: the top line, grey outlines and Cloudflare's stale copy (Nov 5, 2026)
+
+The owner approved the plan in `docs/research/smooth-loading.md` (Nov 5, "Yes, build them"): loading style 4, the thin top line plus grey outlines, and caching change 1. How it works: `docs/setup.md`, "Smooth loading" and "Browsing and favorites" › "Caching".
+
+**Built (staging only):**
+- **A tap shows something at once.** A thin turquoise line grows from the right at the top, and the page area turns into grey outlines of the coming page with a soft light moving right to left.
+  - Outlines: listing page, browse pages (country, city, category, search), my listings and saved lists, chat list, a conversation, account and settings, posting steps.
+  - Other pages get the line only. Back and forward come from Next.js's memory at once.
+  - The listing and city outlines were checked side by side with the approved pictures, phone and computer, light and dark (`/root/peydoo-media/wave2/smooth-loading/build-check/side-*.png` before the deploy, `after/side-*.png` on staging).
+- **Not `loading.tsx`, on purpose.** It would make direct page loads stream before the page runs: our 308 redirects and 404s would become in-page redirects and soft 404s. The client layer (`src/components/nav-feedback.tsx`) leaves the server's answers exactly as they were.
+- **Preparing ahead:** the listing's big photo starts downloading on the tap (and when a mouse rests on a card), alongside the page. No full prefetch of listing pages: it would count views for sellers.
+- **No `staleTimes`:** Back is already instant from memory; 30 s of memory for other pages would keep chat's unread marks stale.
+- **Photos:** already in fixed boxes; nothing to change.
+- **Stale-while-revalidate on browse pages:** `Cloudflare-CDN-Cache-Control: public, max-age=60, stale-while-revalidate=600, stale-if-error=86400` next to every shared browse answer. Everything personal stays `private, no-store` as before.
+- **Cloudflare compresses** instead of the app (`compress: false`): Zstandard instead of gzip, about 12% smaller JS and CSS. Code only; no zone setting changed.
+
+**Tests:** `tsc` and `check:rtl` clean; **1,307 tests pass** (new `tests/smooth-loading.test.ts`: the outline for each address, every top-level route folder known, the Cloudflare header on shared browse pages only and never with a session, `view=`, `theme=`, Iran, POST, a keyword or a postal code).
+
+**For the next production release (`peydoo-promote`):**
+1. **Turn on Early Hints** in Cloudflare after the release (zone-wide, so it waits for production): Speed › Settings › Early Hints, or `PATCH /zones/{zone}/settings/early_hints` with `{"value":"on"}` (the infra token can). Off again the same way.
+2. No migration, no seed.
+
+**Later (owner, Nov 5):** caching signed-out listing pages with a purge on every change (`docs/research/smooth-loading.md`, 3.2): **before launch or when Telegram channel posting starts.** It needs view counting after load and a security check of the listing page.
