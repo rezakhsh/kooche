@@ -1991,3 +1991,46 @@ The owner's «release», 22:46–22:51 UTC. Database backup first (`classifieds-
 ### Messaging rule: released to production (Nov 4, 2026)
 
 The owner's «release», 23:45–23:49 UTC. Database backup first (`classifieds-backup`, restic snapshot `24e892f8`), then `peydoo-promote 5f20ca5 --yes`: production went from `d3471dc` to `5f20ca5` (`894183d` messaging needs a verified number everywhere, +98 through Telegram for messages only, no WhatsApp from Iran; `5f20ca5` Telegram buttons in dark mode). No migrations and no seed change, so no seed run. Checked: `/health`, home and `/help` 200; `/help` on production carries the new +98 text («… تلگرام تأیید می‌شود و فقط برای پیام دادن است …»); `/account/phone` sends signed-out visitors to sign in (307). No browser check on production (staging's check covered it). Staging's disk was at 91% again before the release; `peydoo-docker-cleanup` brought it back to 5.1 GB free.
+
+### Payments: Stripe's restricted countries (Nov 2026)
+
+Stripe's compliance review asked for evidence that no payment comes from its restricted jurisdictions. The owner approved the plan on Nov 4, 2026: Stripe's whole list (not only Iran) and a narrow Cloudflare token for the region header. Built and checked on Nov 5, 2026. Details are in `docs/setup.md`, "Payments and Pro" › "Restricted places".
+
+**The list.** From https://stripe.com/legal/restricted-businesses ("Last updated: 2026-09-22", read Nov 4, 2026): Cuba, Iran, North Korea, Syria, and Ukraine's Crimea (with Sevastopol), Donetsk and Luhansk. Zaporizhzhia and Kherson are added because the EU's rules cover them and the seller is in Germany. One place in code: `PAYMENT_BLOCKED_COUNTRIES`, `PAYMENT_BLOCKED_REGIONS` (`src/lib/region.ts`).
+
+**Built** (`76b1104`, docs `12f5717`):
+- **Before payment.** `restrictedPaymentPlace()` and `isRestrictedCountryRequest()` use Cloudflare's country plus the new region header. They also refuse Tor (`T1`) and Ukraine without a region (fail closed); `XX` may pay. `startListingCheckout`, `startPlanCheckout`, `startFoundingCheckout`, `openBillingPortal` and `resumeOrderCheckout` check `fromRestrictedCountry` on their first line and return `restricted_country` (until now `fromIran` / `from_iran`), so Stripe is never called.
+- **Pages.** The promote, billing, manage and Pro pages show a notice instead of the pay buttons (`src/components/payment-place.tsx`). Iran keeps its own texts; the others get «پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست…», with no "sanctions" and no VPN. Admin's "view as" tool now also offers Cuba, North Korea and Syria.
+- **After payment.** `restrictedBillingPlace()` runs in `apply.ts`, on both the Checkout's billing address and the invoice's customer address. For Ukraine it goes by postcode, then by oblast or city name; with neither, the payment is refused. A refused payment:
+  - grants nothing, and takes back a Pro period already granted if events arrived out of order;
+  - gets an audit entry `payment.restricted_country`;
+  - sends the buyer or owner `order_refused` / `pro_refused` by email and Telegram, once;
+  - goes to the worker as outbox `payment.refused`. Job `refuse-payment` cancels the subscription (`prorate: false`), refunds in full (idempotency key `refused-<checkout|invoice>`) and sends the owner's alert (kind `payment_restricted`).
+  - Later invoices of a refused subscription are refunded too. Its end sends no «اشتراک تمام شد».
+- **Cloudflare.** The Managed Transform "Add visitor location headers" is on for `peydoo.com`, so staging and production together. It was switched on with a new account token, `peydoo-managed-headers` (Managed headers read/write on `peydoo.com`, only from staging's IPv4; `CLOUDFLARE_HEADERS_TOKEN` in `/root/.secrets/infra.env`). The main token couldn't make user tokens, so this one is account-owned. It had no effect on caching.
+
+**Tests.** `npx tsc --noEmit` and `check:rtl` are clean. The full `npx vitest run` passed: 103 files, 1,259 tests (node:24.22.2, `npm ci` from the lockfile into a throwaway volume, deleted afterwards). The new `tests/restricted-payments.test.ts` has 14 tests:
+- each of the five functions refuses all 15 kinds of request with Stripe never called, and a request from Germany or Kyiv goes through;
+- the places are recognised from the request headers and from billing addresses;
+- a refused checkout grants nothing, refunds once and tells the buyer once, also when the event is replayed or delivered twice;
+- a Syrian subscription invoice is cancelled and refunded, with no «اشتراک تمام شد»;
+- a founding Pro €0 invoice is cancelled with nothing to refund;
+- a checkout that arrives after its invoice takes the period back and refunds the invoice, and a later renewal is refunded too;
+- the worker job goes through the real queue: it refunds and sends one signed alert.
+
+`tests/iran.test.ts` and `tests/payments.test.ts` were updated to the new names.
+
+**Checked on staging** (`12f5717`; Playwright 1.63, one browser; screenshots and `report.txt` in `/root/peydoo-media/stripe-compliance/staging-check/`, script `check.mjs`). A 3-hour session was made for `germany@peydoo.com` and deleted afterwards.
+- **German test account:** the promote page shows «ادامه و پرداخت» and no notice, on phone and computer, with no script errors and no sideways scroll.
+- **Viewed as Cuba** (a signed `view_as` cookie, as a visitor without an account): `/pro` shows «پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست…» in place of the Pro and Pro Plus buttons, on phone and computer. The promote page sends this visitor to `/login`, because "view as" signs the visitor out. The signed-in refusal is therefore covered by tests only: only Cloudflare can set the real country.
+- **Sandbox payment, German billing address:** order `01a1a921…` was paid with `buyer_country` DE, the bump was granted and the receipt sent.
+- **Sandbox payment, Zaporizhzhia billing address** (Melitopol, 69000; same German account and IP): order `01a1a92c…` was charged €1.99 and granted nothing. Then:
+  - an audit entry with `place: UA-postcode-69`, and `order_refused` sent by email and Telegram (to the test inbox);
+  - the worker refunded it in full (`re_…` succeeded), and the order shows «بازپرداخت‌شده».
+  - The owner's alert went to staging's n8n, which drops this kind for now (open point below).
+- **Found on the way:** for Ukraine, Stripe's Checkout asks for the full address, and its oblast list (24) leaves out Crimea, Sevastopol, Donetsk and Luhansk. So in practice the billing check catches Zaporizhzhia and Kherson. Test orders are kept as test data.
+
+**Open points:**
+- **n8n:** both alert workflows (staging's «Peydoo – admin alerts» and production's) need `payment_restricted` added to their Code node's list of kinds. The session's permission guard refused the n8n API edit; it's a one-line change, written in `docs/setup.md` › "Admin page" › "The owner's alert". Until then the owner gets no Telegram alert for a refusal. The audit entry, refund and buyer notice still happen.
+- **Production:** on the owner's «release» (no migration). The Cloudflare header is already on there, because it's zone-wide.
+
