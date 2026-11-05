@@ -62,7 +62,7 @@ export async function freshCards(db: Queryable, opts: { skip?: string[]; timeZon
     ].filter((x): x is string => typeof x === 'string');
     const cur = r.currency ? catalog.currencies.get(r.currency) : undefined;
     const price = r.price_minor === null ? null : Number(r.price_minor);
-    const unit = rentUnit(catalog, r.category_id, price);
+    const unit = rentUnit(catalog, r.category_id, price, r.country_code);
     const sanction = r.sanction_type ? (admin.decide.ops[r.sanction_type] ?? r.sanction_type) : null;
     const card: FreshCard = {
       id: r.id,

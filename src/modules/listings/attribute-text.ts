@@ -50,12 +50,13 @@ export const MAX_CARD_FACTS = 3;
 export function cardFacts(
   catalog: Catalog,
   categoryId: string | null,
+  country: string | null,
   attributes: Record<string, unknown>,
   currency: Currency | undefined,
 ): CardFact[] {
   if (!categoryId) return [];
   const facts: CardFact[] = [];
-  for (const def of effectiveAttributes(catalog, categoryId)) {
+  for (const def of effectiveAttributes(catalog, categoryId, country)) {
     if (facts.length === MAX_CARD_FACTS) break;
     if (!def.showOnCard || !def.isActive) continue;
     const value = attributes[def.key];

@@ -204,6 +204,40 @@ export const SEED_CHECKS: SeedCheck[] = [
       WHERE a.validation ? 'filter'
         AND (a.validation ->> 'filter' IS DISTINCT FROM 'all' OR a.type <> 'multi_select' OR NOT a.is_filterable)`,
   },
+  {
+    // Field audit item 5: countries, hidden_in and by_country name real countries (or `*`), and a
+    // rule's options and option labels are the field's own options
+    name: 'country rules name real countries and the field\'s own options',
+    query: sql`
+      WITH codes AS (
+        SELECT a.id, a.key, c.slug, x.code
+        FROM category_attributes a
+        JOIN categories c ON c.id = a.category_id
+        CROSS JOIN LATERAL (
+          SELECT jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.validation -> 'countries') = 'array' THEN a.validation -> 'countries' ELSE '[]' END)
+          UNION ALL SELECT jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.validation -> 'hidden_in') = 'array' THEN a.validation -> 'hidden_in' ELSE '[]' END)
+          UNION ALL SELECT jsonb_object_keys(CASE WHEN jsonb_typeof(a.validation -> 'by_country') = 'object' THEN a.validation -> 'by_country' ELSE '{}' END)
+        ) AS x(code)
+        WHERE a.is_active
+      ),
+      rule_options AS (
+        SELECT a.id, a.key, c.slug, r.code, o.value
+        FROM category_attributes a
+        JOIN categories c ON c.id = a.category_id
+        CROSS JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(a.validation -> 'by_country') = 'object' THEN a.validation -> 'by_country' ELSE '{}' END) AS r(code, rule)
+        CROSS JOIN LATERAL (
+          SELECT jsonb_array_elements_text(CASE WHEN jsonb_typeof(r.rule -> 'options') = 'array' THEN r.rule -> 'options' ELSE '[]' END)
+          UNION ALL SELECT jsonb_object_keys(CASE WHEN jsonb_typeof(r.rule -> 'option_labels') = 'object' THEN r.rule -> 'option_labels' ELSE '{}' END)
+        ) AS o(value)
+        WHERE a.is_active
+      )
+      SELECT key || ' in ' || slug || ' names the country ' || code AS problem
+      FROM codes WHERE code <> '*' AND NOT EXISTS (SELECT 1 FROM countries k WHERE k.code = codes.code)
+      UNION ALL
+      SELECT key || ' in ' || slug || ' gives ' || code || ' the option ' || value || ', which it does not have'
+      FROM rule_options r
+      WHERE NOT EXISTS (SELECT 1 FROM category_attribute_options o WHERE o.attribute_id = r.id AND o.value = r.value AND o.is_active)`,
+  },
 ];
 
 export type SeedCheckFailure = { name: string; problems: string[] };

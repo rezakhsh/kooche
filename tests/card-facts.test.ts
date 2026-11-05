@@ -8,7 +8,7 @@ import { db } from './db';
 let catalog: Catalog;
 const eur = () => catalog.currencies.get('EUR');
 const facts = (slug: string, attributes: Record<string, unknown>) =>
-  cardFacts(catalog, catalog.bySlug.get(slug)!.id, attributes, eur()).map((f) => f.text);
+  cardFacts(catalog, catalog.bySlug.get(slug)!.id, 'DE', attributes, eur()).map((f) => f.text);
 
 describe('card facts', async () => {
   catalog = await loadCatalog(db);
@@ -32,7 +32,7 @@ describe('card facts', async () => {
     expect(out).toHaveLength(2);
     expect(out[0]).toMatch(/^۶۵ /);
     expect(out[1]).toBe('۲ خوابه');
-    const flatmates = effectiveAttributes(catalog, catalog.bySlug.get('shared-rooms')!.id).find((a) => a.key === 'flatmates')!.labelFa;
+    const flatmates = effectiveAttributes(catalog, catalog.bySlug.get('shared-rooms')!.id, 'DE').find((a) => a.key === 'flatmates')!.labelFa;
     expect(facts('shared-rooms', { area_m2: 14, room_type: 'private_room', flatmates: 2 })).toEqual([expect.stringMatching(/^۱۴ /), 'اتاق خصوصی', `${flatmates} ۲`]);
   });
 
@@ -71,6 +71,6 @@ describe('card facts', async () => {
       }
     }
     expect(facts('garden-plants', { anything: 'x' })).toEqual([]);
-    expect(cardFacts(catalog, null, { year: 2018 }, eur())).toEqual([]);
+    expect(cardFacts(catalog, null, 'DE', { year: 2018 }, eur())).toEqual([]);
   });
 });

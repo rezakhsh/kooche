@@ -84,10 +84,10 @@ describe('the safety box', () => {
 
 describe('the rent wording', () => {
   it('a room is just the rent a month; flats and houses the cold rent (owner, Nov 3, 2026)', () => {
-    expect(rentKind([{ slug: 'real-estate' }, { slug: 'shared-rooms' }])).toBe('plain');
-    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-rent' }])).toBe('cold');
-    expect(rentKind([{ slug: 'real-estate' }, { slug: 'short-term-rent' }])).toBe('period');
-    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-sale' }])).toBeNull();
-    expect(rentKind([{ slug: 'real-estate' }])).toBeNull();
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'shared-rooms' }], 'DE')).toBe('plain');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-rent' }], 'DE')).toBe('cold');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'short-term-rent' }], 'DE')).toBe('period');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'apartments-sale' }], 'DE')).toBeNull();
+    expect(rentKind([{ slug: 'real-estate' }], 'DE')).toBeNull();
   });
 });

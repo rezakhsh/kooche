@@ -109,14 +109,14 @@ export type FilterContext = {
  * all of its fields; for a parent category, only those every listing under it has (defined on the
  * category or above). No category: none.
  */
-export function filterableAttributes(catalog: Catalog, category: CategoryNode | null): AttributeDef[] {
+export function filterableAttributes(catalog: Catalog, category: CategoryNode | null, countryCode: string): AttributeDef[] {
   if (!category) return [];
-  return effectiveAttributes(catalog, category.id).filter((d) => d.isActive && d.isFilterable && d.type !== 'text');
+  return effectiveAttributes(catalog, category.id, countryCode).filter((d) => d.isActive && d.isFilterable && d.type !== 'text');
 }
 
 /** The filter context of a category page */
 export function filterContext(catalog: Catalog, category: CategoryNode | null, minorUnit: number, countryCode: string): FilterContext {
-  return { defs: filterableAttributes(catalog, category), minorUnit, priceAllowed: category?.priceMode !== 'none', countryCode };
+  return { defs: filterableAttributes(catalog, category, countryCode), minorUnit, priceAllowed: category?.priceMode !== 'none', countryCode };
 }
 
 // ---------------------------------------------------------------------------

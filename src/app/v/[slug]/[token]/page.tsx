@@ -33,6 +33,7 @@ import { similarListings } from '../../../../modules/search/browse';
 import { sellerReplySpeed } from '../../../../modules/chat/response-time';
 import { cardFacts } from '../../../../modules/listings/attribute-text';
 import { cardOf, rentUnit } from '../../../../modules/listings/card';
+import { extraCostsLine, SQ_FT_COUNTRIES, SQ_FT_IN_M2 } from '../../../../modules/listings/country-fields';
 import { rentKind, safetyKind, shippable } from '../../../../modules/listings/safety-kind';
 import { countryNameFa } from '../../../../modules/listings/zones';
 import { Flag } from '../../../../components/flag';
@@ -119,24 +120,39 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const t = messages.listing;
   const catalog = await cachedCatalog(appDb());
   const crumbs = l.categoryId ? ancestry(catalog, l.categoryId) : [];
-  const defs = l.categoryId ? effectiveAttributes(catalog, l.categoryId) : [];
+  const defs = l.categoryId ? effectiveAttributes(catalog, l.categoryId, l.countryCode) : [];
   const attrs = l.attributes as Record<string, unknown>;
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;
   const amountCurrency = listingCurrency(catalog, l);
   // Retired fields (cold or warm rent) stay in the listing but aren't shown: their options' labels
   // are gone, so the raw value («warm») showed (design check, Oct 31, 2026)
+  // An area in square feet (UK, US, CA) shows its square metres too, as on Rightmove
+  const sqFt = !!l.countryCode && SQ_FT_COUNTRIES.has(l.countryCode);
   const details = defs
     .filter((d) => d.isActive)
-    .map((d) => ({ label: d.labelFa, text: attributeText(d, attrs[d.key], amountCurrency) }))
+    .map((d) => {
+      const text = attributeText(d, attrs[d.key], amountCurrency);
+      const area = sqFt && d.key === 'area_m2' && typeof attrs[d.key] === 'number' ? ` ${t.areaInM2(Math.round((attrs[d.key] as number) * SQ_FT_IN_M2))}` : '';
+      return { label: d.labelFa, text: text && `${text}${area}` };
+    })
     .filter((x) => x.text);
-  // Rent: the price is the cold rent; with the extra costs the page adds up the warm rent
-  const extraCosts = defs.some((d) => d.key === 'extra_costs') ? attrs.extra_costs : undefined;
-  const warmRent =
-    l.priceMinor !== null && currency && typeof extraCosts === 'number'
-      ? formatPrice(l.priceMinor + extraCosts, currency.code, currency.minorUnit)
+  // Rent, by how the country lets (RentKind): in Germany the price is the cold rent, and with the
+  // extra costs the page adds up the warm rent; in NL and IT the base rent with its charges; in AT
+  // and FR the whole rent, of which the extra costs
+  const rent = rentKind(crumbs, l.countryCode);
+  const extraCosts = defs.some((d) => d.key === 'extra_costs' && d.isActive) ? attrs.extra_costs : undefined;
+  const costsLine = extraCostsLine(rent);
+  const rentLine =
+    l.priceMinor !== null && currency && typeof extraCosts === 'number' && costsLine
+      ? costsLine === 'of_which'
+        ? t.ofWhichCosts(formatPrice(extraCosts, currency.code, currency.minorUnit))
+        : costsLine === 'with_charges'
+          ? t.withCharges(formatPrice(l.priceMinor + extraCosts, currency.code, currency.minorUnit))
+          : t.coldWithCosts(formatPrice(l.priceMinor + extraCosts, currency.code, currency.minorUnit))
       : null;
-  // A short let's all-in price per night, week or month: «۸۰ € هر شب» (field audit, Nov 5, 2026)
-  const perUnit = rentKind(crumbs) === 'period' ? rentUnit(catalog, l.categoryId, l.priceMinor, attrs) : null;
+  // The unit beside the price: a short let's «۸۰ € هر شب» (field audit, Nov 5, 2026), «هر هفته» in
+  // AU, «کل، ماهانه» in AT and FR; Germany's cold rent and a plain monthly rent say it in the line below
+  const perUnit = rent && rent !== 'cold' && rent !== 'plain' ? rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, attrs) : null;
   // Shipping only where things are sent by post (not live animals, homes or services), whatever was stored
   const shipping = l.shippingOffered && shippable(crumbs);
   const price =
@@ -179,7 +195,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     // The postal code's area, never a point (docs/setup.md, "The street map")
     streetMapView(appDb(), { countryCode: l.countryCode, postalCode: l.postalCode, placeName: l.placeName, point: l.point, precision: l.locationPrecision }, isOwner ? null : session?.user.id),
   ]);
-  const facts = cardFacts(catalog, l.categoryId, attrs, amountCurrency);
+  const facts = cardFacts(catalog, l.categoryId, l.countryCode, attrs, amountCurrency);
   const kind = safetyKind(crumbs);
   const safety = t.safetyBox[kind];
   // Posted with a number from another country (wave 2 part 5, mockup final/listing-crossborder): a
@@ -423,7 +439,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             <span className="text-2xl font-black text-brand-800 lg:text-3xl">{price}</span>
             {perUnit && <span className="text-base font-bold text-neutral-700">{perUnit}</span>}
             {/* «اجارهٔ سرد، با هزینه‌ها ۱٬۰۲۰ €» (mockup final/listing) */}
-            {warmRent && <span className="text-sm text-neutral-700">{t.coldWithCosts(warmRent)}</span>}
+            {rentLine && <span className="text-sm text-neutral-700">{rentLine}</span>}
           </p>
         )}
         {placeLine}

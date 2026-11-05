@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Queryable } from '../../db/drizzle';
-import { countries, listingImages, listings, organizations, users, type PRICE_TYPES } from '../../db/schema';
+import { countries, listingImages, listings, locations, organizations, users, type PRICE_TYPES } from '../../db/schema';
 import type { Point } from '../../db/types';
 import { distanceMeters, snapToGrid } from '../../lib/geo';
 import { normalizePersian } from '../../lib/normalize-persian';
@@ -19,6 +19,7 @@ import { listingArea } from '../launch/cities';
 import { PREPARING } from '../launch/countries';
 import { pauseFor } from '../launch/pauses';
 import { ancestry, cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
+import { registrationNumberRequired } from './country-fields';
 import { exchangeAllowed, shippable } from './safety-kind';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
@@ -242,7 +243,7 @@ async function prepare(
 
   // Attributes: the category's own and inherited definitions; retired fields keep their values.
   // Amounts (deposit, extra costs) are in the country's currency, like the price.
-  const defs = effectiveAttributes(catalog, category.id);
+  const defs = effectiveAttributes(catalog, category.id, country?.code ?? null);
   const minorUnit = country ? catalog.currencies.get(country.defaultCurrency)?.minorUnit : undefined;
   const attrs = validateAttributes(defs, input.attributes, mode, minorUnit);
   if (!attrs.ok) for (const [k, code] of Object.entries(attrs.errors)) errors[`attr.${k}`] = code;
@@ -272,6 +273,14 @@ async function prepare(
   if (publish && locationId && point && !isEventCategory(catalog, category.id)) {
     const area = await listingArea(tx, locationId, point);
     if (area !== 'open') errors.place = area;
+  }
+
+  // A whole flat let by the night or week needs its registration number where the law wants it in
+  // every ad: Berlin, Amsterdam, Paris, New York, all of Italy (field audit §20)
+  const registration = defs.find((d) => d.key === 'registration_number' && d.isActive);
+  if (publish && registration && locationId && !errors['attr.registration_number'] && !attributes.registration_number) {
+    const [city] = await tx.select({ slug: locations.slug }).from(locations).where(eq(locations.id, locationId));
+    if (registrationNumberRequired({ countryCode, citySlug: city?.slug ?? null }, attributes)) errors['attr.registration_number'] = 'required';
   }
 
   // Price: the allowed types depend on the category; fixed and negotiable need an amount. The
@@ -528,7 +537,8 @@ export async function changeDraftCategory(
     if (isEventCategory(catalog, categoryId) !== isEventCategory(catalog, listing.categoryId)) {
       return { ok: false, reason: 'category_not_postable' };
     }
-    const keys = new Set(effectiveAttributes(catalog, categoryId).map((d) => d.key));
+    // Keys only: every field the category has, in any country
+    const keys = new Set(effectiveAttributes(catalog, categoryId, null).map((d) => d.key));
     const attributes = Object.fromEntries(
       Object.entries(listing.attributes as Record<string, unknown>).filter(([k]) => keys.has(k)),
     );

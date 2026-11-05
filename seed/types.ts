@@ -43,6 +43,18 @@ export type PostalPlaceSeed = { postalCode: string; placeName: string; lat: numb
 /** A city neighbourhood (seed/neighbourhoods/): its key and local name, MultiPolygon coordinates (lng, lat) */
 export type NeighbourhoodSeed = { key: string; nameLocal: string; polygons: number[][][][] };
 
+/** A field's changes in one country: CountryFieldRule in src/modules/listings/catalog.ts */
+export type CountryRuleSeed = {
+  label?: string;
+  help?: string;
+  unit?: string;
+  required?: boolean;
+  options?: string[];
+  option_labels?: Record<string, string>;
+  min?: number;
+  max?: number;
+};
+
 export type AttributeType = 'number' | 'select' | 'multi_select' | 'boolean' | 'text' | 'date';
 
 export type OptionSeed = {
@@ -65,8 +77,12 @@ export type AttributeSeed = {
    * {help_in: {slug: hint}} gives the field its own hint in those categories (the area of a room).
    * multi_select: {filter: 'all'} when a filter should match listings with every chosen value (a
    * checklist of features); otherwise any of them.
+   * Per country (field audit item 5; read by inCountry() in src/modules/listings/catalog.ts):
+   * {countries: [codes]} offers the field only there, {hidden_in: [codes]} not there, and
+   * {by_country: {code: rule}} changes its label, hint, unit, required, options or limits there
+   * (`*`: the countries without a rule of their own).
    */
-  validation?: Record<string, number | boolean | string | string[] | Record<string, string>>;
+  validation?: Record<string, number | boolean | string | string[] | Record<string, string> | Record<string, CountryRuleSeed>>;
   /** Key of an attribute on the same category or an ancestor (model depends on brand) */
   dependsOn?: string;
   isRequired?: boolean;

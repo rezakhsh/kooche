@@ -238,12 +238,16 @@ export const messages = {
     more: 'آگهی‌های بیشتر',
     near: (city: string) => `نزدیک ${city}`,
     count: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
-    /** After a rent on cards: rooms have one monthly rent, flats and houses the cold rent (owner, Nov 3, 2026) */
-    rentUnit: { cold: 'سرد، ماهانه', plain: 'ماهانه' },
+    /**
+     * After a rent on cards, by how the country lets (RentKind): the cold rent in Germany (owner,
+     * Nov 3, 2026), the whole rent in AT and FR, the base rent in NL and IT, a week's in AU
+     */
+    rentUnit: { cold: 'سرد، ماهانه', gross: 'کل، ماهانه', net: 'بدون شارژ، ماهانه', weekly: 'هر هفته', plain: 'ماهانه' },
     /** After a short let's all-in price: «۸۰ € هر شب» (field audit, owner, Nov 5, 2026) */
     rentPer: { night: 'هر شب', week: 'هر هفته', month: 'هر ماه' },
     verifiedBadge: 'تأییدشده',
-    anmeldungTitle: 'می‌توانید آدرس این خانه را ثبت کنید (Anmeldung)',
+    /** The chip's word is the country's: Anmeldung, Meldezettel, Inschrijving… */
+    anmeldungTitle: (word: string) => `می‌توانید آدرس این خانه را ثبت کنید (${word})`,
     // A paid bump (or one of Pro's) moved the listing up: shown on the card (UWG Annex no. 11a; docs/legal-review.md)
     bumped: 'نردبان',
     categories: 'دسته‌بندی‌ها',
@@ -278,6 +282,8 @@ export const messages = {
     clearAll: 'پاک کردن همه',
     apply: 'نمایش نتایج',
     rentPrice: 'اجارهٔ ماهانه',
+    /** The rent filter where a flat's rent isn't one monthly amount (RentKind) */
+    rentPriceKind: { gross: 'اجارهٔ کل ماهانه', net: 'اجارهٔ پایهٔ ماهانه', weekly: 'اجارهٔ هفتگی' },
     /** A short let's price filter: nightly, weekly and monthly prices, told apart by «اجاره برای» */
     rentPricePeriod: 'اجاره',
     anyChoice: 'فرقی نمی‌کند',
@@ -769,7 +775,8 @@ export const messages = {
     stepHeadings: { 2: 'عکس و توضیح', 3: 'جزئیات و قیمت', 4: 'محل و انتشار' } as Record<number, string>,
     photosLead: (max: number) => `آگهی با عکس خیلی بیشتر دیده می‌شود. تا ${max.toLocaleString('fa-IR')} عکس.`,
     titleShort: 'عنوان',
-    rentAmount: { cold: 'اجارهٔ سرد ماهانه', plain: 'اجارهٔ ماهانه', period: 'اجاره' },
+    /** The amount's label by RentKind; the local word follows in brackets (RENT_LOCAL_WORD) */
+    rentAmount: { cold: 'اجارهٔ سرد ماهانه', gross: 'اجارهٔ کل ماهانه', net: 'اجارهٔ پایهٔ ماهانه', weekly: 'اجارهٔ هفتگی', plain: 'اجارهٔ ماهانه', period: 'اجاره' },
     /** A short let's price, by its unit (the form's «اجاره برای» above it) */
     rentAmountPer: { night: 'اجاره هر شب', week: 'اجاره هر هفته', month: 'اجاره هر ماه' },
     rentAllIn: 'همهٔ هزینه‌ها (قبوض، اینترنت و …) داخل این مبلغ است.',
@@ -1010,6 +1017,12 @@ export const messages = {
     phoneShort: 'شماره',
     warmRentShort: (amount: string) => `با هزینه‌های جانبی ${amount}`,
     coldWithCosts: (warm: string) => `اجارهٔ سرد، با هزینه‌ها ${warm}`,
+    /** NL, IT: the base rent with its service charges */
+    withCharges: (total: string) => `با شارژ ${total}`,
+    /** AT, FR: the whole rent includes its extra costs */
+    ofWhichCosts: (costs: string) => `شامل ${costs} هزینهٔ جانبی`,
+    /** UK, US, CA: an area in square feet, and in square metres beside it */
+    areaInM2: (m2: number) => `(حدود ${m2.toLocaleString('fa-IR')} متر مربع)`,
     reply: {
       hour: 'معمولاً در یک ساعت جواب می‌دهد',
       hours: 'معمولاً در چند ساعت جواب می‌دهد',

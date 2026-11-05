@@ -38,8 +38,12 @@ export type FormProps = {
   categoryPath: string[];
   /** The top category's slug: the description's prompts depend on it */
   rootSlug: string;
-  /** A room or flat to rent: the price is the rent a month, cold for flats and houses; a short let's per night, week or month */
+  /** A room or flat to rent: how its price reads in the listing's country (RentKind) */
   rent: RentKind | null;
+  /** A short let: its price is all-in */
+  rentAllIn: boolean;
+  /** The rent's local name, after its label: «اجارهٔ کل ماهانه (Bruttomiete)» */
+  rentLocalWord: string | null;
   /** Things that can be sent by post (not homes, services, jobs, lessons) */
   shippable: boolean;
   defs: AttributeDef[];
@@ -262,7 +266,14 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const periodDef = props.rent === 'period' ? props.defs.find((d) => d.key === 'rent_period') : undefined;
   const [rentPeriod, setRentPeriod] = useState(String(v.attributes.rent_period ?? ''));
   const period = rentPeriodOf({ rent_period: rentPeriod });
-  const amountLabel = props.rent === 'period' ? (period ? t.rentAmountPer[period] : t.rentAmount.period) : props.rent ? t.rentAmount[props.rent] : t.amount;
+  const amountLabel =
+    props.rent === 'period'
+      ? period
+        ? t.rentAmountPer[period]
+        : t.rentAmount.period
+      : props.rent
+        ? `${t.rentAmount[props.rent]}${props.rentLocalWord ? ` (${props.rentLocalWord})` : ''}`
+        : t.amount;
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );
@@ -417,7 +428,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
                   {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
                 </span>
               </label>
-              {props.rent === 'period' && <span className="mt-1 block text-xs text-neutral-500">{t.rentAllIn}</span>}
+              {props.rentAllIn && <span className="mt-1 block text-xs text-neutral-500">{t.rentAllIn}</span>}
               <ErrorText code={errors.amount} />
             </div>
           )}

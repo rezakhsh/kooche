@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { rentKind, shippable } from '../../../modules/listings/safety-kind';
+import { RENT_LOCAL_WORD } from '../../../modules/listings/country-fields';
+import { PERIOD_RENT_SLUGS, rentKind, shippable } from '../../../modules/listings/safety-kind';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
@@ -63,7 +64,8 @@ export async function editorData(
     district = saved.district;
   }
   const country = countries.find((c) => c.code === countryCode);
-  const defs = effectiveAttributes(catalog, category.id).filter((d) => d.isActive);
+  // The fields as the listing's country asks them (field audit item 5)
+  const defs = effectiveAttributes(catalog, category.id, countryCode ?? null).filter((d) => d.isActive);
 
   // Stored amounts are minor units; the form shows them as typed, like the price
   const attributes = { ...((listing?.attributes as Record<string, unknown>) ?? {}) };
@@ -80,7 +82,10 @@ export async function editorData(
       status: listing?.status ?? 'draft',
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
-      rent: rentKind(ancestry(catalog, category.id)),
+      rent: rentKind(ancestry(catalog, category.id), countryCode ?? null),
+      // A short let's price is all-in; a room's per week or month (GB, AU) isn't
+      rentAllIn: ancestry(catalog, category.id).some((c) => PERIOD_RENT_SLUGS.has(c.slug)),
+      rentLocalWord: countryCode ? (RENT_LOCAL_WORD[countryCode] ?? null) : null,
       shippable: shippable(ancestry(catalog, category.id)),
       defs,
       // Cats and dogs in Turkey only for free (src/modules/listings/country-rules.ts)

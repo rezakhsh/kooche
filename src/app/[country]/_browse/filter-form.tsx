@@ -70,8 +70,9 @@ export function FilterForm({
   const currency = country.currency;
   const nearOn = !!state.near;
   const path = b.category ? ancestry(b.catalog, b.category.id) : [];
-  // A short let's price is per night, week or month (its «اجاره برای» filter); other rents are monthly
-  const rent = rentKind(path);
+  // A short let's price is per night, week or month (its «اجاره برای» filter); a flat's reads the
+  // country's way (RentKind): the whole rent in AT and FR, the base rent in NL and IT, weekly in AU
+  const rent = rentKind(path, country.code);
   const offersShipping = shippable(path);
 
   return (
@@ -83,7 +84,9 @@ export function FilterForm({
 
       {ctx.priceAllowed && (
         <fieldset>
-          <legend className={legendClass}>{rent === 'period' ? t.rentPricePeriod : rent ? t.rentPrice : t.price}</legend>
+          <legend className={legendClass}>
+            {rent === 'period' ? t.rentPricePeriod : rent === 'gross' || rent === 'net' || rent === 'weekly' ? t.rentPriceKind[rent] : rent ? t.rentPrice : t.price}
+          </legend>
           <Range
             id={`${id}-price`}
             name="price"

@@ -5,6 +5,7 @@ import { imageUrl } from '../media/server';
 import type { BrowseItem } from '../search/browse';
 import { cardFacts } from './attribute-text';
 import { ancestry, listingCurrency, type Catalog } from './catalog';
+import { REGISTRATION_WORD } from './country-fields';
 import { rentKind, rentPeriodOf } from './safety-kind';
 import { placeParts } from './place-text';
 import { formatPrice } from './price';
@@ -42,21 +43,22 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     photoCount: l.photoCount,
     founding: l.founding,
     verified: l.verified,
-    anmeldung: l.attributes.anmeldung === true,
-    // Rent a month, cold for flats and houses (mockup final/browse: «۵۹۰ € سرد، ماهانه»); a room's is just «ماهانه»
-    unit: rentUnit(catalog, l.categoryId, l.priceMinor, l.attributes),
+    // The address-registration chip, under the country's word, only where tenants register (owner, Nov 5, 2026)
+    anmeldung: l.attributes.anmeldung === true && l.countryCode ? (REGISTRATION_WORD[l.countryCode] ?? null) : null,
+    // Rent a month, cold for flats and houses in Germany (mockup final/browse: «۵۹۰ € سرد، ماهانه»); a room's is just «ماهانه»
+    unit: rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, l.attributes),
     wanted: l.kind === 'wanted',
-    facts: cardFacts(catalog, l.categoryId, l.attributes, amountCurrency),
+    facts: cardFacts(catalog, l.categoryId, l.countryCode, l.attributes, amountCurrency),
     distance: l.distanceKm != null ? messages.browse.distance(l.distanceKm) : null,
   };
 }
 
 /**
- * What follows a rent's amount: «سرد، ماهانه», «ماهانه», or a short let's «هر شب» from its
- * `attributes` (none without them, or without a unit yet)
+ * What follows a rent's amount in its country (RentKind): «سرد، ماهانه», «کل، ماهانه», «هر هفته»,
+ * «ماهانه», or a short let's «هر شب» from its `attributes` (none without them, or without a unit yet)
  */
-export function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null, attributes?: Record<string, unknown> | null): string | null {
-  const kind = categoryId && priceMinor !== null ? rentKind(ancestry(catalog, categoryId)) : null;
+export function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null, country: string | null, attributes?: Record<string, unknown> | null): string | null {
+  const kind = categoryId && priceMinor !== null ? rentKind(ancestry(catalog, categoryId), country) : null;
   if (kind === 'period') {
     const period = rentPeriodOf(attributes);
     return period ? messages.country.rentPer[period] : null;

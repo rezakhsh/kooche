@@ -87,7 +87,8 @@ export function optionLabel(def: AttributeDef, value: string, defs: AttributeDef
 
 /** The make and model fields a category filters by, if any (the only fields that are phrases) */
 export function makeModelDefs(catalog: Catalog, categoryId: string): { brand: AttributeDef | null; model: AttributeDef | null; defs: AttributeDef[] } {
-  const defs = effectiveAttributes(catalog, categoryId).filter((d) => d.isActive && d.isFilterable && d.type === 'select');
+  // Make and model are the same in every country
+  const defs = effectiveAttributes(catalog, categoryId, null).filter((d) => d.isActive && d.isFilterable && d.type === 'select');
   const brand = defs.find((d) => d.key === 'brand') ?? null;
   const model = (brand && defs.find((d) => d.key === 'model' && d.dependsOn === 'brand')) || null;
   return { brand, model, defs };

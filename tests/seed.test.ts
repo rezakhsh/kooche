@@ -66,6 +66,21 @@ describe('seed checks', () => {
     });
   });
 
+  it('catch a country rule naming an unknown country or an option the field lacks', async () => {
+    for (const validation of [{ countries: ['XX'] }, { hidden_in: ['ZZ'] }, { by_country: { QQ: { label: 'x' } } }, { by_country: { DE: { options: ['nope'] } } }, { by_country: { '*': { option_labels: { nope: 'x' } } } }]) {
+      await rollback(async (tx) => {
+        const homes = await category(tx, 'real-estate');
+        await tx.insert(categoryAttributes).values({ categoryId: homes.id, key: 'probe', type: 'boolean', labelFa: 'آزمایش', validation: validation as never });
+        expect(await failingChecks(tx)).toContain(check('country rules name real countries'));
+      });
+    }
+    await rollback(async (tx) => {
+      const homes = await category(tx, 'real-estate');
+      await tx.insert(categoryAttributes).values({ categoryId: homes.id, key: 'probe', type: 'boolean', labelFa: 'آزمایش', validation: { countries: ['DE', 'AT'], by_country: { DE: { label: 'x' }, '*': { help: 'y' } } } as never });
+      expect(await failingChecks(tx)).not.toContain(check('country rules name real countries'));
+    });
+  });
+
   it('keep browse addresses apart: an active category named events is caught, a retired one is not', async () => {
     await rollback(async (tx) => {
       const community = await category(tx, 'community');

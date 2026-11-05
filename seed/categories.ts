@@ -1,5 +1,5 @@
 import { carBrands, carModels } from './car-models';
-import type { AttributeSeed, CategorySeed, OptionSeed } from './types';
+import type { AttributeSeed, CategorySeed, CountryRuleSeed, OptionSeed } from './types';
 
 // Starter category tree: Divar's top-level grouping and Persian names, merged with
 // Kleinanzeigen's European structure (two levels, separate roots for children, pets and
@@ -16,6 +16,14 @@ import type { AttributeSeed, CategorySeed, OptionSeed } from './types';
 // has one all-in price per night, week or month (`rent_period`, no cold rent); homes count bedrooms
 // the way Iranians do («۲ خوابه»), with the German count of rooms optional; a WG room is never the
 // entire place and says whether bills are included; the area's hint follows the category (help_in).
+//
+// Per country (field audit items 5–6, approved Nov 5, 2026; §20): fields carry `countries`,
+// `hidden_in` and `by_country` rules (seed/types.ts). The base label is neutral Persian; Germany's
+// and Austria's German words in brackets are their rules, so Germany reads as before. Rent: cold
+// rent + Nebenkosten in DE, the whole rent (extra costs a part of it) in AT and FR, base rent +
+// service charges in NL and IT, a weekly rent in AU, one monthly rent and "bills included?"
+// elsewhere (RentKind, src/modules/listings/safety-kind.ts). Anmeldung only where a tenant
+// registers, under the local word. Energy data optional everywhere, on each country's scale.
 //
 // "Free" and "exchange" (Kleinanzeigen's Verschenken & Tauschen) are price types and «درخواستی»
 // (wanted) is a listing kind, so they are filters in every category, not categories. Shipping is
@@ -105,9 +113,21 @@ const money = (key: string, labelFa: string, extra: Partial<AttributeSeed> = {})
   key,
   type: 'number',
   labelFa,
-  validation: { money: true },
   ...extra,
+  validation: { money: true, ...extra.validation },
 });
+
+/** The same rule for Germany and Austria: their German words in brackets */
+const deAt = (rule: CountryRuleSeed): Record<string, CountryRuleSeed> => ({ DE: rule, AT: rule });
+
+/** Countries whose flats and houses list extra costs beside the rent (RENT_STYLE in safety-kind.ts) */
+const EXTRA_COST_COUNTRIES = ['DE', 'AT', 'FR', 'NL', 'IT'];
+
+/** Countries where a tenant registers the address (REGISTRATION_WORD in src/modules/listings/country-fields.ts) */
+const REGISTRATION_COUNTRIES = ['DE', 'AT', 'NL', 'SE', 'IT'];
+
+/** Countries whose sites count bedrooms only, give bathrooms and the area in square feet (UK, US, CA, AU) */
+const BEDROOM_ONLY_COUNTRIES = ['GB', 'US', 'CA', 'AU'];
 
 const powerHp: AttributeSeed = {
   key: 'power_hp',
@@ -186,9 +206,55 @@ const bedrooms = (isRequired: boolean): AttributeSeed => ({
 const localRooms: AttributeSeed = {
   key: 'rooms',
   type: 'number',
-  labelFa: 'تعداد اتاق به حساب آلمانی (Zimmer)',
-  helpFa: 'در آگهی‌های آلمانی اتاق نشیمن هم شمرده می‌شود: ۳ Zimmer یعنی ۲ خوابه. نیم‌اتاق هم حساب می‌شود (۲٫۵).',
-  validation: { min: 0, max: 20, integer: false },
+  labelFa: 'تعداد اتاق‌ها با اتاق نشیمن',
+  helpFa: 'در آگهی‌های محلی اتاق نشیمن هم شمرده می‌شود: ۳ اتاق یعنی ۲ خوابه.',
+  validation: {
+    min: 0,
+    max: 20,
+    integer: false,
+    // UK, US, CA and AU sites count bedrooms only
+    hidden_in: BEDROOM_ONLY_COUNTRIES,
+    by_country: {
+      ...deAt({
+        label: 'تعداد اتاق به حساب آلمانی (Zimmer)',
+        help: 'در آگهی‌های آلمانی اتاق نشیمن هم شمرده می‌شود: ۳ Zimmer یعنی ۲ خوابه. نیم‌اتاق هم حساب می‌شود (۲٫۵).',
+      }),
+      NL: { label: 'تعداد اتاق به حساب هلندی (kamers)', help: 'در آگهی‌های هلندی اتاق نشیمن هم شمرده می‌شود: ۳ kamers یعنی ۲ خوابه.' },
+      FR: { label: 'تعداد اتاق به حساب فرانسوی (pièces)', help: 'در آگهی‌های فرانسوی اتاق نشیمن هم شمرده می‌شود: T3 یا ۳ pièces یعنی ۲ خوابه.' },
+      IT: { label: 'تعداد اتاق به حساب ایتالیایی (locali)', help: 'در آگهی‌های ایتالیایی اتاق نشیمن هم شمرده می‌شود: trilocale یا ۳ locali یعنی ۲ خوابه.' },
+      SE: { label: 'تعداد اتاق به حساب سوئدی (rum)', help: 'در آگهی‌های سوئدی اتاق نشیمن هم شمرده می‌شود: ۳ rum och kök یعنی ۲ خوابه.' },
+    },
+  },
+};
+
+/** UK, US, CA and AU sites ask the bathrooms beside the bedrooms (half baths in the US: 1.5) */
+const bathrooms: AttributeSeed = {
+  key: 'bathrooms',
+  type: 'number',
+  labelFa: 'تعداد حمام',
+  unitFa: 'حمام',
+  validation: { min: 0, max: 10, integer: false, countries: BEDROOM_ONLY_COUNTRIES },
+  isFilterable: true,
+  showOnCard: true,
+};
+
+/** England's "material information" guidance (Trading Standards, 2022) wants the band in every home ad; Rightmove shows it */
+const councilTaxBand: AttributeSeed = {
+  key: 'council_tax_band',
+  type: 'select',
+  labelFa: 'باند مالیات شهرداری (council tax band)',
+  validation: { countries: ['GB'] },
+  options: options([
+    ['a', 'A'],
+    ['b', 'B'],
+    ['c', 'C'],
+    ['d', 'D'],
+    ['e', 'E'],
+    ['f', 'F'],
+    ['g', 'G'],
+    ['h', 'H'],
+    ['i', 'I'],
+  ]),
 };
 
 const floor: AttributeSeed = {
@@ -207,15 +273,35 @@ const furnished: AttributeSeed = {
   isFilterable: true,
 };
 
-/** Whether the tenant may register the address (Anmeldung). A main tenant always may, so only WG
- * rooms and short lets ask (mockups final/category, post3; wave 1). Shown as a chip on the photo. */
-const anmeldung = (helpFa = 'هم‌خانهٔ تازه می‌تواند این آدرس را در Bürgeramt ثبت کند؛ شما یا صاحب‌خانه Wohnungsgeberbestätigung را می‌دهید'): AttributeSeed => ({
-  key: 'anmeldung',
-  type: 'boolean',
-  labelFa: 'Anmeldung ممکن',
-  helpFa,
-  isFilterable: true,
-});
+/**
+ * Whether the tenant may register the address (Anmeldung). A main tenant always may, so only WG
+ * rooms and short lets ask (mockups final/category, post3; wave 1). Shown as a chip on the photo.
+ * Only where a tenant registers, under the local word (owner, Nov 5, 2026; field audit §2).
+ */
+const anmeldung = (shortLet: boolean): AttributeSeed => {
+  const who = shortLet ? 'برای اجارهٔ ماهانه مهم است: مستأجر' : 'هم‌خانهٔ تازه';
+  return {
+    key: 'anmeldung',
+    type: 'boolean',
+    labelFa: 'امکان ثبت آدرس',
+    isFilterable: true,
+    validation: {
+      countries: REGISTRATION_COUNTRIES,
+      by_country: {
+        DE: {
+          label: 'Anmeldung ممکن',
+          help: shortLet
+            ? 'برای اجارهٔ ماهانه مهم است: مستأجر می‌تواند این آدرس را در Bürgeramt ثبت کند و شما Wohnungsgeberbestätigung را می‌دهید'
+            : 'هم‌خانهٔ تازه می‌تواند این آدرس را در Bürgeramt ثبت کند؛ شما یا صاحب‌خانه Wohnungsgeberbestätigung را می‌دهید',
+        },
+        AT: { label: 'Meldezettel ممکن', help: `${who} می‌تواند این آدرس را در Meldeamt ثبت کند؛ شما یا صاحب‌خانه Meldezettel را امضا می‌کنید` },
+        NL: { label: 'inschrijving ممکن', help: `${who} می‌تواند با این آدرس در gemeente (BRP) ثبت‌نام کند` },
+        SE: { label: 'folkbokföring ممکن', help: `${who} می‌تواند این آدرس را در Skatteverket ثبت کند` },
+        IT: { label: 'residenza ممکن', help: `${who} می‌تواند با این آدرس در Comune اقامت (residenza) بگیرد` },
+      },
+    },
+  };
+};
 
 const balcony: AttributeSeed = {
   key: 'balcony',
@@ -231,19 +317,81 @@ const elevator: AttributeSeed = {
   isFilterable: true,
 };
 
-const extraCosts = (isRequired: boolean): AttributeSeed =>
-  money('extra_costs', 'هزینه‌های جانبی ماهانه (Nebenkosten)', {
-    helpFa: 'مبلغ آگهی، اجاره سرد (Kaltmiete) است. هزینه‌های جانبی را اینجا بنویسید تا اجاره گرم خودکار نشان داده شود.',
-    isRequired,
-  });
+const NEBENKOSTEN: CountryRuleSeed = {
+  label: 'هزینه‌های جانبی ماهانه (Nebenkosten)',
+  help: 'مبلغ آگهی، اجاره سرد (Kaltmiete) است. هزینه‌های جانبی را اینجا بنویسید تا اجاره گرم خودکار نشان داده شود.',
+};
+
+/**
+ * A flat's or house's extra costs, by how the country lets (RentKind): on top of the cold rent in
+ * DE (required, as before), a part of the whole rent in AT and FR (French law wants the charges in
+ * every ad), on top of the base rent in NL and IT. Elsewhere one rent, and "bills included?".
+ */
+const homeExtraCosts: AttributeSeed = money('extra_costs', 'هزینه‌های جانبی ماهانه', {
+  validation: {
+    countries: EXTRA_COST_COUNTRIES,
+    by_country: {
+      DE: { ...NEBENKOSTEN, required: true },
+      AT: { label: 'از این مبلغ: هزینه‌های جانبی (Betriebskosten)', help: 'مبلغ آگهی اجارهٔ کل (Bruttomiete) است، با Betriebskosten و مالیات. سهم هزینه‌های جانبی را اینجا بنویسید.' },
+      FR: { label: 'از این مبلغ: شارژ ماهانه (charges)', help: 'مبلغ آگهی اجاره با شارژ (charges comprises) است. قانون فرانسه می‌خواهد مبلغ شارژ هم در آگهی بیاید.', required: true },
+      NL: { label: 'هزینهٔ سرویس ماهانه (servicekosten)', help: 'مبلغ آگهی اجارهٔ پایه (kale huur) است. هزینهٔ سرویس را اینجا بنویسید تا جمع نشان داده شود.' },
+      IT: { label: 'شارژ ساختمان ماهانه (spese condominiali)', help: 'مبلغ آگهی اجارهٔ پایه (canone) است. شارژ را اینجا بنویسید تا جمع نشان داده شود.' },
+    },
+  },
+});
+
+/** Commercial rent: extra costs on top of the rent in every country */
+const commercialExtraCosts: AttributeSeed = money('extra_costs', 'هزینه‌های جانبی ماهانه', {
+  helpFa: 'جدا از اجاره، هر ماه',
+  validation: { by_country: { DE: NEBENKOSTEN } },
+});
 
 const heatingIncluded: AttributeSeed = {
   key: 'heating_included',
   type: 'boolean',
   labelFa: 'گرمایش جزو هزینه‌های جانبی است',
+  validation: { countries: EXTRA_COST_COUNTRIES },
 };
 
-const deposit = money('deposit', 'ودیعه (Kaution)');
+/** What SpareRoom and Flatmates.com.au ask first; for whole homes where the rent is one amount (`hiddenIn`: where extra costs are asked instead) */
+const billsIncluded = (hiddenIn?: string[]): AttributeSeed => ({
+  key: 'bills_included',
+  type: 'select',
+  labelFa: 'قبوض داخل اجاره',
+  helpFa: 'گرمایش، برق، آب و اینترنت',
+  isFilterable: true,
+  showOnCard: true,
+  ...(hiddenIn ? { validation: { hidden_in: hiddenIn } } : {}),
+  options: options([
+    ['all', 'با همهٔ قبوض'],
+    ['some', 'با بخشی از قبوض'],
+    ['none', 'بدون قبوض'],
+  ]),
+});
+
+/**
+ * The deposit under its local name; for homes (`home`) with the legal cap as a hint (field audit
+ * §3; caps checked Nov 5, 2026). Ontario allows only last month's rent, no damage deposit.
+ */
+const deposit = (home: boolean): AttributeSeed => {
+  const cap = (label: string, help: string): CountryRuleSeed => (home ? { label, help } : { label });
+  return money('deposit', 'ودیعه', {
+    validation: {
+      by_country: {
+        DE: cap('ودیعه (Kaution)', 'حداکثر سه برابر اجارهٔ ماهانه بدون هزینه‌های جانبی'),
+        AT: { label: 'ودیعه (Kaution)' },
+        NL: cap('ودیعه (waarborgsom)', 'حداکثر دو برابر اجارهٔ پایه (kale huur)'),
+        GB: cap('ودیعه (deposit)', 'در انگلستان حداکثر ۵ هفته اجاره (اگر اجارهٔ سالانه زیر ۵۰ هزار پوند است)'),
+        FR: cap('ودیعه (dépôt de garantie)', 'حداکثر یک ماه اجاره بدون شارژ؛ برای خانهٔ مبله دو ماه'),
+        IT: { label: 'ودیعه (cauzione)' },
+        SE: { label: 'ودیعه (deposition)' },
+        US: { label: 'ودیعه (security deposit)' },
+        CA: home ? { label: 'اجارهٔ ماه آخر (last month\'s rent)', help: 'در انتاریو فقط اجارهٔ ماه آخر گرفته می‌شود، نه ودیعهٔ خسارت' } : { label: 'ودیعه (deposit)' },
+        AU: cap('ودیعه (bond)', 'معمولاً ۴ هفته اجاره؛ بسته به ایالت'),
+      },
+    },
+  });
+};
 
 const availableFrom = (labelFa = 'قابل سکونت از'): AttributeSeed => ({
   key: 'available_from',
@@ -272,14 +420,26 @@ const apartmentType: AttributeSeed = {
   type: 'select',
   labelFa: 'نوع آپارتمان',
   isFilterable: true,
+  // The German words in brackets only in DE and AT (field audit §3)
+  validation: {
+    by_country: deAt({
+      option_labels: {
+        floor_flat: 'طبقه‌ای (Etagenwohnung)',
+        ground_floor: 'همکف (Erdgeschoss)',
+        attic: 'زیرشیروانی (Dachgeschoss)',
+        maisonette: 'دوبلکس (Maisonette)',
+        souterrain: 'نیم‌طبقه زیرزمین (Souterrain)',
+      },
+    }),
+  },
   options: options([
-    ['floor_flat', 'طبقه‌ای (Etagenwohnung)'],
-    ['ground_floor', 'همکف (Erdgeschoss)'],
-    ['attic', 'زیرشیروانی (Dachgeschoss)'],
-    ['maisonette', 'دوبلکس (Maisonette)'],
+    ['floor_flat', 'طبقه‌ای'],
+    ['ground_floor', 'همکف'],
+    ['attic', 'زیرشیروانی'],
+    ['maisonette', 'دوبلکس'],
     ['penthouse', 'پنت‌هاوس'],
     ['loft', 'لافت'],
-    ['souterrain', 'نیم‌طبقه زیرزمین (Souterrain)'],
+    ['souterrain', 'نیم‌طبقه زیرزمین'],
     ['other', 'سایر'],
   ]),
 };
@@ -289,11 +449,21 @@ const houseType: AttributeSeed = {
   type: 'select',
   labelFa: 'نوع خانه',
   isFilterable: true,
+  validation: {
+    by_country: deAt({
+      option_labels: {
+        detached: 'تک‌خانواری (Einfamilienhaus)',
+        semi_detached: 'دوقلو (Doppelhaushälfte)',
+        terraced: 'ردیفی (Reihenhaus)',
+        multi_family: 'چندخانواری (Mehrfamilienhaus)',
+      },
+    }),
+  },
   options: options([
-    ['detached', 'تک‌خانواری (Einfamilienhaus)'],
-    ['semi_detached', 'دوقلو (Doppelhaushälfte)'],
-    ['terraced', 'ردیفی (Reihenhaus)'],
-    ['multi_family', 'چندخانواری (Mehrfamilienhaus)'],
+    ['detached', 'تک‌خانواری'],
+    ['semi_detached', 'دوقلو'],
+    ['terraced', 'ردیفی'],
+    ['multi_family', 'چندخانواری'],
     ['bungalow', 'بنگالو'],
     ['villa', 'ویلا'],
     ['other', 'سایر'],
@@ -305,19 +475,30 @@ const features: AttributeSeed = {
   type: 'multi_select',
   labelFa: 'امکانات',
   // A checklist: a filter for balcony and lift means both
-  validation: { filter: 'all' },
+  validation: {
+    filter: 'all',
+    by_country: deAt({
+      option_labels: {
+        fitted_kitchen: 'آشپزخانه مجهز (Einbauküche)',
+        cellar: 'انباری یا زیرزمین (Keller)',
+        guest_wc: 'سرویس بهداشتی دوم (Gäste-WC)',
+        old_building: 'ساختمان قدیمی (Altbau)',
+        new_building: 'نوساز (Neubau)',
+      },
+    }),
+  },
   isFilterable: true,
   options: options([
-    ['fitted_kitchen', 'آشپزخانه مجهز (Einbauküche)'],
-    ['cellar', 'انباری یا زیرزمین (Keller)'],
+    ['fitted_kitchen', 'آشپزخانه مجهز'],
+    ['cellar', 'انباری یا زیرزمین'],
     ['garden', 'باغچه یا استفاده از حیاط'],
     ['parking', 'پارکینگ یا گاراژ'],
     ['bathtub', 'وان'],
-    ['guest_wc', 'سرویس بهداشتی دوم (Gäste-WC)'],
+    ['guest_wc', 'سرویس بهداشتی دوم'],
     ['step_free', 'بدون پله'],
     ['floor_heating', 'گرمایش از کف'],
-    ['old_building', 'ساختمان قدیمی (Altbau)'],
-    ['new_building', 'نوساز (Neubau)'],
+    ['old_building', 'ساختمان قدیمی'],
+    ['new_building', 'نوساز'],
   ]),
 };
 
@@ -331,18 +512,52 @@ const petsAllowed: AttributeSeed = {
 const wbsRequired: AttributeSeed = {
   key: 'wbs_required',
   type: 'boolean',
-  labelFa: 'نیاز به WBS (فقط آلمان)',
+  labelFa: 'نیاز به WBS',
   helpFa: 'برای آپارتمان‌هایی که فقط با مجوز مسکن اجتماعی (Wohnberechtigungsschein) اجاره داده می‌شوند',
+  validation: { countries: ['DE'] },
   isFilterable: true,
 };
+
+/**
+ * Energy data: optional everywhere, on each country's scale (field audit §20, corrected Nov 5,
+ * 2026). German law (§87 GModG) wants it only when a certificate exists and the ad is commercial;
+ * free private ads aren't covered. Kleinanzeigen asks the same set, all optional. US, CA and AU ads
+ * carry none.
+ */
+const ENERGY_HIDDEN = ['US', 'CA', 'AU'];
+const A_TO_G = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 
 const energyClass: AttributeSeed = {
   key: 'energy_class',
   type: 'select',
-  labelFa: 'کلاس انرژی (Energieausweis)',
+  labelFa: 'کلاس انرژی',
   isFilterable: true,
+  validation: {
+    hidden_in: ENERGY_HIDDEN,
+    by_country: {
+      DE: {
+        label: 'کلاس انرژی (Energieausweis)',
+        help: 'اختیاری. اگر گواهی انرژی دارید و آگهی تجاری است (مشاور املاک یا شرکت)، قانون این‌ها را در آگهی می‌خواهد: نوع گواهی، مقدار انرژی، منبع انرژی، سال ساخت و کلاس.',
+        options: ['a_plus', ...A_TO_G, 'h'],
+      },
+      AT: { label: 'کلاس انرژی (Energieausweis)', options: ['a_plus2', 'a_plus', ...A_TO_G] },
+      NL: { label: 'برچسب انرژی (energielabel)', options: ['a_plus4', 'a_plus3', 'a_plus2', 'a_plus', ...A_TO_G] },
+      IT: { label: 'کلاس انرژی (APE)', options: ['a4', 'a3', 'a2', 'a1', ...A_TO_G.slice(1)] },
+      GB: { label: 'رتبهٔ انرژی (EPC)', options: A_TO_G },
+      FR: { label: 'کلاس انرژی (DPE)', options: A_TO_G },
+      SE: { label: 'کلاس انرژی (energideklaration)', options: A_TO_G },
+      '*': { options: A_TO_G },
+    },
+  },
   options: options([
+    ['a_plus4', 'A++++'],
+    ['a_plus3', 'A+++'],
+    ['a_plus2', 'A++'],
     ['a_plus', 'A+'],
+    ['a4', 'A4'],
+    ['a3', 'A3'],
+    ['a2', 'A2'],
+    ['a1', 'A1'],
     ['a', 'A'],
     ['b', 'B'],
     ['c', 'C'],
@@ -353,6 +568,72 @@ const energyClass: AttributeSeed = {
     ['h', 'H'],
   ]),
 };
+
+/** The rest of the German set (§87 GModG; Kleinanzeigen's fields), Austria's HWB and EEB, France's climate class */
+const energyDetails: AttributeSeed[] = [
+  {
+    key: 'energy_certificate',
+    type: 'select',
+    labelFa: 'نوع گواهی انرژی',
+    validation: { countries: ['DE'] },
+    options: options([
+      ['demand', 'بر اساس نیاز (Bedarfsausweis)'],
+      ['consumption', 'بر اساس مصرف (Verbrauchsausweis)'],
+    ]),
+  },
+  {
+    key: 'energy_value',
+    type: 'number',
+    labelFa: 'مقدار انرژی گواهی',
+    unitFa: 'kWh/(m²·a)',
+    validation: {
+      min: 0,
+      max: 1000,
+      integer: false,
+      countries: ['DE', 'AT'],
+      by_country: {
+        DE: { label: 'مقدار انرژی گواهی', help: 'عدد اصلی روی گواهی (Endenergie؛ در گواهی‌های تازه از ۲۰۲۷ Primärenergie)' },
+        AT: { label: 'نیاز گرمایی (HWB)' },
+      },
+    },
+  },
+  {
+    key: 'energy_eeb',
+    type: 'number',
+    labelFa: 'نیاز انرژی نهایی (EEB)',
+    unitFa: 'kWh/(m²·a)',
+    validation: { min: 0, max: 1000, integer: false, countries: ['AT'] },
+  },
+  {
+    key: 'energy_source',
+    type: 'select',
+    labelFa: 'منبع اصلی انرژی گرمایش',
+    validation: { countries: ['DE'] },
+    options: options([
+      ['gas', 'گاز'],
+      ['district_heating', 'گرمایش مرکزی شهری (Fernwärme)'],
+      ['heat_pump', 'پمپ حرارتی (Wärmepumpe)'],
+      ['oil', 'نفت'],
+      ['electricity', 'برق'],
+      ['wood', 'چوب یا پلت'],
+      ['solar', 'خورشیدی'],
+      ['other', 'سایر'],
+    ]),
+  },
+  {
+    key: 'energy_issued',
+    type: 'date',
+    labelFa: 'تاریخ صدور گواهی',
+    validation: { month: true, countries: ['DE'] },
+  },
+  {
+    key: 'energy_ges',
+    type: 'select',
+    labelFa: 'کلاس انتشار گاز گلخانه‌ای (GES)',
+    validation: { countries: ['FR'] },
+    options: options(A_TO_G.map((v) => [v, v.toUpperCase()] as [string, string])),
+  },
+];
 
 /** `entirePlace`: short lets only; a room in a shared flat is never the whole flat (field audit, Nov 5, 2026) */
 const roomType = (isRequired: boolean, showOnCard: boolean, entirePlace: boolean): AttributeSeed => ({
@@ -589,12 +870,14 @@ const leaf = (slug: string, nameFa: string, extra: Partial<CategorySeed> = {}): 
 });
 
 const rentHome = (typeField: AttributeSeed): AttributeSeed[] => [
-  extraCosts(true),
+  homeExtraCosts,
   heatingIncluded,
-  deposit,
+  billsIncluded(EXTRA_COST_COUNTRIES),
+  deposit(true),
   availableFrom(),
   bedrooms(true),
   localRooms,
+  bathrooms,
   floor,
   typeField,
   furnished,
@@ -605,11 +888,14 @@ const rentHome = (typeField: AttributeSeed): AttributeSeed[] => [
   wbsRequired,
   yearBuilt,
   energyClass,
+  ...energyDetails,
+  councilTaxBand,
 ];
 
 const saleHome = (typeField: AttributeSeed, extra: AttributeSeed[]): AttributeSeed[] => [
   bedrooms(true),
   localRooms,
+  bathrooms,
   floor,
   typeField,
   yearBuilt,
@@ -618,6 +904,20 @@ const saleHome = (typeField: AttributeSeed, extra: AttributeSeed[]): AttributeSe
   elevator,
   features,
   energyClass,
+  ...energyDetails,
+  councilTaxBand,
+  {
+    key: 'tenure',
+    type: 'select',
+    labelFa: 'نوع مالکیت (tenure)',
+    validation: { countries: ['GB'] },
+    isFilterable: true,
+    options: options([
+      ['freehold', 'مالکیت کامل (freehold)'],
+      ['leasehold', 'اجارهٔ بلندمدت (leasehold)'],
+      ['share_of_freehold', 'سهم از مالکیت (share of freehold)'],
+    ]),
+  },
   ...extra,
   {
     key: 'rented_out',
@@ -629,7 +929,12 @@ const saleHome = (typeField: AttributeSeed, extra: AttributeSeed[]): AttributeSe
   {
     key: 'commission_free',
     type: 'boolean',
-    labelFa: 'بدون کمیسیون مشاور (provisionsfrei)',
+    labelFa: 'بدون کمیسیون مشاور',
+    // Only where buyers may pay the agent
+    validation: {
+      countries: ['DE', 'AT', 'NL'],
+      by_country: { ...deAt({ label: 'بدون کمیسیون مشاور (provisionsfrei)' }), NL: { label: 'بدون کمیسیون مشاور (geen courtage)' } },
+    },
     isFilterable: true,
   },
 ];
@@ -656,6 +961,8 @@ export const categories: CategorySeed[] = [
             'short-term-rent': 'برای اتاق، متراژ خود اتاق؛ برای کل واحد، متراژ واحد',
             'land-gardens': 'متراژ کل زمین',
           },
+          // UK, US and CA ads give square feet: typed and stored so (SQ_FT_COUNTRIES in country-fields.ts)
+          by_country: Object.fromEntries(['GB', 'US', 'CA'].map((c) => [c, { unit: 'فوت مربع', max: 1_000_000 }])),
         },
         isRequired: true,
         isFilterable: true,
@@ -667,21 +974,22 @@ export const categories: CategorySeed[] = [
       leaf('houses-rent', 'اجاره خانه', { attributes: rentHome(houseType) }),
       leaf('shared-rooms', 'اتاق و خانه اشتراکی (WG)', {
         attributes: [
-          roomType(true, true, false),
-          // What SpareRoom and Flatmates.com.au ask first (field audit, Nov 5, 2026); the rent is one monthly amount
+          // UK and AU rooms are let per week or per month, as the poster chooses (SpareRoom, Flatmates.com.au)
           {
-            key: 'bills_included',
+            key: 'rent_period',
             type: 'select',
-            labelFa: 'قبوض داخل اجاره',
-            helpFa: 'گرمایش، برق، آب و اینترنت',
+            labelFa: 'اجاره برای',
+            isRequired: true,
             isFilterable: true,
-            showOnCard: true,
+            validation: { countries: ['GB', 'AU'] },
             options: options([
-              ['all', 'با همهٔ قبوض'],
-              ['some', 'با بخشی از قبوض'],
-              ['none', 'بدون قبوض'],
+              ['week', 'هر هفته'],
+              ['month', 'هر ماه'],
             ]),
           },
+          roomType(true, true, false),
+          // What SpareRoom and Flatmates.com.au ask first (field audit, Nov 5, 2026); the rent is one amount
+          billsIncluded(),
           {
             key: 'flatmates',
             type: 'number',
@@ -713,8 +1021,8 @@ export const categories: CategorySeed[] = [
           furnished,
           { key: 'private_bathroom', type: 'boolean', labelFa: 'حمام و دستشویی اختصاصی', isFilterable: true },
           { key: 'couples_ok', type: 'boolean', labelFa: 'مناسب زوج‌ها', isFilterable: true },
-          anmeldung(),
-          deposit,
+          anmeldung(false),
+          deposit(true),
         ],
       }),
       // One all-in price per night, week or month, like Airbnb and Wunderflats: no cold rent, no extra
@@ -757,19 +1065,47 @@ export const categories: CategorySeed[] = [
           bedrooms(false),
           availableFrom(),
           availableUntil,
-          anmeldung('برای اجارهٔ ماهانه مهم است: مستأجر می‌تواند این آدرس را در Bürgeramt ثبت کند و شما Wohnungsgeberbestätigung را می‌دهید'),
+          anmeldung(true),
+          // Required before publishing a whole flat by the night or week where the law wants it in every
+          // ad (registrationNumberRequired in src/modules/listings/country-fields.ts)
           {
             key: 'registration_number',
             type: 'text',
             labelFa: 'شمارهٔ ثبت اجارهٔ کوتاه‌مدت',
-            helpFa: 'در برلین و بسیاری از شهرها اجارهٔ شبانهٔ کل خانه شمارهٔ ثبت شهرداری می‌خواهد و باید در آگهی بیاید.',
-            validation: { max_length: 40 },
+            helpFa: 'در بسیاری از شهرها اجارهٔ کوتاه‌مدت کل خانه شمارهٔ ثبت می‌خواهد و باید در آگهی بیاید.',
+            validation: {
+              max_length: 40,
+              by_country: {
+                DE: { help: 'در برلین اجارهٔ شبانه یا هفتگی کل خانه بدون شمارهٔ ثبت (Registriernummer) منتشر نمی‌شود. شهرهای دیگر هم ممکن است آن را بخواهند.' },
+                IT: { label: 'کد ثبت ملی (CIN)', help: 'در سراسر ایتالیا اجارهٔ شبانه یا هفتگی کل خانه بدون کد CIN منتشر نمی‌شود.' },
+                NL: { help: 'در آمستردام اجارهٔ شبانه یا هفتگی کل خانه بدون شمارهٔ ثبت (registratienummer) منتشر نمی‌شود.' },
+                FR: { help: 'در پاریس اجارهٔ شبانه یا هفتگی کل خانه بدون شمارهٔ ثبت (numéro d\'enregistrement) منتشر نمی‌شود.' },
+                US: { help: 'در نیویورک اجارهٔ شبانه یا هفتگی کل خانه بدون شمارهٔ ثبت (registration number) منتشر نمی‌شود.' },
+              },
+            },
           },
-          deposit,
+          deposit(false),
         ],
       }),
       leaf('apartments-sale', 'فروش آپارتمان', {
-        attributes: saleHome(apartmentType, [money('owner_fee', 'شارژ ماهانه (Hausgeld)')]),
+        attributes: saleHome(apartmentType, [
+          money('owner_fee', 'شارژ ماهانهٔ ساختمان', {
+            validation: {
+              by_country: {
+                DE: { label: 'شارژ ماهانه (Hausgeld)' },
+                AT: { label: 'هزینه‌های جانبی ماهانه (Betriebskosten)' },
+                NL: { label: 'شارژ ماهانه (VvE-bijdrage)' },
+                GB: { label: 'هزینهٔ سرویس ماهانه (service charge)' },
+                FR: { label: 'شارژ ماهانه (charges de copropriété)' },
+                IT: { label: 'شارژ ماهانه (spese condominiali)' },
+                SE: { label: 'شارژ ماهانه (månadsavgift)' },
+                US: { label: 'شارژ ماهانه (HOA fee)' },
+                CA: { label: 'شارژ ماهانه (condo fee)' },
+                AU: { label: 'شارژ ماهانه (strata levy)' },
+              },
+            },
+          }),
+        ]),
       }),
       leaf('houses-sale', 'فروش خانه', {
         attributes: saleHome(houseType, [
@@ -787,14 +1123,31 @@ export const categories: CategorySeed[] = [
         attributes: [
           kind('land_type', 'نوع زمین', [
             ['building_plot', 'زمین ساختمانی'],
-            ['allotment', 'باغچه (Kleingarten)'],
+            ['allotment', 'باغچهٔ اجاره‌ای (allotment)'],
             ['agricultural', 'کشاورزی یا جنگلی'],
             ['other', 'سایر'],
-          ], { isRequired: true }),
+          ], { isRequired: true, validation: { by_country: deAt({ option_labels: { allotment: 'باغچه (Kleingarten)' } }) } }),
         ],
       }),
       leaf('commercial-rent', 'اجاره ملک تجاری و اداری', {
-        attributes: [propertyUse, extraCosts(false), deposit, availableFrom('قابل استفاده از')],
+        attributes: [
+          propertyUse,
+          commercialExtraCosts,
+          // Commercial rents usually come plus VAT (field audit §3)
+          {
+            key: 'vat',
+            type: 'select',
+            labelFa: 'مالیات بر ارزش افزوده',
+            validation: { by_country: { DE: { label: 'مالیات بر ارزش افزوده (MwSt.)' }, AT: { label: 'مالیات بر ارزش افزوده (USt.)' }, GB: { label: 'مالیات بر ارزش افزوده (VAT)' } } },
+            options: options([
+              ['plus', 'به اضافهٔ مالیات'],
+              ['included', 'با مالیات'],
+              ['none', 'بدون مالیات'],
+            ]),
+          },
+          deposit(false),
+          availableFrom('قابل استفاده از'),
+        ],
       }),
       leaf('commercial-sale', 'فروش ملک تجاری و اداری', { attributes: [propertyUse, yearBuilt] }),
       leaf('parking-garages', 'گاراژ و جای پارک', {

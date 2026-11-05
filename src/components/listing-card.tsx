@@ -30,8 +30,8 @@ export type CardData = {
   founding?: boolean;
   /** Posted by a verified business */
   verified?: boolean;
-  /** A WG room where the address may be registered: «Anmeldung» on the photo (mockup final/ui.js) */
-  anmeldung?: boolean;
+  /** A WG room where the address may be registered: the country's word on the photo, «Anmeldung» in Germany (mockup final/ui.js) */
+  anmeldung?: string | null;
   /** After the price: «سرد، ماهانه» for rent */
   unit?: string | null;
   /** Without a photo: the category on a soft tile, and the business under it on its page (mockup final/business-page) */
@@ -89,8 +89,8 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
         </span>
       )}
       {card.anmeldung && (
-        <span title={t.anmeldungTitle} className={`absolute end-1.5 rounded-md bg-white/95 px-1.5 text-xs font-bold leading-5 text-brand-800 ${view === 'grid' ? 'bottom-1.5' : 'bottom-1'}`}>
-          <bdi>Anmeldung</bdi>
+        <span title={t.anmeldungTitle(card.anmeldung)} className={`absolute end-1.5 rounded-md bg-white/95 px-1.5 text-xs font-bold leading-5 text-brand-800 ${view === 'grid' ? 'bottom-1.5' : 'bottom-1'}`}>
+          <bdi>{card.anmeldung}</bdi>
         </span>
       )}
     </div>

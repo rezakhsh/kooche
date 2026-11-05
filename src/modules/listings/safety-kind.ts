@@ -7,7 +7,7 @@ export type SafetyKind = 'rent' | 'vehicle' | 'tickets' | 'jobs' | 'pets' | 'gen
 /** Rooms and flats to rent, and the real-estate root above them */
 export const RENT_SLUGS = new Set(['real-estate', 'apartments-rent', 'houses-rent', 'shared-rooms', 'short-term-rent']);
 
-/** A room is let for one monthly rent; flats and houses for the cold rent (owner, Nov 3, 2026) */
+/** A room is let for one monthly rent (owner, Nov 3, 2026), per week or month in GB and AU */
 export const PLAIN_RENT_SLUGS = new Set(['shared-rooms']);
 
 /**
@@ -16,7 +16,29 @@ export const PLAIN_RENT_SLUGS = new Set(['shared-rooms']);
  */
 export const PERIOD_RENT_SLUGS = new Set(['short-term-rent']);
 
-export type RentKind = 'cold' | 'plain' | 'period';
+/**
+ * How a flat's or house's rent reads (field audit item 6, approved by the owner on Nov 5, 2026):
+ * - cold: the cold rent, extra costs on top (DE: Kaltmiete + Nebenkosten);
+ * - gross: the whole rent, the extra costs a part of it (AT Bruttomiete, FR charges comprises);
+ * - net: the base rent, service charges on top (NL kale huur, IT canone);
+ * - weekly: one rent a week (AU);
+ * - plain: one rent a month (everywhere else; a WG room's everywhere but GB and AU);
+ * - period: per night, week or month as the poster chooses (short lets; WG rooms in GB and AU).
+ */
+export type RentKind = 'cold' | 'gross' | 'net' | 'weekly' | 'plain' | 'period';
+
+/** Countries whose flats and houses aren't let for one plain monthly rent */
+export const RENT_STYLE: Readonly<Record<string, 'cold' | 'gross' | 'net' | 'weekly'>> = {
+  DE: 'cold',
+  AT: 'gross',
+  FR: 'gross',
+  NL: 'net',
+  IT: 'net',
+  AU: 'weekly',
+};
+
+/** Countries where a WG room is let per week or per month, as the poster chooses (SpareRoom, Flatmates.com.au) */
+export const ROOM_PERIOD_COUNTRIES: ReadonlySet<string> = new Set(['GB', 'AU']);
 
 /** The units of a short let's price (`rent_period`'s values) */
 export const RENT_PERIODS = ['night', 'week', 'month'] as const;
@@ -27,11 +49,16 @@ export const rentPeriodOf = (attributes: Record<string, unknown> | null | undefi
   return typeof p === 'string' && (RENT_PERIODS as readonly string[]).includes(p) ? (p as RentPeriod) : null;
 };
 
-/** How a category's price reads: the cold rent, the plain rent of a room, a short let's rent per period, or not a rent (null). `path`: root first */
-export function rentKind(path: { slug: string }[]): RentKind | null {
+/**
+ * How a category's price reads in a country (`RentKind`), or null when it isn't a rent. `path`:
+ * root first. `country`: the listing's or page's; null reads as Germany's, where the site began.
+ */
+export function rentKind(path: { slug: string }[], country: string | null): RentKind | null {
   if (!path.some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate')) return null;
   if (path.some((c) => PERIOD_RENT_SLUGS.has(c.slug))) return 'period';
-  return path.some((c) => PLAIN_RENT_SLUGS.has(c.slug)) ? 'plain' : 'cold';
+  const code = country ?? 'DE';
+  if (path.some((c) => PLAIN_RENT_SLUGS.has(c.slug))) return ROOM_PERIOD_COUNTRIES.has(code) ? 'period' : 'plain';
+  return RENT_STYLE[code] ?? 'plain';
 }
 
 /** Top categories whose things aren't sent by post: no «ارسال پستی» in their form or filters */

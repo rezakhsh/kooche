@@ -32,7 +32,33 @@ export type AttributeValidation = {
   help_in?: Record<string, string>;
   /** multi_select filter: listings must have all chosen values (an equipment checklist); default any */
   filter?: 'all';
+  /** Country codes the field is offered in (default: all); elsewhere it is like a retired field (field audit item 5) */
+  countries?: string[];
+  /** Country codes the field isn't offered in */
+  hidden_in?: string[];
+  /**
+   * What changes per country: country code → its rule; `*` for the countries without a line of
+   * their own (the neutral form). The definition's own label, hint and options are the base.
+   */
+  by_country?: Record<string, CountryFieldRule>;
 };
+
+/** A field's changes in one country (field audit items 5–9, approved by the owner on Nov 5, 2026) */
+export type CountryFieldRule = {
+  label?: string;
+  help?: string;
+  unit?: string;
+  required?: boolean;
+  /** The option values offered there, in this order (a subset of the field's options) */
+  options?: string[];
+  /** Option value → its label there */
+  option_labels?: Record<string, string>;
+  min?: number;
+  max?: number;
+};
+
+/** The key of `by_country` for countries without a rule of their own */
+export const OTHER_COUNTRIES = '*';
 
 export type AttributeOption = { value: string; labelFa: string; parentValue: string | null };
 
@@ -198,11 +224,48 @@ export function ancestry(catalog: Catalog, categoryId: string): CategoryNode[] {
   return chain;
 }
 
+/** Whether a field is offered in a country (its `countries` and `hidden_in`) */
+export function offeredIn(v: AttributeValidation, country: string): boolean {
+  return (!v.countries || v.countries.includes(country)) && !v.hidden_in?.includes(country);
+}
+
+/**
+ * A field as a country sees it (field audit item 5): not offered there, it is like a retired field
+ * (values kept, not asked, not shown, not filtered); else its country's label, hint, unit,
+ * required, options and limits replace the base. Values are stored the same way everywhere.
+ */
+export function inCountry(d: AttributeDef, country: string): AttributeDef {
+  const v = d.validation;
+  if (!offeredIn(v, country)) return d.isActive ? { ...d, isActive: false } : d;
+  const rule = v.by_country?.[country] ?? v.by_country?.[OTHER_COUNTRIES];
+  if (!rule) return d;
+  let options = d.options;
+  if (rule.options) {
+    const allowed = rule.options;
+    options = d.options.filter((o) => allowed.includes(o.value)).sort((a, b) => allowed.indexOf(a.value) - allowed.indexOf(b.value));
+  }
+  if (rule.option_labels) {
+    const labels = rule.option_labels;
+    options = options.map((o) => (Object.hasOwn(labels, o.value) ? { ...o, labelFa: labels[o.value]! } : o));
+  }
+  return {
+    ...d,
+    labelFa: rule.label ?? d.labelFa,
+    helpFa: rule.help ?? d.helpFa,
+    unitFa: rule.unit ?? d.unitFa,
+    isRequired: rule.required ?? d.isRequired,
+    options,
+    validation: rule.min !== undefined || rule.max !== undefined ? { ...v, ...(rule.min !== undefined ? { min: rule.min } : {}), ...(rule.max !== undefined ? { max: rule.max } : {}) } : v,
+  };
+}
+
 /**
  * The fields a listing in this category has: the definitions of every ancestor and of the
  * category itself (docs/schema.md, section 5), retired ones included so old values still display.
+ * `country`: the listing's or the page's, whose rules apply (`inCountry`); null, the base
+ * definitions (no country yet, or code that only needs keys and options).
  */
-export function effectiveAttributes(catalog: Catalog, categoryId: string): AttributeDef[] {
+export function effectiveAttributes(catalog: Catalog, categoryId: string, country: string | null): AttributeDef[] {
   const chain = ancestry(catalog, categoryId);
   const slugs = new Set(chain.map((c) => c.slug));
   const ownHint = (d: AttributeDef) => {
@@ -215,7 +278,8 @@ export function effectiveAttributes(catalog: Catalog, categoryId: string): Attri
     c.ownAttributes.map((d) => {
       const optional = d.isRequired && d.validation.optional_in?.some((s) => slugs.has(s));
       const hint = ownHint(d);
-      return optional || hint !== undefined ? { ...d, ...(optional ? { isRequired: false } : {}), ...(hint !== undefined ? { helpFa: hint } : {}) } : d;
+      const local = country ? inCountry(d, country) : d;
+      return optional || hint !== undefined ? { ...local, ...(optional ? { isRequired: false } : {}), ...(hint !== undefined ? { helpFa: hint } : {}) } : local;
     }),
   );
 }

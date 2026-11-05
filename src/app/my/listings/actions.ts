@@ -126,7 +126,7 @@ export async function saveListingAction(_: SaveState, form: FormData): Promise<S
   if (sent && sent !== countryCode) return { errors: { countryCode: 'locked' }, error: messages.form.fixErrors, listingId: created };
 
   const catalog = await cachedCatalog(appDb());
-  const defs = effectiveAttributes(catalog, own.listing.categoryId);
+  const defs = effectiveAttributes(catalog, own.listing.categoryId, countryCode);
   const lat = number(form.get('areaLat'));
   const lng = number(form.get('areaLng'));
   const parsed = listingInputSchema.safeParse({

@@ -15,6 +15,7 @@ import {
 } from '../src/modules/listings/listings';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from '../src/modules/listings/limits';
 import { rentUnit } from '../src/modules/listings/card';
+import { REGISTRATION_WORD, registrationNumberRequired } from '../src/modules/listings/country-fields';
 import { exchangeAllowed, rentKind, rentPeriodOf, shippable } from '../src/modules/listings/safety-kind';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { firstStepWithErrors, stepOf } from '../src/app/my/listings/[id]/steps';
@@ -420,7 +421,7 @@ describe('attribute validation (against category_attributes)', () => {
 
   it('every car make has «other models», so a required model is always possible', async () => {
     const catalog = await cachedCatalog(appDb);
-    const defs = effectiveAttributes(catalog, (await categoryBySlug('cars')).id);
+    const defs = effectiveAttributes(catalog, (await categoryBySlug('cars')).id, 'DE');
     const brands = defs.find((d) => d.key === 'brand')!.options;
     const models = defs.find((d) => d.key === 'model')!.options;
     expect(brands.length).toBeGreaterThanOrEqual(45);
@@ -442,7 +443,7 @@ describe('attribute validation (against category_attributes)', () => {
 
     const { validateAttributes } = await import('../src/modules/listings/attributes');
     const catalog = await cachedCatalog(appDb);
-    const motorbike = effectiveAttributes(catalog, (await categoryBySlug('motorcycles')).id);
+    const motorbike = effectiveAttributes(catalog, (await categoryBySlug('motorcycles')).id, 'DE');
     expect(validateAttributes(motorbike, { inspection_until: '2027-03' }, 'draft')).toEqual({ ok: true, value: { inspection_until: '2027-03' } });
     expect(validateAttributes(motorbike, { inspection_until: '2027-03-01' }, 'draft')).toMatchObject({ ok: false });
     expect(validateAttributes(motorbike, { inspection_until: '2027-00' }, 'draft')).toMatchObject({ ok: false });
@@ -497,7 +498,7 @@ describe('attribute validation (against category_attributes)', () => {
   it('a required field can be optional in one category: no size for a parking space', async () => {
     const catalog = await cachedCatalog(appDb);
     const area = async (slug: string) =>
-      effectiveAttributes(catalog, (await categoryBySlug(slug)).id).find((d) => d.key === 'area_m2')!.isRequired;
+      effectiveAttributes(catalog, (await categoryBySlug(slug)).id, 'DE').find((d) => d.key === 'area_m2')!.isRequired;
     expect(await area('apartments-rent')).toBe(true);
     expect(await area('parking-garages')).toBe(false);
   });
@@ -505,7 +506,7 @@ describe('attribute validation (against category_attributes)', () => {
   it('dependent select: a karat only for gold', async () => {
     const { validateAttributes } = await import('../src/modules/listings/attributes');
     const catalog = await cachedCatalog(appDb);
-    const defs = effectiveAttributes(catalog, (await categoryBySlug('jewelry-watches')).id);
+    const defs = effectiveAttributes(catalog, (await categoryBySlug('jewelry-watches')).id, 'DE');
     expect(validateAttributes(defs, { jewelry_material: 'gold', gold_karat: 'k18' }, 'draft')).toMatchObject({ ok: true });
     expect(validateAttributes(defs, { jewelry_material: 'silver', gold_karat: 'k18' }, 'draft')).toEqual({
       ok: false,
@@ -515,7 +516,7 @@ describe('attribute validation (against category_attributes)', () => {
 
   it('inherited fields count: a phone gets electronics «condition»', async () => {
     const catalog = await cachedCatalog(appDb);
-    const keys = effectiveAttributes(catalog, (await categoryBySlug('mobile-phones')).id).map((d) => d.key);
+    const keys = effectiveAttributes(catalog, (await categoryBySlug('mobile-phones')).id, 'DE').map((d) => d.key);
     expect(keys).toEqual(expect.arrayContaining(['condition', 'brand', 'storage_gb']));
     expect(keys.indexOf('condition')).toBeLessThan(keys.indexOf('brand'));
   });
@@ -620,11 +621,11 @@ describe('posting fields after the field audit', () => {
     expect((await listing(id)).attributes).toMatchObject({ rent_period: 'night', guests: 4, cleaning_fee: 4_000, min_stay: 'n2' });
     const catalog = await cachedCatalog(appDb);
     const l = await listing(id);
-    expect(rentUnit(catalog, l.categoryId, l.priceMinor, l.attributes as Record<string, unknown>)).toBe('هر شب');
-    expect(rentUnit(catalog, l.categoryId, l.priceMinor, { rent_period: 'month' })).toBe('هر ماه');
+    expect(rentUnit(catalog, l.categoryId, l.priceMinor, 'DE', l.attributes as Record<string, unknown>)).toBe('هر شب');
+    expect(rentUnit(catalog, l.categoryId, l.priceMinor, 'DE', { rent_period: 'month' })).toBe('هر ماه');
     // Flats keep the cold rent, rooms the plain monthly rent
-    expect(rentUnit(catalog, (await categoryBySlug('apartments-rent')).id, 90_000, {})).toBe('سرد، ماهانه');
-    expect(rentUnit(catalog, (await categoryBySlug('shared-rooms')).id, 50_000, {})).toBe('ماهانه');
+    expect(rentUnit(catalog, (await categoryBySlug('apartments-rent')).id, 90_000, 'DE', {})).toBe('سرد، ماهانه');
+    expect(rentUnit(catalog, (await categoryBySlug('shared-rooms')).id, 50_000, 'DE', {})).toBe('ماهانه');
   });
 
   it('a room in a shared flat is never the entire place, and says whether bills are included', async () => {
@@ -635,14 +636,14 @@ describe('posting fields after the field audit', () => {
     expect(await save({ area_m2: 14, room_type: 'entire_place' })).toMatchObject({ errors: { 'attr.room_type': 'unknown_option' } });
     expect(await save({ area_m2: 14, room_type: 'private_room', bills_included: 'all', min_stay: 'm6', private_bathroom: true, couples_ok: false })).toMatchObject({ ok: true });
     const catalog = await cachedCatalog(appDb);
-    const fields = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id);
+    const fields = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id, 'DE');
     expect(fields('shared-rooms').find((d) => d.key === 'room_type')!.options.map((o) => o.value)).toEqual(['private_room', 'shared_room']);
     expect(fields('short-term-rent').find((d) => d.key === 'room_type')!.options.map((o) => o.value)).toContain('entire_place');
   });
 
   it('the area has a hint only where it means something else', async () => {
     const catalog = await cachedCatalog(appDb);
-    const area = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id).find((d) => d.key === 'area_m2')!;
+    const area = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id, 'DE').find((d) => d.key === 'area_m2')!;
     expect(area('apartments-rent').helpFa).toBeNull();
     expect(area('shared-rooms').helpFa).toBe('متراژ خود اتاق');
     expect(area('land-gardens').helpFa).toBe('متراژ کل زمین');
@@ -689,10 +690,108 @@ describe('posting fields after the field audit', () => {
   });
 
   it('rent kinds: a short let is per period', () => {
-    expect(rentKind([{ slug: 'real-estate' }, { slug: 'short-term-rent' }])).toBe('period');
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'short-term-rent' }], 'DE')).toBe('period');
     expect(rentPeriodOf({ rent_period: 'week' })).toBe('week');
     expect(rentPeriodOf({ rent_period: 'year' })).toBeNull();
     expect(rentPeriodOf(null)).toBeNull();
+  });
+});
+
+// Field audit items 5–6 (approved by the owner on Nov 5, 2026; docs/research/field-audit.md §20):
+// each country sees its own words and fields; values are stored the same way everywhere.
+describe('posting fields per country', () => {
+  const fieldsIn = async (slug: string, country: string | null) => {
+    const catalog = await cachedCatalog(appDb);
+    return effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id, country);
+  };
+  const field = async (slug: string, country: string | null, key: string) => (await fieldsIn(slug, country)).find((d) => d.key === key)!;
+  const offered = async (slug: string, country: string | null) => (await fieldsIn(slug, country)).filter((d) => d.isActive).map((d) => d.key);
+
+  it('Germany reads as before', async () => {
+    expect((await field('shared-rooms', 'DE', 'anmeldung')).labelFa).toBe('Anmeldung ممکن');
+    const costs = await field('apartments-rent', 'DE', 'extra_costs');
+    expect(costs.labelFa).toBe('هزینه‌های جانبی ماهانه (Nebenkosten)');
+    expect(costs.isRequired).toBe(true);
+    expect((await field('apartments-rent', 'DE', 'wbs_required')).isActive).toBe(true);
+    expect((await field('apartments-rent', 'DE', 'rooms')).labelFa).toBe('تعداد اتاق به حساب آلمانی (Zimmer)');
+    expect((await field('apartments-rent', 'DE', 'apartment_type')).options.find((o) => o.value === 'attic')!.labelFa).toBe('زیرشیروانی (Dachgeschoss)');
+    expect((await field('apartments-rent', 'DE', 'energy_class')).options.map((o) => o.value)).toEqual(['a_plus', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    expect(await offered('apartments-rent', 'DE')).not.toContain('bathrooms');
+    expect(await offered('apartments-rent', 'DE')).not.toContain('bills_included');
+    expect(await offered('apartments-rent', 'DE')).toEqual(expect.arrayContaining(['energy_certificate', 'energy_value', 'energy_source', 'energy_issued']));
+    // Optional, as on Kleinanzeigen: §87 GModG binds only commercial ads with a certificate
+    for (const key of ['energy_class', 'energy_certificate', 'energy_value', 'energy_source', 'energy_issued']) {
+      expect((await field('apartments-rent', 'DE', key)).isRequired).toBe(false);
+    }
+  });
+
+  it('Anmeldung only where tenants register, under the local word', async () => {
+    expect((await field('shared-rooms', 'AT', 'anmeldung')).labelFa).toBe('Meldezettel ممکن');
+    expect((await field('shared-rooms', 'NL', 'anmeldung')).labelFa).toBe('inschrijving ممکن');
+    for (const c of ['GB', 'FR', 'US', 'CA', 'AU', 'BE']) expect(await offered('shared-rooms', c)).not.toContain('anmeldung');
+    // The chip's words are exactly the field's countries
+    const anmeldung = await field('shared-rooms', null, 'anmeldung');
+    expect([...(anmeldung.validation.countries ?? [])].sort()).toEqual(Object.keys(REGISTRATION_WORD).sort());
+  });
+
+  it("each country's rent block", async () => {
+    const path = (slug: string) => [{ slug: 'real-estate' }, { slug }];
+    expect(rentKind(path('apartments-rent'), 'DE')).toBe('cold');
+    expect(rentKind(path('apartments-rent'), 'AT')).toBe('gross');
+    expect(rentKind(path('houses-rent'), 'FR')).toBe('gross');
+    expect(rentKind(path('apartments-rent'), 'NL')).toBe('net');
+    expect(rentKind(path('apartments-rent'), 'AU')).toBe('weekly');
+    expect(rentKind(path('apartments-rent'), 'GB')).toBe('plain');
+    expect(rentKind(path('shared-rooms'), 'GB')).toBe('period');
+    expect(rentKind(path('shared-rooms'), 'AT')).toBe('plain');
+    // AT: the extra costs are part of the whole rent, optional; FR: required by law
+    expect((await field('apartments-rent', 'AT', 'extra_costs')).labelFa).toContain('Betriebskosten');
+    expect((await field('apartments-rent', 'AT', 'extra_costs')).isRequired).toBe(false);
+    expect((await field('apartments-rent', 'FR', 'extra_costs')).isRequired).toBe(true);
+    // One rent and "bills included?" where there are no extra costs
+    for (const c of ['GB', 'US', 'AU', 'SE', 'BE']) {
+      expect(await offered('apartments-rent', c)).not.toContain('extra_costs');
+      expect(await offered('apartments-rent', c)).toContain('bills_included');
+    }
+    expect(await offered('apartments-rent', 'AT')).not.toContain('wbs_required');
+    expect((await field('apartments-rent', 'AU', 'deposit')).labelFa).toBe('ودیعه (bond)');
+    expect((await field('commercial-rent', 'AU', 'deposit')).helpFa).toBeNull();
+    // A room in GB and AU: per week or month
+    expect(await offered('shared-rooms', 'GB')).toContain('rent_period');
+    expect(await offered('shared-rooms', 'DE')).not.toContain('rent_period');
+    const catalog = await cachedCatalog(appDb);
+    const flat = catalog.bySlug.get('apartments-rent')!.id;
+    expect(rentUnit(catalog, flat, 110_000, 'AT', {})).toBe('کل، ماهانه');
+    expect(rentUnit(catalog, flat, 45_000, 'AU', {})).toBe('هر هفته');
+    expect(rentUnit(catalog, catalog.bySlug.get('shared-rooms')!.id, 20_000, 'GB', { rent_period: 'week' })).toBe('هر هفته');
+  });
+
+  it('UK, US, CA and AU count bedrooms and bathrooms; the area in square feet in UK, US and CA', async () => {
+    expect(await offered('apartments-rent', 'GB')).toEqual(expect.arrayContaining(['bathrooms', 'council_tax_band']));
+    expect(await offered('apartments-rent', 'US')).not.toContain('rooms');
+    expect(await offered('apartments-rent', 'US')).not.toContain('council_tax_band');
+    expect(await offered('apartments-sale', 'GB')).toContain('tenure');
+    expect((await field('apartments-rent', 'US', 'area_m2')).unitFa).toBe('فوت مربع');
+    expect((await field('apartments-rent', 'AU', 'area_m2')).unitFa).toBe('متر مربع');
+    expect((await field('apartments-rent', 'FR', 'rooms')).labelFa).toContain('pièces');
+    // Energy on each country's scale, none in the US
+    expect((await field('apartments-rent', 'IT', 'energy_class')).options.map((o) => o.labelFa)).toEqual(['A4', 'A3', 'A2', 'A1', 'B', 'C', 'D', 'E', 'F', 'G']);
+    expect((await field('apartments-rent', 'BE', 'energy_class')).options.map((o) => o.value)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+    expect(await offered('apartments-rent', 'US')).not.toContain('energy_class');
+    expect((await field('apartments-sale', 'US', 'owner_fee')).labelFa).toContain('HOA');
+  });
+
+  it('a whole flat by the night in Berlin needs its registration number', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'short-term-rent');
+    const save = (attributes: Record<string, unknown>) =>
+      input({ title: 'آپارتمان برای چند شب', attributes, amount: '90' }).then((x) => saveListing(appDb, { userId: u.id, listingId: id, input: x, intent: 'publish' }));
+    expect(await save({ area_m2: 50, rent_period: 'night', room_type: 'entire_place' })).toMatchObject({ errors: { 'attr.registration_number': 'required' } });
+    // A room, or a whole flat by the month, doesn't
+    expect(await save({ area_m2: 50, rent_period: 'month', room_type: 'entire_place' })).toMatchObject({ ok: true });
+    expect(registrationNumberRequired({ countryCode: 'DE', citySlug: 'munich' }, { room_type: 'entire_place', rent_period: 'night' })).toBe(false);
+    expect(registrationNumberRequired({ countryCode: 'IT', citySlug: 'milan' }, { room_type: 'entire_place', rent_period: 'week' })).toBe(true);
+    expect(registrationNumberRequired({ countryCode: 'IT', citySlug: 'milan' }, { room_type: 'private_room', rent_period: 'week' })).toBe(false);
   });
 });
 

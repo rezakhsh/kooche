@@ -167,7 +167,7 @@ const SELECT = sql`
 const indexable = (r: Row) => r.status === 'active' && !!r.country_code && !!r.category_id && !!r.location_id && r.lat !== null && r.lng !== null && r.ranked_at !== null;
 
 export function documentOf(catalog: Catalog, r: Row): ListingDocument {
-  const defs = effectiveAttributes(catalog, r.category_id!).filter((d) => d.isActive);
+  const defs = effectiveAttributes(catalog, r.category_id!, r.country_code).filter((d) => d.isActive);
   const price = r.price_type === 'free' ? 0 : r.price_minor === null ? null : Number(r.price_minor);
   return {
     id: r.id,
