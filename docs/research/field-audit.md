@@ -8,9 +8,19 @@ How it was checked:
 - one test ad published in every subcategory and event type, to see the cards and listing pages (list at the end);
 - what the big local sites and the law ask in each country, compared.
 
-**Why the other countries look the same.** On staging only Germany is open; the other 10 countries are on waitlist. So every test account (UK, US, Australia…) gets Germany's form, with €. The code shows the forms have **no country awareness at all**: the same fields, labels, units (m², km, EU sizes) and German terms appear in every country. Only the currency symbol and Turkey's notes change. So the country findings below come from the code plus research, not from screenshots.
+**Other countries, seen in the browser (owner's OK, Nov 5).** On staging only Germany is open, so a test account from another country first got Germany's form. The UK, US, Sweden and Australia were therefore opened for posting ("prestart") for about a minute (17:48–17:49 UTC) and then put back on waitlist. No emails were sent and nothing was published. In those four countries, 26 forms each were compared with Germany's:
+- **The only difference is the currency:** £ (UK), $ (US), kr (Sweden), A$ (Australia).
+- **Everything else is word for word Germany's,** in every form.
+  - Rent: «اجارهٔ سرد ماهانه», «Nebenkosten», «Kaution», the «Kaltmiete» hint.
+  - Housing: Einbauküche, Keller, Altbau, WBS «فقط آلمان», Energieausweis, m².
+  - Cars: «TÜV/HU یا Pickerl», km, PS.
+  - Jobs: «سطح زبان آلمانی», Minijob, «Brutto».
+  - Sizes: EU sizes, «سایز آلمانی».
+- **The other six countries:** the code works the same way for all of them, so they would look the same.
 
-Pictures: `/root/peydoo-media/wave2/field-audit/staging/germany/` (step 3 of each checked form, phone and computer; the short-let card and listing page).
+Pictures:
+- Germany: `/root/peydoo-media/wave2/field-audit/staging/germany/` (step 3 of each checked form, phone and computer; the short-let card and listing page).
+- UK, US, Sweden, Australia: `…/staging/uk/`, `…/us/`, `…/sweden/`, `…/australia/` (15 forms each, phone and computer). For example, `staging/uk/apartments-rent-uk-phone.png` shows a UK landlord being asked for the cold rent in £, Nebenkosten, Kaution and WBS.
 
 ---
 
