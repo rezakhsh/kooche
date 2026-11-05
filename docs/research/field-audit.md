@@ -619,6 +619,178 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 
 ---
 
+## 20. Items 5–9: plan (waiting for the owner's approval, Nov 5, 2026)
+
+**The goal.** Every country gets its own words, fields and units in the posting form, on cards, on listing pages and in filters. Today only the currency changes (section 17).
+
+**For Germany, almost nothing changes.** It keeps today's words. The few changes that do reach Germany are marked **(DE too)** below. One of them is a legal fix: the energy data that §87 GModG requires.
+
+**Countries covered.** The 11 researched countries: DE, AT, NL, UK, FR, IT, SE, US, CA, AU and TR.
+- Every other country gets **neutral** forms: Persian words with no local term in brackets, and no country-only fields (WBS, Anmeldung, council tax…).
+- Opening any other country later then needs one short step: fill in its line. That step goes into the "Countries" opening checklist in `docs/setup.md`.
+
+**Where the choice was open, the plan picks what the big local sites and the law do.** The reason is given each time.
+
+It is built in **three parts**. Each part is tested, put on staging and checked on phone and computer, light and dark, before the next one starts. Austria comes first in every part, because it is the next country to open.
+
+### Part A. The building block, housing and the Anmeldung chip (items 5 and 6)
+
+**A1. The building block (item 5).** Each field in the category list can now say, per country:
+- **shown or hidden.** For example, WBS appears in Germany only.
+- **its own label and hint.** For example, «امکان ثبت آدرس (Meldezettel)» in Austria.
+- **its own options.** For example, the job contract types.
+- **required or optional.** For example, salary is required in Austria.
+- **its own unit.** For example, miles, sq ft or rent per week.
+
+How it reaches the screens:
+- The form, card, listing page, filters and search all read the field list through one function, which now also receives the listing's country.
+- A listing always has a country, and a browse page always has one, so nothing has to be guessed.
+- Values are stored as today; only what people see changes.
+- No database change is needed: the rules live in the category list (the seed), like the hints added in items 1–4.
+- A seed check makes sure every country rule names a real country and a real option.
+
+**A2. Rent block per country (item 6).** The long-term rent form (flats and houses, and commercial rent):
+
+| Country | What the landlord fills in | What the card shows | Why |
+| --- | --- | --- | --- |
+| DE | Kaltmiete + Nebenkosten (as today) | «۹۰۰ € سرد، ماهانه» (as today) | German ads and the law lead with cold rent |
+| AT | Hauptmietzins + Betriebskosten | the total: «۱٬۱۰۰ € کل، ماهانه» | Austrian sites (willhaben) lead with the gross rent |
+| NL | kale huur + servicekosten | rent + «+ ۸۰ € شارژ» | Pararius and Funda show both |
+| FR | loyer hors charges + charges | the total, «با شارژ» | the law requires "charges comprises" in every ad |
+| IT | canone + spese condominiali | rent + «+ شارژ» | Immobiliare.it shows both |
+| SE | one rent | «… ماهانه» | heating is usually included |
+| UK, US, CA | one rent + «قبوض داخل اجاره: همه / بعضی / هیچ» | «… ماهانه» | Rightmove, Zillow and Kijiji show one rent; the bills question is the same as in the WG form |
+| AU | one rent **per week** | «… هر هفته» | Domain and realestate.com.au show weekly rent only |
+
+- **Deposit.** Each country has its own name and legal cap as a hint, e.g. «دیپازیت (bond)، معمولاً ۴ هفته» in Australia (table in section 3). In Ontario: «اجارهٔ ماه آخر».
+- **WG rooms.** The UK and AU let the poster choose per week or per month, as SpareRoom and Flatmates.com.au do.
+- **Filters.** These follow the same rules: total rent in AT and FR, weekly rent in AU.
+
+**A3. Anmeldung, the field and the chip on the photo (item 6, the owner's request).**
+- **Where it exists, it gets the local word,** in the form, on the photo chip, in its tooltip and in the filter:
+  - DE: Anmeldung
+  - AT: Meldezettel
+  - NL: inschrijving
+  - SE: folkbokföring
+  - IT: residenza
+- **Where there is no such duty, it is hidden everywhere,** chip included: UK, FR, US, CA, AU and every country without a line.
+- **Hints.** The hint names the local office: Bürgeramt (DE), Meldeamt (AT), gemeente (NL), Skatteverket (SE), Comune (IT).
+
+**A4. Other housing fields by country.**
+- **WBS:** Germany only. «فقط آلمان» is removed from its label.
+- **Energy:**
+  - **DE too, the legal fix.** A new question: «گواهی انرژی (Energieausweis)»: دارد / هنوز ندارد / لازم نیست (بنای تاریخی). When the answer is "دارد", the law's set becomes required:
+    - certificate type: Verbrauch or Bedarf;
+    - the value in kWh/(m²·a);
+    - the main energy source: gas, district heating, heat pump, oil, …;
+    - the year built (already there);
+    - the class (already there).
+  - **AT:** the HWB value and its class.
+  - **UK:** EPC A–G.
+  - **FR:** DPE A–G, plus GES.
+  - **IT:** APE A4–G.
+  - **NL:** label A++++–G.
+  - **SE, US, CA, AU:** no energy field (not asked in ads).
+- **Area.** UK, US and CA sellers can enter sq ft. It is stored in m², and both units are shown, as on Rightmove.
+- **Bathrooms:** a new optional field in UK, US, CA and AU, where every site asks it.
+- **Local room count.** Zimmer is already there for DE and AT. NL: kamers; FR: pièces; IT: locali; SE: rum. It is hidden in UK, US, CA and AU, which count bedrooms only.
+- **UK council-tax band** (A–H). Required on UK rent ads since 2022 by Trading Standards ("material information").
+- **Owner costs on sale ads.**
+  - The local name: Hausgeld (DE), Betriebskosten (AT), service charge (UK), charges de copropriété (FR), spese condominiali (IT), HOA fee (US/CA), strata (AU).
+  - UK sales also get tenure (freehold / leasehold).
+  - «provisionsfrei» is shown only where buyers may pay the agent: DE, AT and NL.
+- **Short-let registration number.** Required for whole-flat nightly lets where the law requires it in every ad: Berlin, Amsterdam, Paris, New York and all of Italy (CIN). Optional everywhere else.
+- **Type lists.** The German words in brackets (Etagenwohnung…) stay in DE and AT only.
+- **Commercial rent:** «با مالیات بر ارزش افزوده / بدون آن» (with or without VAT), in all countries **(DE too)**.
+
+### Part B. Jobs and vehicles (items 7 and 8)
+
+**B1. Jobs.**
+- **Language level.** «سطح زبان آلمانی» becomes the country's own language:
+  - German: DE, AT
+  - Dutch: NL
+  - French: FR
+  - Italian: IT
+  - Swedish: SE
+  - English: UK, US, AU, and CA (English or French)
+  - Turkish: TR
+  - Neutral elsewhere: «سطح زبان محلی»
+  - Ads already saved keep their value.
+- **Contract types per country** (full list in section 13): Minijob and Werkstudent only in DE; geringfügig and Lehre in AT; CDI and CDD in FR; casual in AU; and so on. Full-time, part-time, internship and freelance stay everywhere.
+- **Subcategory names.** «آوسبیلدونگ» is shown as «کارآموزی حرفه‌ای (Lehre)» in AT and as «کارآموزی حرفه‌ای (apprenticeship)» in English-speaking countries. The address of the page does not change.
+- **Salary.**
+  - **DE too:** a from–to range («از … تا …»), as on Indeed and StepStone. It is still optional.
+  - **Required where the law asks:** AT (the minimum pay, GlBG §9(2)), US, and CA (Ontario, employers with 25+ staff).
+    - US and Canada: a business ad must give the range. The form says why.
+    - A private person posting a job is asked too, since the form can't tell how many staff they have.
+  - The hint shows the local word: Brutto, gross, brut, lordo, brutto.
+- **(m/w/d).** A hint under the title for DE and AT job ads: «عنوان باید برای همهٔ جنسیت‌ها باشد، مثلاً (m/w/d)». This is the law there (AGG and GlBG), and every German job board shows it.
+
+**B2. Vehicles (cars, motorbikes, campers, commercial vehicles).**
+- **Inspection** gets the local name:
+
+  | DE | AT | NL | UK | FR | IT | SE | AU |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | TÜV/HU | Pickerl | APK | MOT | contrôle technique | revisione | besiktning | rego (months left) |
+
+  - It is hidden in the US and CA, where it depends on the state.
+- **Mileage.** Entered and shown in miles in the UK and US. It is stored in km, so filters and sorting keep working.
+- **Power.** PS in DE and AT; bhp in the UK; hp in the US and CA; kW in AU. One stored value; only the unit shown changes.
+- **Euro emission class:** Europe only. The UK also gets «ULEZ: بله / خیر», which matters in London.
+- **Service book.** «Scheckheft» becomes «دفترچه سرویس کامل» everywhere **(DE too)**. The German word stays in brackets in DE and AT.
+- **Motorbike licence classes** (AM/A1/A2/A): hidden in the US, CA and AU.
+
+### Part C. Sizes, exams, languages and service units (item 9)
+
+- **Clothes.** The letter (XS…XL) stays and is stored as today. The number in brackets follows the country:
+  - EU numbers in Europe;
+  - UK numbers in the UK and AU;
+  - US numbers in the US and CA.
+- **Shoes.** UK sizes in the UK, US sizes in the US and CA, EU sizes elsewhere, as Vinted does.
+- **Kids' clothes.**
+  - By height in cm in Europe.
+  - By age («۵–۶ سال») in the UK, US, CA and AU.
+  - «سایز آلمانی» becomes a neutral hint **(DE too)**.
+- **Car seats.** Add «i-Size (بر اساس قد)» next to groups 0+/1/2/3 **(DE too)**. New seats are sold that way since 2024.
+- **Exam names.**
+  - Language exams follow the country (Goethe/telc in DE and AT, IELTS in UK/US/CA/AU, DELF in FR, NT2 in NL, CELI in IT, SFI in SE).
+  - The school leaving exam too: Abitur/Matura, A-levels, bac, maturità, eindexamen, HSC/VCE.
+  - «آلمانی (درسی)» becomes the country's language.
+- **Language lists** (books, translation, language courses, events) **(DE too):**
+  - Add Dutch, Italian, Swedish and Spanish.
+  - The country's own language moves to the top after Persian.
+  - Event languages use the country's language instead of German.
+- **German service words in brackets** (Entrümpelung, Endreinigung, beglaubigt): the local word per country (section 11), or none.
+- **Service price units per subcategory** **(DE too):**
+  - Cleaning, painting and tiling keep "per m²".
+  - Hairdressing, translation and IT drop it.
+  - Translation gets "per page".
+- **Rideshare** **(DE too):**
+  - One price, «سهم هزینهٔ هر نفر» (cost per seat). No "negotiable" (exchange was already removed).
+  - New fields: departure time, and one way or return.
+  - Reason: in Germany a ride may only share costs, and BlaBlaCar works the same way.
+
+### What stays out (for later, or not at all)
+
+- **France CAF/APL:** a yes/no can be added when France opens.
+- **Optional extras:** the EU pet passport, appliance energy labels, inches for carpets, and steering side for car imports.
+- **Turkey phones:** an IMEI-registered field waits for the Turkey session, which owns Turkey's rules.
+
+### How it will be built and checked
+
+- **Where.** A separate worktree, one part at a time. Each part ends in a commit, a staging deploy and a seed run.
+- **Tests.**
+  - For each country rule: a field shown or hidden, the label, a required salary, miles stored as km, the rent total.
+  - Plus a seed check that every rule names a real country and option.
+- **On staging.** Each changed form, card, listing page and open filter panel is opened:
+  - in **Germany** (to prove nothing changed there except the marked items);
+  - in **Austria, the UK and Australia**, each opened for posting for a minute, as in the audit, and put back to waitlist.
+  - Pictures go to `/root/peydoo-media/wave2/country-fields/`.
+  - The test ads in other countries are kept as test data.
+- **Production:** only when the owner says so (`peydoo-promote` plus the seed run).
+
+---
+
 ## Appendix: one test ad in every subcategory (owner's request, Nov 5, 2026)
 
 One published test ad in each of the 119 subcategories and 9 event types (128 in all), in Berlin (10999 Kreuzberg).
