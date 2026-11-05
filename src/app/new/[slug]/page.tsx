@@ -8,7 +8,7 @@ import { ListingEditor } from '../../my/listings/[id]/editor';
 import { NoScriptSteps } from '../../my/listings/[id]/no-script-steps';
 import { PostingBar } from '../posting-bar';
 import { editorData } from '../../my/listings/editor-data';
-import { chosenCountry } from '../../country-choice';
+import { chosenPostingCountry } from '../../country-choice';
 import { myBusinesses } from '../../../modules/organizations/organizations';
 import { isClosedIn } from '../../../modules/listings/country-rules';
 
@@ -32,7 +32,9 @@ export default async function NewInCategoryPage({ params, searchParams }: { para
   if (!openToPoster(category, (await myBusinesses(db, user.id)).length > 0)) redirect('/new?error=business_only');
   if (isEventCategory(catalog, category.id)) redirect(`/events/new?type=${category.slug}`);
 
-  const editor = await editorData(db, user.id, category.id, null, [], (await chosenCountry(db))?.code ?? null, kind);
+  // The posting country as the picker and the save action read it (open or prestart, not the cached
+  // list of open countries: a country opened minutes ago counts at once)
+  const editor = await editorData(db, user.id, category.id, null, [], (await chosenPostingCountry(db))?.code ?? null, kind);
   // Closed by the posting country's law (src/modules/listings/country-rules.ts: Turkey's housing and cars)
   if (editor.form.country && isClosedIn(catalog, category.id, editor.form.country.code)) redirect('/new?error=closed_in_country');
   // Steps 2–4 of posting (wave 1, src/app/my/listings/[id]/steps.ts); each step has its heading
