@@ -2034,3 +2034,11 @@ Stripe's compliance review asked for evidence that no payment comes from its res
 - **n8n:** staging's «Peydoo – admin alerts» accepts `payment_restricted` since Nov 5, 2026 (owner's yes). A signed test reached Telegram only after the alert text put `payment.restricted_country` in backticks: n8n sends Markdown, and the bare `_` made Telegram refuse it (fixed in `fa.ts`, with a test). **Production's «Peydoo – production admin alerts» still needs the kind added at release** (one line, `docs/setup.md` › "Admin page" › "The owner's alert"); the permission guard refused that edit. The audit entry, refund and buyer notice don't depend on it.
 - **Production:** on the owner's «release» (no migration). The Cloudflare header is already on there, because it's zone-wide.
 
+
+### Payment block: released to production (Nov 5, 2026)
+
+- 07:55 UTC: production backup (restic snapshot `1395fe14`), then `peydoo-promote 2e24418 --yes`. No migrations, no seed change, so no seed run.
+- Checks: `/health` ok (PostgreSQL and Valkey), home, `/germany`, `/germany/berlin`, `/help` and `/cities` 200; the worker is healthy with no errors; the live web build contains the `restricted_country` guard.
+- Production now blocks Stripe's restricted places before checkout and refunds them after payment (Cuba, Iran, North Korea, Syria; Crimea, Sevastopol, Donetsk, Luhansk, Zaporizhzhia, Kherson; Tor). Payments are still the Stripe sandbox (`PAYMENTS_LIVE` unset).
+- Still open: the `payment_restricted` alert kind in both n8n alert workflows (staging and production), so the owner gets a Telegram alert on a refusal. Refunds and buyer notices work without it.
+- Next: the checkout video for Stripe on staging, then the final reply to Stripe.
