@@ -47,23 +47,30 @@ Pictures:
      - **DE:** Kaltmiete + Nebenkosten = Warmmiete (as today).
      - **AT:** Hauptmietzins + Betriebskosten (+10% VAT) = Bruttomiete. Austrian ads lead with the gross figure.
      - **NL:** kale huur + servicekosten.
-     - **FR:** loyer hors charges + charges = charges comprises. French law requires these in every rental ad, private ones too.
+     - **FR:** loyer hors charges + charges = charges comprises. French law requires these in every rental ad, private ones too since July 2022 (loi 3DS). In rent-control cities the ad must also show the reference rent.
      - **IT:** canone + spese condominiali.
      - **SE:** one rent (heating usually included).
      - **UK, US, CA:** one monthly rent + "bills or utilities included: yes / some / no".
      - **AU:** rent per **week**.
      - Show WBS in Germany only.
-4. **Energy data: German law asks for more than we collect.**
-   - **Problem.** German law asks for more than the class whenever a certificate exists (§87 GModG, which replaced the GEG in July 2026; fine up to €10,000). The ad must show:
+4. **Energy data: we ask only for the class.** *(Corrected Nov 5, 2026 after the owner's question; see section 20, "Corrections".)*
+   - **The law, checked.** §87 GModG (the GEG's new name since July 29, 2026) applies only when **both** are true:
+     - a valid certificate already exists when the ad goes up;
+     - the ad is in a "commercial medium".
+     Haus & Grund reads the second as: free private ads are not covered. Agents and businesses are.
+   - **When it applies,** the ad must show:
      - the certificate type;
      - the kWh value;
      - the main energy source;
      - the year built;
      - the class.
-   - Other countries:
-     - AT ads must show the HWB value.
-     - UK, FR, IT and NL ads must show their own label, each on its own scale (UK EPC A–G, FR DPE A–G, IT A4–G).
-   - **Fix.** Energy fields per country; for Germany, the full set.
+     From Jan 1, 2027 also the issue date, and the primary-energy value for new certificates. The fine is up to €10,000.
+   - **A private landlord without a certificate** may advertise without any energy data. That is the owner's experience.
+   - **Kleinanzeigen:** the same set as optional fields. Vonovia fills them; private landlords leave them empty.
+   - **Other countries:**
+     - AT: HWB, EEB and the class, since July 2026.
+     - SE, UK, FR, IT, NL: each its own label and scale.
+   - **Fix.** Optional energy fields per country, like Kleinanzeigen. Never required.
 5. **«Anmeldung» answers the owner's question.** It exists in some other countries under other names, and not in others. Full answer in section 2.
    - **Fix.** Use the local word where it exists. Hide it where it doesn't (UK, FR, US, CA, AU).
    - **The chip on the photo too.** Cards put a white «Anmeldung» label over the room's photo; the word is fixed in the code (`src/components/listing-card.tsx`), in every country. It should show the country's own word (Meldezettel, inschrijving, folkbokföring, residenza) and not appear at all in countries without registration. The same goes for its tooltip and the filter.
@@ -247,14 +254,14 @@ Optional for France: what tenants ask there is whether the flat qualifies for **
 | NL | waarborgsom | 2 months |
 | UK | deposit | 5 weeks |
 | FR | dépôt de garantie | 1 month unfurnished, 2 furnished |
-| AU | bond | usually 4 weeks |
+| AU | bond | about 4 weeks; varies by state |
 | Ontario | last month's rent | 1 month; no damage deposit |
 
 - Bedrooms (plus local rooms where used, plus bathrooms in UK/US/CA/AU).
 - WBS in Germany only.
 - Energy fields by country.
 - Type lists: keep the German words in brackets only in DE and AT.
-- UK: add the council-tax band. It must be in every rental ad since 2022 (Trading Standards' "material information").
+- UK: add the council-tax band. Trading Standards' "material information" guidance (2022) expects it in every rental ad; it is guidance, not law. Rightmove shows it.
 
 ### Buying a flat or house (فروش آپارتمان، فروش خانه)
 
@@ -318,14 +325,14 @@ The set matches mobile.de and AutoScout24 well.
 
 | | DE | AT | NL | UK | FR | IT | SE | US | CA | AU |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Inspection name | HU/TÜV | Pickerl (§57a) | APK | MOT | contrôle technique | revisione | besiktning | varies by state, leave out | safety certificate (Ontario), leave out | roadworthy; rego months left |
+| Inspection name | HU/TÜV | Pickerl (§57a) | APK | MOT | contrôle technique | revisione | besiktning | varies by state, leave out | safety certificate (Ontario), leave out | roadworthy; rego expiry |
 | Distance | km | km | km | **miles** | km | km | km (Swedes often say mil = 10 km) | **miles** | km | km |
 | Power | PS (kW) | PS (kW) | pk (kW) | **bhp** | ch (kW) | CV (kW) | hk (kW) | **hp** | **hp** | **kW** |
 
 Other points:
-- Euro emission class only in Europe. The UK also asks about ULEZ.
+- Euro emission class only in Europe. (In the UK, ULEZ follows from it; AutoTrader has no separate field.)
 - "Scheckheft" becomes a neutral «دفترچه سرویس کامل».
-- Australia: add "rego (registration) months left". It's a standard field there, like the remaining third-party insurance on Divar.
+- Australia: add "rego expiry" (registration expiry date). It's a standard field there, like the remaining third-party insurance on Divar.
 
 **Change:**
 - Inspection label and units by country.
@@ -504,7 +511,7 @@ Other points:
 | Deposit name | Kaution | Kaution | waarborgsom | deposit | dépôt de garantie | cauzione | deposition | security deposit | deposit (ON: last month) | bond | closed |
 | Address registration | Anmeldung | Meldezettel | inschrijving | – | – | residenza | folkbokföring | – | – | – | closed |
 | Social-housing permit | WBS | – | – | – | – | – | – | – | – | – | closed |
-| Energy in ads | class + kWh + source + year | HWB | label | EPC | DPE | APE class | – | – | – | – | closed |
+| Energy in ads (if a certificate exists; optional on Peydoo) | type + kWh + source + year + class | HWB + EEB + class | label | EPC | DPE + GES | APE class | energiklass | – | – | – | closed |
 | Rooms | Zimmer | Zimmer | kamers | bedrooms | pièces | locali | rum | bedrooms | bedrooms | bedrooms | closed |
 | Area | m² | m² | m² | sq ft + m² | m² | m² | m² | sq ft | sq ft | m² | closed |
 | Short-let registration no. | Berlin and others | Vienna from 2027 | Amsterdam | (London 90 nights) | Paris and others | CIN everywhere | – | NYC | some cities | some states | closed |
@@ -621,9 +628,24 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 
 ## 20. Items 5–9: plan (waiting for the owner's approval, Nov 5, 2026)
 
+**Corrections after the owner's question "are you sure about everything?" (Nov 5, 2026).** Every legal claim in this plan was checked again against the law texts and official pages:
+- **Energy (the big one).** The first version called the German energy data a "legal fix", with the fields required. That was wrong for private landlords. §87 applies only when a certificate already exists and the ad is commercial; free private ads are not covered (Haus & Grund, July 2026). Kleinanzeigen has the fields, all optional. Now: optional everywhere (section 1, item 4).
+- **The law's name and dates.** The GModG replaced the GEG on July 29, 2026. Its new ad data (issue date, primary energy) starts on Jan 1, 2027.
+- **Salary.** It is required in Austria only. US states and Ontario require it only above a staff size, which the form can't know, so the plan gives a hint there.
+- **UK.**
+  - The council-tax band is guidance, not law, so the field is optional.
+  - No ULEZ field (AutoTrader has none).
+  - The 5-week deposit cap is England's.
+- **Australia:** "rego expiry" (a date), not "months left".
+- **Sweden:** energy class in ads (Boverket); first written as "none".
+- **Austria:** energy data is HWB + EEB + class since July 2026.
+- **France:** the ad rules cover private landlords since 2022.
+- **Confirmed true:** Austria's salary rule, Ontario's last-month deposit, the short-let registration numbers (Berlin, Amsterdam, Paris, Italy's CIN, New York; EU rules since May 20, 2026), AU weekly rent, the rideshare cost-only rule (PBefG §1), the end of R44 car-seat sales (Sept 2024), and the €603 Minijob limit.
+- **Not checked live** (the sites blocked automated visits; known from practice and secondary sources): how willhaben, Pararius and Immobiliare show rent.
+
 **The goal.** Every country gets its own words, fields and units in the posting form, on cards, on listing pages and in filters. Today only the currency changes (section 17).
 
-**For Germany, almost nothing changes.** It keeps today's words. The few changes that do reach Germany are marked **(DE too)** below. One of them is a legal fix: the energy data that §87 GModG requires.
+**For Germany, almost nothing changes.** It keeps today's words. The few changes that do reach Germany are marked **(DE too)** below.
 
 **Countries covered.** The 11 researched countries: DE, AT, NL, UK, FR, IT, SE, US, CA, AU and TR.
 - Every other country gets **neutral** forms: Persian words with no local term in brackets, and no country-only fields (WBS, Anmeldung, council tax…).
@@ -656,13 +678,13 @@ How it reaches the screens:
 | DE | Kaltmiete + Nebenkosten (as today) | «۹۰۰ € سرد، ماهانه» (as today) | German ads and the law lead with cold rent |
 | AT | Hauptmietzins + Betriebskosten | the total: «۱٬۱۰۰ € کل، ماهانه» | Austrian sites (willhaben) lead with the gross rent |
 | NL | kale huur + servicekosten | rent + «+ ۸۰ € شارژ» | Pararius and Funda show both |
-| FR | loyer hors charges + charges | the total, «با شارژ» | the law requires "charges comprises" in every ad |
+| FR | loyer hors charges + charges | the total, «با شارژ» | the law requires "charges comprises" in every ad, private ones too (since 2022) |
 | IT | canone + spese condominiali | rent + «+ شارژ» | Immobiliare.it shows both |
 | SE | one rent | «… ماهانه» | heating is usually included |
 | UK, US, CA | one rent + «قبوض داخل اجاره: همه / بعضی / هیچ» | «… ماهانه» | Rightmove, Zillow and Kijiji show one rent; the bills question is the same as in the WG form |
 | AU | one rent **per week** | «… هر هفته» | Domain and realestate.com.au show weekly rent only |
 
-- **Deposit.** Each country has its own name and legal cap as a hint, e.g. «دیپازیت (bond)، معمولاً ۴ هفته» in Australia (table in section 3). In Ontario: «اجارهٔ ماه آخر».
+- **Deposit.** Each country has its own name and legal cap as a hint, e.g. «دیپازیت (bond)، معمولاً ۴ هفته» in Australia (table in section 3). In Ontario: «اجارهٔ ماه آخر». Where the cap differs by region, the hint says "usually".
 - **WG rooms.** The UK and AU let the poster choose per week or per month, as SpareRoom and Flatmates.com.au do.
 - **Filters.** These follow the same rules: total rent in AT and FR, weekly rent in AU.
 
@@ -679,22 +701,24 @@ How it reaches the screens:
 **A4. Other housing fields by country.**
 - **WBS:** Germany only. «فقط آلمان» is removed from its label.
 - **Energy:**
-  - **DE too, the legal fix.** A new question: «گواهی انرژی (Energieausweis)»: دارد / هنوز ندارد / لازم نیست (بنای تاریخی). When the answer is "دارد", the law's set becomes required:
+  - **Optional everywhere, never required,** as on Kleinanzeigen. The law asks for the data only when a certificate already exists and the ad is commercial (section 1, item 4).
+  - **DE too.** Next to the class (already there), add the rest of Kleinanzeigen's set, all optional:
     - certificate type: Verbrauch or Bedarf;
     - the value in kWh/(m²·a);
     - the main energy source: gas, district heating, heat pump, oil, …;
-    - the year built (already there);
-    - the class (already there).
-  - **AT:** the HWB value and its class.
+    - the issue date.
+    Verified businesses (agents) see a one-line hint: «اگر گواهی انرژی دارید، قانون می‌خواهد این‌ها در آگهی باشد».
+  - **AT:** HWB, EEB and the class.
   - **UK:** EPC A–G.
   - **FR:** DPE A–G, plus GES.
   - **IT:** APE A4–G.
   - **NL:** label A++++–G.
-  - **SE, US, CA, AU:** no energy field (not asked in ads).
+  - **SE:** energiklass A–G.
+  - **US, CA, AU:** no energy field (not asked in ads).
 - **Area.** UK, US and CA sellers can enter sq ft. It is stored in m², and both units are shown, as on Rightmove.
 - **Bathrooms:** a new optional field in UK, US, CA and AU, where every site asks it.
 - **Local room count.** Zimmer is already there for DE and AT. NL: kamers; FR: pièces; IT: locali; SE: rum. It is hidden in UK, US, CA and AU, which count bedrooms only.
-- **UK council-tax band** (A–H). Required on UK rent ads since 2022 by Trading Standards ("material information").
+- **UK council-tax band** (A–H), optional. Trading Standards' guidance expects it on rent ads, and Rightmove shows it.
 - **Owner costs on sale ads.**
   - The local name: Hausgeld (DE), Betriebskosten (AT), service charge (UK), charges de copropriété (FR), spese condominiali (IT), HOA fee (US/CA), strata (AU).
   - UK sales also get tenure (freehold / leasehold).
@@ -720,23 +744,22 @@ How it reaches the screens:
 - **Subcategory names.** «آوسبیلدونگ» is shown as «کارآموزی حرفه‌ای (Lehre)» in AT and as «کارآموزی حرفه‌ای (apprenticeship)» in English-speaking countries. The address of the page does not change.
 - **Salary.**
   - **DE too:** a from–to range («از … تا …»), as on Indeed and StepStone. It is still optional.
-  - **Required where the law asks:** AT (the minimum pay, GlBG §9(2)), US, and CA (Ontario, employers with 25+ staff).
-    - US and Canada: a business ad must give the range. The form says why.
-    - A private person posting a job is asked too, since the form can't tell how many staff they have.
+  - **Required in Austria only:** GlBG §9(2) asks every job ad for Austria to state the minimum pay, with no size limit.
+  - **US and Canada: optional, with a hint.** Many US states (CA, CO, NY, WA, IL, MA and others) and Ontario require a range, but only above a staff size (from 1 to 30 depending on the state; 25 in Ontario). The form can't know a poster's staff size, so it says «در بسیاری از ایالت‌ها نوشتن بازهٔ حقوق اجباری است» instead of forcing it, as Indeed does.
   - The hint shows the local word: Brutto, gross, brut, lordo, brutto.
-- **(m/w/d).** A hint under the title for DE and AT job ads: «عنوان باید برای همهٔ جنسیت‌ها باشد، مثلاً (m/w/d)». This is the law there (AGG and GlBG), and every German job board shows it.
+- **(m/w/d).** A hint under the title for DE and AT job ads: «عنوان باید برای همهٔ جنسیت‌ها باشد، مثلاً (m/w/d)». Neutral wording is the law there (AGG §11, GlBG §9); "(m/w/d)" is the usual way to show it.
 
 **B2. Vehicles (cars, motorbikes, campers, commercial vehicles).**
 - **Inspection** gets the local name:
 
   | DE | AT | NL | UK | FR | IT | SE | AU |
   | --- | --- | --- | --- | --- | --- | --- | --- |
-  | TÜV/HU | Pickerl | APK | MOT | contrôle technique | revisione | besiktning | rego (months left) |
+  | TÜV/HU | Pickerl | APK | MOT | contrôle technique | revisione | besiktning | rego expiry |
 
   - It is hidden in the US and CA, where it depends on the state.
 - **Mileage.** Entered and shown in miles in the UK and US. It is stored in km, so filters and sorting keep working.
 - **Power.** PS in DE and AT; bhp in the UK; hp in the US and CA; kW in AU. One stored value; only the unit shown changes.
-- **Euro emission class:** Europe only. The UK also gets «ULEZ: بله / خیر», which matters in London.
+- **Euro emission class:** Europe only. No separate ULEZ field for the UK: AutoTrader has none, and it follows from the Euro class.
 - **Service book.** «Scheckheft» becomes «دفترچه سرویس کامل» everywhere **(DE too)**. The German word stays in brackets in DE and AT.
 - **Motorbike licence classes** (AM/A1/A2/A): hidden in the US, CA and AU.
 
