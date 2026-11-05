@@ -9,6 +9,9 @@ const TR_REPRESENTATIVE_FA = operator.turkeyRepresentative
   ? `${operator.turkeyRepresentative.name}، ${operator.turkeyRepresentative.address}، ایمیل: ${operator.turkeyRepresentative.email}`
   : '[نام و نشانی نماینده در ترکیه: هنوز تعیین نشده]';
 
+/** «e-Devlet» glued with a word joiner, so a right-to-left line never breaks it after the hyphen */
+const EDEVLET = 'e-\u2060Devlet';
+
 /** Latin digits in a section number as Persian digits: 5.2 → ۵.۲ */
 export const faDigits = (s: string) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]!);
 
@@ -605,17 +608,17 @@ export const messages = {
   // Nov 5, 2026). Notes on the country's pages and in the posting form, and the refusals.
   countryRules: {
     /** The one line on Turkey's pages and in the posting picker */
-    closedNote: 'طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید e-Devlet ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند.',
+    closedNote: `طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید ${EDEVLET} ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند.`,
     rulesLink: 'قوانین ترکیه در پیدو',
     notes: {
-      closed: 'طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید e-Devlet ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند.',
+      closed: `طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید ${EDEVLET} ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند.`,
       adoption: 'در ترکیه سگ و گربه فقط برای واگذاری رایگان آگهی می‌شود؛ فروش آن‌ها طبق قانون حمایت از حیوانات ترکیه ممنوع است.',
       workPermit: 'در ترکیه مسئولیت مجوز کار (çalışma izni) برای این خدمت یا کلاس با خود شماست.',
       jobs: 'در ترکیه آگهی کار فقط از کسب‌وکار تأییدشده منتشر می‌شود. تلفن و ایمیل کسب‌وکار بدون ورود برای همه کنار آگهی دیده می‌شود؛ پیدو دکمهٔ درخواست و جمع‌آوری رزومه ندارد (قانون کاریابی ترکیه).',
       screening: 'در ترکیه آگهی‌ای که به الکل، دخانیات، دارو، سلاح، اشیای تاریخی، طلا و ارز، سیم‌کارت، مدارک یا گوشی بدون ثبت IMEI اشاره کند، پیش از انتشار بررسی می‌شود.',
     } as Record<string, string>,
     refused: {
-      closed_in_country: 'طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید e-Devlet ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند. آگهی‌تان پیش‌نویس می‌ماند.',
+      closed_in_country: `طبق قانون ترکیه، آگهی مسکن و خودرو فقط با تأیید ${EDEVLET} ممکن است؛ این دسته‌ها در پیدو برای ترکیه باز نیستند. آگهی‌تان پیش‌نویس می‌ماند.`,
       adoption_only: 'در ترکیه سگ و گربه فقط برای واگذاری رایگان آگهی می‌شود؛ فروش آن‌ها ممنوع است. قیمت را «رایگان» بگذارید.',
       verified_employer_required: 'در ترکیه آگهی کار فقط از کسب‌وکار تأییدشده منتشر می‌شود (قانون کاریابی ترکیه). آگهی را به نام کسب‌وکار تأییدشده‌تان بفرستید؛ تا آن موقع پیش‌نویس می‌ماند.',
       service_not_allowed: 'در ترکیه آگهی کمک برای ویزا، اقامت (ikamet) یا تابعیت، و انتقال پول و تبدیل ارز پذیرفته نمی‌شود. متن را اصلاح کنید؛ آگهی‌تان پیش‌نویس می‌ماند.',
