@@ -30,15 +30,15 @@ describe('what Iran may do (owner, Oct 27, 2026)', () => {
     await seedCatalog();
     const gateway = new FakeGateway();
     const { seller, listing } = await sellerWithListing();
-    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromIran: true })).toEqual({ ok: false, reason: 'from_iran' });
+    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromRestrictedCountry: true })).toEqual({ ok: false, reason: 'restricted_country' });
     const { org, ownerId } = await business();
-    const plan = { userId: ownerId, organizationId: org.id, appUrl: APP, business: true, fromIran: true };
-    expect(await startPlanCheckout(appDb, gateway, { ...plan, plan: 'pro', interval: 'month' })).toEqual({ ok: false, reason: 'from_iran' });
-    expect(await startFoundingCheckout(appDb, gateway, plan)).toEqual({ ok: false, reason: 'from_iran' });
-    expect(await openBillingPortal(appDb, gateway, plan)).toEqual({ ok: false, reason: 'from_iran' });
+    const plan = { userId: ownerId, organizationId: org.id, appUrl: APP, business: true, fromRestrictedCountry: true };
+    expect(await startPlanCheckout(appDb, gateway, { ...plan, plan: 'pro', interval: 'month' })).toEqual({ ok: false, reason: 'restricted_country' });
+    expect(await startFoundingCheckout(appDb, gateway, plan)).toEqual({ ok: false, reason: 'restricted_country' });
+    expect(await openBillingPortal(appDb, gateway, plan)).toEqual({ ok: false, reason: 'restricted_country' });
     expect(gateway.checkouts).toHaveLength(0);
     // The same purchase from elsewhere goes ahead
-    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromIran: false })).toMatchObject({ ok: true });
+    expect(await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP, fromRestrictedCountry: false })).toMatchObject({ ok: true });
   });
 
   it('never says "sanctions" to the person', () => {

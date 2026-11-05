@@ -1082,6 +1082,8 @@ export const messages = {
     terms: 'شرایط خدمات پولی',
     errors: {
       from_iran: 'پرداخت از داخل ایران ممکن نیست. وقتی خارج از ایران هستید دوباره امتحان کنید.',
+      // Stripe's restricted places other than Iran (src/lib/region.ts); a request from Iran keeps the line above
+      restricted_country: 'پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست. وقتی جای دیگری هستید دوباره امتحان کنید.',
       waiver_required: 'برای شروع فوری، تیک موافقت را بزنید.',
       not_allowed: 'این گزینه برای این آگهی ممکن نیست.',
       not_found: 'این آگهی پیدا نشد.',
@@ -1441,6 +1443,7 @@ export const messages = {
       errors: {
         business_required: 'تیک «برای کسب‌وکارم می‌خرم» را بزنید.',
         from_iran: 'پرداخت از داخل ایران ممکن نیست. وقتی خارج از ایران هستید دوباره امتحان کنید.',
+        restricted_country: 'پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست. وقتی جای دیگری هستید دوباره امتحان کنید.',
         already_subscribed: 'این کسب‌وکار همین حالا اشتراک دارد؛ برای تغییر از «مدیریت اشتراک» استفاده کنید.',
         legal_missing: 'اول اطلاعات قانونی کسب‌وکار (Impressum) را کامل کنید.',
         not_allowed: 'این گزینه در دسترس نیست.',
@@ -1642,6 +1645,8 @@ export const messages = {
     /** Wave 2 part 7: every price is in euros */
     inEuros: 'قیمت‌ها به یوروست. بیرون از کشورهای یورو، در صفحهٔ پرداخت می‌توانید با پول کشور خودتان هم بپردازید.',
     iranNote: 'پرداخت از داخل ایران ممکن نیست؛ ساخت حساب کسب‌وکار و ۳ آگهی رایگان ممکن است.',
+    // Stripe's other restricted places (src/lib/region.ts)
+    restrictedNote: 'پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست؛ ساخت حساب کسب‌وکار و ۳ آگهی رایگان ممکن است.',
     // The founding offer first (wave 0 rules: offered by Peydoo to verified businesses, places per city)
     founding: {
       title: (city: string) => `کسب‌وکارهای بنیان‌گذار ${city}: ۶ ماه پرو رایگان`,
@@ -2125,6 +2130,8 @@ export const messages = {
   viewAs: {
     banner: (country: string) => `نمای بازدیدکننده از ${country}، بدون حساب`,
     iran: 'ایران',
+    // Stripe's other restricted countries (src/lib/region.ts), to see the payment notice (Nov 2026)
+    places: { CU: 'کوبا', KP: 'کرهٔ شمالی', SY: 'سوریه' } as Record<string, string>,
     end: 'پایان',
   },
   iran: {
@@ -2144,6 +2151,11 @@ export const messages = {
     },
     // Instead of the pay buttons (promote and billing pages), and when a payment is refused
     payments: 'پرداخت از داخل ایران ممکن نیست. وقتی خارج از ایران هستید دوباره امتحان کنید. بقیهٔ کارها از همین‌جا ممکن است، از جمله استفاده از نردبان‌ها و آگهی‌های ویژهٔ اشتراک پرو و انصراف از خرید.',
+  },
+  // Paying from Stripe's other restricted places (src/lib/region.ts; owner, Nov 4, 2026): instead of
+  // the pay buttons. Iran keeps its own text above. Never "sanctions" (owner's wording rule).
+  paymentPlace: {
+    notice: 'پرداخت از منطقه‌ای که الان در آن هستید ممکن نیست. وقتی جای دیگری هستید دوباره امتحان کنید. بقیهٔ کارها از همین‌جا ممکن است، از جمله استفاده از نردبان‌ها و آگهی‌های ویژهٔ اشتراک پرو و انصراف از خرید.',
   },
   phone: {
     title: 'تأیید شماره تلفن',
@@ -2431,6 +2443,20 @@ export const messages = {
         subject: (product: string) => `${product} دوباره فعال شد`,
         intro: (product: string, title: string) => `اعتراض به پرداخت «${product}» برای آگهی «${title}» بسته شد و پرداخت سر جایش ماند.`,
         body: 'باقی‌ماندهٔ ویژه بودن یا نردبان‌های اجرانشدهٔ آن دوباره فعال است.',
+      },
+      // The billing address was in a place payments can't come from (src/modules/payments/restricted.ts):
+      // nothing was granted and the money goes back
+      orderRefused: {
+        subject: (product: string) => `پول «${product}» برگشت داده شد`,
+        intro: (product: string, title: string) =>
+          `پرداخت «${product}» برای آگهی «${title}» را نمی‌توانیم بپذیریم، چون نشانی صورت‌حساب آن در منطقه‌ای است که پیدو از آن پرداخت نمی‌پذیرد. این خرید فعال نشد و مبلغ کامل برگشت داده می‌شود.`,
+        body: 'رسیدن پول بسته به بانک یا PayPal ۵ تا ۱۰ روز کاری طول می‌کشد. خود آگهی سر جایش می‌ماند. اگر نشانی را اشتباه وارد کرده‌اید، با نشانی درست دوباره بخرید.',
+      },
+      proRefused: {
+        subject: (name: string) => `اشتراک «${name}» فعال نشد`,
+        intro: (name: string) =>
+          `اشتراک پروی «${name}» را نمی‌توانیم بپذیریم، چون نشانی صورت‌حساب آن در منطقه‌ای است که پیدو از آن پرداخت نمی‌پذیرد. اشتراک لغو شد و اگر پولی پرداخت شده بود، کامل برگشت داده می‌شود.`,
+        body: 'صفحهٔ کسب‌وکار و آگهی‌های منتشرشده می‌مانند. رسیدن پول بسته به بانک ۵ تا ۱۰ روز کاری طول می‌کشد. اگر نشانی را اشتباه وارد کرده‌اید، با نشانی درست دوباره مشترک شوید.',
       },
       orderPaid: {
         subject: (product: string) => `پرداخت انجام شد: ${product}`,
@@ -4980,6 +5006,7 @@ export const admin = {
     countryHint: (hours: number) => `فقط در همین مرورگر، تا ${hours.toLocaleString('fa-IR')} ساعت یا تا «پایان». آگهی‌های حساب‌های آزمایشی در این نما دیده نمی‌شوند.`,
     iran: 'ایران',
     now: (country: string, until: string) => `الان سایت را از نگاه ${country} می‌بینید (تا ${until}).`,
+    restricted: 'جاهایی که پرداخت از آن‌ها ممکن نیست (فهرست Stripe):',
     open: 'دیدن سایت',
     end: 'پایان',
     accounts: '۲. حساب‌های آزمایشی، یکی برای هر کشور',
@@ -5435,6 +5462,14 @@ export const admin = {
       `🛡 پیدو: ${items.length.toLocaleString('fa-IR')} به‌روزرسانی امنیتی`,
       ...items.map((i) => `• ${i.name} ${i.ours} → ${i.target ?? '؟'}${i.severity ? ` (${i.severity})` : ''}`),
       'طبق برنامه ظرف یک هفته: اول روی staging با آزمایش‌ها، بعد production.',
+    ].join('\n'),
+  // A payment whose billing address was in a restricted place, refunded (src/modules/payments/restricted.ts)
+  refusedPaymentAlert: (p: { what: 'order' | 'subscription'; place: string; amount: string | null; cancelled: boolean; refunded: boolean }) =>
+    [
+      `⛔️ پیدو: پرداختی با نشانی صورت‌حساب در منطقهٔ محدود Stripe (${p.place}) پذیرفته نشد.`,
+      p.what === 'order' ? 'خرید فعال نشد.' : `اشتراک پرو فعال نشد${p.cancelled ? ' و لغو شد' : ''}.`,
+      p.refunded && p.amount ? `${p.amount} برگشت داده شد.` : 'پولی برای برگرداندن نبود.',
+      'خریدار با ایمیل و تلگرام خبر شد. جزئیات در گزارش رویدادها (payment.restricted_country).',
     ].join('\n'),
   alert: (s: { newReports: number; newAppeals: number; illegal: number; open: number; oldestMinutes: number | null }) =>
     [

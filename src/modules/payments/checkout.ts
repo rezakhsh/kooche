@@ -25,8 +25,11 @@ export type CheckoutRefusal =
   | 'not_allowed'
   /** The withdrawal waiver for an immediate start wasn't ticked */
   | 'waiver_required'
-  /** Paying isn't possible from Iran (src/lib/region.ts); everything else is */
-  | 'from_iran'
+  /**
+   * The request comes from a place payments can't come from: Stripe's restricted jurisdictions
+   * (src/lib/region.ts, PAYMENT_BLOCKED_COUNTRIES; Iran among them). Everything else still works.
+   */
+  | 'restricted_country'
   /** Pro is sold to businesses only: the "for my business" tick wasn't ticked */
   | 'business_required'
   | 'already_subscribed'
@@ -95,8 +98,12 @@ export async function customerFor(
   return winner!.id;
 }
 
-/** Where the request comes from: Stripe's checkout and portal are never opened from Iran (src/lib/region.ts) */
-export type Where = { fromIran?: boolean };
+/**
+ * Where the request comes from (src/lib/region.ts, isRestrictedCountryRequest). Stripe's checkout
+ * and portal are never opened from a restricted place: every function that would call Stripe
+ * checks this first, so Stripe is never asked.
+ */
+export type Where = { fromRestrictedCountry?: boolean };
 
 async function activeUser(db: Queryable, userId: string) {
   const [u] = await db.select({ id: users.id, email: users.email, name: users.displayName, status: users.status }).from(users).where(eq(users.id, userId));
@@ -113,8 +120,8 @@ export async function startListingCheckout(
   gateway: PaymentGateway | null,
   opts: { userId: string; listingId: string; productCode: string; waiver: boolean; appUrl: string; ip?: string | null; userAgent?: string | null } & Where,
 ): Promise<CheckoutResult> {
+  if (opts.fromRestrictedCountry) return { ok: false, reason: 'restricted_country' };
   if (!gateway) return { ok: false, reason: 'payments_off' };
-  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
   const user = await activeUser(db, opts.userId);
   if (!user) return { ok: false, reason: 'sign_in_required' };
   if (user.status !== 'active') return { ok: false, reason: 'account_disabled' };
@@ -205,8 +212,8 @@ export async function openPlanCheckout(gateway: PaymentGateway, customerId: stri
 
 /** «ادامهٔ پرداخت»: back to the buyer's own pending order's Checkout page while it is open */
 export async function resumeOrderCheckout(db: Queryable, gateway: PaymentGateway | null, opts: { userId: string; orderId: string } & Where): Promise<CheckoutResult> {
+  if (opts.fromRestrictedCountry) return { ok: false, reason: 'restricted_country' };
   if (!gateway) return { ok: false, reason: 'payments_off' };
-  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
   const [order] = await db
     .select({ status: orders.status, checkoutId: orders.providerCheckoutId })
     .from(orders)
@@ -256,8 +263,8 @@ export async function startPlanCheckout(
   gateway: PaymentGateway | null,
   opts: { userId: string; organizationId: string; plan: PlanCode; interval: 'month' | 'year'; appUrl: string } & BusinessBuyer & Where,
 ): Promise<CheckoutResult> {
+  if (opts.fromRestrictedCountry) return { ok: false, reason: 'restricted_country' };
   if (!gateway) return { ok: false, reason: 'payments_off' };
-  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
   const user = await activeUser(db, opts.userId);
   if (!user) return { ok: false, reason: 'sign_in_required' };
   if (user.status !== 'active') return { ok: false, reason: 'account_disabled' };
@@ -302,9 +309,9 @@ export async function openBillingPortal(
   gateway: PaymentGateway | null,
   opts: { userId: string; organizationId: string; appUrl: string } & Where,
 ): Promise<CheckoutResult> {
-  if (!gateway) return { ok: false, reason: 'payments_off' };
   // Stripe's portal takes payments too (a new card, a plan change); a running plan just goes on
-  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
+  if (opts.fromRestrictedCountry) return { ok: false, reason: 'restricted_country' };
+  if (!gateway) return { ok: false, reason: 'payments_off' };
   if (!(await isOwner(db, opts.userId, opts.organizationId))) return { ok: false, reason: 'not_found' };
   const [row] = await db
     .select({ customerId: billingCustomers.providerCustomerId, slug: organizations.slug })

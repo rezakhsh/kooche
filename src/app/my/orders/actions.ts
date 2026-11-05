@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { appDb } from '../../../db/drizzle';
 import { clientIp } from '../../../lib/client-ip';
 import { reportError } from '../../../lib/monitoring/server';
-import { isIranRequest } from '../../../lib/region';
+import { isRestrictedCountryRequest } from '../../../lib/region';
 import { resumeOrderCheckout } from '../../../modules/payments/checkout';
 import { paymentGateway } from '../../../modules/payments/server';
 import { withdrawOrder } from '../../../modules/payments/withdrawals';
@@ -31,7 +31,7 @@ export async function resumePaymentAction(form: FormData): Promise<void> {
   if (!parsed.success) redirect('/my/orders');
   const back = `/my/orders/${parsed.data.orderId}`;
   const { user } = await requireSession(back);
-  const r = await resumeOrderCheckout(appDb(), paymentGateway(), { userId: user.id, orderId: parsed.data.orderId, fromIran: isIranRequest(await headers()) }).catch((e: unknown) => {
+  const r = await resumeOrderCheckout(appDb(), paymentGateway(), { userId: user.id, orderId: parsed.data.orderId, fromRestrictedCountry: isRestrictedCountryRequest(await headers()) }).catch((e: unknown) => {
     console.error('payments: resuming a checkout failed:', e instanceof Error ? e.message : e);
     reportError(e, { tags: { action: 'payments.resume' } });
     return { ok: false, reason: 'failed' } as const;

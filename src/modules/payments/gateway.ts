@@ -86,10 +86,17 @@ export interface PaymentGateway {
   /** A customer's latest invoices, €0 trial invoices included (the Customer Portal leaves some out) */
   listInvoices(customerId: string, limit?: number): Promise<InvoiceSummary[]>;
   /**
-   * Refunds part or all of a payment (a consumer's withdrawal, ./withdrawals.ts). The key makes a
+   * Refunds part or all of a payment (a consumer's withdrawal, ./withdrawals.ts; a payment from a
+   * restricted place, ./restricted.ts). The key makes a
    * retried job ask once. What the refund ends is applied from its webhook, never from here.
    */
   createRefund(input: RefundInput): Promise<{ id: string }>;
+  /**
+   * Cancels a subscription at once, without a credit for the unused time (a payment from a
+   * restricted place, ./restricted.ts; its payment is refunded separately). What the end takes is
+   * applied from the webhook (customer.subscription.deleted), never from here.
+   */
+  cancelSubscription(id: string): Promise<void>;
   /**
    * Admin › prices (./prices.ts): the provider's price for an amount, found by its lookup key
    * (switched on again if it was retired) or created. Returns its id.
@@ -295,6 +302,10 @@ export class StripeGateway implements PaymentGateway {
     await this.stripe.billingPortal.configurations.update(config.id, {
       features: { subscription_update: { products: plans.map((p) => ({ product: p.productId, prices: p.priceIds })) } },
     });
+  }
+
+  async cancelSubscription(id: string): Promise<void> {
+    await this.stripe.subscriptions.cancel(id, { prorate: false, cancellation_details: { comment: 'restricted_country' } });
   }
 
   async createRefund(input: RefundInput): Promise<{ id: string }> {

@@ -1,4 +1,4 @@
-import { IranPaymentNotice, fromIran } from '../../../../components/iran';
+import { PaymentPlaceNotice, paymentPlace, placeErrorKey } from '../../../../components/payment-place';
 import { Alert, Button, Card, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
 import { webEnv } from '../../../../lib/env';
@@ -41,13 +41,15 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   const legalOk = legalComplete(org);
   // What the current plan is used for: listings and colleagues (design check, Oct 31, 2026)
   const [usage, team, invited] = await Promise.all([businessUsage(db, org.id), members(db, org.id), pendingInvitations(db, org.id)]);
-  // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
-  const iran = await fromIran();
-  const payments = !!paymentGateway() && !iran;
+  // Paying isn't possible from Iran or Stripe's other restricted places (src/lib/region.ts): a
+  // notice instead of the pay buttons
+  const place = await paymentPlace();
+  const payments = !!paymentGateway() && !place;
   const pro = await proMonthlyText(db);
   // Listed here from Stripe: its Customer Portal leaves out some invoices (the €0 trial invoice)
   const invoices = await businessInvoices(db, paymentGateway(), org.id);
-  const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
+  const errorKey = query.error ? placeErrorKey(query.error, place) : null;
+  const error = errorKey && errorKey in t.errors ? t.errors[errorKey as keyof typeof t.errors] : null;
   const hidden = (
     <>
       <input type="hidden" name="organizationId" value={org.id} />
@@ -75,7 +77,7 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
           </Alert>
         )}
         {error && <Alert tone="error">{error}</Alert>}
-        {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
+        {place ? <PaymentPlaceNotice place={place} /> : !payments && <Alert tone="info">{t.off}</Alert>}
         {/* Wave 1: the legal details can wait until here; paying needs them (legal_missing) */}
         {payments && offer && !legalOk && (
           <Alert tone="info">

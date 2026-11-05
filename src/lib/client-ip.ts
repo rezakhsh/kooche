@@ -83,9 +83,33 @@ export function visitorCountry(headers: Headers): string | null {
   return real === 'IR' ? real : (viewAsCountry(headers) ?? real);
 }
 
-function cloudflareCountry(headers: Headers): string | null {
+function fromCloudflare(headers: Headers): boolean {
   const peer = valid(headers.get('x-forwarded-for')?.split(',').at(-1)) ?? valid(headers.get('x-real-ip'));
-  if (!peer || !isCloudflare(peer)) return null;
+  return !!peer && isCloudflare(peer);
+}
+
+function cloudflareCountry(headers: Headers): string | null {
+  if (!fromCloudflare(headers)) return null;
   const code = headers.get('cf-ipcountry')?.toUpperCase() ?? '';
   return /^[A-Z]{2}$/.test(code) ? code : null;
+}
+
+/**
+ * Where Cloudflare places the visitor, only when the request really came through Cloudflare: the
+ * country as sent (`T1` for Tor and `XX` for unknown included, which visitorCountry() leaves out),
+ * and the first-level region from the "Add visitor location headers" managed transform
+ * (`cf-region-code`, ISO 3166-2 without the country, e.g. `43` for Crimea; `cf-region`, its name;
+ * switched on for peydoo.com on Nov 5, 2026, docs/setup.md "Domain and Cloudflare"). Used for the
+ * payment block (./region.ts). Staff viewing the site as a country are not placed here.
+ */
+export function cloudflareLocation(headers: Headers): { country: string | null; regionCode: string | null; regionName: string | null } | null {
+  if (!fromCloudflare(headers)) return null;
+  const country = headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
+  const regionCode = headers.get('cf-region-code')?.trim().toUpperCase() ?? '';
+  const regionName = headers.get('cf-region')?.trim() ?? '';
+  return {
+    country: /^[A-Z0-9]{2}$/.test(country) ? country : null,
+    regionCode: /^[A-Z0-9]{1,3}$/.test(regionCode) ? regionCode : null,
+    regionName: regionName ? regionName.slice(0, 100) : null,
+  };
 }

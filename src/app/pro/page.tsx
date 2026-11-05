@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
-import { fromIran } from '../../components/iran';
+import { paymentPlace } from '../../components/payment-place';
 import { Icon } from '../../components/icons';
 import { appDb } from '../../db/drizzle';
 import { webEnv } from '../../lib/env';
@@ -22,7 +22,8 @@ import { proMonthlyText } from '../../modules/payments/prices';
 // What Pro costs and includes (wave 1, mockup final/pro; prices decided by the owner Oct 22, 2026):
 // the founding offer of the first open city first, a monthly / yearly switch (CSS only, so it works
 // without JavaScript), three plans with «پیشنهاد ما» on Pro, a short FAQ. Private listings are
-// always free; the page says so first. No pay buttons from Iran (src/lib/region.ts).
+// always free; the page says so first. No pay buttons from Iran or Stripe's
+// other restricted places (src/lib/region.ts).
 
 export function generateMetadata(): Metadata {
   return { title: `${messages.pro.title} | ${messages.site.name}`, description: messages.pro.intro, alternates: { canonical: `${webEnv().APP_URL}/pro` } };
@@ -36,7 +37,7 @@ export default async function ProPage() {
   const db = appDb();
   const t = messages.pro;
   const session = await currentSession();
-  const [owned, iran] = await Promise.all([session ? myBusinesses(db, session.user.id).then((b) => b.filter((x) => x.role === 'owner')) : Promise.resolve([]), fromIran()]);
+  const [owned, place] = await Promise.all([session ? myBusinesses(db, session.user.id).then((b) => b.filter((x) => x.role === 'owner')) : Promise.resolve([]), paymentPlace()]);
   const paid = await Promise.all(
     (['pro', 'pro-plus'] as const).map(async (code): Promise<Plan> => {
       const [month, year] = await Promise.all([activePrice(db, code, 'EUR', 'month'), activePrice(db, code, 'EUR', 'year')]);
@@ -136,7 +137,7 @@ export default async function ProPage() {
                     </li>
                   ))}
                 </ul>
-                {p.code === 'free' || !iran ? (
+                {p.code === 'free' || !place ? (
                   <Link
                     href={startHref(p.code)}
                     className={`mt-5 flex h-12 items-center justify-center rounded-xl font-bold ${rec ? 'bg-brand-700 text-white hover:bg-brand-800' : 'border border-neutral-300 hover:bg-neutral-50'}`}
@@ -144,7 +145,7 @@ export default async function ProPage() {
                     {p.code === 'free' ? (mine ? t.mine : t.createFirst) : t.start(name)}
                   </Link>
                 ) : (
-                  <p className="mt-5 text-xs leading-6 text-neutral-600">{t.iranNote}</p>
+                  <p className="mt-5 text-xs leading-6 text-neutral-600">{place === 'iran' ? t.iranNote : t.restrictedNote}</p>
                 )}
               </section>
             );

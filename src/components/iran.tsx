@@ -6,10 +6,10 @@ import { messages } from '../messages/fa';
 import { loadActor } from '../modules/users/permissions';
 import { currentSession } from '../modules/users/server';
 import { Icon } from './icons';
-import { Alert } from './ui';
 
-// People in Iran (src/lib/region.ts): the banner on every page and the notice that replaces the pay
-// buttons. Only shown to requests from Iran, whose pages are never kept by Cloudflare (src/proxy.ts).
+// People in Iran (src/lib/region.ts): the banner on every page. Only shown to requests from Iran,
+// whose pages are never kept by Cloudflare (src/proxy.ts). The notice that replaces the pay buttons
+// is ./payment-place.tsx (Iran keeps its own text there).
 
 export async function fromIran(): Promise<boolean> {
   return isIranRequest(await headers());
@@ -64,9 +64,4 @@ export async function IranBanner() {
       </section>
     </div>
   );
-}
-
-/** Instead of the pay buttons: paying isn't possible from Iran (src/modules/payments/checkout.ts) */
-export function IranPaymentNotice() {
-  return <Alert tone="info">{messages.iran.payments}</Alert>;
 }

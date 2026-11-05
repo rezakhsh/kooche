@@ -27,7 +27,9 @@ import {
   type Refund,
   type Subscription,
 } from './stripe-objects';
+import { restrictedBillingPlace } from '../../lib/region';
 import { queuePaymentNotice } from './notices';
+import { REFUSED_REVOKE_REASON, refusedPlace, refusePayment } from './restricted';
 import { endWithdrawnOrder } from './withdrawals';
 
 // The worker applies stored webhooks (docs/schema.md, section 12), as classifieds_worker, the only
@@ -35,6 +37,10 @@ import { endWithdrawnOrder } from './withdrawals';
 // in one transaction that locks it first, so a duplicate delivery or a retried job is applied once.
 // Calls back to the provider (the current subscription, an invoice's payments) happen before that
 // transaction, never while the row is locked.
+//
+// A payment whose billing address is in a place payments can't come from (Stripe's restricted
+// jurisdictions, src/lib/region.ts) grants nothing: the order or plan is refused, refunded in full
+// and the subscription cancelled (./restricted.ts), checked in checkoutPaid and invoicePaid.
 
 const DAY_MS = 86_400_000;
 /**
@@ -185,7 +191,34 @@ async function lockOrder(tx: Queryable, session: CheckoutSession): Promise<Order
 async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fetched, ctx: Ctx): Promise<void> {
   if (session.mode === 'subscription') {
     // The subscription itself; its invoice.paid grants the plan
-    if (fetched.subscription) await syncSubscription(tx, fetched.subscription, ctx);
+    if (!fetched.subscription) return;
+    const { row } = await syncSubscription(tx, fetched.subscription, ctx);
+    // A billing address in a restricted place: the plan is refused, cancelled and refunded (./restricted.ts)
+    const place = restrictedBillingPlace(session.customer_details?.address);
+    if (place && row.organizationId && (await refusedPlace(tx, 'subscription', row.id)) === null) {
+      // Its invoice may have been applied first (events out of order): its payment is refunded too
+      const [charge] = session.invoice
+        ? await tx
+            .select()
+            .from(payments)
+            .where(and(eq(payments.subscriptionId, row.id), eq(payments.kind, 'charge'), eq(payments.providerInvoiceId, session.invoice)))
+        : [];
+      await revokeRefusedPeriods(tx, row.id, ctx.now);
+      await refusePayment(
+        tx,
+        { type: 'subscription', subscriptionId: row.id, organizationId: row.organizationId },
+        {
+          what: 'subscription',
+          place,
+          subscription: fetched.subscription.id,
+          paymentIntent: charge?.providerPaymentId ?? null,
+          amountMinor: charge?.amountMinor ?? 0,
+          currency: (charge?.currency ?? session.currency ?? 'EUR').toUpperCase(),
+          key: session.invoice ?? session.id,
+        },
+        { checkout: session.id, invoice: session.invoice },
+      );
+    }
     return;
   }
   if (session.mode !== 'payment') return;
@@ -202,6 +235,8 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
   if (total !== subtotal - discount + tax) throw new Error(`checkout ${session.id}: amounts don't add up`);
   const currency = (session.currency ?? order.currency).toUpperCase();
   if (currency !== order.currency) throw new Error(`checkout ${session.id}: paid in ${currency}, ordered in ${order.currency}`);
+  // A billing address in a restricted place (src/lib/region.ts): recorded as paid, nothing granted, refunded
+  const place = restrictedBillingPlace(session.customer_details?.address);
 
   await tx
     .update(orders)
@@ -231,6 +266,15 @@ async function checkoutPaid(tx: Queryable, session: CheckoutSession, fetched: Fe
         occurredAt: ctx.occurredAt,
       })
       .onConflictDoNothing();
+  }
+  if (place) {
+    await refusePayment(
+      tx,
+      { type: 'order', orderId: order.id },
+      { what: 'order', place, subscription: null, paymentIntent: total > 0 ? session.payment_intent : null, amountMinor: total, currency, key: session.id },
+      { checkout: session.id },
+    );
+    return;
   }
   const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
   // From when it is applied, if later: a delayed webhook never costs the buyer paid days (code check, Oct 30, 2026)
@@ -358,8 +402,10 @@ async function syncSubscription(tx: Queryable, sub: Subscription, ctx: Ctx) {
     .onConflictDoUpdate({ target: subscriptions.providerSubscriptionId, set: values })
     .returning();
 
-  // The owner hears when Pro ends, once (./notices.ts)
-  if (ENDED.has(sub.status) && before && !ENDED.has(before.status)) await queuePaymentNotice(tx, organizationId, { kind: 'pro_ended' });
+  // The owner hears when Pro ends, once (./notices.ts); a refused plan's own notice already said it (./restricted.ts)
+  if (ENDED.has(sub.status) && before && !ENDED.has(before.status) && (await refusedPlace(tx, 'subscription', row!.id)) === null) {
+    await queuePaymentNotice(tx, organizationId, { kind: 'pro_ended' });
+  }
   if (ENDED.has(sub.status)) {
     // What is left of the plan (its grace included) ends with the subscription
     await tx
@@ -416,6 +462,14 @@ export function periodLine(invoice: Pick<Invoice, 'lines'>): Invoice['lines']['d
   return (regular.length ? regular : lines).reduce<(typeof lines)[number] | undefined>((a, l) => (!a || l.period.end > a.period.end ? l : a), undefined);
 }
 
+/** A refused subscription's periods end at once (one granted before the refusal arrived, events out of order) */
+async function revokeRefusedPeriods(tx: Queryable, subscriptionId: string, now: Date): Promise<void> {
+  await tx
+    .update(entitlements)
+    .set({ revokedAt: now, revokeReason: REFUSED_REVOKE_REASON })
+    .where(and(eq(entitlements.subscriptionId, subscriptionId), eq(entitlements.type, 'pro_plan'), isNull(entitlements.revokedAt)));
+}
+
 /** A paid invoice grants its period of Pro (a €0 invoice from the launch coupon too) */
 async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<void> {
   const { invoice, subscription } = fetched;
@@ -435,8 +489,8 @@ async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<v
     : [];
   const planProduct = linePrice?.product ?? product;
 
+  const paid = invoice.amount_paid > 0 ? invoice.payments?.data.find((p) => p.status === 'paid' && p.payment.payment_intent) : undefined;
   if (invoice.amount_paid > 0) {
-    const paid = invoice.payments?.data.find((p) => p.status === 'paid' && p.payment.payment_intent);
     await tx
       .insert(payments)
       .values({
@@ -452,6 +506,27 @@ async function invoicePaid(tx: Queryable, fetched: Fetched, ctx: Ctx): Promise<v
         occurredAt: ctx.occurredAt,
       })
       .onConflictDoNothing();
+  }
+  // A billing address in a restricted place, or a subscription refused before: no period, the
+  // subscription is cancelled and this payment refunded (./restricted.ts)
+  const place = restrictedBillingPlace(invoice.customer_address) ?? (await refusedPlace(tx, 'subscription', row.id));
+  if (place) {
+    await revokeRefusedPeriods(tx, row.id, ctx.now);
+    await refusePayment(
+      tx,
+      { type: 'subscription', subscriptionId: row.id, organizationId: row.organizationId! },
+      {
+        what: 'subscription',
+        place,
+        subscription: subscription.id,
+        paymentIntent: invoice.amount_paid > 0 ? (paid?.payment.payment_intent ?? invoice.id) : null,
+        amountMinor: invoice.amount_paid,
+        currency: invoice.currency.toUpperCase(),
+        key: invoice.id,
+      },
+      { invoice: invoice.id },
+    );
+    return;
   }
   // A subscription that has already ended gets no new period
   if (ended) return;

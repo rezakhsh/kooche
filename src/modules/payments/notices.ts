@@ -16,7 +16,9 @@ import { onceFor } from '../notifications/send-once';
 import type { PaymentGateway } from './gateway';
 
 // Payment notices (owner's rule, Oct 26, 2026: users are always told). Pro started, renewed,
-// ended, revoked or restored, or its renewal's payment failed for the business owner; a paid, revoked or restored order for its buyer; a bump that moved a listing for its
+// ended, revoked, restored or refused (a billing address in a restricted place, ./restricted.ts),
+// or its renewal's payment failed for the business owner; a paid, revoked, restored or refused
+// order for its buyer; a bump that moved a listing for its
 // seller. The first three are written to the outbox in the webhook's transaction (./apply.ts); the
 // bump notice hangs off the existing `listing.bumped` event. The worker sends an email with the
 // invoice's link (read from Stripe when sending), and Telegram when the bot can reach the person.
@@ -35,6 +37,9 @@ const payloadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('order_revoked'), reason: z.enum(['refund', 'dispute']) }),
   z.object({ kind: z.literal('order_restored') }),
   z.object({ kind: z.literal('order_paid'), invoiceId: z.string().nullable() }),
+  // The billing address was in a place payments can't come from (./restricted.ts): nothing granted, refunded
+  z.object({ kind: z.literal('order_refused') }),
+  z.object({ kind: z.literal('pro_refused') }),
   // A consumer's withdrawal (./withdrawals.ts): the receipt at once, then the refund or why none
   z.object({ kind: z.literal('withdrawal_received'), withdrawalId: z.uuid() }),
   z.object({ kind: z.literal('withdrawal_processed'), withdrawalId: z.uuid() }),
@@ -118,7 +123,7 @@ const tgId = (v: string | number | null) => (v === null ? null : Number(v));
 export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps, aggregateId: string, notice: PaymentNotice): Promise<{ email: boolean; telegram: boolean }> {
   const t = messages.email.paymentNotice;
   const none = { email: false, telegram: false };
-  if (notice.kind === 'order_paid' || notice.kind === 'order_revoked' || notice.kind === 'order_restored') {
+  if (notice.kind === 'order_paid' || notice.kind === 'order_revoked' || notice.kind === 'order_restored' || notice.kind === 'order_refused') {
     const [r] = await db.execute<{ email: string; telegram_user_id: string | number | null; product: string; title: string; token: string; total: number; currency: string; tz: string }>(sql`
       SELECT u.email, u.telegram_user_id, p.name_fa AS product, l.title, l.public_token AS token, o.total_minor AS total, o.currency,
         coalesce((SELECT c.timezone FROM locations c WHERE c.id = l.location_id), 'Europe/Berlin') AS tz
@@ -129,6 +134,10 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       WHERE o.id = ${aggregateId}`);
     if (!r) return none;
     const to = { email: r.email, telegramUserId: tgId(r.telegram_user_id), timeZone: r.tz };
+    if (notice.kind === 'order_refused') {
+      const c = t.orderRefused;
+      return deliver(redis, deps, to, { subject: c.subject(r.product), lines: [c.intro(r.product, r.title), c.body], button: t.orderButton, link: `${deps.appUrl}/my/orders/${aggregateId}`, invoiceUrl: null });
+    }
     if (notice.kind !== 'order_paid') {
       const c = notice.kind === 'order_revoked' ? t.orderRevoked[notice.reason] : t.orderRestored;
       return deliver(redis, deps, to, { subject: c.subject(r.product), lines: [c.intro(r.product, r.title), c.body], button: t.orderButton, link: `${deps.appUrl}/my/orders/${aggregateId}`, invoiceUrl: null });
@@ -191,6 +200,10 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       c.body,
     ];
     return deliver(redis, deps, to, { subject: c.subject(r.name), lines, button: c.button, link: billing, invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId) });
+  }
+  if (notice.kind === 'pro_refused') {
+    const c = t.proRefused;
+    return deliver(redis, deps, to, { subject: c.subject(r.name), lines: [c.intro(r.name), c.body], button: t.proEnded.button, link: billing, invoiceUrl: null });
   }
   if (notice.kind === 'pro_revoked' || notice.kind === 'pro_restored') {
     const c = notice.kind === 'pro_revoked' ? t.proRevoked[notice.reason] : t.proRestored;

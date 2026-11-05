@@ -145,8 +145,8 @@ export async function startFoundingCheckout(
   gateway: PaymentGateway | null,
   opts: { userId: string; organizationId: string; appUrl: string; now?: Date } & BusinessBuyer & Where,
 ): Promise<CheckoutResult> {
+  if (opts.fromRestrictedCountry) return { ok: false, reason: 'restricted_country' };
   if (!gateway) return { ok: false, reason: 'payments_off' };
-  if (opts.fromIran) return { ok: false, reason: 'from_iran' };
   if (!(await isOwner(db, opts.userId, opts.organizationId))) return { ok: false, reason: 'not_found' };
   if ((await foundingState(db, opts.organizationId)) !== 'offered') return { ok: false, reason: 'not_allowed' };
   if (await activeSubscription(db, opts.organizationId)) return { ok: false, reason: 'already_subscribed' };

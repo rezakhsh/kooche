@@ -11,7 +11,7 @@ import { Icon } from './icons';
 export async function ViewAsBanner() {
   const code = viewAsCountry(await headers());
   if (!code) return null;
-  const name = code === 'IR' ? messages.viewAs.iran : (countries.find((c) => c.code === code)?.nameFa ?? code);
+  const name = code === 'IR' ? messages.viewAs.iran : (messages.viewAs.places[code] ?? countries.find((c) => c.code === code)?.nameFa ?? code);
   return (
     <div data-view-as className="bg-saffron-500 text-ink">
       <form action={endViewAsAction} className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 text-sm font-bold sm:px-6">

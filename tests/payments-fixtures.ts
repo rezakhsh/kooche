@@ -92,6 +92,13 @@ export class FakeGateway implements PaymentGateway {
     if (i < 0) this.refunds.push(input);
     return { id: `re_test_${input.idempotencyKey.replaceAll('-', '').slice(-20)}` };
   }
+  cancelled: string[] = [];
+  async cancelSubscription(subId: string) {
+    this.calls.push(`cancel ${subId}`);
+    this.cancelled.push(subId);
+    const s = this.subscriptions.get(subId);
+    if (s) this.subscriptions.set(subId, { ...s, status: 'canceled', canceled_at: Math.floor(Date.now() / 1000), ended_at: Math.floor(Date.now() / 1000) });
+  }
   /** Refunds as Stripe has them now; one the test didn't put in is as its event says */
   refundsNow = new Map<string, Record<string, unknown>>();
   async getRefund(refundId: string) {

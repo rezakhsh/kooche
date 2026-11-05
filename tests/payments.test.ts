@@ -176,7 +176,7 @@ describe('abandoned payments (wave 1)', () => {
     expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id })).toMatchObject({ ok: true, url: `https://checkout.stripe.com/c/pay/${gateway.checkouts[0]!.id}` });
     const stranger = await user();
     expect(await resumeOrderCheckout(appDb, gateway, { userId: stranger.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_found' });
-    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id, fromIran: true })).toEqual({ ok: false, reason: 'from_iran' });
+    expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id, fromRestrictedCountry: true })).toEqual({ ok: false, reason: 'restricted_country' });
     gateway.closed.add(gateway.checkouts[0]!.id);
     expect(await resumeOrderCheckout(appDb, gateway, { userId: seller.id, orderId: order.id })).toEqual({ ok: false, reason: 'not_allowed' });
 

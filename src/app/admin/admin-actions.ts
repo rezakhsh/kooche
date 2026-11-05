@@ -11,6 +11,7 @@ import { staffAudit } from '../../modules/admin/audit';
 import { valkey } from '../../lib/valkey';
 import { auth } from '../../modules/users/server';
 import { VIEW_AS_COOKIE, VIEW_AS_HOURS, viewAsToken } from '../../modules/admin/view-as';
+import { PAYMENT_BLOCKED_COUNTRIES } from '../../lib/region';
 import { eq } from 'drizzle-orm';
 import { setStaffRole } from '../../modules/admin/staff';
 import { adminHref, requireStaffAction } from '../../modules/admin/server';
@@ -74,13 +75,14 @@ export async function foundingOfferAction(form: FormData): Promise<void> {
 
 /**
  * View as a country (src/modules/admin/view-as.ts): any staff member, for this browser only, then
- * the first page as a visitor from there sees it. Iran isn't a seeded country but can be chosen.
+ * the first page as a visitor from there sees it. Iran and Stripe's other restricted countries
+ * (src/lib/region.ts, to see the payment notice) aren't seeded countries but can be chosen.
  */
 export async function viewAsAction(form: FormData): Promise<void> {
   const staff = await requireStaffAction('overview.view');
   const code = String(form.get('country') ?? '');
   const db = appDb();
-  const [known] = code === 'IR' ? [{ code }] : await db.select({ code: countries.code }).from(countries).where(eq(countries.code, code));
+  const [known] = PAYMENT_BLOCKED_COUNTRIES.includes(code) ? [{ code }] : await db.select({ code: countries.code }).from(countries).where(eq(countries.code, code));
   if (!known) redirect(adminHref('/view-as'));
   const until = new Date(Date.now() + VIEW_AS_HOURS * 3_600_000);
   (await cookies()).set(VIEW_AS_COOKIE, viewAsToken(webEnv().AUTH_SECRET, known.code, until), { path: '/', expires: until, sameSite: 'lax', secure: true, httpOnly: true });

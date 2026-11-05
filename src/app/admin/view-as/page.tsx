@@ -6,7 +6,7 @@ import { Alert, Button, Pill } from '../../../components/ui';
 import { appDb } from '../../../db/drizzle';
 import { formatDateTime } from '../../../lib/format';
 import { webEnv } from '../../../lib/env';
-import { admin } from '../../../messages/fa';
+import { admin, messages } from '../../../messages/fa';
 import { adminHref, requireStaff, staffCan } from '../../../modules/admin/server';
 import { testAccountsAdmin } from '../../../modules/admin/users';
 import { readViewAsUntil, VIEW_AS_COOKIE, VIEW_AS_HOURS } from '../../../modules/admin/view-as';
@@ -29,7 +29,7 @@ export default async function ViewAsPage({ searchParams }: { searchParams: Promi
   const actingError = sp.acting ? admin.viewAs.actingErrors[sp.acting] : undefined;
   const t = admin.viewAs;
   const env = webEnv();
-  const name = (code: string) => (code === 'IR' ? t.iran : (countries.find((c) => c.code === code)?.nameFa ?? code));
+  const name = (code: string) => (code === 'IR' ? t.iran : (messages.viewAs.places[code] ?? countries.find((c) => c.code === code)?.nameFa ?? code));
   const current = readViewAsUntil((await cookies()).get(VIEW_AS_COOKIE)?.value, env.AUTH_SECRET);
   const accounts = await testAccountsAdmin(appDb(), { withContact: await staffCan('user.contact') });
   const field = 'h-11 rounded-xl border border-neutral-300 px-3 text-sm outline-none focus:border-brand-600';
@@ -64,6 +64,16 @@ export default async function ViewAsPage({ searchParams }: { searchParams: Promi
             <Icon name="globe" className="size-4" />
             {t.iran}
           </button>
+        </form>
+        {/* Stripe's other restricted countries: the payment notice instead of the pay buttons (src/lib/region.ts) */}
+        <p className="mt-3 text-xs leading-6 text-neutral-600">{t.restricted}</p>
+        <form action={viewAsAction} className="mt-2 flex flex-wrap gap-2">
+          {Object.keys(messages.viewAs.places).map((code) => (
+            <button key={code} type="submit" name="country" value={code} className={chip}>
+              <Icon name="globe" className="size-4" />
+              {name(code)}
+            </button>
+          ))}
         </form>
         <p className="mt-3 text-xs leading-6 text-neutral-500">{t.countryHint(VIEW_AS_HOURS)}</p>
       </section>

@@ -56,6 +56,19 @@ export function softwarePayload(items: SoftwareItem[], appUrl: string, adminPath
   return { kind: 'software_updates', text: admin.softwareAlert(lines), url, count: items.length };
 }
 
+/**
+ * A payment from a restricted place, refused and refunded (src/modules/payments/restricted.ts): one
+ * message per refusal, with the place, what happened and the audit page. No names or emails.
+ */
+export function refusedPaymentPayload(
+  p: { what: 'order' | 'subscription'; place: string; amount: string | null; cancelled: boolean; refunded: boolean },
+  appUrl: string,
+  adminPath: string | undefined,
+) {
+  const url = adminPath ? `${appUrl}${adminAddress(adminPath, '/audit')}` : null;
+  return { kind: 'payment_restricted', text: admin.refusedPaymentAlert(p), url, place: p.place, what: p.what };
+}
+
 export async function sendAlert(url: string, secret: string, payload: object, fetchFn: typeof fetch = fetch, now = Date.now()): Promise<void> {
   const body = JSON.stringify(payload);
   const res = await fetchFn(url, {

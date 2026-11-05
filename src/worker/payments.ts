@@ -15,6 +15,9 @@ import type { Mailer } from '../modules/notifications/mailer';
 import { scheduledTime } from '../modules/notifications/local-hour';
 import { WEBHOOK_RECEIVED } from '../modules/payments/webhook';
 import { processWithdrawal, WITHDRAWAL_RECEIVED } from '../modules/payments/withdrawals';
+import { PAYMENT_REFUSED, parseRefusedPayment, processRefusedPayment } from '../modules/payments/restricted';
+import { refusedPaymentPayload, sendAlert } from '../modules/admin/alert';
+import { formatPrice } from '../modules/listings/price';
 import type { OutboxHandlers, OutboxJobData } from './outbox';
 import { reportJobFailure, logText } from './monitoring';
 
@@ -33,7 +36,18 @@ const SCHEDULED = { removeOnComplete: true, removeOnFail: 100 };
 export async function startPaymentJobs(
   db: Db,
   connection: Redis,
-  opts: { gateway: PaymentGateway | null; prefix?: string; schedule?: boolean; mailer?: Mailer; appUrl?: string; telegram?: TelegramClient | null },
+  opts: {
+    gateway: PaymentGateway | null;
+    prefix?: string;
+    schedule?: boolean;
+    mailer?: Mailer;
+    appUrl?: string;
+    telegram?: TelegramClient | null;
+    /** The owner's Telegram alert through n8n (src/modules/admin/alert.ts): a refused payment */
+    alert?: { url: string; secret: string } | null;
+    adminPath?: string;
+    fetchFn?: typeof fetch;
+  },
 ) {
   const prefix = opts.prefix ? { prefix: opts.prefix } : {};
   const queue = new Queue('payments', { connection, ...prefix, defaultJobOptions: { ...RETRY, ...KEEP } });
@@ -105,6 +119,22 @@ export async function startPaymentJobs(
           console.log(`payments: withdrawal ${withdrawalId}: ${outcome}`);
           return outcome;
         }
+        case 'refuse-payment': {
+          // A billing address in a restricted place (src/modules/payments/restricted.ts): cancel, refund, tell the owner
+          if (!opts.gateway) throw new Error('payments: STRIPE_SECRET_KEY is not set, refusal kept for later');
+          const refused = parseRefusedPayment(job.data.payload);
+          if (!refused) return 'skipped';
+          const done = await processRefusedPayment(opts.gateway, refused);
+          console.log(`payments: refused ${refused.what} ${job.data.aggregateId} (${refused.place}): cancelled ${done.cancelled}, refunded ${done.refunded}`);
+          if (opts.alert && opts.appUrl && (done.cancelled || done.refunded)) {
+            const amount = refused.amountMinor > 0 ? formatPrice(refused.amountMinor, refused.currency, 2) : null;
+            // Non-critical (n8n): a failed alert is logged, never undoes or repeats the refund
+            await sendAlert(opts.alert.url, opts.alert.secret, refusedPaymentPayload({ what: refused.what, place: refused.place, amount, ...done }, opts.appUrl, opts.adminPath), opts.fetchFn).catch((e: unknown) =>
+              console.error('payments: refused payment alert failed:', logText(e)),
+            );
+          }
+          return done;
+        }
         case 'founding-reminders': {
           if (!opts.mailer || !opts.appUrl) return 0;
           // Counted from when it was due, not when it ran (check B, Nov 1, 2026)
@@ -130,6 +160,7 @@ export async function startPaymentJobs(
     [BUSINESS_NOTICE]: [{ name: 'business-notice', queue }],
     [PAYMENT_NOTICE]: [{ name: 'payment-notice', queue }],
     [WITHDRAWAL_RECEIVED]: [{ name: 'withdrawal', queue }],
+    [PAYMENT_REFUSED]: [{ name: 'refuse-payment', queue }],
     // The search worker re-indexes the bumped listing; this tells its seller
     [LISTING_OUTBOX.bumped]: [{ name: 'bump-notice', queue }],
   };

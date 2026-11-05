@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
-import { IranPaymentNotice, fromIran } from '../../../../../components/iran';
+import { PaymentPlaceNotice, paymentPlace, placeErrorKey } from '../../../../../components/payment-place';
 import { Icon } from '../../../../../components/icons';
 import { PendingButton } from '../../../../../components/pending-button';
 import { Alert, Button, Card, PageShell, Pill } from '../../../../../components/ui';
@@ -52,10 +52,12 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
   const rewards = await usableRewards(db, user.id);
   const plan = listing.organizationId ? await allowancesLeft(db, listing.organizationId) : null;
   const live = listing.status === 'active';
-  // Paying isn't possible from Iran (src/lib/region.ts): a notice instead of the pay buttons
-  const iran = await fromIran();
-  const payments = !!paymentGateway() && !iran;
-  const error = query.error && query.error in t.errors ? t.errors[query.error as keyof typeof t.errors] : null;
+  // Paying isn't possible from Iran or Stripe's other restricted places (src/lib/region.ts): a
+  // notice instead of the pay buttons
+  const place = await paymentPlace();
+  const payments = !!paymentGateway() && !place;
+  const errorKey = query.error ? placeErrorKey(query.error, place) : null;
+  const error = errorKey && errorKey in t.errors ? t.errors[errorKey as keyof typeof t.errors] : null;
   const chosen = query.product && offers.some((o) => o.product.code === query.product) ? query.product : offers[0]?.product.code;
   const back = isEvent ? `/my/events` : `/my/listings`;
   // A founding business that hasn't started its free months yet: point to its included bumps
@@ -90,7 +92,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         {query.plan === 'already_waiting' && <Alert tone="info">{t.plan.already_waiting}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {!live && <Alert tone="error">{t.notLive}</Alert>}
-        {iran ? <IranPaymentNotice /> : !payments && <Alert tone="info">{t.off}</Alert>}
+        {place ? <PaymentPlaceNotice place={place} /> : !payments && <Alert tone="info">{t.off}</Alert>}
 
         {(running.featuredUntil || running.pendingBumps.length > 0) && (
           <Card>

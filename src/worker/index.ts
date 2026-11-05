@@ -118,6 +118,9 @@ async function main(): Promise<void> {
     mailer: notificationMailer({ smtpUrl: env.SMTP_URL, from: env.EMAIL_FROM, route: inbox.mail }),
     appUrl: env.APP_URL,
     telegram: env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN, undefined, undefined, inbox.chat) : null,
+    // A refused payment from a restricted place (src/modules/payments/restricted.ts)
+    alert: env.N8N_ADMIN_ALERT_URL && env.N8N_WEBHOOK_SECRET ? { url: env.N8N_ADMIN_ALERT_URL, secret: env.N8N_WEBHOOK_SECRET } : null,
+    adminPath: env.ADMIN_PATH,
   });
   // Moderation (roadmap step 8): receipts and notices, the owner's alert, purges after take-downs
   const seoQueue = new Queue('seo', { connection });

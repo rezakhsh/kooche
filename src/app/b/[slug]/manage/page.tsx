@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { fromIran } from '../../../../components/iran';
+import { paymentPlace } from '../../../../components/payment-place';
 import { Icon, type IconName } from '../../../../components/icons';
 import { Alert, Pill } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
@@ -67,8 +67,9 @@ export default async function ManageBusinessPage({ params, searchParams }: { par
   const left = Number(query.left ?? 0);
   const planName = (usage.plan.code && messages.pro.planNames[usage.plan.code]) || t.manage.free;
   // A founding business's owner starts the free months right here (src/modules/payments/founding.ts)
-  // Not from Iran: paying (a Stripe checkout, even a free one) isn't possible there (src/lib/region.ts)
-  const founding = role === 'owner' && paymentGateway() && !(await fromIran()) && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
+  // Not from Iran or Stripe's other restricted places: paying (a Stripe checkout, even a free one)
+  // isn't possible there (src/lib/region.ts)
+  const founding = role === 'owner' && paymentGateway() && !(await paymentPlace()) && (await foundingState(db, org.id)) === 'offered' && !(await activeSubscription(db, org.id));
   const places = founding ? await foundingPlaces(db, org.id) : null;
   const legal = legalComplete(org);
   const verified = org.verificationStatus === 'verified';

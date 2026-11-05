@@ -11,6 +11,11 @@ const country = z
   .regex(/^[A-Z]{2}$/)
   .nullish()
   .transform((c) => c ?? null);
+/**
+ * A billing address as far as the restricted-places check needs it (src/lib/region.ts,
+ * restrictedBillingPlace): the country, and for Ukraine the postcode, region and city.
+ */
+const address = z.object({ country, postal_code: z.string().nullish(), state: z.string().nullish(), city: z.string().nullish() });
 
 export const checkoutSessionSchema = z.object({
   id: z.string().startsWith('cs_'),
@@ -27,7 +32,7 @@ export const checkoutSessionSchema = z.object({
   invoice: ref.nullable(),
   subscription: ref.nullable(),
   customer: ref.nullable(),
-  customer_details: z.object({ address: z.object({ country }).nullable() }).nullable(),
+  customer_details: z.object({ address: address.nullable() }).nullable(),
   metadata: z.record(z.string(), z.string()).nullable(),
 });
 export type CheckoutSession = z.infer<typeof checkoutSessionSchema>;
@@ -67,7 +72,8 @@ export const invoiceSchema = z.object({
   billing_reason: z.string().nullish(),
   attempt_count: z.int().nullish(),
   next_payment_attempt: z.int().nullish(),
-  customer_address: z.object({ country }).nullable().optional(),
+  /** The customer's address when the invoice was finalized: the restricted-places check (./apply.ts) */
+  customer_address: address.nullable().optional(),
   parent: z
     .object({ subscription_details: z.object({ subscription: ref }).nullable() })
     .nullable(),
