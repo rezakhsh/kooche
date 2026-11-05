@@ -39,6 +39,8 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     // higher place must be visible in the list (UWG Annex no. 11a; docs/legal-review.md)
     bumped: !!(l.rankedAt && l.publishedAt && l.rankedAt.getTime() > l.publishedAt.getTime()),
     cover: l.coverKey ? imageUrl(l.coverKey, 'card', 'webp') : null,
+    // The listing page's big photo, fetched on the tap while the page comes (src/components/nav-feedback.tsx)
+    photo: l.coverKey ? imageUrl(l.coverKey, 'full', 'avif') : null,
     tile: !l.coverKey && l.categoryId ? { label: catalog.byId.get(l.categoryId)?.nameFa ?? '' } : null,
     photoCount: l.photoCount,
     founding: l.founding,

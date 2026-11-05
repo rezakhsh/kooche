@@ -16,6 +16,8 @@ export type CardData = {
   place: { text: string; latin: boolean } | null;
   ago: string | null;
   cover: string | null;
+  /** The listing page's big photo (AVIF, as its <picture> picks), warmed on the tap (src/components/nav-feedback.tsx) */
+  photo?: string | null;
   photoCount: number;
   wanted: boolean;
   /** Up to three of the category's card fields ("۲۰۱۸", "۱۲۰٬۰۰۰ کیلومتر", "دیزل") */
@@ -157,12 +159,12 @@ export function ListingCard({ card, view, favorite }: { card: CardData; view: 'g
   );
   const link =
     view === 'grid' ? (
-      <Link href={card.href} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-[0_1px_2px_rgb(16_40_38/0.06)] transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
+      <Link href={card.href} data-photo={card.photo ?? undefined} className="flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-[0_1px_2px_rgb(16_40_38/0.06)] transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700">
         {photo}
         {body}
       </Link>
     ) : (
-      <Link href={card.href} className="flex gap-3 border-b border-neutral-200 py-3 pe-12 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-brand-700">
+      <Link href={card.href} data-photo={card.photo ?? undefined} className="flex gap-3 border-b border-neutral-200 py-3 pe-12 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-brand-700">
         {photo}
         {body}
       </Link>

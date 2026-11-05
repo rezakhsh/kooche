@@ -52,6 +52,12 @@ export function browseCountry(pathname: string): string | null {
  * and HEAD are shared. React Server Components requests (`RSC` header, `_rsc` parameter) get the
  * same header, because Next.js hides both from the proxy; the Cache Rule leaves them out instead
  * (Cloudflare ignores Vary). Other pages keep Next.js's own header.
+ *
+ * Cloudflare itself reads BROWSE_CDN_CACHE_CONTROL instead (sent next to every `public` answer):
+ * fresh for 60 seconds, then for up to 10 minutes it hands out the stored copy at once while it
+ * fetches a new one in the background (UPDATING), and for a day when the server answers with an
+ * error. `s-maxage` alone forbids that, so the first visitor after each quiet minute waited for a
+ * render (docs/research/smooth-loading.md, 3.1). Browsers never see it and keep `max-age=0`.
  */
 export function browseCacheControl(
   pathname: string,
@@ -63,6 +69,9 @@ export function browseCacheControl(
   const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined || cookie('theme') !== undefined;
   return (method !== 'GET' && method !== 'HEAD') || personal || search.has('near') || search.has('postal') || search.has('q') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
 }
+
+/** Cloudflare's own copy of a shared browse page (Cloudflare-CDN-Cache-Control; see browseCacheControl) */
+export const BROWSE_CDN_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=600, stale-if-error=86400';
 
 /** The Content-Security-Policy for one response */
 export function contentSecurityPolicy(nonce: string, env: Pick<WebEnv, 'IMAGE_URL' | 'S3_ENDPOINT'>, dev = false): string {
@@ -170,6 +179,7 @@ export function proxy(request: NextRequest) {
     ? 'private, no-store'
     : browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
+  if (cacheControl?.startsWith('public')) response.headers.set('Cloudflare-CDN-Cache-Control', BROWSE_CDN_CACHE_CONTROL);
   return putBack(response);
 }
 

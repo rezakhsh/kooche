@@ -467,6 +467,8 @@ export const messages = {
     signIn: 'ورود',
     chat: 'پیام‌ها',
     unread: (n: number) => `${n.toLocaleString('fa-IR')} گفتگوی خوانده‌نشده`,
+    // The top line and grey outlines while a tapped page comes (src/components/nav-feedback.tsx)
+    loading: 'در حال باز کردن صفحه…',
   },
   // The street map (src/components/street-map.tsx): our own OpenStreetMap map
   map: {

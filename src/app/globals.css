@@ -175,6 +175,56 @@ body:has([data-soft-page]) {
   background: var(--color-page);
 }
 
+/* Smooth loading (docs/research/smooth-loading.md, style 4, approved Nov 5, 2026;
+   src/components/nav-feedback.tsx and nav-outlines.tsx). `.sk`: a grey outline shape with a soft
+   light moving right to left, the reading direction; the light runs across the whole screen at
+   once (fixed background). `.nav-line`: the thin turquoise line growing from the right, shown
+   after 0.1 s so a fast page doesn't flicker. Not colour tokens: they never carry text. */
+.sk {
+  --sk-shine: rgb(255 255 255 / 0.65);
+  background-color: var(--color-neutral-200);
+  background-image: linear-gradient(90deg, transparent 0, var(--sk-shine) 50%, transparent 100%);
+  background-repeat: no-repeat;
+  background-size: 55vw 100%;
+  background-position: 120vw 0;
+  background-attachment: fixed;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sk {
+    --sk-shine: rgb(255 255 255 / 0.07);
+    background-color: var(--color-neutral-100);
+  }
+}
+:root[data-theme='dark'] .sk {
+  --sk-shine: rgb(255 255 255 / 0.07);
+  background-color: var(--color-neutral-100);
+}
+@keyframes sk-shimmer {
+  from { background-position: 120vw 0; }
+  to { background-position: -60vw 0; }
+}
+.nav-line {
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  z-index: 60;
+  height: 3px;
+  width: 0;
+  pointer-events: none;
+  border-end-start-radius: 3px;
+  background-color: var(--color-brand-600);
+  box-shadow: 0 0 8px var(--color-brand-600);
+  animation: nav-line 12s cubic-bezier(0.1, 0.6, 0.3, 1) 0.1s forwards;
+}
+@keyframes nav-line {
+  0% { width: 0; }
+  3% { width: 30%; }
+  100% { width: 92%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sk { animation: sk-shimmer 1.4s linear infinite; }
+}
+
 /* The toast's entrance and the ♡'s pop (src/components/toast.tsx, favorite-button.tsx) */
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(0.5rem); }

@@ -8,6 +8,7 @@ import { AutoDirection } from '../components/auto-direction';
 import { DeviceTimeZone } from '../components/device-time-zone';
 import { FormValidation } from '../components/form-validation';
 import { HeaderSync } from '../components/header-sync';
+import { NavFeedback } from '../components/nav-feedback';
 import { IranBanner } from '../components/iran';
 import { LegalChangeBanner } from '../components/legal-change-banner';
 import { SiteFooter, SiteHeader } from '../components/site-header';
@@ -91,7 +92,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <SiteHeader />
         <IranBanner />
         <LegalChangeBanner />
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          {/* The top line and grey outlines while a tapped page comes (docs/research/smooth-loading.md) */}
+          <NavFeedback>{children}</NavFeedback>
+        </div>
         <SiteFooter />
         <HeaderSync renderedFor={header.renderedFor} countrySlugs={header.countrySlugs} />
         <Toaster />
