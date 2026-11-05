@@ -1,0 +1,710 @@
+# Posting form field audit (Nov 5, 2026)
+
+The owner asked for every category's posting form to be checked field by field: is each field relevant, worded right, and right for each country? This is a report only. **No code was changed.** Each change below waits for the owner's approval.
+
+How it was checked:
+- every field read from the code (`seed/categories.ts` and the posting form);
+- every German form opened on staging (113 of 119 subcategories; the 6 for verified businesses only redirect a private account, as designed), on phone and computer;
+- one test ad published in every subcategory and event type, to see the cards and listing pages (list at the end);
+- what the big local sites and the law ask in each country, compared.
+
+**Why the other countries look the same.** On staging only Germany is open; the other 10 countries are on waitlist. So every test account (UK, US, Australia…) gets Germany's form, with €. The code shows the forms have **no country awareness at all**: the same fields, labels, units (m², km, EU sizes) and German terms appear in every country. Only the currency symbol and Turkey's notes change. So the country findings below come from the code plus research, not from screenshots.
+
+Pictures: `/root/peydoo-media/wave2/field-audit/staging/germany/` (step 3 of each checked form, phone and computer; the short-let card and listing page).
+
+---
+
+## 1. Summary: the most important changes, in order
+
+1. **Short-term rent says "cold monthly rent", whatever the unit (the owner's example).**
+   - **Problem.** The price label is «اجارهٔ سرد ماهانه», even when the seller picks «شبانه» (nightly). On the card it is worse. Our test ad shows «۸۰ € سرد، ماهانه», then «شبانه» on the next line.
+     - Picture: `short-term-rent-card-germany-phone.png`.
+   - **Fix.** The price label follows the chosen unit: «اجاره هر شب / هر هفته / هر ماه».
+     - Put the unit right next to the price, not after the area.
+     - The card shows «۸۰ € هر شب».
+     - The amount is all-in: no cold/warm, as on Airbnb and Wunderflats.
+2. **"Rooms" means something else to Iranians.**
+   - **Problem.** The form asks «تعداد اتاق» with a German hint: «مثل آگهی‌های آلمانی: نیم‌اتاق هم حساب می‌شود (۲٫۵)», meaning "like German ads: half rooms count too (2.5)".
+     - Germans count every room, living room included. Iranians count bedrooms: «دو خوابه» means two bedrooms (Divar works the same way).
+     - So a German "3 Zimmer" is an Iranian "2 خوابه", and Persian sellers will mix them up.
+   - **Fix.**
+     - Ask «تعداد اتاق خواب» (bedrooms) in every country, as UK, US, Canadian and Australian sites do.
+     - Add «تعداد اتاق به حساب محلی» (the local total-room count) only where ads use it: Zimmer in DE/AT, kamers in NL, pièces in FR, locali in IT, rum in SE.
+     - Add bathrooms in UK/US/CA/AU.
+3. **German rent terms are shown in every country.**
+   - **Problem.** Cold rent, Nebenkosten and Kaution appear everywhere, as do the warm-rent sum, the WBS question, the Energieausweis class (A+–H) and the card's «سرد، ماهانه».
+   - **Fix.** Make the rent block country-specific:
+     - **DE:** Kaltmiete + Nebenkosten = Warmmiete (as today).
+     - **AT:** Hauptmietzins + Betriebskosten (+10% VAT) = Bruttomiete. Austrian ads lead with the gross figure.
+     - **NL:** kale huur + servicekosten.
+     - **FR:** loyer hors charges + charges = charges comprises. French law requires these in every rental ad, private ones too.
+     - **IT:** canone + spese condominiali.
+     - **SE:** one rent (heating usually included).
+     - **UK, US, CA:** one monthly rent + "bills or utilities included: yes / some / no".
+     - **AU:** rent per **week**.
+     - Show WBS in Germany only.
+4. **Energy data: German law asks for more than we collect.**
+   - **Problem.** German law asks for more than the class whenever a certificate exists (§87 GModG, which replaced the GEG in July 2026; fine up to €10,000). The ad must show:
+     - the certificate type;
+     - the kWh value;
+     - the main energy source;
+     - the year built;
+     - the class.
+   - Other countries:
+     - AT ads must show the HWB value.
+     - UK, FR, IT and NL ads must show their own label, each on its own scale (UK EPC A–G, FR DPE A–G, IT A4–G).
+   - **Fix.** Energy fields per country; for Germany, the full set.
+5. **«Anmeldung» answers the owner's question.** It exists in some other countries under other names, and not in others. Full answer in section 2.
+   - **Fix.** Use the local word where it exists. Hide it where it doesn't (UK, FR, US, CA, AU).
+   - Also ask it for monthly temporary lets (Zwischenmiete), where it matters most. Today it's only on WG rooms, though a code comment says short lets should ask it too.
+6. **Room in a shared flat: "entire place" is offered, and "bills included?" is missing.**
+   - **Problem.** «کل واحد» (entire place) doesn't belong in a WG-room category. The questions every room site asks are missing.
+   - **Fix.** Add:
+     - "bills included in the rent?";
+     - minimum stay;
+     - private bathroom;
+     - couples OK.
+   - UK and AU let a room rent be per week.
+7. **Jobs are German-only in several places.**
+   - **Problem.**
+     - «سطح زبان آلمانی» (German level) is asked in every country.
+     - The contract types Minijob, Werkstudent and Ausbildung are German.
+     - The salary hint says «ناخالص (Brutto)».
+   - **Fix.**
+     - Ask for the language level of the country's own language.
+     - Use each country's contract types.
+     - Allow a salary range (from–to):
+       - Austria requires the minimum pay in every job ad.
+       - Many US states require a range, and the EU pay-transparency rules are coming.
+8. **Vehicles: units and inspection are German or Austrian.**
+   - **Problem.** «TÜV/HU یا Pickerl» is used everywhere, with km and PS, Euro emission classes, and Scheckheft.
+   - **Fix.**
+     - Inspection by country: MOT (UK), APK (NL), contrôle technique (FR), revisione (IT), besiktning (SE). Leave it out in US, CA and AU, where it depends on the state or province.
+     - Miles in the UK and US.
+     - hp in the UK, US, CA and AU (EU sites show kW and PS).
+     - A neutral «دفترچه سرویس کامل».
+9. **Sizes are EU-only.**
+   - **Problem.** Clothing labels read «XS (34)…», shoes are «سایز (اروپایی)», and kids' sizes go by height with «سایز آلمانی».
+   - **Fix.**
+     - UK, US and AU need their own numbers.
+     - Kids' sizes there go by age (e.g. 5–6 years).
+10. **Live animals and services offer "can be sent by post".**
+    - **Problem.** «ارسال پستی ممکن است» shows on:
+      - dogs, cats, birds, small animals and fish;
+      - pet care (a service);
+      - boats.
+    - Posting live animals is not allowed by post companies (and in Germany by animal-transport law), and "we ship the puppy" is a classic scam.
+    - **Fix.** Remove the shipping toggle from all of them.
+11. **Smaller wording fixes.**
+    - **Area hint.** The same hint shows on every property form, flats included: "for a room in a shared flat, the room's size; for land, the plot's size". Show only the hint that fits the category.
+    - **Lessons and services use German exam and legal terms.** Goethe/telc/TestDaF/ÖSD, «آبیتور یا ماتورا», «beglaubigt», Entrümpelung and Endreinigung: use each country's terms.
+    - **Language lists lack Dutch, Italian, Swedish and Spanish.** These are the lists for books, translation and language courses.
+    - **"Exchange" as a price kind is odd for services and pets.** Remove it from:
+      - services and lessons;
+      - dogs and cats;
+      - rideshare.
+
+---
+
+## 2. The owner's direct questions
+
+### "What does cold rent mean on a short-term rent?"
+
+It shouldn't be there. The code calls every rent category "cold" except WG rooms. Short-term rent was never added to the "plain rent" list, so it got the long-term flat's label: «اجارهٔ سرد ماهانه» in the form and «سرد، ماهانه» on cards, even for a nightly price.
+
+The owner is right:
+- Cold rent plus Nebenkosten only makes sense for a normal long-term flat.
+- A short stay has one all-in price for each night, week or month. That's how Airbnb, Wunderflats, HousingAnywhere and WG-Gesucht's Zwischenmiete show it.
+- On Divar the field is «اجارهٔ روزانه» (daily rent).
+
+### "Do other countries have Anmeldung?"
+
+| Country | Is there a duty to register your address? | Local name | What the field should say |
+| --- | --- | --- | --- |
+| Germany | Yes, within 2 weeks; the landlord signs a form | Anmeldung (Wohnungsgeberbestätigung) | «امکان ثبت آدرس (Anmeldung)», as today |
+| Austria | Yes, within 3 days; the landlord signs | Meldezettel | «امکان ثبت آدرس (Meldezettel)» |
+| Netherlands | Yes, at the city (BRP). Rooms often can't be registered, so room sites ask "inschrijving mogelijk" | Inschrijving BRP | «امکان ثبت آدرس (inschrijving)» |
+| Sweden | Yes (folkbokföring at Skatteverket). Matters for sublets | Folkbokföring | «امکان ثبت آدرس (folkbokföring)» |
+| Italy | Yes, to get residence | Residenza | «امکان ثبت اقامت (residenza)» |
+| Turkey | Yes (adres kaydı), but housing is closed in Turkey | – | not needed |
+| UK, France, US, Canada, Australia | No such duty | – | hide the field (and the photo chip) |
+
+Optional for France: what tenants ask there is whether the flat qualifies for **CAF housing benefit (APL)**. That could be a France-only yes/no later.
+
+---
+
+## 3. Housing (املاک)
+
+### Fields every housing form shares
+
+| Field | Problem | Change |
+| --- | --- | --- |
+| متراژ (area, m², required) | One hint for all: "for a room in a shared flat… for land…" | One hint per category. UK, US and CA sites use sq ft. Let sellers there enter sq ft and show both units |
+| Rent label on the card | «سرد، ماهانه» on flats and houses in every country, and on short lets | "cold" only in DE (and "netto" in AT if wanted); per-week in AU; "per night/week/month" on short lets |
+
+### Short-term and temporary rent (اجاره موقت و کوتاه‌مدت)
+
+**Today:**
+- price, labelled «اجارهٔ سرد ماهانه»;
+- deposit (Kaution);
+- area;
+- price unit (nightly, weekly, monthly), required and placed after the area;
+- type of place (private room, shared room, entire place);
+- rooms, with the German hint;
+- furnished;
+- available from and to.
+
+**Problems:**
+- The price label (see the summary, item 1).
+- The unit sits far from the price.
+- "Furnished" is asked although a short let is always furnished.
+- Missing fields:
+  - how many guests (Divar's «ظرفیت»);
+  - minimum stay;
+  - an optional cleaning fee;
+  - "Anmeldung possible" for monthly lets;
+  - the city's **registration number** for whole-flat holiday lets. Berlin, Amsterdam, Paris, Italy (CIN code) and New York require it in every ad, and Vienna will from 2027. An EU regulation has applied since May 2026, and our terms 5.11 already forbid short lets without it.
+
+**Change:**
+1. The unit choice comes first, then «اجاره هر شب/هفته/ماه», all-in. Card: «۸۰ € هر شب».
+2. Add guests, minimum stay, an optional cleaning fee, and a registration number:
+   - an optional field everywhere;
+   - required for nightly whole-flat lets in the cities above.
+3. Ask "Anmeldung possible" (local word, see section 2) when the unit is monthly.
+4. Drop "furnished", or keep it only for monthly.
+5. Bedrooms instead of German rooms.
+
+### Room in a shared flat (اتاق و خانه اشتراکی، WG)
+
+**Today:**
+- monthly rent («اجارهٔ ماهانه», correct);
+- deposit;
+- area;
+- type of place (private, shared, **entire place**);
+- number of flatmates;
+- flatmate preference;
+- available from and to;
+- furnished;
+- Anmeldung.
+
+**Problems:**
+- "Entire place" doesn't fit a room category.
+- The Anmeldung label and its hint (Bürgeramt, Wohnungsgeberbestätigung) are German in every country.
+- Missing fields:
+  - bills included in the rent (SpareRoom, Flatmates.com.au);
+  - minimum stay;
+  - private bathroom;
+  - couples OK.
+
+**Change:**
+- Room type: private room or shared room only.
+- Add bills included (yes / partly / no), minimum stay, private bathroom and couples OK.
+- Anmeldung by country (section 2).
+- UK and AU: rent per week or per month (both sites let the poster choose).
+
+### Flat and house to rent (اجاره آپارتمان، اجاره خانه)
+
+**Today:**
+- cold rent;
+- Nebenkosten (required), with the hint that the price is the Kaltmiete;
+- heating included in Nebenkosten;
+- deposit;
+- available from;
+- rooms (required);
+- floor;
+- flat or house type (German types: Etagenwohnung, Doppelhaushälfte…);
+- furnished, balcony, lift;
+- features (Einbauküche, Keller, Altbau, Neubau…);
+- pets allowed;
+- WBS («فقط آلمان», "Germany only");
+- year built;
+- energy class.
+
+**Problems:**
+- The whole price block is German (summary, item 3).
+- WBS shows in every country, with "Germany only" in its label.
+- Energy fields are incomplete for German law, and on the wrong scale elsewhere.
+- "Rooms" means total rooms, which Persian sellers read as bedrooms.
+- The type lists are German.
+
+**Change:**
+- Price block by country (summary, item 3), with the deposit's local name and legal cap as a hint:
+
+| Country | Deposit name | Legal cap |
+| --- | --- | --- |
+| DE | Kaution | 3 cold rents |
+| NL | waarborgsom | 2 months |
+| UK | deposit | 5 weeks |
+| FR | dépôt de garantie | 1 month unfurnished, 2 furnished |
+| AU | bond | usually 4 weeks |
+| Ontario | last month's rent | 1 month; no damage deposit |
+
+- Bedrooms (plus local rooms where used, plus bathrooms in UK/US/CA/AU).
+- WBS in Germany only.
+- Energy fields by country.
+- Type lists: keep the German words in brackets only in DE and AT.
+- UK: add the council-tax band. It must be in every rental ad since 2022 (Trading Standards' "material information").
+
+### Buying a flat or house (فروش آپارتمان، فروش خانه)
+
+**Today:**
+- rooms, floor, type, year built;
+- furnished, balcony, lift;
+- features;
+- energy class;
+- Hausgeld (flats);
+- plot size (houses);
+- rented out;
+- provisionsfrei.
+
+**Problems:** Hausgeld and provisionsfrei are German. Each country lists other costs and terms:
+- **UK:** tenure (freehold or leasehold), service charge, ground rent, council-tax band.
+- **FR:** charges de copropriété, taxe foncière.
+- **US/CA:** HOA fees, property tax.
+- **AT:** Betriebskosten.
+
+**Change:**
+- A "monthly owner costs" field with the local name.
+- A buyer's-commission field only where agents charge buyers.
+- Bedrooms, energy and area unit as for renting.
+
+### Land and gardens, commercial rent and sale, parking
+
+- **Land:** fine. Kleingarten is German, but allotments exist in the UK and NL too. Keep it, with a neutral label.
+- **Commercial rent:**
+  - It reuses the flat's Nebenkosten field and the "price is the Kaltmiete" hint. Fine in DE, wrong elsewhere.
+  - Commercial rents usually come **plus VAT**. Add "price with or without VAT".
+- **Parking:** fine. A rented space should show "per month" next to its price.
+
+---
+
+## 4. Vehicles (وسایل نقلیه)
+
+Turkey: cars, motorbikes, campers and commercial vehicles are closed (EİDS). Bicycles, boats and parts remain, and their fields fit Turkey.
+
+### Cars (خودرو)
+
+**Today:**
+- make and model (required);
+- trim;
+- year (required);
+- mileage in km (required);
+- fuel and gearbox (required);
+- body type;
+- power in PS;
+- accident status (required);
+- inspection «TÜV/HU یا Pickerl» until;
+- colour;
+- previous owners;
+- service book («Scheckheft»);
+- doors;
+- Euro emission class;
+- extras.
+
+The set matches mobile.de and AutoScout24 well.
+
+**Problems by country:**
+
+| | DE | AT | NL | UK | FR | IT | SE | US | CA | AU |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Inspection name | HU/TÜV | Pickerl (§57a) | APK | MOT | contrôle technique | revisione | besiktning | varies by state, leave out | safety certificate (Ontario), leave out | roadworthy; rego months left |
+| Distance | km | km | km | **miles** | km | km | km (Swedes often say mil = 10 km) | **miles** | km | km |
+| Power | PS (kW) | PS (kW) | pk (kW) | **bhp** | ch (kW) | CV (kW) | hk (kW) | **hp** | **hp** | **kW** |
+
+Other points:
+- Euro emission class only in Europe. The UK also asks about ULEZ.
+- "Scheckheft" becomes a neutral «دفترچه سرویس کامل».
+- Australia: add "rego (registration) months left". It's a standard field there, like the remaining third-party insurance on Divar.
+
+**Change:**
+- Inspection label and units by country.
+- The mileage field stores km and shows miles in the UK and US.
+- Optional later: steering side (left or right) for imports in the UK and AU.
+
+### Motorbikes, campers, commercial vehicles
+
+- **Motorbikes:** licence classes AM/A1/A2/A are EU and UK. In the US, CA and AU, hide the field (licences work differently).
+- **All three:** inspection and units as for cars.
+- **Campers:** the German words (Wohnwagen, Wohnmobil) are fine as brackets in DE and AT only.
+
+### Bicycles, boats, car parts, tyres, motorbike parts
+
+- Fine.
+- Boats offer "can be sent by post". Remove it (nobody posts a boat).
+- Tyres: sizes are universal. Summer/winter/all-season is fine everywhere; in AU and the southern US, winter tyres are rare but harmless.
+
+---
+
+## 5. Digital goods (کالای دیجیتال)
+
+- **Overall.** The fields fit everywhere: condition, brand, exact model, storage, RAM, battery health, warranty, receipt, CPU, screen size, platform, and so on.
+- **Turkey only.** Add "IMEI registered: yes/no" on phones.
+  - Unregistered phones can't be used there.
+  - Our Turkey rules already send «بدون رجیستری» ads to review.
+  - A clear field is friendlier than a word filter.
+- **Brand lists.** Fine. The "other" option covers local brands.
+
+## 6. Home and kitchen (خانه و آشپزخانه)
+
+- **Overall.** Fine.
+- **Carpets.** A strong form: type, where it was woven, material, size in cm. Keep it. Optionally show inches in the US.
+- **Other forms.** Appliances, furniture and «آشپزخانه کامل (Einbauküche)» for selling a kitchen are fine. The German word in brackets is helpful in DE and AT only.
+- **Missing.**
+  - An energy label for appliances: optional, low priority.
+  - The size of a garden or food item: not needed.
+
+## 7. Clothes and beauty (پوشاک و آرایشی)
+
+- **Women's and men's clothing.** Letter sizes with EU numbers: «XS (34)» for women, «M (48–50)» for men.
+  - The UK, US and AU use other numbers: UK women 8 ≈ EU 36, US women 4 ≈ EU 36.
+  - **Change:** keep the letters and show the local number in brackets per country.
+- **Shoes.** «سایز (اروپایی)» only. **Change:** add UK sizes in the UK and US sizes in the US/CA (an EU/UK/US switch, as Vinted has).
+- **Jewellery.** Gold karats 18/21/22/24 are right for Iranian buyers. Keep them.
+  - Turkey holds gold ads for review (its rules); nothing to change in the form.
+
+## 8. Children and babies (کودک و نوزاد)
+
+- **Kids' clothes.** Size in cm by height, with the hint «سایز آلمانی».
+  - That's right for the EU.
+  - In the UK, US, CA and AU sizes go by age (e.g. "5–6 years").
+  - **Change:** height in cm in Europe, age in UK/US/CA/AU, and a neutral hint.
+- **Car seats.** «گروه ۱/۲/۳» (groups 1, 2, 3) is the old EU rule (R44). New seats use height in cm (R129 / i-Size).
+  - **Change:** add "i-Size (by height)" as an option.
+  - Outside Europe, seats use other standards, but the groups are still understood.
+
+## 9. Animals (حیوانات)
+
+- **Fields.** Breed, age in months, sex, vaccinated, microchip, neutered and pedigree are fine.
+- **Problems.**
+  - "Can be sent by post" shows on dogs, cats, birds, small animals and fish, and on pet care (a service). **Remove it.**
+  - "Exchange" as a price kind on dogs and cats: remove it.
+- **Turkey.** Cats and dogs are free adoption only, which works.
+- **Optional.** An "EU pet passport" yes/no for dogs and cats in the EU.
+
+## 10. Leisure (سرگرمی و فراغت)
+
+- **Books.** The language list (Persian, German, English, French, Arabic, Turkish, other) is missing Dutch, Italian, Swedish and Spanish. Add them. Or show Persian, English, the country's own language, and other.
+- **Concert and event tickets.** Fine. "Can be sent by post" is right for paper tickets.
+- **Instruments.** The Iranian instruments are a good touch. Keep them.
+
+## 11. Services (خدمات)
+
+- **Price unit.** One list for all services: per hour, per job, per day, per m². "Per m²" fits cleaning, painting and tiling, but not hairdressing, translation or IT.
+  - **Change:** a unit list per subcategory.
+- **German terms in labels.** «تخلیه و دورریزی (Entrümpelung)», «نظافت تحویل خانه (Endreinigung)», «ترجمه رسمی (beglaubigt)».
+  - **Change:** Persian first, with the local word in brackets per country.
+  - Certified translation is called:
+    - UK: certified
+    - FR: traducteur assermenté
+    - IT: traduzione giurata
+    - NL: beëdigd
+    - SE: auktoriserad
+    - AT: allgemein beeidet
+- **"Exchange" price kind.** Shows on moving, repairs, cleaning, beauty, catering, photography, childcare and elder care. Remove it.
+- **Car services.** «آماده‌سازی معاینه فنی» (getting a car ready for inspection) is fine; "inspection" becomes the local name.
+- **Turkey.** Visa and residence help are refused there by word rules. The forms themselves need nothing.
+
+## 12. Lessons and courses (آموزش و کلاس)
+
+- **Language courses.**
+  - The language list has the same gap as books.
+  - "Exam preparation (Goethe, telc, TestDaF, ÖSD)" fits DE and AT only. Per country:
+    - UK, AU, CA, US: IELTS, Cambridge, TOEFL
+    - FR: DELF, DALF, TCF
+    - NL: NT2 / inburgering
+    - IT: CELI, CILS
+    - SE: SFI, Swedex
+  - **Change:** the exam names in the label follow the country, or say just «آمادگی آزمون زبان».
+- **Tutoring.**
+  - The subject «آلمانی (درسی)» (German as a school subject) becomes "the country's language".
+  - The level «آبیتور یا ماتورا» becomes the country's final school exam: A-levels (UK), baccalauréat (FR), maturità (IT), eindexamen (NL), high school (US/CA), HSC/VCE (AU).
+- **Other lessons.** Fine, apart from "exchange" as a price kind.
+
+## 13. Jobs (استخدام و کاریابی)
+
+**Today (all job subcategories):**
+- contract type (full-time, part-time, Minijob, Werkstudent, Ausbildung, internship, freelance);
+- work place (on site, hybrid, remote);
+- **German level**;
+- salary, with the hint «ناخالص (Brutto)»;
+- pay period;
+- experience in years;
+- Persian-speaking job;
+- visa help;
+- driving licence;
+- start date.
+
+**Problems and changes:**
+- **Language.** «سطح زبان آلمانی» becomes the level of the country's language (German, Dutch, French, Italian, Swedish, English). In Austria it stays German.
+- **Contract types by country:**
+  - **DE:** as today (Minijob up to €603 a month in 2026).
+  - **AT:** geringfügig, Lehre.
+  - **NL:** bijbaan, stage, nul-urencontract.
+  - **UK:** zero-hours, apprenticeship.
+  - **FR:** CDI, CDD, alternance, intérim.
+  - **IT:** indeterminato, determinato, apprendistato.
+  - **SE:** tillsvidare, visstid.
+  - **AU:** casual.
+  - **US/CA:** hourly, salaried, contract.
+- **Subcategory names.** «آوسبیلدونگ (Ausbildung)» and «مینی‌جاب و پاره‌وقت» are German. Rename them per country (apprenticeship, part-time).
+- **Salary.**
+  - Allow from–to and keep it optional, except where law requires it:
+    - **Austria:** every job ad must state the minimum pay (GlBG §9(2)).
+    - **US states:** CA, CO, NY, WA and others require a pay range.
+    - **Ontario:** pay required since Jan 2026 for employers with 25+ staff.
+    - **EU:** the pay-transparency directive is coming (not yet law in DE or NL).
+  - The hint «ناخالص» stays, with the local word in brackets: Brutto, gross, brut, lordo.
+- **Gender-neutral ads.** DE and AT require them ((m/w/d)). A hint under the title would help employers.
+- **Turkey.** Jobs from verified businesses only, with open contact. Already enforced; the form needs only the language change.
+
+## 14. Community (اجتماعی)
+
+- **Rideshare.**
+  - "Exchange" and "negotiable" don't fit.
+  - In Germany a ride may only share costs (no profit).
+  - **Change:** one price, «سهم هزینهٔ هر نفر» (cost per seat).
+  - Add departure time and one-way or return.
+- **Neighbour help, lost and found.** Fine.
+
+## 15. Events (رویدادها)
+
+- **Overall.** The event form is separate and fits every country. It asks for:
+  - the event type;
+  - dates and times in local time;
+  - repeats;
+  - in person or online;
+  - venue and address;
+  - ticket price "from";
+  - ticket link, organiser, language, age limit, status.
+- **Event languages.** The choices are Persian, German, English and other. Use the country's language instead of German outside DE and AT.
+
+## 16. Equipment and industry (تجهیزات و صنعتی)
+
+- **Overall.** Fine (condition only).
+- **Shipping.** "Can be sent by post" on machinery and building materials is fine: it means freight.
+
+---
+
+## 17. What changes by country: one table
+
+| Field | DE | AT | NL | UK | FR | IT | SE | US | CA | AU | TR |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Long-term rent | Kalt + NK = warm | Hauptmietzins + BK (+VAT) | kale huur + service | rent pcm + bills? | HC + charges = CC | canone + spese | rent (heating incl.) | rent/month + utilities? | rent/month + utilities? | rent **per week** | closed |
+| Deposit name | Kaution | Kaution | waarborgsom | deposit | dépôt de garantie | cauzione | deposition | security deposit | deposit (ON: last month) | bond | closed |
+| Address registration | Anmeldung | Meldezettel | inschrijving | – | – | residenza | folkbokföring | – | – | – | closed |
+| Social-housing permit | WBS | – | – | – | – | – | – | – | – | – | closed |
+| Energy in ads | class + kWh + source + year | HWB | label | EPC | DPE | APE class | – | – | – | – | closed |
+| Rooms | Zimmer | Zimmer | kamers | bedrooms | pièces | locali | rum | bedrooms | bedrooms | bedrooms | closed |
+| Area | m² | m² | m² | sq ft + m² | m² | m² | m² | sq ft | sq ft | m² | closed |
+| Short-let registration no. | Berlin and others | Vienna from 2027 | Amsterdam | (London 90 nights) | Paris and others | CIN everywhere | – | NYC | some cities | some states | closed |
+| Car inspection | HU/TÜV | Pickerl | APK | MOT | CT | revisione | besiktning | – | – | rego/roadworthy | closed |
+| Mileage | km | km | km | miles | km | km | km | miles | km | km | closed |
+| Job language field | German | German | Dutch | English | French | Italian | Swedish | English | English/French | English | Turkish |
+| Contract types | Minijob, Werkstudent, Ausbildung | geringfügig, Lehre | bijbaan, stage | zero-hours, apprenticeship | CDI, CDD, alternance | determinato… | visstid… | hourly/salaried | hourly/salaried | casual | – |
+| Salary in ad | optional | **required (minimum)** | optional | optional | optional | optional | optional | **range required in many states** | **required in Ontario (25+ staff)** | optional | optional |
+| Clothes/shoe sizes | EU | EU | EU | UK | EU | EU | EU | US | US | AU/UK | EU |
+| Kids' sizes | cm | cm | cm | age | cm | cm | cm | age | age | age | cm |
+| Currency | € | € | € | £ | € | € | kr | $ | $ | $ | ₺ |
+
+---
+
+## 18. Suggested order of work (for approval)
+
+1. **Short-term rent price and card** (summary, item 1). Small and visible, and it fixes the owner's example.
+2. **Bedrooms instead of German rooms** in housing. Also remove the German hints: rooms, area, WBS, Anmeldung.
+3. **Shipping off for animals, pet care and boats; "exchange" off for services, lessons, animals and rideshare.** Small.
+4. **Room in a shared flat:** drop "entire place"; add bills included, minimum stay, private bathroom, couples OK.
+5. **Country awareness in the form.** A field can be shown, renamed or given options per country. This one building block enables items 6–9.
+6. Rent block, deposit, energy and Anmeldung per country, ready before each country opens (Austria first).
+7. Jobs: language level, contract types, salary range, Austria's required salary.
+8. Vehicles: inspection names, miles, hp.
+9. Sizes, exam names, language lists, service units.
+
+Items 1–4 are useful in Germany today. Items 5–9 must be ready before Austria and the other countries open.
+
+---
+
+## Appendix: one test ad in every subcategory (owner's request, Nov 5, 2026)
+
+One published test ad in each of the 119 subcategories and 9 event types (128 in all), in Berlin (10999 Kreuzberg).
+- **Fields:** every field is filled with a sample value; there are no photos.
+- **Titles** start with «آگهی نمونه:» (sample ad) or «رویداد نمونه:» (sample event).
+- **Who can see them:** test-account content is hidden from the public. To open these links, sign in as staff or as a test account.
+- **Posters.** Most come from the Germany test account. The site's own limits meant a few came from other test accounts:
+  - **Free business limit.** A business without Pro may have 3 live ads, and an account at most 3 businesses. So jobs and licensed services came from 8 verified test businesses («کسب‌وکار نمونه…»):
+    - Germany test account: 3
+    - Austria test account: 3
+    - Netherlands test account: 2
+  - **Private seller limits.** Homes and property for sale or rent came from the Netherlands, UK, France and Italy test accounts, posting in Germany.
+  - **Event limit.** 5 events a day per account, so some events came from the Austria test account.
+- **Shared-room link.** The shared-room ad is an older Germany test sample.
+
+**تجهیزات و صنعتی** (`business-equipment`)
+
+- مصالح ساختمانی (`building-materials`): https://staging.peydoo.com/v/x/5ddqg1ytsv
+- ماشین‌آلات و ابزار صنعتی (`machinery`): https://staging.peydoo.com/v/x/hkh5gv53dv
+- تجهیزات اداری (`office-equipment`): https://staging.peydoo.com/v/x/33qaxsgae5
+- تجهیزات فروشگاه و رستوران (`shop-equipment`): https://staging.peydoo.com/v/x/6qz6ry4bvr
+
+**اجتماعی** (`community`)
+
+- گمشده‌ها (اشیا و حیوانات) (`lost-found`): https://staging.peydoo.com/v/x/kmhg886f95
+- همسفری (`rideshare`): https://staging.peydoo.com/v/x/ye8af4b5vp
+- کمک همسایگی و داوطلبانه (`volunteering`): https://staging.peydoo.com/v/x/4chkpdj72c
+
+**کالای دیجیتال** (`electronics`)
+
+- صوتی و هدفون (`audio`): https://staging.peydoo.com/v/x/91s81d5kts
+- دوربین عکاسی و فیلم‌برداری (`cameras`): https://staging.peydoo.com/v/x/h5p2284cm4
+- پرینتر، شبکه و لوازم جانبی (`computer-accessories`): https://staging.peydoo.com/v/x/hwrwgedjyz
+- قطعات رایانه (`computer-parts`): https://staging.peydoo.com/v/x/7jghx8ybzz
+- رایانه رومیزی (`desktop-computers`): https://staging.peydoo.com/v/x/wtr070aycs
+- کنسول و بازی ویدیویی (`gaming`): https://staging.peydoo.com/v/x/2drtctsyet
+- لپ‌تاپ (`laptops`): https://staging.peydoo.com/v/x/nmzwnm6wn4
+- گوشی موبایل (`mobile-phones`): https://staging.peydoo.com/v/x/p9d8z4ezdy
+- سایر کالای دیجیتال (`other-electronics`): https://staging.peydoo.com/v/x/9e1rbt2mn5
+- لوازم جانبی موبایل (`phone-accessories`): https://staging.peydoo.com/v/x/4mh0m1stck
+- تبلت و کتاب‌خوان (`tablets`): https://staging.peydoo.com/v/x/mabaedm0km
+- تلویزیون و پروژکتور (`tv-video`): https://staging.peydoo.com/v/x/yr62rymtpp
+- ساعت هوشمند و پوشیدنی (`wearables`): https://staging.peydoo.com/v/x/5qkkca3ynz
+
+**رویدادها** (`events-calendar`)
+
+- کنسرت (`event-concerts`): https://staging.peydoo.com/e/x/fm5hsj3cnq
+- کودکان (`event-family`): https://staging.peydoo.com/e/x/jeycrb0qw4 (from the Austria test account)
+- دورهمی (`event-meetups`): https://staging.peydoo.com/e/x/c35tqyhvx5
+- یادبود و همبستگی (`event-memorials`): https://staging.peydoo.com/e/x/zx4g05r3z8 (from the Austria test account)
+- سایر رویدادها (`event-other`): https://staging.peydoo.com/e/x/7ttcm5asce (from the Austria test account)
+- مهمانی (`event-parties`): https://staging.peydoo.com/e/x/cbbks6jd8p
+- فرهنگی و ادبی (`event-readings`): https://staging.peydoo.com/e/x/nxmbytj56n
+- ورزش (`event-sports`): https://staging.peydoo.com/e/x/5n41j0rbkn (from the Austria test account)
+- کارگاه و کلاس (`event-workshops`): https://staging.peydoo.com/e/x/dr4mwsw63b
+
+**پوشاک و آرایشی** (`fashion-beauty`)
+
+- کیف و اکسسوری (`bags-accessories`): https://staging.peydoo.com/v/x/c75eh6nk8j
+- آرایشی و بهداشتی (`beauty-care`): https://staging.peydoo.com/v/x/r0psjvwap5
+- زیورآلات و ساعت (`jewelry-watches`): https://staging.peydoo.com/v/x/m4m3fcj5ax
+- لباس مردانه (`men-clothing`): https://staging.peydoo.com/v/x/azh2s9qrpd
+- کفش (`shoes`): https://staging.peydoo.com/v/x/47qvq3vd5s
+- لباس زنانه (`women-clothing`): https://staging.peydoo.com/v/x/0n8hdevby9
+
+**خانه و آشپزخانه** (`home-garden`)
+
+- اتاق خواب، تخت و کمد (`bedroom`): https://staging.peydoo.com/v/x/8fc02j4emp
+- فرش، گلیم و تابلوفرش (`carpets-rugs`): https://staging.peydoo.com/v/x/p23qatdg4m
+- ظروف و لوازم آشپزخانه (`cookware`): https://staging.peydoo.com/v/x/eewnkxs569
+- دکوراسیون (`decor`): https://staging.peydoo.com/v/x/h2fzaaxn1a
+- ابزار و تعمیرات (`diy-tools`): https://staging.peydoo.com/v/x/qhkyz44v5y
+- خوراکی و نوشیدنی (`food-drinks`): https://staging.peydoo.com/v/x/jwm91414zk
+- باغ، گل و گیاه (`garden-plants`): https://staging.peydoo.com/v/x/w5t0047hnw
+- لوازم خانگی برقی (`home-appliances`): https://staging.peydoo.com/v/x/jb0bh2wkyt
+- پرده و منسوجات خانگی (`home-textiles`): https://staging.peydoo.com/v/x/9mt1dh3rm1
+- آشپزخانه و ناهارخوری (`kitchen-dining`): https://staging.peydoo.com/v/x/ms6zbnrb15
+- روشنایی (`lighting`): https://staging.peydoo.com/v/x/fke3tqx6e9
+- مبلمان پذیرایی و نشیمن (`living-room`): https://staging.peydoo.com/v/x/d45tkjryhm
+- سایر لوازم خانه (`other-home`): https://staging.peydoo.com/v/x/9fmacmd80q
+
+**استخدام و کاریابی** (`jobs`)
+
+- آوسبیلدونگ (Ausbildung) (`apprenticeships`): https://staging.peydoo.com/v/x/h7fv6cjryg (from the Austria test account)
+- آرایشگری و زیبایی (`beauty-jobs`): https://staging.peydoo.com/v/x/raqs0n11az (from the Austria test account)
+- نظافت و خدمات (`cleaning-jobs`): https://staging.peydoo.com/v/x/4pa6v5nb32 (from the Austria test account)
+- ساختمان و فنی (`construction-trades`): https://staging.peydoo.com/v/x/see32s9hp9
+- آموزشی (`education-jobs`): https://staging.peydoo.com/v/x/stz6cpbh0b (from the Austria test account)
+- درمانی و مراقبتی (Pflege) (`healthcare-care`): https://staging.peydoo.com/v/x/f76skk43f3
+- رستوران و هتلداری (`hospitality`): https://staging.peydoo.com/v/x/asjcsvamen
+- کارآموزی (`internships`): https://staging.peydoo.com/v/x/0nmg7exexz (from the Austria test account)
+- فناوری اطلاعات (`it-jobs`): https://staging.peydoo.com/v/x/ktdb92x4sw
+- حمل‌ونقل و انبار (`logistics`): https://staging.peydoo.com/v/x/8qfmraehe5
+- مینی‌جاب و پاره‌وقت (`mini-jobs`): https://staging.peydoo.com/v/x/z2r5yxwf0a (from the Austria test account)
+- اداری و دفتری (`office-admin`): https://staging.peydoo.com/v/x/7v7ytszy1n
+- سایر مشاغل (`other-jobs`): https://staging.peydoo.com/v/x/dgs8p7hpsc (from the Austria test account)
+- فروش و خرده‌فروشی (`retail-sales`): https://staging.peydoo.com/v/x/negaa9gkv6
+
+**کودک و نوزاد** (`kids-baby`)
+
+- سایر لوازم نوزاد (`baby-gear`): https://staging.peydoo.com/v/x/m7gw46bm6y
+- صندلی ماشین کودک (`car-seats`): https://staging.peydoo.com/v/x/6aejvw6gnb
+- لباس و کفش کودک (`kids-clothing`): https://staging.peydoo.com/v/x/k6tmt5n8sv
+- سرویس خواب و مبلمان کودک (`kids-furniture`): https://staging.peydoo.com/v/x/gk92s39eha
+- کالسکه و کریر (`strollers`): https://staging.peydoo.com/v/x/4ytb7hknw7
+- اسباب‌بازی (`toys`): https://staging.peydoo.com/v/x/rqp3tc3k7y
+
+**سرگرمی و فراغت** (`leisure-hobbies`)
+
+- هنر و صنایع دستی (`art-handicrafts`): https://staging.peydoo.com/v/x/m6dxexp0z2
+- کتاب و مجله (`books`): https://staging.peydoo.com/v/x/7a5ksyh1v8
+- کلکسیون و عتیقه (`collectibles`): https://staging.peydoo.com/v/x/nsj4g4f6dj
+- فیلم و موسیقی (`music-movies`): https://staging.peydoo.com/v/x/eqg24s0tff
+- آلات موسیقی (`musical-instruments`): https://staging.peydoo.com/v/x/vt7g5946ep
+- کوهنوردی و کمپینگ (`outdoor-camping`): https://staging.peydoo.com/v/x/2hswsdr23d
+- ورزش و تناسب اندام (`sports`): https://staging.peydoo.com/v/x/t9ea3gky60
+- بلیت کنسرت و رویداد (`tickets`): https://staging.peydoo.com/v/x/909zqpzq5d
+
+**آموزش و کلاس** (`lessons-courses`)
+
+- هنر و صنایع دستی (`art-courses`): https://staging.peydoo.com/v/x/mgaw6wzgy0
+- کامپیوتر و برنامه‌نویسی (`computer-courses`): https://staging.peydoo.com/v/x/vkkaymrw1d
+- آموزشگاه رانندگی (`driving-school`): https://staging.peydoo.com/v/x/a1ffnqeks5 (from the Austria test account)
+- زبان (`language-courses`): https://staging.peydoo.com/v/x/t7z5fdg83v
+- آموزش موسیقی (`music-lessons`): https://staging.peydoo.com/v/x/ysshkq54a3
+- سایر کلاس‌ها (`other-courses`): https://staging.peydoo.com/v/x/wc2r4pkn6w
+- کلاس ورزشی (`sports-courses`): https://staging.peydoo.com/v/x/10m454dh56
+- تدریس خصوصی دروس (`tutoring`): https://staging.peydoo.com/v/x/r3vf1atmtp
+
+**حیوانات** (`pets`)
+
+- پرنده (`birds`): https://staging.peydoo.com/v/x/v70134744f
+- گربه (`cats`): https://staging.peydoo.com/v/x/b0e0qgm7fm
+- سگ (`dogs`): https://staging.peydoo.com/v/x/4rpxaqenaq
+- ماهی و آکواریوم (`fish-aquariums`): https://staging.peydoo.com/v/x/7d90a7hefe
+- نگهداری و آموزش حیوانات (`pet-care`): https://staging.peydoo.com/v/x/bn5kxjw9vb
+- لوازم حیوانات (`pet-supplies`): https://staging.peydoo.com/v/x/cdes35aw3e
+- حیوانات کوچک (`small-animals`): https://staging.peydoo.com/v/x/qbjewez357
+
+**املاک** (`real-estate`)
+
+- اجاره آپارتمان (`apartments-rent`): https://staging.peydoo.com/v/x/9xzre2zgas
+- فروش آپارتمان (`apartments-sale`): https://staging.peydoo.com/v/x/tgjkcd9gyk (from the Netherlands test account)
+- اجاره ملک تجاری و اداری (`commercial-rent`): https://staging.peydoo.com/v/x/3kt082a7zh (from the UK test account)
+- فروش ملک تجاری و اداری (`commercial-sale`): https://staging.peydoo.com/v/x/jy2pnkzz06 (from the France test account)
+- اجاره خانه (`houses-rent`): https://staging.peydoo.com/v/x/txnq5tc2w8
+- فروش خانه (`houses-sale`): https://staging.peydoo.com/v/x/9ptggvcv96 (from the Netherlands test account)
+- زمین و باغچه (`land-gardens`): https://staging.peydoo.com/v/x/mtgd2td5qh
+- گاراژ و جای پارک (`parking-garages`): https://staging.peydoo.com/v/x/y9j1ax87zn (from the Italy test account)
+- اتاق و خانه اشتراکی (WG) (`shared-rooms`): https://staging.peydoo.com/v/x/pk4ad1xyzq
+- اجاره موقت و کوتاه‌مدت (`short-term-rent`): https://staging.peydoo.com/v/x/2dns52ss4z
+
+**خدمات** (`services`)
+
+- آرایشگری و زیبایی (`beauty-services`): https://staging.peydoo.com/v/x/a2wczy36cp
+- خدمات خودرو (`car-services`): https://staging.peydoo.com/v/x/2arz5dt1r0
+- پذیرایی و مراسم (`catering-events`): https://staging.peydoo.com/v/x/5n47r3ee6s
+- مراقبت از کودک (`childcare`): https://staging.peydoo.com/v/x/wdebgw3eq2
+- نظافت (`cleaning`): https://staging.peydoo.com/v/x/tkk30x3fp0
+- مراقبت از سالمند (`elderly-care`): https://staging.peydoo.com/v/x/9kgb3q08sv
+- مالی و بیمه (`finance-insurance`): https://staging.peydoo.com/v/x/267z29q8zy (from the Netherlands test account)
+- پزشکی و درمان (`health-services`): https://staging.peydoo.com/v/x/43kvk7ac6j (from the Netherlands test account)
+- تعمیرات و خدمات ساختمانی (`home-repairs`): https://staging.peydoo.com/v/x/wv7xwq103x
+- خدمات رایانه و موبایل (`it-services`): https://staging.peydoo.com/v/x/x0p1385hez
+- مشاورهٔ حقوقی و مهاجرت (`legal-immigration`): https://staging.peydoo.com/v/x/7tcmddwcxa (from the Netherlands test account)
+- اسباب‌کشی و حمل‌ونقل (`moving-transport`): https://staging.peydoo.com/v/x/jwzmgnpbbd
+- سایر خدمات (`other-services`): https://staging.peydoo.com/v/x/r22n65sv4q
+- کمک در کارهای اداری و فرم‌ها (`paperwork-help`): https://staging.peydoo.com/v/x/7f53evr45y
+- عکاسی و فیلم‌برداری (`photography`): https://staging.peydoo.com/v/x/emjc7c0vjc
+- مشاور املاک (`real-estate-agents`): https://staging.peydoo.com/v/x/ytzjntrkze (from the Netherlands test account)
+- مالیات و حسابداری (`tax-accounting`): https://staging.peydoo.com/v/x/j86h7v1059 (from the Netherlands test account)
+- ترجمه (`translation`): https://staging.peydoo.com/v/x/edcxngh20n (from the Austria test account)
+
+**وسایل نقلیه** (`vehicles`)
+
+- دوچرخه و اسکوتر برقی (`bicycles`): https://staging.peydoo.com/v/x/pfyrvndh5n
+- قایق (`boats`): https://staging.peydoo.com/v/x/rhrxc7f79f
+- کاروان و کمپر (`campers`): https://staging.peydoo.com/v/x/5fb00nm2e9
+- قطعات و لوازم خودرو (`car-parts`): https://staging.peydoo.com/v/x/vww11ach7m
+- خودرو (`cars`): https://staging.peydoo.com/v/x/9esqnyc41p
+- خودروی تجاری و تریلر (`commercial-vehicles`): https://staging.peydoo.com/v/x/j6texhyspr
+- قطعات و لوازم موتورسیکلت (`motorcycle-parts`): https://staging.peydoo.com/v/x/zvjb32091m
+- موتورسیکلت و اسکوتر (`motorcycles`): https://staging.peydoo.com/v/x/j29ck9tgsp
+- لاستیک و رینگ (`tires-rims`): https://staging.peydoo.com/v/x/95sw86aabs
