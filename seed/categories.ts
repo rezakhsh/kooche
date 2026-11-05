@@ -353,14 +353,18 @@ const heatingIncluded: AttributeSeed = {
   validation: { countries: EXTRA_COST_COUNTRIES },
 };
 
-/** What SpareRoom and Flatmates.com.au ask first; for whole homes where the rent is one amount (`hiddenIn`: where extra costs are asked instead) */
+/**
+ * What SpareRoom and Flatmates.com.au ask first; for whole homes too where the rent is one amount
+ * (`hiddenIn`: where extra costs are asked instead). On a room's card; a home's card shows beds and
+ * baths, as Rightmove's does.
+ */
 const billsIncluded = (hiddenIn?: string[]): AttributeSeed => ({
   key: 'bills_included',
   type: 'select',
   labelFa: 'قبوض داخل اجاره',
   helpFa: 'گرمایش، برق، آب و اینترنت',
   isFilterable: true,
-  showOnCard: true,
+  showOnCard: !hiddenIn,
   ...(hiddenIn ? { validation: { hidden_in: hiddenIn } } : {}),
   options: options([
     ['all', 'با همهٔ قبوض'],
