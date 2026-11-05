@@ -535,6 +535,90 @@ Items 1–4 are useful in Germany today. Items 5–9 must be ready before Austri
 
 ---
 
+## 19. Plan for items 1–4 (Nov 5, 2026; waiting for the owner's approval)
+
+All new fields are optional, so posting stays quick. Where the owner had a choice, the plan picks what the big sites do (listed after each item).
+
+**What it touches today.** Production has 1 live listing (a shared room): no rooms value, not "entire place", no shipping, no exchange. So no existing listing needs converting. Staging's test ads keep their values.
+
+### 1. Short-term rent: one all-in price per night, week or month
+
+The step-3 form, in this order:
+1. **«اجاره برای»** (rent per): شب / هفته / ماه (night / week / month). Required, and first.
+2. **The price.** Its label follows that choice: «اجاره هر شب», «اجاره هر هفته», «اجاره هر ماه». Hint: «همهٔ هزینه‌ها داخل این مبلغ است» (all costs included). No "cold", no Nebenkosten.
+3. **Deposit**, as today.
+4. **New: «هزینهٔ نظافت»** (cleaning fee, one-time).
+5. **New: «حداکثر تعداد مهمان»** (guests). Divar's «ظرفیت», Airbnb's guests.
+6. **New: «حداقل مدت اقامت»** (minimum stay): بدون حداقل، ۲ شب، ۳ شب، ۱ هفته، ۱ ماه، ۳ ماه، ۶ ماه.
+7. **Area, type of place, bedrooms** (item 2), **available from and to**, as today.
+8. **New here: «Anmeldung ممکن»** (registration possible), with the hint "matters for monthly lets". It's the WG field; the per-country words come with item 6.
+9. **New: «شمارهٔ ثبت»** (short-let registration number). Hint: in Berlin and many cities it's required for whole flats let by the night and must be in the ad. Optional for now; required per city once forms know the country (item 5).
+10. **Removed: «مبله»** (furnished). A short let is always furnished: Airbnb and Wunderflats don't ask.
+
+What buyers see:
+- **Card:** «۸۰ € هر شب» (no more «سرد، ماهانه»).
+- **Listing page:** the same next to the price.
+- **Filters:** the price is just «اجاره». A new night / week / month choice lets nightly and monthly prices be compared separately.
+
+### 2. Bedrooms, the way Iranians count
+
+1. **New: «تعداد اتاق خواب»** (bedrooms) as chips: «بدون اتاق خواب (استودیو)»، ۱، ۲، ۳، ۴، «۵ یا بیشتر», as on Divar.
+   - Required for flats and houses, to rent and to buy.
+   - Optional for short lets.
+   - The card shows «۲ خوابه», and the filter uses the same chips.
+2. **The German count stays, but optional and renamed:** «تعداد اتاق به حساب آلمانی (Zimmer)».
+   - Hint: «در آگهی‌های آلمانی اتاق نشیمن هم شمرده می‌شود؛ ۳ Zimmer یعنی ۲ خوابه».
+   - It shows on the listing page, not the card. Sellers copying from ImmoScout and German readers still find it.
+   - Other countries get their own word or nothing (item 5).
+3. **The area hint fits each category:**
+   - flats and houses: none;
+   - shared room: «متراژ خود اتاق»;
+   - land: «متراژ زمین».
+
+WBS and the Anmeldung chip stay as they are: right in Germany, the only open country. Their country rules come with items 5–6.
+
+### 3. No post for animals; no exchange for services
+
+1. **«ارسال پستی ممکن است» removed** (form and filter) for dogs, cats, birds, small animals, pet care and boats.
+   - Kept for fish & aquariums: tanks and equipment are posted there and can be shipped.
+2. **«معاوضه» (exchange) removed as a price kind** for:
+   - all services;
+   - all lessons;
+   - pet care;
+   - rideshare;
+   - dogs and cats.
+   - Goods keep it.
+3. **Listings already live are never taken down.** An edit asks for another price kind.
+
+### 4. Room in a shared flat (WG)
+
+1. **«نوع جا»:** only «اتاق خصوصی» and «اتاق مشترک» («کل واحد» removed).
+2. **New: «قبوض داخل اجاره»** (bills included): «همه (گرمایش، برق، اینترنت)» / «بخشی» / «هیچ‌کدام».
+   - Can be filtered on.
+   - The card shows «با همهٔ قبوض» when all are included, as SpareRoom and Flatmates show it.
+3. **New: «حداقل مدت اجاره»** (minimum stay): بدون حداقل، ۱ ماه، ۳ ماه، ۶ ماه، ۱۲ ماه.
+4. **New: «حمام اختصاصی»** (private bathroom) and **«مناسب زوج‌ها»** (couples OK), both yes/no.
+
+### How it will be built and checked
+
+**Where.** A separate worktree, because the Turkey session works in the main checkout.
+
+**Code changes:**
+- the category list (`seed/categories.ts`);
+- the posting form, card, listing page and filters;
+- the Persian texts (`src/messages/fa.ts`);
+- tests for the price label, shipping and exchange rules.
+
+**On staging:**
+- deploy and run the seed;
+- one test ad again in each changed category;
+- every changed form, card, listing page and open filter panel checked on phone and computer, light and dark;
+- pictures kept in `/root/peydoo-media/wave2/field-fixes/`.
+
+**Production:** only when the owner says so.
+
+---
+
 ## Appendix: one test ad in every subcategory (owner's request, Nov 5, 2026)
 
 One published test ad in each of the 119 subcategories and 9 event types (128 in all), in Berlin (10999 Kreuzberg).
