@@ -44,6 +44,8 @@ export type FormProps = {
   rentAllIn: boolean;
   /** A job ad where the law wants the title for every gender (DE, AT): «(m/w/d)» */
   neutralJobTitle: boolean;
+  /** A ride: the price is each passenger's share of the costs */
+  costShare: boolean;
   /** The rent's local name, after its label: «اجارهٔ کل ماهانه (Bruttomiete)» */
   rentLocalWord: string | null;
   /** Things that can be sent by post (not homes, services, jobs, lessons) */
@@ -275,7 +277,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
         : t.rentAmount.period
       : props.rent
         ? `${t.rentAmount[props.rent]}${props.rentLocalWord ? ` (${props.rentLocalWord})` : ''}`
-        : t.amount;
+        : props.costShare
+          ? t.costShareAmount
+          : t.amount;
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );

@@ -6,7 +6,7 @@ import type { BrowseItem } from '../search/browse';
 import { cardFacts } from './attribute-text';
 import { ancestry, listingCurrency, type Catalog } from './catalog';
 import { REGISTRATION_WORD } from './country-fields';
-import { rentKind, rentPeriodOf } from './safety-kind';
+import { costShare, rentKind, rentPeriodOf } from './safety-kind';
 import { placeParts } from './place-text';
 import { formatPrice } from './price';
 import { listingPath } from './slug';
@@ -46,7 +46,8 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     // The address-registration chip, under the country's word, only where tenants register (owner, Nov 5, 2026)
     anmeldung: l.attributes.anmeldung === true && l.countryCode ? (REGISTRATION_WORD[l.countryCode] ?? null) : null,
     // Rent a month, cold for flats and houses in Germany (mockup final/browse: «۵۹۰ € سرد، ماهانه»); a room's is just «ماهانه»
-    unit: rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, l.attributes),
+    // A ride's price is per passenger: «۲۵ € هر نفر»
+    unit: rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, l.attributes) ?? (l.categoryId && l.priceMinor !== null && costShare(ancestry(catalog, l.categoryId)) ? messages.country.perSeat : null),
     wanted: l.kind === 'wanted',
     facts: cardFacts(catalog, l.categoryId, l.countryCode, l.attributes, amountCurrency),
     distance: l.distanceKm != null ? messages.browse.distance(l.distanceKm) : null,

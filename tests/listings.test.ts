@@ -18,6 +18,7 @@ import { rentUnit } from '../src/modules/listings/card';
 import { REGISTRATION_WORD, registrationNumberRequired } from '../src/modules/listings/country-fields';
 import { countryCatalog } from '../src/modules/listings/country-rules';
 import { business } from './payments-fixtures';
+import { eventLanguagesIn } from '../src/modules/events/languages';
 import { cardFacts } from '../src/modules/listings/attribute-text';
 import { exchangeAllowed, rentKind, rentPeriodOf, shippable } from '../src/modules/listings/safety-kind';
 import { normalizePersian } from '../src/lib/normalize-persian';
@@ -863,6 +864,66 @@ describe('jobs and vehicles per country', () => {
     expect(name('shared-rooms', 'DE')).toBe('اتاق و خانه اشتراکی (WG)');
     // Turkey's closed categories stay closed
     expect(countryCatalog(catalog, 'TR').bySlug.get('cars')!.isActive).toBe(false);
+  });
+});
+
+// Field audit part C (approved by the owner on Nov 5, 2026; docs/research/field-audit.md §20)
+describe('sizes, exams, languages and services per country', () => {
+  const field = async (slug: string, country: string | null, key: string) => {
+    const catalog = await cachedCatalog(appDb);
+    return effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id, country).find((d) => d.key === key)!;
+  };
+  const label = async (slug: string, country: string, key: string, value: string) => (await field(slug, country, key)).options.find((o) => o.value === value)?.labelFa;
+  const values = async (slug: string, country: string, key: string) => (await field(slug, country, key)).options.map((o) => o.value);
+
+  it("clothes, shoes and kids' sizes the country's way", async () => {
+    expect(await label('women-clothing', 'DE', 'clothing_size', 'm')).toBe('M (38)');
+    expect(await label('women-clothing', 'GB', 'clothing_size', 'm')).toBe('M (10)');
+    expect(await label('women-clothing', 'US', 'clothing_size', 'm')).toBe('M (6)');
+    expect(await label('men-clothing', 'AU', 'clothing_size', 'm')).toBe('M (38–40)');
+    expect((await field('shoes', 'GB', 'shoe_size_eu')).labelFa).toBe('سایز (بریتانیا)');
+    expect((await field('shoes', 'DE', 'shoe_size_eu')).labelFa).toBe('سایز (اروپایی)');
+    expect((await field('kids-clothing', 'US', 'kids_size_cm')).isActive).toBe(false);
+    expect((await field('kids-clothing', 'US', 'kids_age')).isActive).toBe(true);
+    expect((await field('kids-clothing', 'DE', 'kids_age')).isActive).toBe(false);
+    expect((await field('kids-clothing', 'DE', 'kids_size_cm')).helpFa).not.toContain('آلمانی');
+    expect(await values('car-seats', 'DE', 'car_seat_group')).toContain('isize');
+  });
+
+  it("languages, exams and school subjects the country's way", async () => {
+    expect((await values('books', 'NL', 'book_language')).slice(0, 3)).toEqual(['persian', 'dutch', 'german']);
+    expect((await values('books', 'DE', 'book_language')).slice(0, 3)).toEqual(['persian', 'german', 'english']);
+    expect(await values('language-courses', 'BE', 'language')).toEqual(expect.arrayContaining(['dutch', 'italian', 'swedish', 'spanish']));
+    expect((await field('language-courses', 'DE', 'exam_prep')).labelFa).toContain('Goethe');
+    expect((await field('language-courses', 'GB', 'exam_prep')).labelFa).toContain('IELTS');
+    expect((await field('language-courses', 'BE', 'exam_prep')).labelFa).toBe('آمادگی آزمون زبان');
+    expect(await label('tutoring', 'NL', 'subjects', 'german')).toBe('هلندی (درسی)');
+    expect(await values('tutoring', 'GB', 'subjects')).not.toContain('german');
+    expect(await label('tutoring', 'DE', 'school_levels', 'abitur')).toBe('آبیتور یا ماتورا');
+    expect(await label('tutoring', 'AT', 'school_levels', 'abitur')).toBe('ماتورا (Matura)');
+    expect(eventLanguagesIn('NL')).toEqual(['fa', 'nl', 'en', 'other']);
+    expect(eventLanguagesIn('GB')).toEqual(['fa', 'en', 'other']);
+    expect(eventLanguagesIn('DE')).toEqual(['fa', 'de', 'en', 'other']);
+  });
+
+  it('service words and price units by country and category', async () => {
+    expect(await label('moving-transport', 'DE', 'moving_services', 'clearance')).toBe('تخلیه و دورریزی (Entrümpelung)');
+    expect(await label('moving-transport', 'GB', 'moving_services', 'clearance')).toBe('تخلیه و دورریزی');
+    expect((await field('translation', 'FR', 'certified')).labelFa).toBe('ترجمه رسمی (assermentée)');
+    expect((await field('translation', 'DE', 'certified')).labelFa).toBe('ترجمه رسمی (beglaubigt)');
+    expect(await values('cleaning', 'DE', 'price_unit')).toEqual(['hour', 'job', 'day', 'm2']);
+    expect(await values('translation', 'DE', 'price_unit')).toEqual(['page', 'hour', 'job']);
+    expect(await values('beauty-services', 'DE', 'price_unit')).toEqual(['hour', 'job', 'day']);
+  });
+
+  it('a ride has one price, its share of the costs per passenger', async () => {
+    const catalog = await cachedCatalog(appDb);
+    const types = categoryPriceTypes(catalog, catalog.bySlug.get('rideshare')!);
+    expect(types).not.toContain('negotiable');
+    expect(types).not.toContain('exchange');
+    expect(types).toContain('fixed');
+    expect(categoryPriceTypes(catalog, catalog.bySlug.get('mobile-phones')!)).toContain('negotiable');
+    expect(await values('rideshare', 'DE', 'trip_type')).toEqual(['one_way', 'return']);
   });
 });
 

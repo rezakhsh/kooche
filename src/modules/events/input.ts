@@ -21,6 +21,8 @@ import {
 
 export type Attendance = (typeof EVENT_ATTENDANCE)[number];
 export type EventLanguage = (typeof EVENT_LANGUAGES)[number];
+
+export { eventLanguagesIn } from './languages';
 export type ScheduleStatus = (typeof EVENT_SCHEDULE_STATUSES)[number];
 
 /** Price types an event may have: free, a ticket price ("from"), or paid at the door / varies */

@@ -27,6 +27,7 @@ import { currentSession, viewerSeesTest } from '../../../modules/users/server';
 import { weeklyEventsAction } from '../../events/follow-actions';
 import { FilterSubmit } from '../_browse/filter-submit';
 import { RememberCountry } from '../remember-country';
+import { eventLanguagesIn } from '../../../modules/events/languages';
 
 // The events of a city, /germany/berlin/events, or of a country, /germany/events (wave 1, mockups
 // final/events and events-filters): the season's strip when one is near (Yalda, Nowruz), 14 days
@@ -436,7 +437,7 @@ function FilterSheet({ place, s, path, count, capped, types }: { place: EventsPl
         <H>{t.type}</H>
         <Pills name="type" options={types.filter((c) => c.slug !== OTHER_TYPE).map((c) => [c.slug, c.nameFa])} checked={(v) => s.types.includes(v)} />
         <H>{t.language}</H>
-        <Pills name="lang" options={(['fa', 'de', 'en'] as const).map((l) => [l, messages.events.languages[l]])} checked={(v) => s.languages.includes(v)} />
+        <Pills name="lang" options={eventLanguagesIn(place.country.code).filter((l) => l !== 'other').map((l) => [l, messages.events.languages[l]])} checked={(v) => s.languages.includes(v)} />
         <H>{t.suits}</H>
         <div className="flex flex-wrap gap-1.5">
           {(

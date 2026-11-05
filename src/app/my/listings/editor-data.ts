@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { RENT_LOCAL_WORD } from '../../../modules/listings/country-fields';
-import { PERIOD_RENT_SLUGS, rentKind, shippable } from '../../../modules/listings/safety-kind';
+import { costShare, PERIOD_RENT_SLUGS, rentKind, shippable } from '../../../modules/listings/safety-kind';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
@@ -89,6 +89,7 @@ export async function editorData(
       rentAllIn: ancestry(catalog, category.id).some((c) => PERIOD_RENT_SLUGS.has(c.slug)),
       // Job ads in Germany and Austria: the title for every gender, «(m/w/d)» (AGG §11, GlBG §9)
       neutralJobTitle: ancestry(catalog, category.id)[0]?.slug === 'jobs' && (countryCode === 'DE' || countryCode === 'AT'),
+      costShare: costShare(ancestry(catalog, category.id)),
       // Only a flat's or house's whole or base rent has a local name (a WG room's rent is just a rent)
       rentLocalWord: countryCode && (rent === 'gross' || rent === 'net') ? (RENT_LOCAL_WORD[countryCode] ?? null) : null,
       shippable: shippable(ancestry(catalog, category.id)),

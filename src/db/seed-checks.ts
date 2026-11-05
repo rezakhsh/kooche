@@ -238,6 +238,20 @@ export const SEED_CHECKS: SeedCheck[] = [
       FROM rule_options r
       WHERE NOT EXISTS (SELECT 1 FROM category_attribute_options o WHERE o.attribute_id = r.id AND o.value = r.value AND o.is_active)`,
   },
+  {
+    // options_in names categories below the field (or `*`), each with options the field has
+    name: 'category option lists belong to the field',
+    query: sql`
+      SELECT a.key || ' in ' || c.slug || ' lists ' || l.slug || CASE WHEN o.value IS NULL THEN ', which is not below it' ELSE ' with the option ' || o.value || ', which it does not have' END AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      CROSS JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(a.validation -> 'options_in') = 'object' THEN a.validation -> 'options_in' ELSE '{}' END) AS l(slug, list)
+      LEFT JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(l.list) = 'array' THEN l.list ELSE '[]' END) AS o(value) ON true
+      WHERE a.is_active AND (
+        (o.value IS NULL AND l.slug <> '*' AND NOT EXISTS (SELECT 1 FROM categories x WHERE x.slug = l.slug AND x.path <@ c.path AND x.id <> c.id))
+        OR (o.value IS NOT NULL AND NOT EXISTS (SELECT 1 FROM category_attribute_options v WHERE v.attribute_id = a.id AND v.value = o.value AND v.is_active))
+        OR (o.value IS NOT NULL AND l.slug <> '*' AND NOT EXISTS (SELECT 1 FROM categories x WHERE x.slug = l.slug AND x.path <@ c.path AND x.id <> c.id)))`,
+  },
 ];
 
 export type SeedCheckFailure = { name: string; problems: string[] };

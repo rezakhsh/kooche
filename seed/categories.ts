@@ -795,6 +795,11 @@ const genderFit: AttributeSeed = {
   ]),
 };
 
+/** Men's sizes in the UK, US, CA and AU: the chest in inches */
+const MEN_CHEST: Record<string, string> = {
+  xs: 'XS (34)', s: 'S (36)', m: 'M (38–40)', l: 'L (42)', xl: 'XL (44)', xxl: 'XXL (46)', xxxl: '3XL (48) و بزرگ‌تر',
+};
+
 const languageOptions = options([
   ['persian', 'فارسی'],
   ['german', 'آلمانی'],
@@ -802,8 +807,30 @@ const languageOptions = options([
   ['french', 'فرانسوی'],
   ['arabic', 'عربی'],
   ['turkish', 'ترکی'],
+  ['spanish', 'اسپانیایی'],
+  ['italian', 'ایتالیایی'],
+  ['dutch', 'هلندی'],
+  ['swedish', 'سوئدی'],
   ['other', 'سایر'],
 ]);
+
+/**
+ * Languages in the order a country reads them (field audit §10, §12, §20 part C): Persian, the
+ * country's own language, then the rest. Books, translation and language courses.
+ */
+const LANGUAGE_ORDER = languageOptions.map((o) => o.value);
+const localFirst = (own: string): string[] => ['persian', own, ...LANGUAGE_ORDER.filter((v) => v !== 'persian' && v !== own)];
+const languagesByCountry = {
+  by_country: {
+    ...deAt({ options: localFirst('german') }),
+    NL: { options: localFirst('dutch') },
+    FR: { options: localFirst('french') },
+    IT: { options: localFirst('italian') },
+    SE: { options: localFirst('swedish') },
+    TR: { options: localFirst('turkish') },
+    ...Object.fromEntries(['GB', 'US', 'CA', 'AU'].map((c) => [c, { options: localFirst('english') }])),
+  },
+};
 
 const instrumentOptions = options([
   ['tar', 'تار'],
@@ -875,6 +902,9 @@ const offers = (key: string, labelFa: string, pairs: [string, string][], showOnC
   showOnCard,
   options: options(pairs),
 });
+
+/** A shared definition with validation rules added (per country or per category) */
+const withRules = (def: AttributeSeed, rules: NonNullable<AttributeSeed['validation']>): AttributeSeed => ({ ...def, validation: { ...def.validation, ...rules } });
 
 /** A plain "kind of item" select, each with its own key (a key keeps one meaning) */
 const kind = (key: string, labelFa: string, pairs: [string, string][], extra: Partial<AttributeSeed> = {}): AttributeSeed => ({
@@ -1950,7 +1980,11 @@ export const categories: CategorySeed[] = [
             ['xl', 'XL (42)'],
             ['xxl', 'XXL (44)'],
             ['xxxl', '3XL (46) و بزرگ‌تر'],
-          ]),
+          ], {
+            xs: 'XS (6)', s: 'S (8)', m: 'M (10)', l: 'L (12)', xl: 'XL (14)', xxl: 'XXL (16)', xxxl: '3XL (18) و بزرگ‌تر',
+          }, {
+            xs: 'XS (2)', s: 'S (4)', m: 'M (6)', l: 'L (8)', xl: 'XL (10)', xxl: 'XXL (12)', xxxl: '3XL (14) و بزرگ‌تر',
+          }),
           garmentType(true),
           fashionBrand,
           color,
@@ -1966,7 +2000,7 @@ export const categories: CategorySeed[] = [
             ['xl', 'XL (54)'],
             ['xxl', 'XXL (56)'],
             ['xxxl', '3XL (58) و بزرگ‌تر'],
-          ]),
+          ], MEN_CHEST, MEN_CHEST),
           garmentType(false),
           fashionBrand,
           color,
@@ -1978,7 +2012,18 @@ export const categories: CategorySeed[] = [
             key: 'shoe_size_eu',
             type: 'number',
             labelFa: 'سایز (اروپایی)',
-            validation: { min: 15, max: 52, integer: false },
+            // UK sizes in the UK, US sizes in the US and Canada, typed and stored so (a listing never
+            // changes country), as Vinted lets the seller choose (field audit §7)
+            validation: {
+              min: 15,
+              max: 52,
+              integer: false,
+              by_country: {
+                GB: { label: 'سایز (بریتانیا)', min: 1, max: 16 },
+                US: { label: 'سایز (آمریکا)', min: 1, max: 17 },
+                CA: { label: 'سایز (آمریکا)', min: 1, max: 17 },
+              },
+            },
             isFilterable: true,
             showOnCard: true,
           },
@@ -2039,10 +2084,38 @@ export const categories: CategorySeed[] = [
             type: 'number',
             labelFa: 'سایز',
             unitFa: 'سانتی‌متر',
-            helpFa: 'سایز آلمانی بر اساس قد، مثل ۹۲ یا ۱۱۶',
-            validation: { min: 44, max: 188, integer: true },
+            helpFa: 'سایز اروپایی بر اساس قد، مثل ۹۲ یا ۱۱۶',
+            // By height in Europe; by age in the UK, US, CA and AU (kids_age; field audit §8)
+            validation: { min: 44, max: 188, integer: true, hidden_in: ['GB', 'US', 'CA', 'AU'] },
             isFilterable: true,
             showOnCard: true,
+          },
+          {
+            key: 'kids_age',
+            type: 'select',
+            labelFa: 'سایز (سن)',
+            validation: { countries: ['GB', 'US', 'CA', 'AU'] },
+            isFilterable: true,
+            showOnCard: true,
+            options: options([
+              ['m0_3', '۰ تا ۳ ماه'],
+              ['m3_6', '۳ تا ۶ ماه'],
+              ['m6_12', '۶ تا ۱۲ ماه'],
+              ['m12_18', '۱۲ تا ۱۸ ماه'],
+              ['m18_24', '۱۸ تا ۲۴ ماه'],
+              ['y2_3', '۲ تا ۳ سال'],
+              ['y3_4', '۳ تا ۴ سال'],
+              ['y4_5', '۴ تا ۵ سال'],
+              ['y5_6', '۵ تا ۶ سال'],
+              ['y6_7', '۶ تا ۷ سال'],
+              ['y7_8', '۷ تا ۸ سال'],
+              ['y8_9', '۸ تا ۹ سال'],
+              ['y9_10', '۹ تا ۱۰ سال'],
+              ['y10_11', '۱۰ تا ۱۱ سال'],
+              ['y11_12', '۱۱ تا ۱۲ سال'],
+              ['y12_14', '۱۲ تا ۱۴ سال'],
+              ['y14_plus', '۱۴ سال و بیشتر'],
+            ]),
           },
           {
             key: 'kids_gender',
@@ -2075,6 +2148,8 @@ export const categories: CategorySeed[] = [
             ['group1', 'گروه ۱ (۹ تا ۱۸ کیلو)'],
             ['group23', 'گروه ۲ و ۳ (۱۵ تا ۳۶ کیلو)'],
             ['multi', 'چندگروهی'],
+            // New seats are sold by height since Sept 2024 (UN R129; field audit §8)
+            ['isize', 'i-Size (بر اساس قد)'],
           ]),
           {
             key: 'isofix',
@@ -2127,6 +2202,7 @@ export const categories: CategorySeed[] = [
             labelFa: 'زبان',
             isFilterable: true,
             showOnCard: true,
+            validation: languagesByCountry,
             options: languageOptions,
           },
           kind('book_type', 'نوع کتاب', [
@@ -2193,23 +2269,36 @@ export const categories: CategorySeed[] = [
     icon: 'wrench',
     priceMode: 'optional',
     attributes: [
-      priceUnit([
-        ['hour', 'ساعتی'],
-        ['job', 'هر کار (ثابت)'],
-        ['day', 'روزانه'],
-        ['m2', 'هر متر مربع'],
-      ]),
+      // Per square metre only where work is priced by area, per page only for translation (field
+      // audit §11, §20 part C); `options_in` gives a category its own list (catalog.ts)
+      withRules(
+        priceUnit([
+          ['hour', 'ساعتی'],
+          ['job', 'هر کار (ثابت)'],
+          ['day', 'روزانه'],
+          ['m2', 'هر متر مربع'],
+          ['page', 'هر صفحه'],
+        ]),
+        {
+          options_in: {
+            cleaning: ['hour', 'job', 'day', 'm2'],
+            'home-repairs': ['hour', 'job', 'day', 'm2'],
+            translation: ['page', 'hour', 'job'],
+            '*': ['hour', 'job', 'day'],
+          },
+        },
+      ),
     ],
     children: [
       leaf('moving-transport', 'اسباب‌کشی و حمل‌ونقل', {
         attributes: [
-          offers('moving_services', 'خدمات', [
+          withRules(offers('moving_services', 'خدمات', [
             ['moving', 'اسباب‌کشی'],
             ['van_transport', 'حمل بار با ون'],
-            ['clearance', 'تخلیه و دورریزی (Entrümpelung)'],
+            ['clearance', 'تخلیه و دورریزی'],
             ['assembly', 'مونتاژ مبلمان'],
             ['packing', 'بسته‌بندی'],
-          ]),
+          ]), { by_country: deAt({ option_labels: { clearance: 'تخلیه و دورریزی (Entrümpelung)' } }) }),
         ],
       }),
       leaf('home-repairs', 'تعمیرات و خدمات ساختمانی', {
@@ -2229,13 +2318,13 @@ export const categories: CategorySeed[] = [
       }),
       leaf('cleaning', 'نظافت', {
         attributes: [
-          offers('cleaning_types', 'نوع نظافت', [
+          withRules(offers('cleaning_types', 'نوع نظافت', [
             ['home', 'منزل'],
             ['office', 'اداری'],
-            ['move_out', 'نظافت تحویل خانه (Endreinigung)'],
+            ['move_out', 'نظافت تحویل خانه'],
             ['carpet_sofa', 'فرش و مبل'],
             ['windows', 'پنجره'],
-          ]),
+          ]), { by_country: { ...deAt({ option_labels: { move_out: 'نظافت تحویل خانه (Endreinigung)' } }), GB: { option_labels: { move_out: 'نظافت تحویل خانه (end of tenancy)' } } } }),
         ],
       }),
       leaf('beauty-services', 'آرایشگری و زیبایی', {
@@ -2274,7 +2363,7 @@ export const categories: CategorySeed[] = [
             key: 'languages',
             type: 'multi_select',
             labelFa: 'زبان‌ها',
-            validation: { max_items: 7 },
+            validation: { max_items: 7, ...languagesByCountry },
             isRequired: true,
             isFilterable: true,
             showOnCard: true,
@@ -2283,7 +2372,19 @@ export const categories: CategorySeed[] = [
           {
             key: 'certified',
             type: 'boolean',
-            labelFa: 'ترجمه رسمی (beglaubigt)',
+            labelFa: 'ترجمه رسمی',
+            // The sworn or certified translator's local name (field audit §11)
+            validation: {
+              by_country: {
+                DE: { label: 'ترجمه رسمی (beglaubigt)' },
+                AT: { label: 'ترجمه رسمی (beeidet)' },
+                NL: { label: 'ترجمه رسمی (beëdigd)' },
+                FR: { label: 'ترجمه رسمی (assermentée)' },
+                IT: { label: 'ترجمه رسمی (giurata)' },
+                SE: { label: 'ترجمه رسمی (auktoriserad)' },
+                ...Object.fromEntries(['GB', 'US', 'CA', 'AU'].map((c) => [c, { label: 'ترجمه رسمی (certified)' }])),
+              },
+            },
             isFilterable: true,
             showOnCard: true,
           },
@@ -2369,20 +2470,50 @@ export const categories: CategorySeed[] = [
               ['physics', 'فیزیک'],
               ['chemistry', 'شیمی'],
               ['biology', 'زیست'],
-              ['german', 'آلمانی (درسی)'],
+              ['german', 'زبان محلی (درسی)'],
               ['english', 'انگلیسی'],
               ['persian', 'فارسی'],
               ['computer', 'کامپیوتر'],
               ['other', 'سایر'],
             ], true),
             isRequired: true,
+            // `german` is the country's own language as a school subject (the value keeps its first
+            // name); in English-speaking countries that is «انگلیسی» itself
+            validation: {
+              by_country: {
+                ...deAt({ option_labels: { german: 'آلمانی (درسی)' } }),
+                NL: { option_labels: { german: 'هلندی (درسی)' } },
+                FR: { option_labels: { german: 'فرانسوی (درسی)' } },
+                IT: { option_labels: { german: 'ایتالیایی (درسی)' } },
+                SE: { option_labels: { german: 'سوئدی (درسی)' } },
+                TR: { option_labels: { german: 'ترکی (درسی)' } },
+                ...Object.fromEntries(['GB', 'US', 'CA', 'AU'].map((c) => [c, { options: ['math', 'physics', 'chemistry', 'biology', 'english', 'persian', 'computer', 'other'] }])),
+              },
+            },
           },
-          offers('school_levels', 'مقطع', [
-            ['primary', 'دبستان'],
-            ['secondary', 'راهنمایی و دبیرستان'],
-            ['abitur', 'آبیتور یا ماتورا'],
-            ['university', 'دانشگاه'],
-          ]),
+          {
+            ...offers('school_levels', 'مقطع', [
+              ['primary', 'دبستان'],
+              ['secondary', 'راهنمایی و دبیرستان'],
+              ['abitur', 'امتحان پایان دبیرستان'],
+              ['university', 'دانشگاه'],
+            ]),
+            // The country's school-leaving exam (field audit §12)
+            validation: {
+              by_country: {
+                DE: { option_labels: { abitur: 'آبیتور یا ماتورا' } },
+                AT: { option_labels: { abitur: 'ماتورا (Matura)' } },
+                GB: { option_labels: { abitur: 'A-levels' } },
+                FR: { option_labels: { abitur: 'باکالوریا (bac)' } },
+                IT: { option_labels: { abitur: 'ماتوریتا (maturità)' } },
+                NL: { option_labels: { abitur: 'امتحان پایانی (eindexamen)' } },
+                US: { option_labels: { abitur: 'پایان دبیرستان (high school)' } },
+                CA: { option_labels: { abitur: 'پایان دبیرستان (high school)' } },
+                AU: { option_labels: { abitur: 'HSC / VCE' } },
+                SE: { option_labels: { abitur: 'پایان دبیرستان (gymnasium)' } },
+              },
+            },
+          },
         ],
       }),
       leaf('language-courses', 'زبان', {
@@ -2394,6 +2525,7 @@ export const categories: CategorySeed[] = [
             isRequired: true,
             isFilterable: true,
             showOnCard: true,
+            validation: languagesByCountry,
             options: languageOptions,
           },
           offers('course_levels', 'سطح', [
@@ -2407,7 +2539,19 @@ export const categories: CategorySeed[] = [
           {
             key: 'exam_prep',
             type: 'boolean',
-            labelFa: 'آمادگی آزمون (Goethe، telc، TestDaF، ÖSD)',
+            labelFa: 'آمادگی آزمون زبان',
+            // The exams of the country's language (field audit §12)
+            validation: {
+              by_country: {
+                ...deAt({ label: 'آمادگی آزمون (Goethe، telc، TestDaF، ÖSD)' }),
+                ...Object.fromEntries(['GB', 'US', 'CA', 'AU'].map((c) => [c, { label: 'آمادگی آزمون (IELTS، Cambridge، TOEFL)' }])),
+                FR: { label: 'آمادگی آزمون (DELF، DALF، TCF)' },
+                NL: { label: 'آمادگی آزمون (NT2، inburgering)' },
+                IT: { label: 'آمادگی آزمون (CELI، CILS)' },
+                SE: { label: 'آمادگی آزمون (SFI، Swedex)' },
+                TR: { label: 'آمادگی آزمون (TÖMER)' },
+              },
+            },
             isFilterable: true,
             showOnCard: true,
           },
@@ -2643,6 +2787,24 @@ export const categories: CategorySeed[] = [
             validation: { min: 1, max: 8, integer: true },
             showOnCard: true,
           },
+          // What BlaBlaCar asks beside the date (field audit §14, §20 part C)
+          {
+            key: 'departure_time',
+            type: 'text',
+            labelFa: 'ساعت حرکت',
+            helpFa: 'مثلاً ۸:۳۰ یا «صبح»',
+            validation: { max_length: 20 },
+          },
+          {
+            key: 'trip_type',
+            type: 'select',
+            labelFa: 'نوع سفر',
+            isFilterable: true,
+            options: options([
+              ['one_way', 'یک‌طرفه'],
+              ['return', 'رفت و برگشت'],
+            ]),
+          },
         ],
       }),
       leaf('volunteering', 'کمک همسایگی و داوطلبانه', { priceMode: 'none' }),
@@ -2709,13 +2871,26 @@ export const categories: CategorySeed[] = [
   },
 ];
 
-function clothingSize(sizes: [string, string][]): AttributeSeed {
+/**
+ * The letter is stored; the number in brackets is the country's (field audit §7, §20 part C): EU
+ * sizes in Europe, UK sizes in the UK and Australia, US sizes in the US and Canada (`uk`, `us`:
+ * the labels there).
+ */
+function clothingSize(sizes: [string, string][], uk: Record<string, string>, us: Record<string, string>): AttributeSeed {
   return {
     key: 'clothing_size',
     type: 'select',
     labelFa: 'سایز',
     isFilterable: true,
     showOnCard: true,
+    validation: {
+      by_country: {
+        GB: { option_labels: uk },
+        AU: { option_labels: uk },
+        US: { option_labels: us },
+        CA: { option_labels: us },
+      },
+    },
     options: options([...sizes, ['one_size', 'فری‌سایز']]),
   };
 }

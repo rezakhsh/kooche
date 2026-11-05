@@ -245,6 +245,8 @@ export const messages = {
     rentUnit: { cold: 'سرد، ماهانه', gross: 'کل، ماهانه', net: 'بدون شارژ، ماهانه', weekly: 'هر هفته', plain: 'ماهانه' },
     /** After a short let's all-in price: «۸۰ € هر شب» (field audit, owner, Nov 5, 2026) */
     rentPer: { night: 'هر شب', week: 'هر هفته', month: 'هر ماه' },
+    /** After a ride's price on cards and its page: «۲۵ € هر نفر» */
+    perSeat: 'هر نفر',
     verifiedBadge: 'تأییدشده',
     /** The chip's word is the country's: Anmeldung, Meldezettel, Inschrijving… */
     anmeldungTitle: (word: string) => `می‌توانید آدرس این خانه را ثبت کنید (${word})`,
@@ -778,6 +780,8 @@ export const messages = {
     photosLead: (max: number) => `آگهی با عکس خیلی بیشتر دیده می‌شود. تا ${max.toLocaleString('fa-IR')} عکس.`,
     titleShort: 'عنوان',
     /** The amount's label by RentKind; the local word follows in brackets (RENT_LOCAL_WORD) */
+    /** A ride's price (field audit §14): each passenger's share of the costs */
+    costShareAmount: 'سهم هزینهٔ هر نفر',
     rentAmount: { cold: 'اجارهٔ سرد ماهانه', gross: 'اجارهٔ کل ماهانه', net: 'اجارهٔ پایهٔ ماهانه', weekly: 'اجارهٔ هفتگی', plain: 'اجارهٔ ماهانه', period: 'اجاره' },
     /** A short let's price, by its unit (the form's «اجاره برای» above it) */
     rentAmountPer: { night: 'اجاره هر شب', week: 'اجاره هر هفته', month: 'اجاره هر ماه' },
@@ -2708,6 +2712,11 @@ export const messages = {
     languages: {
       fa: 'فارسی',
       de: 'آلمانی',
+      nl: 'هلندی',
+      fr: 'فرانسوی',
+      it: 'ایتالیایی',
+      sv: 'سوئدی',
+      tr: 'ترکی',
       en: 'انگلیسی',
       other: 'زبان‌های دیگر',
     },

@@ -81,6 +81,16 @@ describe('seed checks', () => {
     });
   });
 
+  it('catch a category option list outside the subtree or with an option the field lacks', async () => {
+    for (const validation of [{ options_in: { cars: [] } }, { options_in: { 'shared-rooms': ['nope'] } }, { options_in: { '*': ['nope'] } }]) {
+      await rollback(async (tx) => {
+        const homes = await category(tx, 'real-estate');
+        await tx.insert(categoryAttributes).values({ categoryId: homes.id, key: 'probe', type: 'boolean', labelFa: 'آزمایش', validation: validation as never });
+        expect(await failingChecks(tx)).toContain(check('category option lists belong'));
+      });
+    }
+  });
+
   it('keep browse addresses apart: an active category named events is caught, a retired one is not', async () => {
     await rollback(async (tx) => {
       const community = await category(tx, 'community');

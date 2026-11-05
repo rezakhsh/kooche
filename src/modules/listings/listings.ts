@@ -20,7 +20,7 @@ import { PREPARING } from '../launch/countries';
 import { pauseFor } from '../launch/pauses';
 import { ancestry, cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
 import { registrationNumberRequired } from './country-fields';
-import { exchangeAllowed, shippable } from './safety-kind';
+import { costShare, exchangeAllowed, shippable } from './safety-kind';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
 import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
@@ -60,10 +60,13 @@ export function priceTypesFor(mode: CategoryNode['priceMode']): readonly PriceTy
   return mode === 'optional' ? [...base, 'on_request'] : base;
 }
 
-/** Price types a category allows: its price mode's, without «معاوضه» where nothing is traded (./safety-kind.ts, NO_EXCHANGE) */
+/**
+ * Price types a category allows: its price mode's, without «معاوضه» where nothing is traded
+ * (./safety-kind.ts, NO_EXCHANGE), and without «توافقی» where the price is a cost share (rideshare)
+ */
 export function categoryPriceTypes(catalog: Catalog, category: CategoryNode): readonly PriceType[] {
-  const types = priceTypesFor(category.priceMode);
-  return exchangeAllowed(ancestry(catalog, category.id)) ? types : types.filter((t) => t !== 'exchange');
+  const path = ancestry(catalog, category.id);
+  return priceTypesFor(category.priceMode).filter((t) => (t !== 'exchange' || exchangeAllowed(path)) && (t !== 'negotiable' || !costShare(path)));
 }
 
 // ---------------------------------------------------------------------------

@@ -30,6 +30,12 @@ export type AttributeValidation = {
   optional_in?: string[];
   /** Category slugs with a hint of their own, replacing the field's (the area of a room, of land) */
   help_in?: Record<string, string>;
+  /**
+   * Category slugs with options of their own, in this order (a subset of the field's options);
+   * `*` for the other categories below the field (services: per m² only for cleaning and repairs,
+   * per page only for translation; field audit part C)
+   */
+  options_in?: Record<string, string[]>;
   /** multi_select filter: listings must have all chosen values (an equipment checklist); default any */
   filter?: 'all';
   /** Country codes the field is offered in (default: all); elsewhere it is like a retired field (field audit item 5) */
@@ -268,6 +274,12 @@ export function inCountry(d: AttributeDef, country: string): AttributeDef {
 export function effectiveAttributes(catalog: Catalog, categoryId: string, country: string | null): AttributeDef[] {
   const chain = ancestry(catalog, categoryId);
   const slugs = new Set(chain.map((c) => c.slug));
+  const ownOptions = (d: AttributeDef): string[] | undefined => {
+    const lists = d.validation.options_in;
+    if (!lists) return undefined;
+    const slug = [...chain].reverse().find((c) => Object.hasOwn(lists, c.slug))?.slug;
+    return slug ? lists[slug] : lists['*'];
+  };
   const ownHint = (d: AttributeDef) => {
     const hints = d.validation.help_in;
     if (!hints) return undefined;
@@ -278,7 +290,9 @@ export function effectiveAttributes(catalog: Catalog, categoryId: string, countr
     c.ownAttributes.map((d) => {
       const optional = d.isRequired && d.validation.optional_in?.some((s) => slugs.has(s));
       const hint = ownHint(d);
-      const local = country ? inCountry(d, country) : d;
+      const list = ownOptions(d);
+      const own = list ? { ...d, options: d.options.filter((o) => list.includes(o.value)).sort((a, b) => list.indexOf(a.value) - list.indexOf(b.value)) } : d;
+      const local = country ? inCountry(own, country) : own;
       return optional || hint !== undefined ? { ...local, ...(optional ? { isRequired: false } : {}), ...(hint !== undefined ? { helpFa: hint } : {}) } : local;
     }),
   );

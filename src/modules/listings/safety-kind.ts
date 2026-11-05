@@ -86,6 +86,13 @@ export const NO_EXCHANGE = new Set(['services', 'lessons-courses', 'pet-care', '
 /** Whether «معاوضه» is a price kind in a category (`path`: root first) */
 export const exchangeAllowed = (path: { slug: string }[]): boolean => !path.some((c) => NO_EXCHANGE.has(c.slug));
 
+/**
+ * A ride's price is the passenger's share of the costs (field audit §14): one amount per seat,
+ * never «توافقی». In Germany a ride may only share costs (PBefG §1(2)), and BlaBlaCar works so.
+ */
+export const COST_SHARE_SLUGS = new Set(['rideshare']);
+export const costShare = (path: { slug: string }[]): boolean => path.some((c) => COST_SHARE_SLUGS.has(c.slug));
+
 /** `path`: the category and its ancestors, root first */
 export function safetyKind(path: { slug: string }[]): SafetyKind {
   const slugs = path.map((c) => c.slug);

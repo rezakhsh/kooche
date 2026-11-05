@@ -1,0 +1,2 @@
+ALTER TABLE "event_details" DROP CONSTRAINT "event_details_languages_check";--> statement-breakpoint
+ALTER TABLE "event_details" ADD CONSTRAINT "event_details_languages_check" CHECK ("event_details"."languages" <@ ARRAY['fa', 'de', 'nl', 'fr', 'it', 'sv', 'tr', 'en', 'other']::text[]);

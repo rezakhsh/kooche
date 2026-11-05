@@ -10,6 +10,7 @@ import { useTurnstile } from '../../components/turnstile';
 import { Alert, Button } from '../../components/ui';
 import { messages } from '../../messages/fa';
 import type { FieldError } from '../../modules/listings/listings';
+import { eventLanguagesIn, type EventLanguage } from '../../modules/events/languages';
 import { saveEventAction, type EventSaveState } from './actions';
 import { eventStepOf, firstEventStepWithErrors, type EventStep } from './steps';
 
@@ -22,7 +23,7 @@ import { eventStepOf, firstEventStepWithErrors, type EventStep } from './steps';
 
 type Attendance = 'in_person' | 'online' | 'hybrid';
 type EventPrice = 'free' | 'fixed' | 'on_request';
-type Language = 'fa' | 'de' | 'en' | 'other';
+type Language = EventLanguage;
 type RepeatMode = 'none' | 'days' | 'weekly' | 'monthly';
 type Tri = '' | 'yes' | 'no';
 
@@ -600,7 +601,13 @@ export function EventForm(
 
         <h2 className="mt-6 text-base font-extrabold">{st.facts}</h2>
         <Label>{e.languages}</Label>
-        <Pills<Language> name="languages" type="checkbox" value={v.languages} options={(['fa', 'de', 'en', 'other'] as const).map((l) => [l, messages.events.languages[l]])} />
+        {/* Persian, the country's own language, English, other; a language saved before stays offered */}
+        <Pills<Language>
+          name="languages"
+          type="checkbox"
+          value={v.languages}
+          options={[...new Set([...eventLanguagesIn(props.countries[0]?.code), ...v.languages])].map((l) => [l, messages.events.languages[l]])}
+        />
         <Label>{st.age}</Label>
         <Pills name="minAge" value={AGES.includes(v.minAge) ? v.minAge : ''} options={AGES.map((a) => [a, a ? st.agePlus(Number(a)) : st.ages.all])} />
         <ErrorText code={errors.minAge} />

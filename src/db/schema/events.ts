@@ -10,7 +10,8 @@ import { countries, listings, locations } from './listings';
 // expires_at is the end of its last date, so the listing expiry job ends the event.
 
 export const EVENT_ATTENDANCE = ['in_person', 'online', 'hybrid'] as const;
-export const EVENT_LANGUAGES = ['fa', 'de', 'en', 'other'] as const;
+/** Persian, the open countries' languages (field audit part C: the country's own language, not German everywhere), English, other */
+export const EVENT_LANGUAGES = ['fa', 'de', 'nl', 'fr', 'it', 'sv', 'tr', 'en', 'other'] as const;
 export const EVENT_REPEATS = ['none', 'weekly', 'monthly'] as const;
 export const EVENT_SCHEDULE_STATUSES = ['scheduled', 'postponed', 'cancelled'] as const;
 /** Wave 1 (mockup final/event): how people sit or stand */

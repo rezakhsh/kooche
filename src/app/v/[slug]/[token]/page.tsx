@@ -34,7 +34,7 @@ import { sellerReplySpeed } from '../../../../modules/chat/response-time';
 import { cardFacts } from '../../../../modules/listings/attribute-text';
 import { cardOf, rentUnit } from '../../../../modules/listings/card';
 import { extraCostsLine, SQ_FT_COUNTRIES, SQ_FT_IN_M2 } from '../../../../modules/listings/country-fields';
-import { rentKind, safetyKind, shippable } from '../../../../modules/listings/safety-kind';
+import { costShare, rentKind, safetyKind, shippable } from '../../../../modules/listings/safety-kind';
 import { countryNameFa } from '../../../../modules/listings/zones';
 import { Flag } from '../../../../components/flag';
 import { ListingCard } from '../../../../components/listing-card';
@@ -153,7 +153,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       : null;
   // The unit beside the price: a short let's «۸۰ € هر شب» (field audit, Nov 5, 2026), «هر هفته» in
   // AU, «کل، ماهانه» in AT and FR; Germany's cold rent and a plain monthly rent say it in the line below
-  const perUnit = rent && rent !== 'cold' && rent !== 'plain' ? rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, attrs) : null;
+  const perUnit =
+    rent && rent !== 'cold' && rent !== 'plain'
+      ? rentUnit(catalog, l.categoryId, l.priceMinor, l.countryCode, attrs)
+      : l.priceMinor !== null && costShare(crumbs)
+        ? messages.country.perSeat
+        : null;
   // Shipping only where things are sent by post (not live animals, homes or services), whatever was stored
   const shipping = l.shippingOffered && shippable(crumbs);
   const price =

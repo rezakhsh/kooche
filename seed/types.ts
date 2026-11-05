@@ -75,6 +75,7 @@ export type AttributeSeed = {
    * currency; text: {max_length}; multi_select: {max_items}; date: {month: true} for month and year
    * only. Any type: {optional_in: [category slugs]} makes a required field optional there;
    * {help_in: {slug: hint}} gives the field its own hint in those categories (the area of a room).
+   * {options_in: {slug: [values]}} gives a category its own options (`*`: the other categories).
    * multi_select: {filter: 'all'} when a filter should match listings with every chosen value (a
    * checklist of features); otherwise any of them.
    * Per country (field audit item 5; read by inCountry() in src/modules/listings/catalog.ts):
@@ -82,7 +83,7 @@ export type AttributeSeed = {
    * {by_country: {code: rule}} changes its label, hint, unit, required, options or limits there
    * (`*`: the countries without a rule of their own).
    */
-  validation?: Record<string, number | boolean | string | string[] | Record<string, string> | Record<string, CountryRuleSeed>>;
+  validation?: Record<string, number | boolean | string | string[] | Record<string, string> | Record<string, string[]> | Record<string, CountryRuleSeed>>;
   /** Key of an attribute on the same category or an ancestor (model depends on brand) */
   dependsOn?: string;
   isRequired?: boolean;

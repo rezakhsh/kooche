@@ -337,6 +337,13 @@
       "when": 1793870445978,
       "tag": "0047_user_time_zone",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1793922337020,
+      "tag": "0048_event_languages",
+      "breakpoints": true
     }
   ]
 }
