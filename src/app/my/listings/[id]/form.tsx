@@ -13,7 +13,7 @@ import type { AttributeDef } from '../../../../modules/listings/catalog';
 import { dependentOptions, parentOf } from '../../../../modules/listings/dependent-options';
 import type { FieldError } from '../../../../modules/listings/listings';
 import { formatTypedAmount } from '../../../../modules/listings/price';
-import type { RentKind } from '../../../../modules/listings/safety-kind';
+import { rentPeriodOf, type RentKind } from '../../../../modules/listings/safety-kind';
 import { saveListingAction, type SaveState } from '../actions';
 import { firstStepWithErrors, stepOf, type Step } from './steps';
 
@@ -38,7 +38,7 @@ export type FormProps = {
   categoryPath: string[];
   /** The top category's slug: the description's prompts depend on it */
   rootSlug: string;
-  /** A room or flat to rent: the price is the rent a month, cold for flats and houses */
+  /** A room or flat to rent: the price is the rent a month, cold for flats and houses; a short let's per night, week or month */
   rent: RentKind | null;
   /** Things that can be sent by post (not homes, services, jobs, lessons) */
   shippable: boolean;
@@ -214,7 +214,9 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
     });
     const type = String(data.get('priceType') ?? props.priceTypes[0] ?? '');
     const amount = String(data.get('amount') ?? '').trim();
-    const unit = props.rent ? ` ${messages.country.rentUnit[props.rent]}` : '';
+    // A short let's unit is the one chosen above its price («۸۰ € هر شب»)
+    const period = rentPeriodOf({ rent_period: data.get('attr.rent_period') });
+    const unit = props.rent === 'period' ? (period ? ` ${messages.country.rentPer[period]}` : '') : props.rent ? ` ${messages.country.rentUnit[props.rent]}` : '';
     setSummary({
       title: String(data.get('title') ?? '').trim(),
       price: type === 'fixed' || type === 'negotiable' ? (amount ? `${formatTypedAmount(amount, props.country?.currencySymbol ?? '')}${unit}${type === 'negotiable' ? `، ${messages.priceType.negotiable}` : ''}` : '') : type ? messages.priceType[type as PriceType] : '',
@@ -256,6 +258,11 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
   const [priceType, setPriceType] = useState<PriceType>(
     props.rent && props.priceTypes.includes('fixed') ? 'fixed' : props.priceTypes.includes(v.priceType) ? v.priceType : (props.priceTypes[0] ?? 'on_request'),
   );
+  // A short let: its «اجاره برای» (night, week, month) stands above the price, whose label follows it
+  const periodDef = props.rent === 'period' ? props.defs.find((d) => d.key === 'rent_period') : undefined;
+  const [rentPeriod, setRentPeriod] = useState(String(v.attributes.rent_period ?? ''));
+  const period = rentPeriodOf({ rent_period: rentPeriod });
+  const amountLabel = props.rent === 'period' ? (period ? t.rentAmountPer[period] : t.rentAmount.period) : props.rent ? t.rentAmount[props.rent] : t.amount;
   const [selects, setSelects] = useState<Record<string, string>>(() =>
     Object.fromEntries(props.defs.filter((d) => d.type === 'select').map((d) => [d.key, String(v.attributes[d.key] ?? '')])),
   );
@@ -388,15 +395,29 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       {/* The price first, then the category's fields (mockup final/post3); cards only on one page */}
       {props.priceTypes.length > 0 && (
         <Section titled={!wizard} title={t.price}>
+          {periodDef && (
+            <fieldset>
+              <legend className="mb-1.5 block text-sm font-bold">{labelText(periodDef.labelFa, periodDef.isRequired)}</legend>
+              <div className="flex flex-wrap gap-2">
+                {periodDef.options.map((o) => (
+                  <Pill key={o.value} type="radio" name="attr.rent_period" value={o.value} checked={rentPeriod === o.value} onChange={() => setRentPeriod(o.value)}>
+                    {o.labelFa}
+                  </Pill>
+                ))}
+              </div>
+              <ErrorText code={errors['attr.rent_period']} />
+            </fieldset>
+          )}
           {(priceType === 'fixed' || priceType === 'negotiable') && (
             <div>
               <label className="block">
-                <span className="mb-1.5 block text-sm font-bold">{props.rent ? t.rentAmount[props.rent] : t.amount}</span>
+                <span className="mb-1.5 block text-sm font-bold">{amountLabel}</span>
                 <span className="flex h-12 items-center rounded-xl border border-neutral-300 px-4 focus-within:border-2 focus-within:border-brand-600">
                   <input name="amount" defaultValue={v.amount} inputMode="decimal" dir="ltr" className="min-w-0 flex-1 bg-transparent text-end text-base outline-none" />
                   {currencySymbol && <span className="ms-2 text-neutral-600">{currencySymbol}</span>}
                 </span>
               </label>
+              {props.rent === 'period' && <span className="mt-1 block text-xs text-neutral-500">{t.rentAllIn}</span>}
               <ErrorText code={errors.amount} />
             </div>
           )}
@@ -422,7 +443,7 @@ export function ListingForm(props: FormProps & { onDraftCreated?: (listingId: st
       {props.defs.length > 0 && (
         <Section titled={!wizard} title={t.details}>
           {/* Amounts (deposit, extra costs) right after the price (mockup final/post3) */}
-          {[...props.defs.filter((d) => d.validation.money), ...props.defs.filter((d) => !d.validation.money)].map((d) => (
+          {[...props.defs.filter((d) => d.validation.money), ...props.defs.filter((d) => !d.validation.money)].filter((d) => d !== periodDef).map((d) => (
             <AttributeField
               key={d.key}
               def={d}

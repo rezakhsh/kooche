@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
-import { NOT_SHIPPED, rentKind } from '../../../modules/listings/safety-kind';
+import { rentKind, shippable } from '../../../modules/listings/safety-kind';
 import type { Db } from '../../../db/drizzle';
 import { listings, users } from '../../../db/schema';
 import { messages } from '../../../messages/fa';
 import { ancestry, cachedCatalog, effectiveAttributes, listingCurrency } from '../../../modules/listings/catalog';
-import { maxImages, priceTypesFor } from '../../../modules/listings/listings';
+import { categoryPriceTypes, maxImages } from '../../../modules/listings/listings';
 import { amountInputValue } from '../../../modules/listings/price';
 import { placeLabel, placeOfListing, placeValue, type Place } from '../../../modules/listings/places';
 import { postingCountry } from '../../../modules/listings/posting-country';
@@ -81,10 +81,10 @@ export async function editorData(
       categoryPath: ancestry(catalog, category.id).map((c) => c.nameFa),
       rootSlug: ancestry(catalog, category.id)[0]?.slug ?? '',
       rent: rentKind(ancestry(catalog, category.id)),
-      shippable: !NOT_SHIPPED.has(ancestry(catalog, category.id)[0]?.slug ?? ''),
+      shippable: shippable(ancestry(catalog, category.id)),
       defs,
       // Cats and dogs in Turkey only for free (src/modules/listings/country-rules.ts)
-      priceTypes: allowedPriceTypes(catalog, category.id, countryCode, priceTypesFor(category.priceMode)),
+      priceTypes: allowedPriceTypes(catalog, category.id, countryCode, categoryPriceTypes(catalog, category)),
       notes: formNotes(catalog, category.id, countryCode).map((n) => messages.countryRules.notes[n]!),
       country: country ? { code: country.code, nameFa: country.nameFa, currencySymbol: country.currency.symbol, currencyName: country.currency.nameFa } : null,
       // Only a listing that has no country yet may still take another one

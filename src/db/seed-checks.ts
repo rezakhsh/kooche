@@ -138,6 +138,18 @@ export const SEED_CHECKS: SeedCheck[] = [
           SELECT 1 FROM categories x WHERE x.slug = s.slug AND x.path <@ c.path AND x.id <> c.id)))`,
   },
   {
+    // help_in, like optional_in, names categories under the definition's own, each with a hint
+    name: 'category hints belong to categories below the field',
+    query: sql`
+      SELECT a.key || ' in ' || c.slug || ' has a hint for ' || h.slug || CASE WHEN jsonb_typeof(h.hint) <> 'string' THEN ' that is not text' ELSE ', which is not below it' END AS problem
+      FROM category_attributes a
+      JOIN categories c ON c.id = a.category_id
+      CROSS JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(a.validation -> 'help_in') = 'object' THEN a.validation -> 'help_in' ELSE '{}' END) AS h(slug, hint)
+      WHERE a.is_active AND (
+        jsonb_typeof(h.hint) <> 'string'
+        OR NOT EXISTS (SELECT 1 FROM categories x WHERE x.slug = h.slug AND x.path <@ c.path AND x.id <> c.id))`,
+  },
+  {
     name: 'selects have options and other types have none',
     query: sql`
       SELECT a.key || ' in ' || c.slug || ' (' || a.type || ')' AS problem

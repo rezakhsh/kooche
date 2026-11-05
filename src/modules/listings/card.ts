@@ -5,7 +5,7 @@ import { imageUrl } from '../media/server';
 import type { BrowseItem } from '../search/browse';
 import { cardFacts } from './attribute-text';
 import { ancestry, listingCurrency, type Catalog } from './catalog';
-import { rentKind } from './safety-kind';
+import { rentKind, rentPeriodOf } from './safety-kind';
 import { placeParts } from './place-text';
 import { formatPrice } from './price';
 import { listingPath } from './slug';
@@ -44,14 +44,22 @@ export function cardOf(catalog: Catalog, l: CardRow, timeZone: string): CardData
     verified: l.verified,
     anmeldung: l.attributes.anmeldung === true,
     // Rent a month, cold for flats and houses (mockup final/browse: «۵۹۰ € سرد، ماهانه»); a room's is just «ماهانه»
-    unit: rentUnit(catalog, l.categoryId, l.priceMinor),
+    unit: rentUnit(catalog, l.categoryId, l.priceMinor, l.attributes),
     wanted: l.kind === 'wanted',
     facts: cardFacts(catalog, l.categoryId, l.attributes, amountCurrency),
     distance: l.distanceKm != null ? messages.browse.distance(l.distanceKm) : null,
   };
 }
 
-export function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null): string | null {
+/**
+ * What follows a rent's amount: «سرد، ماهانه», «ماهانه», or a short let's «هر شب» from its
+ * `attributes` (none without them, or without a unit yet)
+ */
+export function rentUnit(catalog: Catalog, categoryId: string | null, priceMinor: number | null, attributes?: Record<string, unknown> | null): string | null {
   const kind = categoryId && priceMinor !== null ? rentKind(ancestry(catalog, categoryId)) : null;
+  if (kind === 'period') {
+    const period = rentPeriodOf(attributes);
+    return period ? messages.country.rentPer[period] : null;
+  }
   return kind ? messages.country.rentUnit[kind] : null;
 }

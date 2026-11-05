@@ -28,6 +28,8 @@ export type AttributeValidation = {
   month?: boolean;
   /** Category slugs where a required field is optional (area of a parking space) */
   optional_in?: string[];
+  /** Category slugs with a hint of their own, replacing the field's (the area of a room, of land) */
+  help_in?: Record<string, string>;
   /** multi_select filter: listings must have all chosen values (an equipment checklist); default any */
   filter?: 'all';
 };
@@ -203,10 +205,18 @@ export function ancestry(catalog: Catalog, categoryId: string): CategoryNode[] {
 export function effectiveAttributes(catalog: Catalog, categoryId: string): AttributeDef[] {
   const chain = ancestry(catalog, categoryId);
   const slugs = new Set(chain.map((c) => c.slug));
+  const ownHint = (d: AttributeDef) => {
+    const hints = d.validation.help_in;
+    if (!hints) return undefined;
+    const slug = [...chain].reverse().find((c) => Object.hasOwn(hints, c.slug))?.slug;
+    return slug ? hints[slug] : undefined;
+  };
   return chain.flatMap((c) =>
-    c.ownAttributes.map((d) =>
-      d.isRequired && d.validation.optional_in?.some((s) => slugs.has(s)) ? { ...d, isRequired: false } : d,
-    ),
+    c.ownAttributes.map((d) => {
+      const optional = d.isRequired && d.validation.optional_in?.some((s) => slugs.has(s));
+      const hint = ownHint(d);
+      return optional || hint !== undefined ? { ...d, ...(optional ? { isRequired: false } : {}), ...(hint !== undefined ? { helpFa: hint } : {}) } : d;
+    }),
   );
 }
 

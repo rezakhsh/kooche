@@ -240,6 +240,8 @@ export const messages = {
     count: (n: number) => `${n.toLocaleString('fa-IR')} آگهی`,
     /** After a rent on cards: rooms have one monthly rent, flats and houses the cold rent (owner, Nov 3, 2026) */
     rentUnit: { cold: 'سرد، ماهانه', plain: 'ماهانه' },
+    /** After a short let's all-in price: «۸۰ € هر شب» (field audit, owner, Nov 5, 2026) */
+    rentPer: { night: 'هر شب', week: 'هر هفته', month: 'هر ماه' },
     verifiedBadge: 'تأییدشده',
     anmeldungTitle: 'می‌توانید آدرس این خانه را ثبت کنید (Anmeldung)',
     // A paid bump (or one of Pro's) moved the listing up: shown on the card (UWG Annex no. 11a; docs/legal-review.md)
@@ -276,6 +278,8 @@ export const messages = {
     clearAll: 'پاک کردن همه',
     apply: 'نمایش نتایج',
     rentPrice: 'اجارهٔ ماهانه',
+    /** A short let's price filter: nightly, weekly and monthly prices, told apart by «اجاره برای» */
+    rentPricePeriod: 'اجاره',
     anyChoice: 'فرقی نمی‌کند',
     postalOrArea: 'کد پستی',
     radiusKmShort: (km: number) => `${km.toLocaleString('fa-IR')} کیلومتر`,
@@ -765,7 +769,10 @@ export const messages = {
     stepHeadings: { 2: 'عکس و توضیح', 3: 'جزئیات و قیمت', 4: 'محل و انتشار' } as Record<number, string>,
     photosLead: (max: number) => `آگهی با عکس خیلی بیشتر دیده می‌شود. تا ${max.toLocaleString('fa-IR')} عکس.`,
     titleShort: 'عنوان',
-    rentAmount: { cold: 'اجارهٔ سرد ماهانه', plain: 'اجارهٔ ماهانه' },
+    rentAmount: { cold: 'اجارهٔ سرد ماهانه', plain: 'اجارهٔ ماهانه', period: 'اجاره' },
+    /** A short let's price, by its unit (the form's «اجاره برای» above it) */
+    rentAmountPer: { night: 'اجاره هر شب', week: 'اجاره هر هفته', month: 'اجاره هر ماه' },
+    rentAllIn: 'همهٔ هزینه‌ها (قبوض، اینترنت و …) داخل این مبلغ است.',
     untilOpen: 'نامحدود',
     postalShort: 'کد پستی',
     placeChosen: 'پیدا شد',

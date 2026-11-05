@@ -61,11 +61,12 @@ export type AttributeSeed = {
   /**
    * numbers: {min, max, integer}, plus {money: true} for an amount in minor units of the listing's
    * currency; text: {max_length}; multi_select: {max_items}; date: {month: true} for month and year
-   * only. Any type: {optional_in: [category slugs]} makes a required field optional there.
+   * only. Any type: {optional_in: [category slugs]} makes a required field optional there;
+   * {help_in: {slug: hint}} gives the field its own hint in those categories (the area of a room).
    * multi_select: {filter: 'all'} when a filter should match listings with every chosen value (a
    * checklist of features); otherwise any of them.
    */
-  validation?: Record<string, number | boolean | string | string[]>;
+  validation?: Record<string, number | boolean | string | string[] | Record<string, string>>;
   /** Key of an attribute on the same category or an ancestor (model depends on brand) */
   dependsOn?: string;
   isRequired?: boolean;

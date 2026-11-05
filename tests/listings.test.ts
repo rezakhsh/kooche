@@ -4,6 +4,7 @@ import * as schema from '../src/db/schema';
 import { snapToGrid } from '../src/lib/geo';
 import { cachedCatalog, effectiveAttributes } from '../src/modules/listings/catalog';
 import {
+  categoryPriceTypes,
   changeDraftCategory,
   changeListingStatus,
   createDraft,
@@ -13,6 +14,8 @@ import {
   type ListingInput,
 } from '../src/modules/listings/listings';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from '../src/modules/listings/limits';
+import { rentUnit } from '../src/modules/listings/card';
+import { exchangeAllowed, rentKind, rentPeriodOf, shippable } from '../src/modules/listings/safety-kind';
 import { normalizePersian } from '../src/lib/normalize-persian';
 import { firstStepWithErrors, stepOf } from '../src/app/my/listings/[id]/steps';
 import { matchCategories } from '../src/app/new/category-search';
@@ -448,7 +451,7 @@ describe('attribute validation (against category_attributes)', () => {
   it('rent: amounts are minor units of the country currency; the extra costs are required', async () => {
     const u = await user();
     const id = await draftFor(u.id, 'apartments-rent');
-    const flat = { area_m2: 62, rooms: 2.5, apartment_type: 'attic', features: ['cellar', 'fitted_kitchen'], available_from: '2026-12-01' };
+    const flat = { area_m2: 62, bedrooms: 'b2', rooms: 2.5, apartment_type: 'attic', features: ['cellar', 'fitted_kitchen'], available_from: '2026-12-01' };
     const save = async (attributes: Record<string, unknown>) =>
       saveListing(appDb, { userId: u.id, listingId: id, input: await input({ title: 'آپارتمان ۲٫۵ خوابه', attributes, amount: '900' }), intent: 'publish' });
 
@@ -475,7 +478,7 @@ describe('attribute validation (against category_attributes)', () => {
     try {
       const u = await user();
       const id = await draftFor(u.id, 'apartments-rent');
-      const flat = { area_m2: 40, rooms: 1, extra_costs: 15_000 };
+      const flat = { area_m2: 40, bedrooms: 'studio', rooms: 1, extra_costs: 15_000 };
       const save = async (attributes: Record<string, unknown>, intent: 'publish' | 'save') =>
         saveListing(appDb, { userId: u.id, listingId: id, input: await input({ attributes, amount: '700' }), intent });
       expect(await save(flat, 'publish')).toMatchObject({ ok: true });
@@ -590,3 +593,106 @@ describe('posting in steps (wave 1)', () => {
     expect(matchCategories(all, '  ')).toEqual([]);
   });
 });
+
+// The field audit's first changes (owner, Nov 5, 2026; docs/research/field-audit.md §19)
+describe('posting fields after the field audit', () => {
+  it('a flat needs its bedrooms; the German count of rooms is optional', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'apartments-rent');
+    const save = (attributes: Record<string, unknown>) =>
+      input({ title: 'آپارتمان دو خوابه', attributes, amount: '900' }).then((x) => saveListing(appDb, { userId: u.id, listingId: id, input: x, intent: 'publish' }));
+    expect(await save({ area_m2: 60, extra_costs: '200' })).toMatchObject({ errors: { 'attr.bedrooms': 'required' } });
+    expect(await save({ area_m2: 60, extra_costs: '200', bedrooms: 'b2' })).toMatchObject({ ok: true });
+    expect((await listing(id)).attributes).toMatchObject({ bedrooms: 'b2' });
+    expect((await listing(id)).attributes).not.toHaveProperty('rooms');
+  });
+
+  it('a short let has one price per night, week or month, and no furnished field', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'short-term-rent');
+    const save = (attributes: Record<string, unknown>) =>
+      input({ title: 'آپارتمان مبله برای چند شب', attributes, amount: '80' }).then((x) => saveListing(appDb, { userId: u.id, listingId: id, input: x, intent: 'publish' }));
+    expect(await save({ area_m2: 45 })).toMatchObject({ errors: { 'attr.rent_period': 'required' } });
+    expect(await save({ area_m2: 45, rent_period: 'night', furnished: true })).toMatchObject({ errors: { 'attr.furnished': 'unknown_field' } });
+    expect(
+      await save({ area_m2: 45, rent_period: 'night', guests: 4, cleaning_fee: '40', min_stay: 'n2', room_type: 'entire_place', registration_number: '01/Z/AZ/012345-26', anmeldung: false }),
+    ).toMatchObject({ ok: true });
+    expect((await listing(id)).attributes).toMatchObject({ rent_period: 'night', guests: 4, cleaning_fee: 4_000, min_stay: 'n2' });
+    const catalog = await cachedCatalog(appDb);
+    const l = await listing(id);
+    expect(rentUnit(catalog, l.categoryId, l.priceMinor, l.attributes as Record<string, unknown>)).toBe('هر شب');
+    expect(rentUnit(catalog, l.categoryId, l.priceMinor, { rent_period: 'month' })).toBe('هر ماه');
+    // Flats keep the cold rent, rooms the plain monthly rent
+    expect(rentUnit(catalog, (await categoryBySlug('apartments-rent')).id, 90_000, {})).toBe('سرد، ماهانه');
+    expect(rentUnit(catalog, (await categoryBySlug('shared-rooms')).id, 50_000, {})).toBe('ماهانه');
+  });
+
+  it('a room in a shared flat is never the entire place, and says whether bills are included', async () => {
+    const u = await user();
+    const id = await draftFor(u.id, 'shared-rooms');
+    const save = (attributes: Record<string, unknown>) =>
+      input({ title: 'اتاق در WG', attributes, amount: '550' }).then((x) => saveListing(appDb, { userId: u.id, listingId: id, input: x, intent: 'publish' }));
+    expect(await save({ area_m2: 14, room_type: 'entire_place' })).toMatchObject({ errors: { 'attr.room_type': 'unknown_option' } });
+    expect(await save({ area_m2: 14, room_type: 'private_room', bills_included: 'all', min_stay: 'm6', private_bathroom: true, couples_ok: false })).toMatchObject({ ok: true });
+    const catalog = await cachedCatalog(appDb);
+    const fields = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id);
+    expect(fields('shared-rooms').find((d) => d.key === 'room_type')!.options.map((o) => o.value)).toEqual(['private_room', 'shared_room']);
+    expect(fields('short-term-rent').find((d) => d.key === 'room_type')!.options.map((o) => o.value)).toContain('entire_place');
+  });
+
+  it('the area has a hint only where it means something else', async () => {
+    const catalog = await cachedCatalog(appDb);
+    const area = (slug: string) => effectiveAttributes(catalog, catalog.bySlug.get(slug)!.id).find((d) => d.key === 'area_m2')!;
+    expect(area('apartments-rent').helpFa).toBeNull();
+    expect(area('shared-rooms').helpFa).toBe('متراژ خود اتاق');
+    expect(area('land-gardens').helpFa).toBe('متراژ کل زمین');
+    // Still optional for a parking space
+    expect(area('parking-garages').isRequired).toBe(false);
+    expect(area('houses-sale').isRequired).toBe(true);
+  });
+
+  it('live animals, pet care and boats are never sent by post', async () => {
+    const path = (slug: string) => [{ slug: 'x' }, { slug }];
+    for (const slug of ['dogs', 'cats', 'birds', 'small-animals', 'pet-care', 'boats']) expect(shippable(path(slug))).toBe(false);
+    for (const slug of ['fish-aquariums', 'pet-supplies', 'car-parts', 'mobile-phones']) expect(shippable(path(slug))).toBe(true);
+    expect(shippable([{ slug: 'services' }, { slug: 'cleaning' }])).toBe(false);
+    expect(shippable([])).toBe(true);
+    // Whatever the form sends
+    const u = await user();
+    const id = await draftFor(u.id, 'cats');
+    const r = await saveListing(appDb, {
+      userId: u.id,
+      listingId: id,
+      input: await input({ title: 'بچه گربه', attributes: {}, amount: '50', shippingOffered: true }),
+      intent: 'publish',
+    });
+    expect(r).toMatchObject({ ok: true });
+    expect((await listing(id)).shippingOffered).toBe(false);
+  });
+
+  it('no exchange for services, lessons, pet care, rideshare, dogs and cats', async () => {
+    const catalog = await cachedCatalog(appDb);
+    const types = (slug: string) => categoryPriceTypes(catalog, catalog.bySlug.get(slug)!);
+    for (const slug of ['cleaning', 'tutoring', 'pet-care', 'rideshare', 'dogs', 'cats']) expect(types(slug)).not.toContain('exchange');
+    for (const slug of ['mobile-phones', 'birds', 'bicycles']) expect(types(slug)).toContain('exchange');
+    expect(types('cleaning')).toContain('on_request');
+    expect(exchangeAllowed([{ slug: 'services' }, { slug: 'cleaning' }])).toBe(false);
+    const u = await user();
+    const id = await draftFor(u.id, 'cleaning');
+    const r = await saveListing(appDb, {
+      userId: u.id,
+      listingId: id,
+      input: await input({ title: 'نظافت منزل', attributes: {}, priceType: 'exchange', amount: '' }),
+      intent: 'publish',
+    });
+    expect(r).toMatchObject({ errors: { priceType: 'not_allowed' } });
+  });
+
+  it('rent kinds: a short let is per period', () => {
+    expect(rentKind([{ slug: 'real-estate' }, { slug: 'short-term-rent' }])).toBe('period');
+    expect(rentPeriodOf({ rent_period: 'week' })).toBe('week');
+    expect(rentPeriodOf({ rent_period: 'year' })).toBeNull();
+    expect(rentPeriodOf(null)).toBeNull();
+  });
+});
+

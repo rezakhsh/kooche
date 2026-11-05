@@ -27,12 +27,13 @@ describe('card facts', async () => {
     expect(facts('cars', {})).toEqual([]);
   });
 
-  it('flats show size and rooms; a count without a unit carries its label', () => {
-    const rooms = effectiveAttributes(catalog, catalog.bySlug.get('apartments-rent')!.id).find((a) => a.key === 'rooms')!.labelFa;
-    const out = facts('apartments-rent', { area_m2: 65, rooms: 2, extra_costs: 20000 });
+  it('flats show size and bedrooms (not the German count); a count without a unit carries its label', () => {
+    const out = facts('apartments-rent', { area_m2: 65, bedrooms: 'b2', rooms: 3, extra_costs: 20000 });
     expect(out).toHaveLength(2);
     expect(out[0]).toMatch(/^۶۵ /);
-    expect(out[1]).toBe(`${rooms} ۲`);
+    expect(out[1]).toBe('۲ خوابه');
+    const flatmates = effectiveAttributes(catalog, catalog.bySlug.get('shared-rooms')!.id).find((a) => a.key === 'flatmates')!.labelFa;
+    expect(facts('shared-rooms', { area_m2: 14, room_type: 'private_room', flatmates: 2 })).toEqual([expect.stringMatching(/^۱۴ /), 'اتاق خصوصی', `${flatmates} ۲`]);
   });
 
   it('yes/no fields show their label when yes and nothing when no; amounts use the currency', () => {

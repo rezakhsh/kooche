@@ -32,8 +32,8 @@ import { browsePath } from '../../../../modules/search/paths';
 import { similarListings } from '../../../../modules/search/browse';
 import { sellerReplySpeed } from '../../../../modules/chat/response-time';
 import { cardFacts } from '../../../../modules/listings/attribute-text';
-import { cardOf } from '../../../../modules/listings/card';
-import { safetyKind } from '../../../../modules/listings/safety-kind';
+import { cardOf, rentUnit } from '../../../../modules/listings/card';
+import { rentKind, safetyKind, shippable } from '../../../../modules/listings/safety-kind';
 import { countryNameFa } from '../../../../modules/listings/zones';
 import { Flag } from '../../../../components/flag';
 import { ListingCard } from '../../../../components/listing-card';
@@ -135,6 +135,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     l.priceMinor !== null && currency && typeof extraCosts === 'number'
       ? formatPrice(l.priceMinor + extraCosts, currency.code, currency.minorUnit)
       : null;
+  // A short let's all-in price per night, week or month: «۸۰ € هر شب» (field audit, Nov 5, 2026)
+  const perUnit = rentKind(crumbs) === 'period' ? rentUnit(catalog, l.categoryId, l.priceMinor, attrs) : null;
+  // Shipping only where things are sent by post (not live animals, homes or services), whatever was stored
+  const shipping = l.shippingOffered && shippable(crumbs);
   const price =
     l.priceMinor !== null && currency
       ? `${formatPrice(l.priceMinor, currency.code, currency.minorUnit)}${l.priceType === 'negotiable' ? ` (${messages.priceType.negotiable})` : ''}`
@@ -417,6 +421,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         {price && (
           <p className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-2xl font-black text-brand-800 lg:text-3xl">{price}</span>
+            {perUnit && <span className="text-base font-bold text-neutral-700">{perUnit}</span>}
             {/* «اجارهٔ سرد، با هزینه‌ها ۱٬۰۲۰ €» (mockup final/listing) */}
             {warmRent && <span className="text-sm text-neutral-700">{t.coldWithCosts(warmRent)}</span>}
           </p>
@@ -564,7 +569,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <p className="text-base leading-8 whitespace-pre-line text-neutral-800">{l.description}</p>
               </section>
             )}
-            {(details.length > 0 || l.shippingOffered || (place.local && place.city && !neighbourhood)) && (
+            {(details.length > 0 || shipping || (place.local && place.city && !neighbourhood)) && (
               <section>
                 <h2 className="mb-1 text-lg font-extrabold">{t.details}</h2>
                 <dl className="divide-y divide-neutral-200">
@@ -572,7 +577,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   {details.map((d) => (
                     <Row key={d.label} label={d.label} value={d.text} />
                   ))}
-                  {l.shippingOffered && (
+                  {shipping && (
                     <Row
                       label={t.shipping}
                       value={

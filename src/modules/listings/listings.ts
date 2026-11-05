@@ -18,7 +18,8 @@ import { keepRetired, validateAttributes, type AttributeErrorCode } from './attr
 import { listingArea } from '../launch/cities';
 import { PREPARING } from '../launch/countries';
 import { pauseFor } from '../launch/pauses';
-import { cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
+import { ancestry, cachedCatalog, effectiveAttributes, isEventCategory, isPostable, type Catalog, type CategoryNode } from './catalog';
+import { exchangeAllowed, shippable } from './safety-kind';
 import { LISTING_OUTBOX, recordChange } from './events';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
 import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
@@ -51,11 +52,17 @@ export function maxImages(category: CategoryNode | undefined): number {
   return Math.min(MAX_IMAGES_PER_LISTING, category?.maxImages ?? MAX_IMAGES_PER_LISTING);
 }
 
-/** Price types a category allows (categories.price_mode) */
+/** Price types a price mode allows (categories.price_mode) */
 export function priceTypesFor(mode: CategoryNode['priceMode']): readonly PriceType[] {
   if (mode === 'none') return [];
   const base: PriceType[] = ['fixed', 'negotiable', 'free', 'exchange'];
   return mode === 'optional' ? [...base, 'on_request'] : base;
+}
+
+/** Price types a category allows: its price mode's, without «معاوضه» where nothing is traded (./safety-kind.ts, NO_EXCHANGE) */
+export function categoryPriceTypes(catalog: Catalog, category: CategoryNode): readonly PriceType[] {
+  const types = priceTypesFor(category.priceMode);
+  return exchangeAllowed(ancestry(catalog, category.id)) ? types : types.filter((t) => t !== 'exchange');
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +276,7 @@ async function prepare(
 
   // Price: the allowed types depend on the category; fixed and negotiable need an amount. The
   // currency is always the country's (decided Oct 17, 2026), never the seller's choice.
-  const allowed = priceTypesFor(category.priceMode);
+  const allowed = categoryPriceTypes(catalog, category);
   let priceType: PriceType = input.priceType;
   let priceMinor: number | null = null;
   let currency: string | null = null;
@@ -329,7 +336,8 @@ async function prepare(
         point,
         locationPrecision,
         allowPhoneContact: input.allowPhoneContact,
-        shippingOffered: input.shippingOffered,
+        // Never for what isn't sent by post (live animals, homes, services), whatever the form sent
+        shippingOffered: input.shippingOffered && shippable(ancestry(catalog, category.id)),
       },
       displayName,
       place,

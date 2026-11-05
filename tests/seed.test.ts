@@ -51,6 +51,21 @@ describe('seed checks', () => {
     }
   });
 
+  it('catch a category hint (help_in) outside the subtree or not text', async () => {
+    for (const validation of [{ help_in: { cars: 'نه اینجا' } }, { help_in: { 'shared-rooms': 5 } }]) {
+      await rollback(async (tx) => {
+        const homes = await category(tx, 'real-estate');
+        await tx.insert(categoryAttributes).values({ categoryId: homes.id, key: 'probe', type: 'number', labelFa: 'آزمایش', validation: validation as never });
+        expect(await failingChecks(tx)).toContain(check('category hints belong'));
+      });
+    }
+    await rollback(async (tx) => {
+      const homes = await category(tx, 'real-estate');
+      await tx.insert(categoryAttributes).values({ categoryId: homes.id, key: 'probe', type: 'number', labelFa: 'آزمایش', validation: { help_in: { 'shared-rooms': 'متراژ اتاق' } } as never });
+      expect(await failingChecks(tx)).not.toContain(check('category hints belong'));
+    });
+  });
+
   it('keep browse addresses apart: an active category named events is caught, a retired one is not', async () => {
     await rollback(async (tx) => {
       const community = await category(tx, 'community');

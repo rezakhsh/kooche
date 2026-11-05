@@ -12,6 +12,11 @@ import type { AttributeSeed, CategorySeed, OptionSeed } from './types';
 // posting stays quick. Rent: the price is the cold rent, with extra costs and deposit as amounts
 // (the listing page adds up the warm rent); a WG room's price is its total rent.
 //
+// Field audit (approved by the owner on Nov 5, 2026; docs/research/field-audit.md §19): a short let
+// has one all-in price per night, week or month (`rent_period`, no cold rent); homes count bedrooms
+// the way Iranians do («۲ خوابه»), with the German count of rooms optional; a WG room is never the
+// entire place and says whether bills are included; the area's hint follows the category (help_in).
+//
 // "Free" and "exchange" (Kleinanzeigen's Verschenken & Tauschen) are price types and «درخواستی»
 // (wanted) is a listing kind, so they are filters in every category, not categories. Shipping is
 // a listing column (`shipping_offered`), not an attribute.
@@ -153,16 +158,38 @@ const inspectionUntil: AttributeSeed = {
   isFilterable: true,
 };
 
-const rooms = (isRequired = false): AttributeSeed => ({
-  key: 'rooms',
-  type: 'number',
-  labelFa: 'تعداد اتاق',
-  helpFa: 'مثل آگهی‌های آلمانی: نیم‌اتاق هم حساب می‌شود (۲٫۵)',
-  validation: { min: 0, max: 20, integer: false },
+/**
+ * Bedrooms, the way Iranians count a home («دو خوابه», as on Divar): the main count on cards and in
+ * filters (field audit, approved by the owner on Nov 5, 2026; docs/research/field-audit.md §19).
+ */
+const bedrooms = (isRequired: boolean): AttributeSeed => ({
+  key: 'bedrooms',
+  type: 'select',
+  labelFa: 'تعداد اتاق خواب',
   isRequired,
   isFilterable: true,
   showOnCard: true,
+  options: options([
+    ['studio', 'استودیو (بدون اتاق خواب)'],
+    ['b1', '۱ خوابه'],
+    ['b2', '۲ خوابه'],
+    ['b3', '۳ خوابه'],
+    ['b4', '۴ خوابه'],
+    ['b5_plus', '۵ خوابه یا بیشتر'],
+  ]),
 });
+
+/**
+ * The German count of rooms (Zimmer, living room included), optional beside the bedrooms: German
+ * ads and readers use it. Before Nov 5, 2026 it was the required «تعداد اتاق»; its values stay.
+ */
+const localRooms: AttributeSeed = {
+  key: 'rooms',
+  type: 'number',
+  labelFa: 'تعداد اتاق به حساب آلمانی (Zimmer)',
+  helpFa: 'در آگهی‌های آلمانی اتاق نشیمن هم شمرده می‌شود: ۳ Zimmer یعنی ۲ خوابه. نیم‌اتاق هم حساب می‌شود (۲٫۵).',
+  validation: { min: 0, max: 20, integer: false },
+};
 
 const floor: AttributeSeed = {
   key: 'floor',
@@ -182,13 +209,13 @@ const furnished: AttributeSeed = {
 
 /** Whether the tenant may register the address (Anmeldung). A main tenant always may, so only WG
  * rooms and short lets ask (mockups final/category, post3; wave 1). Shown as a chip on the photo. */
-const anmeldung: AttributeSeed = {
+const anmeldung = (helpFa = 'هم‌خانهٔ تازه می‌تواند این آدرس را در Bürgeramt ثبت کند؛ شما یا صاحب‌خانه Wohnungsgeberbestätigung را می‌دهید'): AttributeSeed => ({
   key: 'anmeldung',
   type: 'boolean',
   labelFa: 'Anmeldung ممکن',
-  helpFa: 'هم‌خانهٔ تازه می‌تواند این آدرس را در Bürgeramt ثبت کند؛ شما یا صاحب‌خانه Wohnungsgeberbestätigung را می‌دهید',
+  helpFa,
   isFilterable: true,
-};
+});
 
 const balcony: AttributeSeed = {
   key: 'balcony',
@@ -327,7 +354,8 @@ const energyClass: AttributeSeed = {
   ]),
 };
 
-const roomType = (isRequired: boolean, showOnCard: boolean): AttributeSeed => ({
+/** `entirePlace`: short lets only; a room in a shared flat is never the whole flat (field audit, Nov 5, 2026) */
+const roomType = (isRequired: boolean, showOnCard: boolean, entirePlace: boolean): AttributeSeed => ({
   key: 'room_type',
   type: 'select',
   labelFa: 'نوع جا',
@@ -337,8 +365,16 @@ const roomType = (isRequired: boolean, showOnCard: boolean): AttributeSeed => ({
   options: options([
     ['private_room', 'اتاق خصوصی'],
     ['shared_room', 'اتاق مشترک'],
-    ['entire_place', 'کل واحد'],
+    ...(entirePlace ? ([['entire_place', 'کل واحد']] as [string, string][]) : []),
   ]),
+});
+
+/** The shortest stay a room or short let is given for (field audit, Nov 5, 2026: SpareRoom, Flatmates, Airbnb) */
+const minStay = (pairs: [string, string][]): AttributeSeed => ({
+  key: 'min_stay',
+  type: 'select',
+  labelFa: 'حداقل مدت اقامت',
+  options: options(pairs),
 });
 
 const propertyUse: AttributeSeed = {
@@ -557,7 +593,8 @@ const rentHome = (typeField: AttributeSeed): AttributeSeed[] => [
   heatingIncluded,
   deposit,
   availableFrom(),
-  rooms(true),
+  bedrooms(true),
+  localRooms,
   floor,
   typeField,
   furnished,
@@ -571,7 +608,8 @@ const rentHome = (typeField: AttributeSeed): AttributeSeed[] => [
 ];
 
 const saleHome = (typeField: AttributeSeed, extra: AttributeSeed[]): AttributeSeed[] => [
-  rooms(true),
+  bedrooms(true),
+  localRooms,
   floor,
   typeField,
   yearBuilt,
@@ -607,8 +645,18 @@ export const categories: CategorySeed[] = [
         type: 'number',
         labelFa: 'متراژ',
         unitFa: 'متر مربع',
-        helpFa: 'برای اتاق در خانه اشتراکی، متراژ خود اتاق؛ برای زمین، متراژ زمین',
-        validation: { min: 1, max: 100_000, integer: true, optional_in: ['parking-garages'] },
+        // A hint only where the area means something else (field audit, Nov 5, 2026)
+        validation: {
+          min: 1,
+          max: 100_000,
+          integer: true,
+          optional_in: ['parking-garages'],
+          help_in: {
+            'shared-rooms': 'متراژ خود اتاق',
+            'short-term-rent': 'برای اتاق، متراژ خود اتاق؛ برای کل واحد، متراژ واحد',
+            'land-gardens': 'متراژ کل زمین',
+          },
+        },
         isRequired: true,
         isFilterable: true,
         showOnCard: true,
@@ -619,7 +667,21 @@ export const categories: CategorySeed[] = [
       leaf('houses-rent', 'اجاره خانه', { attributes: rentHome(houseType) }),
       leaf('shared-rooms', 'اتاق و خانه اشتراکی (WG)', {
         attributes: [
-          roomType(true, true),
+          roomType(true, true, false),
+          // What SpareRoom and Flatmates.com.au ask first (field audit, Nov 5, 2026); the rent is one monthly amount
+          {
+            key: 'bills_included',
+            type: 'select',
+            labelFa: 'قبوض داخل اجاره',
+            helpFa: 'گرمایش، برق، آب و اینترنت',
+            isFilterable: true,
+            showOnCard: true,
+            options: options([
+              ['all', 'با همهٔ قبوض'],
+              ['some', 'با بخشی از قبوض'],
+              ['none', 'بدون قبوض'],
+            ]),
+          },
           {
             key: 'flatmates',
             type: 'number',
@@ -641,30 +703,68 @@ export const categories: CategorySeed[] = [
           },
           availableFrom(),
           availableUntil,
+          minStay([
+            ['none', 'بدون حداقل'],
+            ['m1', '۱ ماه'],
+            ['m3', '۳ ماه'],
+            ['m6', '۶ ماه'],
+            ['m12', '۱۲ ماه'],
+          ]),
           furnished,
-          anmeldung,
+          { key: 'private_bathroom', type: 'boolean', labelFa: 'حمام و دستشویی اختصاصی', isFilterable: true },
+          { key: 'couples_ok', type: 'boolean', labelFa: 'مناسب زوج‌ها', isFilterable: true },
+          anmeldung(),
           deposit,
         ],
       }),
+      // One all-in price per night, week or month, like Airbnb and Wunderflats: no cold rent, no extra
+      // costs (field audit, owner, Nov 5, 2026). The form puts the unit above the price, and the price
+      // reads «اجاره هر شب»; cards show «۸۰ € هر شب». Furnished went: a short let always is.
       leaf('short-term-rent', 'اجاره موقت و کوتاه‌مدت', {
         attributes: [
           {
             key: 'rent_period',
             type: 'select',
-            labelFa: 'واحد قیمت',
+            labelFa: 'اجاره برای',
             isRequired: true,
-            showOnCard: true,
+            isFilterable: true,
             options: options([
-              ['night', 'شبانه'],
-              ['week', 'هفتگی'],
-              ['month', 'ماهانه'],
+              ['night', 'هر شب'],
+              ['week', 'هر هفته'],
+              ['month', 'هر ماه'],
             ]),
           },
-          roomType(false, true),
-          rooms(),
-          furnished,
+          money('cleaning_fee', 'هزینهٔ نظافت', { helpFa: 'یک‌بار، برای کل اقامت' }),
+          {
+            key: 'guests',
+            type: 'number',
+            labelFa: 'حداکثر تعداد مهمان',
+            unitFa: 'نفر',
+            validation: { min: 1, max: 30, integer: true },
+            isFilterable: true,
+            showOnCard: true,
+          },
+          minStay([
+            ['none', 'بدون حداقل'],
+            ['n2', '۲ شب'],
+            ['n3', '۳ شب'],
+            ['w1', '۱ هفته'],
+            ['m1', '۱ ماه'],
+            ['m3', '۳ ماه'],
+            ['m6', '۶ ماه'],
+          ]),
+          roomType(false, true, true),
+          bedrooms(false),
           availableFrom(),
           availableUntil,
+          anmeldung('برای اجارهٔ ماهانه مهم است: مستأجر می‌تواند این آدرس را در Bürgeramt ثبت کند و شما Wohnungsgeberbestätigung را می‌دهید'),
+          {
+            key: 'registration_number',
+            type: 'text',
+            labelFa: 'شمارهٔ ثبت اجارهٔ کوتاه‌مدت',
+            helpFa: 'در برلین و بسیاری از شهرها اجارهٔ شبانهٔ کل خانه شمارهٔ ثبت شهرداری می‌خواهد و باید در آگهی بیاید.',
+            validation: { max_length: 40 },
+          },
           deposit,
         ],
       }),

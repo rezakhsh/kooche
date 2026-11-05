@@ -9,7 +9,7 @@ import type { City } from '../../../modules/search/places';
 import { messages } from '../../../messages/fa';
 import { Icon } from '../../../components/icons';
 import { ancestry } from '../../../modules/listings/catalog';
-import { NOT_SHIPPED, RENT_SLUGS } from '../../../modules/listings/safety-kind';
+import { rentKind, shippable } from '../../../modules/listings/safety-kind';
 import { postalInputMode } from '../../../modules/listings/postal-code';
 import { FilterSubmit } from './filter-submit';
 import { NearMe } from './near-me';
@@ -69,9 +69,10 @@ export function FilterForm({
   const byKey = new Map(state.attributes.map((f) => [f.key, f]));
   const currency = country.currency;
   const nearOn = !!state.near;
-  const root = b.category ? ancestry(b.catalog, b.category.id)[0]?.slug : undefined;
-  const rent = !!b.category && ancestry(b.catalog, b.category.id).some((c) => RENT_SLUGS.has(c.slug) && c.slug !== 'real-estate');
-  const shippable = !root || !NOT_SHIPPED.has(root);
+  const path = b.category ? ancestry(b.catalog, b.category.id) : [];
+  // A short let's price is per night, week or month (its «اجاره برای» filter); other rents are monthly
+  const rent = rentKind(path);
+  const offersShipping = shippable(path);
 
   return (
     <form method="get" action={b.path} className="flex flex-col gap-5">
@@ -82,7 +83,7 @@ export function FilterForm({
 
       {ctx.priceAllowed && (
         <fieldset>
-          <legend className={legendClass}>{rent ? t.rentPrice : t.price}</legend>
+          <legend className={legendClass}>{rent === 'period' ? t.rentPricePeriod : rent ? t.rentPrice : t.price}</legend>
           <Range
             id={`${id}-price`}
             name="price"
@@ -109,7 +110,7 @@ export function FilterForm({
       ))}
 
       {/* Shipping only where things are sent: not for homes, services, jobs or lessons */}
-      {shippable && (
+      {offersShipping && (
         <div className="flex flex-wrap gap-1.5">
           <Pill type="checkbox" name="ship" value="1" checked={state.ship}>
             {t.shipping}
