@@ -16,6 +16,9 @@ const securityHeaders = [
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  // Cloudflare compresses for visitors (Zstandard on our plan). When the server gzips first,
+  // Cloudflare passes gzip on as it is, about 12% bigger (docs/research/smooth-loading.md, 3.4).
+  compress: false,
   reactStrictMode: true,
   // `npm run typecheck` (tsc 7) checks types before every build. Next's own check needs the
   // TypeScript 5/6 JavaScript API, which TypeScript 7 doesn't ship.
