@@ -626,7 +626,7 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 
 ---
 
-## 20. Items 5–9: plan (waiting for the owner's approval, Nov 5, 2026)
+## 20. Items 5–9: plan (approved by the owner on Nov 5, 2026; Part A built the same day, see `docs/progress.md`)
 
 **Corrections after the owner's question "are you sure about everything?" (Nov 5, 2026).** Every legal claim in this plan was checked again against the law texts and official pages:
 - **Energy (the big one).** The first version called the German energy data a "legal fix", with the fields required. That was wrong for private landlords. §87 applies only when a certificate already exists and the ad is commercial; free private ads are not covered (Haus & Grund, July 2026). Kleinanzeigen has the fields, all optional. Now: optional everywhere (section 1, item 4).
@@ -656,6 +656,12 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 It is built in **three parts**. Each part is tested, put on staging and checked on phone and computer, light and dark, before the next one starts. Austria comes first in every part, because it is the next country to open.
 
 ### Part A. The building block, housing and the Anmeldung chip (items 5 and 6)
+
+*Built Nov 5, 2026 and on staging. Differences from the text below:*
+- **NL and IT cards:** the base rent says «بدون شارژ، ماهانه», like Germany's «سرد، ماهانه», instead of «+ ۸۰ € شارژ». The listing page shows the total («با شارژ …»).
+- **Areas in sq ft** (UK, US, CA) are stored as typed, in square feet. A listing never changes country, and each browse page shows one country. The listing page adds «(حدود … متر مربع)».
+- **Energy hint:** shown to every poster in Germany, worded for commercial ads, instead of to businesses only.
+- **Not checked live:** cards and listing pages outside Germany. A listing can only be published in an open country, so the tests cover them.
 
 **A1. The building block (item 5).** Each field in the category list can now say, per country:
 - **shown or hidden.** For example, WBS appears in Germany only.

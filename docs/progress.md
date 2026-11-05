@@ -2125,3 +2125,59 @@ The owner asked (Nov 5) for every category's posting form to be checked field by
 **Staging:** deployed `2ae18db`; seed run (128 leaf categories, 304 attributes, 1,301 options). Production has one live listing (a room) and none of these changes touch it. Test ads refreshed with the new fields (flats, houses, short let, land, dogs, cats, cleaning) and a new WG room from the UK test account. Checked in the browser (Playwright, one browser, `--cpus=1`; phone 390 and computer 1280, light and dark; pictures, `check.mjs` and `report.txt` in `/root/peydoo-media/wave2/field-fixes/`): step 3 reached the real way (20 drafts of the Germany test account, kept as test data); the short let's label «اجاره» → «اجاره هر شب» → «اجاره هر ماه», no «سرد», no «مبله»; bedroom chips on the flat, no area hint; the WG room without «کل واحد» and with the new fields and its hint; no shipping or exchange for dogs, no exchange for cleaning; cards «۸۰ € هر شب» and «۶۵ متر مربع، ۲ خوابه»; the listing page «۸۰ € هر شب»; the filter panels open (phone sheet, computer side column) with «اجاره برای», bedrooms and no shipping for dogs. No sideways scroll, no script errors.
 
 **Release:** no migration. After `peydoo-promote`, run the seed on production (the new fields and options), as for any category change.
+
+### Posting fields per country: Part A of the field audit's items 5–9 (Nov 5, 2026)
+
+The plan is in `docs/research/field-audit.md` §20, approved by the owner on Nov 5. The owner questioned the energy part ("I rented my flat and did not need it"), so the plan was checked again before building (`b06989b`). §87 GModG binds only commercial ads whose landlord already has a certificate, so energy fields are optional everywhere, as on Kleinanzeigen. Built in `9a86bf4`, `b00d59e`, `ab3e6f0` and the hint fix after them.
+
+- **The building block:** a field's `validation` can carry three per-country rules, applied by `inCountry()` in `src/modules/listings/catalog.ts`:
+  - `countries`: offered only there;
+  - `hidden_in`: not offered there;
+  - `by_country`: label, hint, unit, required, options, option labels, min and max per country, with `*` for countries without a line of their own.
+  `effectiveAttributes(catalog, categoryId, country)` now takes the listing's or the page's country; null gives the base definitions. A field not offered in a country behaves like a retired one: its values are kept, it isn't asked, shown or filtered. A seed check refuses rules that name an unknown country or an option the field lacks. No migration.
+- **Rent per country** (`RentKind`, `RENT_STYLE` in `safety-kind.ts`), in the form label, card unit, filter and listing page:
+  - **DE:** cold rent + Nebenkosten (as before);
+  - **AT, FR:** the whole rent («اجارهٔ کل ماهانه (Bruttomiete / charges comprises)»), the extra costs a part of it (required in FR);
+  - **NL, IT:** the base rent plus service charges («بدون شارژ، ماهانه», the page adds «با شارژ …»);
+  - **AU:** a weekly rent;
+  - **everywhere else:** one monthly rent and «قبوض داخل اجاره»;
+  - **WG rooms in GB and AU:** per week or month, as the poster chooses.
+- **Deposit:** the local name, plus the legal cap as a hint on homes (Kaution, waarborgsom, deposit, dépôt de garantie, bond; Ontario «اجارهٔ ماه آخر»).
+- **Anmeldung:** the field, the chip on the photo and its tooltip only where tenants register, under the local word:
+  - DE Anmeldung
+  - AT Meldezettel
+  - NL Inschrijving
+  - SE Folkbokföring
+  - IT Residenza
+
+  `REGISTRATION_WORD` lives in `src/modules/listings/country-fields.ts`. Hidden in the UK, FR, US, CA, AU and every other country.
+- **Housing:**
+  - WBS in Germany only.
+  - Energy on each country's scale, all optional. DE adds certificate type, kWh, energy source and issue date; AT has HWB and EEB; FR has GES. None in the US, CA or AU.
+  - Bathrooms in the UK, US, CA and AU.
+  - Area in sq ft in the UK, US and CA.
+  - Local room count: Zimmer, kamers, pièces, locali, rum.
+  - UK: council-tax band and tenure.
+  - Owner costs on sale ads under the local name (Hausgeld, service charge, HOA fee…).
+  - «provisionsfrei» in DE, AT and NL.
+  - German words in type lists only in DE and AT.
+  - VAT on commercial rent.
+- **Short-let registration number:** required before publishing a whole flat by the night or week in Berlin, Amsterdam, Paris, New York and all of Italy (`registrationNumberRequired()`).
+- **Opening checklist:** step 8a in `docs/setup.md`.
+
+**Tests:** `tsc --noEmit` and `check:rtl` clean; 1,299 tests pass (one events test timed out under `--cpus=1` in the full run and passed alone). New tests are in two places:
+- `tests/listings.test.ts`, "posting fields per country": Germany unchanged, Anmeldung per country, each country's rent block, the UK/US/AU fields, the Berlin registration number;
+- `tests/seed.test.ts`: the new seed check.
+
+**Staging:** `ab3e6f0` deployed, seed run (342 attributes). Austria, the UK, Australia, France and the Netherlands were put on "prestart" twice, for about two minutes each (22:28–22:31 and 22:37–22:39 UTC), and are back on waitlist; nothing was published.
+- **Forms checked:** the five housing forms as each country's test account, phone and computer (light), and phone dark for DE, AT and UK. Each country showed its own words; Germany read as before. No sideways scroll.
+- **Germany's cards and listing page:** unchanged («۹۵۰ € سرد، ماهانه», «اجارهٔ سرد، با هزینه‌ها ۱٬۱۷۰ €»), no script errors.
+- **Fixed on the way:** a WG room's rent showed the flat's local word («(Bruttomiete)»).
+- **Pictures:** `/root/peydoo-media/wave2/country-fields/staging/`.
+
+**Not checked live:** cards and listing pages outside Germany. Nothing can be published in a country that isn't open; unit tests cover them.
+
+**Release:** no migration. After `peydoo-promote`, run the seed on production. The web keeps the category list for up to 10 minutes, so new labels show up to 10 minutes after the seed.
+
+**Next:** Part B (jobs, vehicles), then Part C (sizes, exams, languages, service units), each after the owner's go.
+

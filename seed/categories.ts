@@ -541,7 +541,7 @@ const energyClass: AttributeSeed = {
     by_country: {
       DE: {
         label: 'کلاس انرژی (Energieausweis)',
-        help: 'اختیاری. اگر گواهی انرژی دارید و آگهی تجاری است (مشاور املاک یا شرکت)، قانون این‌ها را در آگهی می‌خواهد: نوع گواهی، مقدار انرژی، منبع انرژی، سال ساخت و کلاس.',
+        help: 'اگر گواهی انرژی دارید و آگهی تجاری است (مشاور املاک یا شرکت)، قانون این‌ها را در آگهی می‌خواهد: نوع گواهی، مقدار انرژی، منبع انرژی، سال ساخت و کلاس.',
         options: ['a_plus', ...A_TO_G, 'h'],
       },
       AT: { label: 'کلاس انرژی (Energieausweis)', options: ['a_plus2', 'a_plus', ...A_TO_G] },
@@ -596,7 +596,7 @@ const energyDetails: AttributeSeed[] = [
       integer: false,
       countries: ['DE', 'AT'],
       by_country: {
-        DE: { label: 'مقدار انرژی گواهی', help: 'عدد اصلی روی گواهی (Endenergie؛ در گواهی‌های تازه از ۲۰۲۷ Primärenergie)' },
+        DE: { label: 'مقدار انرژی گواهی', help: 'عدد اصلی روی گواهی: انرژی اولیه (Primärenergie) در گواهی‌های صادرشده از ۲۰۲۷، انرژی نهایی (Endenergie) در گواهی‌های قدیمی‌تر' },
         AT: { label: 'نیاز گرمایی (HWB)' },
       },
     },
