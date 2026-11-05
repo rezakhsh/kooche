@@ -21,7 +21,8 @@ export function matchCategories(all: Pickable[], q: string): Pickable[] {
   return all.filter((c) => words.every((w) => c.search.includes(w))).slice(0, MAX_SUGGESTIONS);
 }
 
-export function CategorySearch({ all, initial, query = '' }: { all: Pickable[]; initial: string; query?: string }) {
+/** `placeholder`: the examples, when the country closes some categories (Turkey: no «اتاق») */
+export function CategorySearch({ all, initial, query = '', placeholder }: { all: Pickable[]; initial: string; query?: string; placeholder?: string }) {
   const t = messages.post;
   const [q, setQ] = useState(initial);
   const found = useMemo(() => matchCategories(all, q), [all, q]);
@@ -37,7 +38,7 @@ export function CategorySearch({ all, initial, query = '' }: { all: Pickable[]; 
           name="q"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={t.searchCategoryPlaceholder}
+          placeholder={placeholder ?? t.searchCategoryPlaceholder}
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent text-base outline-none"
         />

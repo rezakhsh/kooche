@@ -21,6 +21,9 @@ import { publicListing } from '../src/modules/listings/queries';
 import { runListingChecks } from '../src/modules/moderation/checks';
 import { resolveTarget } from '../src/modules/search/saved';
 import { suggestions } from '../src/modules/search/suggest';
+import { matchCategories } from '../src/app/new/category-search';
+import { normalizePersian } from '../src/lib/normalize-persian';
+import { messages } from '../src/messages/fa';
 import { appDb, workerDb } from './accounts';
 import { db, makeListing, publicToken, type Tx } from './db';
 import { categoryBySlug, listing, user } from './listings-fixtures';
@@ -152,6 +155,17 @@ describe('closed categories', () => {
     const rows = (c: Catalog, code: string, slug: string, q: string) => suggestions(c, scope(code, slug), q, null).filter((r) => r.kind !== 'search');
     expect(JSON.stringify(rows(tr, 'TR', 'turkey', 'آپارتمان'))).not.toContain('apartments');
     expect(JSON.stringify(rows(catalog, 'DE', 'germany', 'آپارتمان'))).toContain('apartments');
+  });
+
+  it('the picker’s search examples in Turkey are all open there; the usual ones include a closed «اتاق»', () => {
+    const pickables = (c: Catalog) =>
+      [...c.byId.values()].filter((x) => x.childIds.length === 0 && isPostable(c, x.id)).map((x) => ({ slug: x.slug, nameFa: x.nameFa, parentFa: '', search: normalizePersian(x.nameFa) }));
+    const examples = (text: string) => [...text.matchAll(/«([^»]+)»/g)].map((m) => m[1]!);
+    const tr = pickables(countryCatalog(catalog, 'TR'));
+    for (const word of examples(messages.post.searchCategoryPlaceholderClosed)) expect(matchCategories(tr, word).length, word).toBeGreaterThan(0);
+    // The usual «اتاق» finds the room category in Germany, not in Turkey (there only «اتاق خواب», furniture)
+    expect(matchCategories(pickables(catalog), 'اتاق').map((x) => x.slug)).toContain('shared-rooms');
+    expect(matchCategories(tr, 'اتاق').map((x) => x.slug)).not.toContain('shared-rooms');
   });
 
   it('publishing a flat, a car or a motorbike in Turkey is refused for anyone, from any number; a bicycle and car parts go out', async () => {

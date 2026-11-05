@@ -84,7 +84,7 @@ export default async function NewListingPage({
       : params.error === 'business_only'
         ? t.businessOnly
         : params.error === 'closed_in_country'
-          ? messages.countryRules.refused.closed_in_country
+          ? null
         : params.error
           ? t.categoryNotPostable
           : null;
@@ -145,14 +145,25 @@ export default async function NewListingPage({
           </Alert>
         )}
         {error && <Alert tone="error">{error}</Alert>}
-        {!params.listing && hasClosedCategories(code) && <CountryRulesNote />}
+        {/* A closed category's address (/new/cars in Turkey): the reason once, in red, with the link;
+            else the country's saffron line (src/modules/listings/country-rules.ts) */}
+        {params.error === 'closed_in_country' ? (
+          <Alert tone="error">
+            {messages.countryRules.closedNote}{' '}
+            <Link href="/terms#s17" className="font-bold underline">
+              {messages.countryRules.rulesLink}
+            </Link>
+          </Alert>
+        ) : (
+          !params.listing && hasClosedCategories(code) && <CountryRulesNote />
+        )}
         {showBorder && country && from ? (
           <BorderPanel from={from} country={country} verifiedBusiness={businesses.some((b) => b.verificationStatus === 'verified')} />
         ) : (
           <>
         {wanted && <Alert tone="info">{t.border.wantedMode}</Alert>}
         {crossZone && root && (SERVICE_ROOTS as readonly string[]).includes(root) && <Alert tone="info">{t.border.onlineMode}</Alert>}
-        {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} query={wanted ? '?kind=wanted' : ''} />}
+        {!params.listing && !parent && <CategorySearch all={pickable} initial={params.q ?? ''} query={wanted ? '?kind=wanted' : ''} placeholder={hasClosedCategories(code) ? t.searchCategoryPlaceholderClosed : undefined} />}
         <p className="pt-2 text-sm font-bold text-neutral-700">{parent ? t.pickCategory : t.allCategories}</p>
         {parent && (
           <div className="flex items-center gap-2 text-sm">

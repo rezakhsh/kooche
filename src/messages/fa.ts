@@ -580,6 +580,8 @@ export const messages = {
     countIn: (parent: string, n: number, place: string) => (n > 0 ? `در ${parent}، ${n.toLocaleString('fa-IR')} آگهی در ${place}` : `در ${parent}، اولین آگهی این دسته در ${place} باشید`),
     searchCategory: 'جستجوی دسته',
     searchCategoryPlaceholder: 'مثلاً «اتاق»، «دوچرخه» یا «ترجمه»',
+    /** In a country that closes housing (Turkey, src/modules/listings/country-rules.ts): examples open there */
+    searchCategoryPlaceholderClosed: 'مثلاً «مبل»، «دوچرخه» یا «ترجمه»',
     noCategoryFound: 'دسته‌ای با این نام پیدا نشد. از فهرست پایین انتخاب کنید.',
     inParent: (parent: string) => `در ${parent}`,
     allCategories: 'همه دسته‌ها',
