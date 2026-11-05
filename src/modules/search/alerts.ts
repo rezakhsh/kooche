@@ -6,6 +6,7 @@ import { ancestry, type Catalog } from '../listings/catalog';
 import { activeCountries } from '../listings/queries';
 import { isUnreachableMarked } from '../notifications/telegram-reach';
 import { bundleOn, DEFAULT_TIME_ZONE, noticeChannels, quietDelay, quietHoursOn, savedSearchAlertsOn } from '../users/notification-prefs';
+import { personZoneSql } from '../users/time-zone';
 import { searchesShowing, type SearchFilters } from './browse';
 import { keywordMatches } from './keyword';
 import type { Meili } from './meili';
@@ -150,7 +151,7 @@ export async function claimAlert(
   return db.transaction(async (tx) => {
     const [s] = await tx.execute<{ user_id: string; notify_frequency: string; last_notified_at: Date | string | null; status: string; prefs: unknown; telegram_user_id: string | number | null; tz: string | null }>(sql`
       SELECT s.user_id, s.notify_frequency, s.last_notified_at, u.status, u.notification_prefs AS prefs, u.telegram_user_id,
-             (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
+             ${personZoneSql()} AS tz
       FROM saved_searches s JOIN users u ON u.id = s.user_id
       WHERE s.id = ${savedSearchId}::uuid
       FOR UPDATE OF s`);
@@ -197,9 +198,9 @@ export async function claimAlert(
  * instant ones left waiting; per person, the one that waited longest first
  */
 export async function dueForDaily(db: Queryable, now: Date, opts: { localHour?: number } = {}): Promise<string[]> {
-  // With `localHour` (the worker, hourly): only where it is that hour on the person's clock, their
-  // saved city's, else the search's city's, else its country's (wave 2 part 7)
-  const zone = sql`coalesce(h.timezone, sl.timezone, ${countryZoneSql(sql`s.country_code`)})`;
+  // With `localHour` (the worker, hourly): only where it is that hour on the person's clock (their
+  // device's, else their saved city's; Nov 5, 2026), else the search's city's, else its country's
+  const zone = sql`coalesce(u.time_zone, h.timezone, sl.timezone, ${countryZoneSql(sql`s.country_code`)})`;
   const rows = await db.execute<{ id: string }>(sql`
     SELECT s.id FROM saved_searches s JOIN users u ON u.id = s.user_id
     LEFT JOIN locations h ON h.id = u.home_location_id

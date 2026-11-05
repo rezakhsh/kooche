@@ -8,6 +8,7 @@ import { isUnreachableMarked } from '../notifications/telegram-reach';
 import type { ReplyMarkup } from '../users/telegram-bot';
 import { eventsPath } from '../search/paths';
 import { DEFAULT_TIME_ZONE, eventsCityOf, noticeChannels, quietDelay, quietHoursOn, type NoticeChannel, type NoticeKind } from '../users/notification-prefs';
+import { personZoneSql } from '../users/time-zone';
 import { eventPriceText, formatEventStart } from './format';
 import { upcomingEvents, whenWindow } from './queries';
 import { eventPath } from './slug';
@@ -110,7 +111,7 @@ export async function dueReminders(db: Queryable, appUrl: string, now = new Date
   >(sql`
     SELECT DISTINCT ON (f.listing_id, f.user_id)
            f.listing_id, f.user_id, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
-           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz,
+           ${personZoneSql()} AS tz,
            l.title, l.public_token, d.starts_at, e.time_zone, e.venue_name, e.attendance, c.name_fa AS city_fa
     FROM event_dates d
     JOIN favorites f ON f.listing_id = d.listing_id
@@ -190,7 +191,7 @@ export async function followNews(db: Queryable, listingId: string, appUrl: strin
   if (!ev?.starts_at) return null;
   const rows = await db.execute<UserRow>(sql`
     SELECT u.id AS user_id, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
-           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
+           ${personZoneSql()} AS tz
     FROM organization_follows f
     JOIN users u ON u.id = f.user_id AND u.status = 'active'
     WHERE f.organization_id = ${ev.organization_id}
@@ -240,7 +241,7 @@ export type WeeklyRecipient = Recipient & { cityId: string };
 export async function weeklyRecipients(db: Queryable): Promise<WeeklyRecipient[]> {
   const rows = await db.execute<UserRow & { home_city: string | null }>(sql`
     SELECT u.id AS user_id, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
-           h.timezone AS tz, h.id AS home_city
+           ${personZoneSql()} AS tz, h.id AS home_city
     FROM users u
     LEFT JOIN locations h ON h.id = u.home_location_id
     WHERE u.status = 'active'
@@ -338,7 +339,7 @@ export async function savedNews(db: Queryable, listingId: string, appUrl: string
   if (!ev?.starts_at) return null;
   const rows = await db.execute<UserRow>(sql`
     SELECT u.id AS user_id, u.email, u.telegram_user_id, u.notification_prefs AS prefs,
-           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
+           ${personZoneSql()} AS tz
     FROM favorites f
     JOIN users u ON u.id = f.user_id AND u.status = 'active'
     WHERE f.listing_id = ${listingId} AND f.user_id <> ${ev.user_id}`);

@@ -11,14 +11,16 @@ import { homeArea } from '../../../modules/listings/neighbourhood';
 import { isUnreachableMarked } from '../../../modules/notifications/telegram-reach';
 import { bundleOn, NOTICE_KINDS, noticeSwitches, quietHoursOn } from '../../../modules/users/notification-prefs';
 import { requireSession } from '../../../modules/users/server';
+import { zoneLabel } from '../../../modules/users/time-zone';
 import { saveNotificationsAction } from './actions';
 import { AutoSave } from './auto-save';
 
 export const metadata = { title: messages.notifications.title, robots: { index: false } };
 
 // Notification settings (wave 1, mockup final/notifications): each kind with a Telegram and an
-// email switch, quiet hours (nothing from 22 to 8 in the person's time; it arrives in the
-// morning) and bundling (saved searches once a day in one message). WhatsApp is never a channel
+// email switch, quiet hours (nothing from 22 to 8 in the person's time, named under the switch:
+// the device's zone, else the saved city's, else Berlin's; it arrives in the morning) and
+// bundling (saved searches once a day in one message). WhatsApp is never a channel
 // (the owner's decision: messages we start there cost money). Switches save at once; without
 // JavaScript a save button shows. The Telegram column works once the bot can reach the person.
 
@@ -27,7 +29,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const { user } = await requireSession('/account/notifications');
   const db = appDb();
   const [[row], area] = await Promise.all([
-    db.select({ prefs: users.notificationPrefs, telegramUserId: users.telegramUserId, email: users.email }).from(users).where(eq(users.id, user.id)),
+    db.select({ prefs: users.notificationPrefs, telegramUserId: users.telegramUserId, email: users.email, timeZone: users.timeZone }).from(users).where(eq(users.id, user.id)),
     homeArea(db, user.id),
   ]);
   const t = messages.notifications;
@@ -35,6 +37,9 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const blocked = tg !== null && (await isUnreachableMarked(valkey(), tg).catch(() => false));
   const telegramReady = tg !== null && !blocked;
   const prefs = row?.prefs;
+  // Quiet hours on the clock notices use: the device's, else the saved place's, else Berlin's
+  const zone = row?.timeZone ? await zoneLabel(db, row.timeZone) : null;
+  const quietHint = zone ? t.quietHintDevice(zone.latin ? ltr(zone.text) : zone.text) : t.quietHint(area?.city ?? t.defaultCity);
 
   return (
     <>
@@ -90,7 +95,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
               <b>{t.quiet}</b>
               <Switch name="quiet" defaultChecked={quietHoursOn(prefs)} label={t.quiet} />
             </span>
-            <span className="mt-1 block text-xs leading-6 text-neutral-600">{t.quietHint(area?.city ?? t.defaultCity)}</span>
+            <span className="mt-1 block text-xs leading-6 text-neutral-600">{quietHint}</span>
           </label>
           <label className="mt-4 block rounded-2xl border border-neutral-200 p-4">
             <span className="flex items-center justify-between gap-3 text-sm">

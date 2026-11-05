@@ -77,6 +77,12 @@ export const users = pgTable(
     homePlaceName: text('home_place_name'),
     homeDistrict: text('home_district'),
     notificationPrefs: jsonObject('notification_prefs'),
+    /**
+     * The device's time zone (IANA, from the browser; migration 0047, Nov 5, 2026), for quiet
+     * hours and other notices on the person's clock (src/modules/users/time-zone.ts). Null until a
+     * signed-in page has sent it; then the saved place's zone, else Berlin.
+     */
+    timeZone: text('time_zone'),
     status: text('status', { enum: USER_STATUSES }).notNull().default('active'),
     lastSeenAt: tstz('last_seen_at'),
     deletedAt: tstz('deleted_at'),
@@ -107,6 +113,8 @@ export const users = pgTable(
     check('users_home_postal_code_check', matches(t.homePostalCode, PATTERNS.postalCode)),
     check('users_home_place_name_check', sql`char_length(${t.homePlaceName}) BETWEEN 1 AND 100`),
     check('users_home_district_check', sql`char_length(${t.homeDistrict}) BETWEEN 1 AND 60`),
+    // The same form as event_details_time_zone_check; whether the zone exists is checked on saving
+    check('users_time_zone_check', sql`${matches(t.timeZone, '^[A-Za-z_]+(/[A-Za-z0-9_+-]+)+$')} AND char_length(${t.timeZone}) <= 64`),
     check('users_trust_score_check', sql`${t.trustScore} BETWEEN 0 AND 100`),
     check('users_notification_prefs_check', isObject(t.notificationPrefs)),
     check('users_status_check', isIn(t.status, USER_STATUSES)),

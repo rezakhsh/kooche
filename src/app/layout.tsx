@@ -3,7 +3,9 @@ import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
+import { createHash } from 'node:crypto';
 import { AutoDirection } from '../components/auto-direction';
+import { DeviceTimeZone } from '../components/device-time-zone';
 import { FormValidation } from '../components/form-validation';
 import { HeaderSync } from '../components/header-sync';
 import { IranBanner } from '../components/iran';
@@ -19,6 +21,7 @@ import { MONITORING_META } from '../lib/monitoring/browser';
 import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/config';
 import { messages } from '../messages/fa';
 import { ADMIN_GATE_HEADER } from '../modules/admin/gate';
+import { currentSession } from '../modules/users/server';
 import { appDb } from '../db/drizzle';
 import { headerRenderedFor } from './country-choice';
 import { currentTheme } from './theme';
@@ -74,6 +77,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // The admin page counts no visits (the proxy marks its requests)
   const admin = (await headers()).has(ADMIN_GATE_HEADER);
   const header = await headerRenderedFor(appDb());
+  // The device's time zone, for notices on the person's clock (src/components/device-time-zone.tsx;
+  // the header reads the same cached session). Not on the admin page.
+  const session = admin ? null : await currentSession();
+  const zoneMark = session ? createHash('sha256').update(`peydoo-tz:${session.user.id}`).digest('base64url').slice(0, 12) : null;
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable} data-theme={theme === 'auto' ? undefined : theme}>
@@ -92,6 +99,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <AutoDirection />
         <ScrollToTop />
         {!admin && <VisitBeacon />}
+        {zoneMark && <DeviceTimeZone mark={zoneMark} />}
       </body>
     </html>
   );

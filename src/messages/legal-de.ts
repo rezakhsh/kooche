@@ -760,7 +760,10 @@ const privacy: LegalDoc = {
     {
       id: '4.3',
       heading: '4.3 Weitere Angaben',
-      body: ['Freiwillig: Ihr Anzeigename, ein gespeicherter Ort (Postleitzahl, Stadt, Stadtteil) für neue Anzeigen und Ihre Einstellungen für Benachrichtigungen.'],
+      body: [
+        'Freiwillig: Ihr Anzeigename, ein gespeicherter Ort (Postleitzahl, Stadt, Stadtteil) für neue Anzeigen und Ihre Einstellungen für Benachrichtigungen.',
+        'Solange Sie angemeldet sind, übermittelt Ihr Browser die Zeitzone Ihres Geräts (z. B. „America/Los_Angeles“). Wir speichern sie bei Ihrem Konto, damit Benachrichtigungen zu Ihrer Ortszeit kommen (Ruhezeit von 22 bis 8 Uhr, tägliche Nachrichten). Sie zeigt nur die Zeitzone, keinen genauen Ort, und wird mit dem Konto gelöscht. Rechtsgrundlage: Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).',
+      ],
     },
     {
       id: '4.4',

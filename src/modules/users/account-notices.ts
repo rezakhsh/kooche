@@ -9,6 +9,8 @@ import { emailHtml, escapeHtml, type Mail, type Mailer } from '../notifications/
 import { onceFor, sendOnce } from '../notifications/send-once';
 import { isUnreachable, type TelegramClient } from '../notifications/telegram-api';
 import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
+import { DEFAULT_TIME_ZONE } from './notification-prefs';
+import { personZoneSql } from './time-zone';
 
 // Notices about a person's own account (check B part 6, Nov 2, 2026: every action that changes
 // something for someone tells them): their team (an invitation they sent was accepted or turned
@@ -135,7 +137,7 @@ export async function sendAccountNotice(db: Queryable, redis: Redis, deps: Deps,
   const none = { email: false, telegram: false };
   const [p] = await db.execute<Person>(sql`
     SELECT u.email, u.telegram_user_id, u.phone_e164, u.phone_verified_at,
-      coalesce((SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id), 'Europe/Berlin') AS tz
+      coalesce(${personZoneSql()}, ${DEFAULT_TIME_ZONE}) AS tz
     FROM users u WHERE u.id = ${userId} AND u.status = 'active'`);
   if (!p) return none;
   const c = await content(db, deps.appUrl.replace(/\/$/, ''), p, notice);

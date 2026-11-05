@@ -214,7 +214,11 @@ describe('when a notice goes out', () => {
     await db.update(schema.users).set({ homeLocationId: toronto!.id }).where(eq(schema.users.id, searcher.id));
     expect(await at('2029-11-05T17:00:00Z')).not.toContain(daily);
     expect(await at('2029-11-05T23:00:00Z')).toContain(daily);
-    await db.update(schema.users).set({ homeLocationId: null }).where(eq(schema.users.id, searcher.id));
+    // The device's zone (Nov 5, 2026) comes before the saved city: 18:00 in Los Angeles is 02:00 UTC
+    await db.update(schema.users).set({ timeZone: 'America/Los_Angeles' }).where(eq(schema.users.id, searcher.id));
+    expect(await at('2029-11-05T23:00:00Z')).not.toContain(daily);
+    expect(await at('2029-11-06T02:00:00Z')).toContain(daily);
+    await db.update(schema.users).set({ homeLocationId: null, timeZone: null }).where(eq(schema.users.id, searcher.id));
     expect(await dueForDaily(workerDb, new Date(now.getTime() + 61 * 60_000))).toContain(instant);
     expect(await claimAlert(workerDb, redis, daily, now, 'daily')).toMatchObject({ send: ['email'], job: { listingIds: [id] } });
     expect(await dueForDaily(workerDb, now)).not.toContain(daily);

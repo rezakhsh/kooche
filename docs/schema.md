@@ -283,6 +283,7 @@ Standard columns, plus:
 | `home_postal_code`, `home_place_name` | `text null` | The saved place's postal code and place name, as on a listing (migration 0008). Same CHECKs as `listings`. |
 | `home_district` | `text null` | The saved district text, `CHECK (char_length BETWEEN 1 AND 60)`. `erase_user` clears all four `home_*` columns. No position is ever saved on the account. |
 | `notification_prefs` | `jsonb DEFAULT '{}'` | Channels and quiet hours, validated by Zod |
+| `time_zone` | `text null` | The device's time zone (IANA, from the browser of a signed-in page), for quiet hours and notices on the person's clock. `CHECK` Area/Place form (as `event_details.time_zone`) and at most 64 characters; the app saves only zones Intl and `pg_timezone_names` know. `erase_user` clears it (migration 0047). |
 | `status` | `text DEFAULT 'active'` | `CHECK IN ('active','deactivated','deleted')` |
 | `last_seen_at` | `timestamptz null` | Written at most once an hour |
 | `deleted_at` | `timestamptz null` | |
@@ -1383,3 +1384,7 @@ When a person whose ban is running asks to delete their account, `record_banned_
 ### `legal_notices`, `legal_notice_recipients` (migration 0043, Nov 1, 2026)
 
 `legal_notices` (`id`, `created_at`, `documents text[]` 1–2 of `terms`/`privacy`, `effective_on date` (the new version's day, Berlin), `summary_fa` and `summary_de` 1–2,000 characters, `created_by_user_id` and `confirmed_by_user_id` FK → `users` (set null), `confirmed_at` (null = draft), `recipients int` (set with `confirmed_at`), `finished_at`): the email to every account before the terms or the privacy policy change. `legal_notice_recipients` (`notice_id` FK cascade, `user_id` FK → `users`, `sent_at`, `failed_at` (not both), `attempts smallint`; primary key `(notice_id, user_id)`; a partial index on the ones still due): one row per active account at the confirmation, the proof of when each was told. Grants: app `SELECT, INSERT, DELETE` and `UPDATE` of the draft's columns on notices, `SELECT, INSERT` on recipients; worker `SELECT` on both, `UPDATE (finished_at)` and `UPDATE (sent_at, failed_at, attempts)`; readonly `SELECT`. `erase_user` deletes the person's recipient rows. docs/setup.md, "Legal pages".
+
+### `users.time_zone` (migration 0047, Nov 5, 2026)
+
+The device's time zone, nullable, `users_time_zone_check` (`^[A-Za-z_]+(/[A-Za-z0-9_+-]+)+$`, at most 64 characters). `erase_user` replaced to clear it (otherwise as in 0043). Additive, so the old code runs on the new schema; no seed change. docs/setup.md, "The person's clock".

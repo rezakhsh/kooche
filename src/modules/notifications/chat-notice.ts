@@ -4,6 +4,7 @@ import type { Queryable } from '../../db/drizzle';
 import { messages } from '../../messages/fa';
 import { isViewing } from '../chat/presence';
 import { DEFAULT_TIME_ZONE, noticeChannels, noticeSwitches, quietDelay, quietHoursOn, type NoticeKind } from '../users/notification-prefs';
+import { personZoneSql } from '../users/time-zone';
 import type { ReplyMarkup } from '../users/telegram-bot';
 import { emailHtml, escapeHtml, type Mail } from './mailer';
 import { isUnreachableMarked } from './telegram-reach';
@@ -56,7 +57,7 @@ type Facts = {
   title: string;
   /** The first message of the conversation, to the seller: a `reply` to their listing */
   first: boolean;
-  /** The time zone of the receiver's saved place */
+  /** The receiver's clock: the device's zone, else the saved place's (src/modules/users/time-zone.ts) */
   tz: string | null;
 };
 
@@ -68,7 +69,7 @@ async function facts(db: Queryable, job: NoticeJob): Promise<Facts | undefined> 
            s.display_name AS sender_name, l.title,
            (c.seller_user_id = ${job.recipientId} AND NOT EXISTS (
              SELECT 1 FROM messages p WHERE p.conversation_id = c.id AND p.kind = 'text' AND (p.created_at, p.id) < (m.created_at, m.id))) AS first,
-           (SELECT h.timezone FROM locations h WHERE h.id = u.home_location_id) AS tz
+           ${personZoneSql()} AS tz
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     JOIN users u ON u.id = ${job.recipientId}

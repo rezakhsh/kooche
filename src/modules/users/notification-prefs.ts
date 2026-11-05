@@ -41,7 +41,10 @@ const prefsSchema = z.object({
 });
 export type NotificationPrefs = z.infer<typeof prefsSchema>;
 
-/** Quiet hours for people without a saved place (the worker passes APP_TIME_ZONE) */
+/**
+ * The clock of people whose device hasn't sent its time zone and who have no saved place (the
+ * worker passes APP_TIME_ZONE); the order is in src/modules/users/time-zone.ts
+ */
 export const DEFAULT_TIME_ZONE = 'Europe/Berlin';
 
 /** Quiet hours, in the person's local time: from 22:00 to 08:00 */

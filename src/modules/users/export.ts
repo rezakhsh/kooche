@@ -45,7 +45,7 @@ export async function exportUserData(db: Queryable, userId: string, appUrl: stri
   const [account] = await db.execute<Row>(sql`
     SELECT u.email, u.display_name, u.public_token, u.phone_e164, u.phone_verified_at, u.phone_verification_method,
            u.telegram_user_id IS NOT NULL AS telegram_linked, u.telegram_user_id::text AS telegram_user_id, u.status, u.created_at, u.home_postal_code,
-           u.home_place_name, u.home_district, c.name_fa AS home_city, u.notification_prefs, u.signup_source, u.signup_answer
+           u.home_place_name, u.home_district, c.name_fa AS home_city, u.time_zone, u.notification_prefs, u.signup_source, u.signup_answer
     FROM users u LEFT JOIN locations c ON c.id = u.home_location_id
     WHERE u.id = ${userId}
   `);

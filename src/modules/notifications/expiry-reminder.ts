@@ -7,8 +7,8 @@ import { DEFAULT_ZONE, localHourSql } from './local-hour';
 import { emailHtml, escapeHtml, type Mailer } from './mailer';
 
 // "Your listing expires in 3 days, renew?" (decided Oct 17, 2026: 30 days, renewable with one
-// tap). Each seller gets one email at 9:00 on their clock (their saved city's, else the listing's
-// city's; wave 2 part 7) about their listings that expire between 2 and 3 days from now: the
+// tap). Each seller gets one email at 9:00 on their clock (their device's, else their saved
+// city's, else the listing's city's; wave 2 part 7, device Nov 5, 2026) about their listings that expire between 2 and 3 days from now: the
 // worker runs it hourly with `localHour`, so each listing meets that hour once; a Valkey key per
 // listing and expiry stops a retried or doubled run from sending twice. Non-critical: a run that
 // fails is not repeated for the same window, and renewing is still possible after expiry.
@@ -36,7 +36,7 @@ export async function sendExpiryReminders(
     LEFT JOIN locations lc ON lc.id = l.location_id
     WHERE l.status = 'active' AND l.expires_at > ${from}::timestamptz AND l.expires_at <= ${to}::timestamptz
       AND u.status = 'active'
-      ${opts.localHour !== undefined ? sql`AND ${localHourSql(sql`coalesce(h.timezone, lc.timezone, ${DEFAULT_ZONE})`, now, opts.localHour)}` : sql``}
+      ${opts.localHour !== undefined ? sql`AND ${localHourSql(sql`coalesce(u.time_zone, h.timezone, lc.timezone, ${DEFAULT_ZONE})`, now, opts.localHour)}` : sql``}
       -- An event ends with its last date; there is nothing to renew
       AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)
     ORDER BY u.id, l.expires_at
