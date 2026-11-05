@@ -626,7 +626,7 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 
 ---
 
-## 20. Items 5–9: plan (approved by the owner on Nov 5, 2026; Part A built the same day, see `docs/progress.md`)
+## 20. Items 5–9: plan (approved by the owner on Nov 5, 2026; Parts A and B built the same day, see `docs/progress.md`)
 
 **Corrections after the owner's question "are you sure about everything?" (Nov 5, 2026).** Every legal claim in this plan was checked again against the law texts and official pages:
 - **Energy (the big one).** The first version called the German energy data a "legal fix", with the fields required. That was wrong for private landlords. §87 applies only when a certificate already exists and the ad is commercial; free private ads are not covered (Haus & Grund, July 2026). Kleinanzeigen has the fields, all optional. Now: optional everywhere (section 1, item 4).
@@ -734,6 +734,12 @@ How it reaches the screens:
 - **Commercial rent:** «با مالیات بر ارزش افزوده / بدون آن» (with or without VAT), in all countries **(DE too)**.
 
 ### Part B. Jobs and vehicles (items 7 and 8)
+
+*Built Nov 5, 2026 and on staging. Differences from the text below:*
+- **One value per kind of work.** Contract types share values across countries, named the local way: Germany's Ausbildung is Austria's Lehre and the UK's apprenticeship, and Germany's Minijob is Austria's geringfügig. A filter or a moved business keeps its meaning. FR, IT and SE use permanent / fixed-term (CDI / CDD, indeterminato / determinato, tillsvidare / visstid).
+- **The salary ceiling's key** is `salary_ceiling`. Keys ending in `_max` are taken by the browse filters' ranges; a seed check caught it.
+- **Miles (UK, US) and kW (AU)** are stored as typed, like sq ft. PS, bhp and hp are within 2%.
+- **Category names per country** (apprenticeships, mini-jobs, care, shared rooms) come through `countryCatalog()`. The page address stays the same.
 
 **B1. Jobs.**
 - **Language level.** «سطح زبان آلمانی» becomes the country's own language:

@@ -2181,3 +2181,41 @@ The plan is in `docs/research/field-audit.md` §20, approved by the owner on Nov
 
 **Next:** Part B (jobs, vehicles), then Part C (sizes, exams, languages, service units), each after the owner's go.
 
+### Posting fields per country: Part B, jobs and vehicles (Nov 5, 2026)
+
+The owner said "Yes, build Part B" (plan: `docs/research/field-audit.md` §20). Built in `0de73e7` on the Part A building block.
+
+- **Jobs:**
+  - **Language level:** of the country's own language («سطح زبان هلندی», «… انگلیسی»; «… محلی» elsewhere). The key stays `german_level`.
+  - **Contract types per country:** one value per kind of work, named the local way.
+    - DE: as before.
+    - AT: geringfügig, Lehre.
+    - UK: zero-hours, apprenticeship.
+    - NL: nul-urencontract.
+    - FR: CDI, CDD, intérim, alternance.
+    - IT: indeterminato, determinato, apprendistato.
+    - SE: tillsvidare, visstid.
+    - AU: casual.
+    - US and CA: contract.
+  - **Salary:** a range («سقف حقوق», key `salary_ceiling`; a ceiling below the floor is refused; cards show «۳٬۰۰۰ تا ۳٬۵۰۰ €»). Required in Austria only («حداقل حقوق», GlBG §9(2)). In the US and Canada a hint says many states and Ontario require a range. The gross word is local: Brutto, gross, brut, lordo.
+  - **(m/w/d):** a hint under the title of job ads in DE and AT.
+- **Vehicles:**
+  - **Inspection** under its local name: TÜV/HU, Pickerl, APK, MOT, contrôle technique, revisione, besiktning. AU has «اعتبار ثبت خودرو (rego) تا»; hidden in the US and CA.
+  - **Mileage** in miles in the UK and US, and **power** in PS, bhp, hp or kW, each typed and stored in that unit.
+  - **Euro classes and motorbike licence classes:** hidden in the US, CA and AU.
+  - **Service book:** «دفترچه سرویس کامل», with «(Scheckheft)» only in DE and AT. Camper types' German words likewise.
+- **Category names per country** through `countryCatalog()` (`CATEGORY_NAMES` in `src/modules/listings/country-fields.ts`): «آوسبیلدونگ» is «کارآموزی حرفه‌ای (Lehre / apprenticeship / apprendistato)» or «کار و تحصیل (alternance)»; «مینی‌جاب و پاره‌وقت», «(Pflege)» and «(WG)» are neutral outside Germany and Austria, and the UK's shared rooms say «(flatshare)». Used by the category grid, picker, browse pages, listing page and posting form. Addresses unchanged.
+
+**Tests:** `tsc` and `check:rtl` clean; **1,303 tests pass** (new: "jobs and vehicles per country" in `tests/listings.test.ts`). A seed check caught the first key `salary_max`, which clashes with the browse filters' range suffix.
+
+**Staging:** `0de73e7` deployed; seed run (343 attributes, 1,457 options).
+- **Countries opened briefly:** AT, GB, AU, FR, NL and US were on "prestart" from 23:28 to 23:32 UTC and are back on waitlist; nothing was published.
+- **Forms checked:** jobs, apprenticeships, cars, motorbikes and campers as each country's test account, on phone and computer (light; dark for DE and UK). Germany read as before; each other country showed its own words. No sideways scroll.
+- **Pictures:** `/root/peydoo-media/wave2/country-fields/staging-b/`.
+
+**Disk:** the server had 1.7 GB free during another session's build (the cleanup waits while a deploy runs). After it, 5.2 GB.
+
+**Release:** no migration. After `peydoo-promote`, run the seed on production.
+
+**Next:** Part C (sizes, exams, language lists, service units, rideshare) after the owner's go.
+
