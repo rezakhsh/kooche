@@ -5469,7 +5469,8 @@ export const admin = {
       `⛔️ پیدو: پرداختی با نشانی صورت‌حساب در منطقهٔ محدود Stripe (${p.place}) پذیرفته نشد.`,
       p.what === 'order' ? 'خرید فعال نشد.' : `اشتراک پرو فعال نشد${p.cancelled ? ' و لغو شد' : ''}.`,
       p.refunded && p.amount ? `${p.amount} برگشت داده شد.` : 'پولی برای برگرداندن نبود.',
-      'خریدار با ایمیل و تلگرام خبر شد. جزئیات در گزارش رویدادها (payment.restricted_country).',
+      // In backticks: n8n's Telegram node sends Markdown, where a bare `_` opens italics and Telegram refuses the message
+      'خریدار با ایمیل و تلگرام خبر شد. جزئیات در گزارش رویدادها (`payment.restricted_country`).',
     ].join('\n'),
   alert: (s: { newReports: number; newAppeals: number; illegal: number; open: number; oldestMinutes: number | null }) =>
     [

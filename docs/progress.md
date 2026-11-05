@@ -2027,10 +2027,10 @@ Stripe's compliance review asked for evidence that no payment comes from its res
 - **Sandbox payment, Zaporizhzhia billing address** (Melitopol, 69000; same German account and IP): order `01a1a92c…` was charged €1.99 and granted nothing. Then:
   - an audit entry with `place: UA-postcode-69`, and `order_refused` sent by email and Telegram (to the test inbox);
   - the worker refunded it in full (`re_…` succeeded), and the order shows «بازپرداخت‌شده».
-  - The owner's alert went to staging's n8n, which drops this kind for now (open point below).
+  - The owner's alert went to staging's n8n, which dropped this kind then; fixed the same day (open point below).
 - **Found on the way:** for Ukraine, Stripe's Checkout asks for the full address, and its oblast list (24) leaves out Crimea, Sevastopol, Donetsk and Luhansk. So in practice the billing check catches Zaporizhzhia and Kherson. Test orders are kept as test data.
 
 **Open points:**
-- **n8n:** both alert workflows (staging's «Peydoo – admin alerts» and production's) need `payment_restricted` added to their Code node's list of kinds. The session's permission guard refused the n8n API edit; it's a one-line change, written in `docs/setup.md` › "Admin page" › "The owner's alert". Until then the owner gets no Telegram alert for a refusal. The audit entry, refund and buyer notice still happen.
+- **n8n:** staging's «Peydoo – admin alerts» accepts `payment_restricted` since Nov 5, 2026 (owner's yes). A signed test reached Telegram only after the alert text put `payment.restricted_country` in backticks: n8n sends Markdown, and the bare `_` made Telegram refuse it (fixed in `fa.ts`, with a test). **Production's «Peydoo – production admin alerts» still needs the kind added at release** (one line, `docs/setup.md` › "Admin page" › "The owner's alert"); the permission guard refused that edit. The audit entry, refund and buyer notice don't depend on it.
 - **Production:** on the owner's «release» (no migration). The Cloudflare header is already on there, because it's zone-wide.
 

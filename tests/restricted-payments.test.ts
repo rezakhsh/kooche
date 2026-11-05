@@ -380,6 +380,11 @@ describe('texts', () => {
     const p = refusedPaymentPayload(alert, APP, 'x'.repeat(24));
     expect(p).toMatchObject({ kind: 'payment_restricted', place: 'SY', url: `${APP}/${'x'.repeat(24)}/audit` });
     expect(p.text).toContain('SY');
+    // n8n's Telegram node sends Markdown: an underscore outside backticks makes Telegram refuse the message
+    for (const place of ['SY', 'UA-postcode-69', 'RU-region']) {
+      const text = refusedPaymentPayload({ ...alert, place }, APP, 'x'.repeat(24)).text;
+      expect(text.replace(/`[^`]*`/g, '')).not.toMatch(/[_*[]/);
+    }
     const texts = JSON.stringify([messages.paymentPlace, messages.promote.errors, messages.business.billing.errors, messages.email.paymentNotice.orderRefused, messages.email.paymentNotice.proRefused, admin.refusedPaymentAlert(alert)]);
     expect(texts).not.toContain('تحریم');
     expect(texts).not.toMatch(/وی‌?پی‌?ان|VPN/i);
