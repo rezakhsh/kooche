@@ -2042,3 +2042,10 @@ Stripe's compliance review asked for evidence that no payment comes from its res
 - Production now blocks Stripe's restricted places before checkout and refunds them after payment (Cuba, Iran, North Korea, Syria; Crimea, Sevastopol, Donetsk, Luhansk, Zaporizhzhia, Kherson; Tor). Payments are still the Stripe sandbox (`PAYMENTS_LIVE` unset).
 - Still open: the `payment_restricted` alert kind in both n8n alert workflows (staging and production), so the owner gets a Telegram alert on a refusal. Refunds and buyer notices work without it.
 - Next: the checkout video for Stripe on staging, then the final reply to Stripe.
+
+### Refusal alert: released to production (Nov 5, 2026)
+
+- 08:51 UTC: production backup (restic snapshot `3862ef3c`), then `peydoo-promote d36701a --yes` (brings `2971abc`, the alert text in backticks for Telegram's Markdown). No migrations, no seed change.
+- n8n «Peydoo – production admin alerts» (`TbFYug8177bs2YH1`) now accepts kind `payment_restricted` (owner's yes, changed through the n8n API). A signed test from the production worker got 200 and no failed run in n8n.
+- Checks: `/health`, home, `/germany/berlin`, `/help` 200.
+- The Stripe evidence is ready in `/root/peydoo-media/stripe-compliance/`: the 1:55 video (`video/peydoo-payment-controls.webm`), stills per scene, and the reply draft `reply-to-stripe.md` (three bracketed lines for the owner to fill). Not sent yet; the owner sends it.
