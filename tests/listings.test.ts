@@ -919,9 +919,7 @@ describe('sizes, exams, languages and services per country', () => {
   it('a ride has one price, its share of the costs per passenger', async () => {
     const catalog = await cachedCatalog(appDb);
     const types = categoryPriceTypes(catalog, catalog.bySlug.get('rideshare')!);
-    expect(types).not.toContain('negotiable');
-    expect(types).not.toContain('exchange');
-    expect(types).toContain('fixed');
+    expect(types).toEqual(['fixed', 'free']);
     expect(categoryPriceTypes(catalog, catalog.bySlug.get('mobile-phones')!)).toContain('negotiable');
     expect(await values('rideshare', 'DE', 'trip_type')).toEqual(['one_way', 'return']);
   });

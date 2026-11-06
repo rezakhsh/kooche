@@ -62,11 +62,13 @@ export function priceTypesFor(mode: CategoryNode['priceMode']): readonly PriceTy
 
 /**
  * Price types a category allows: its price mode's, without «معاوضه» where nothing is traded
- * (./safety-kind.ts, NO_EXCHANGE), and without «توافقی» where the price is a cost share (rideshare)
+ * (./safety-kind.ts, NO_EXCHANGE); a cost share (rideshare) is an amount or free, never «قابل
+ * مذاکره» or «توافقی» (BlaBlaCar always shows the share)
  */
 export function categoryPriceTypes(catalog: Catalog, category: CategoryNode): readonly PriceType[] {
   const path = ancestry(catalog, category.id);
-  return priceTypesFor(category.priceMode).filter((t) => (t !== 'exchange' || exchangeAllowed(path)) && (t !== 'negotiable' || !costShare(path)));
+  const share = costShare(path);
+  return priceTypesFor(category.priceMode).filter((t) => (t !== 'exchange' || exchangeAllowed(path)) && !(share && (t === 'negotiable' || t === 'on_request')));
 }
 
 // ---------------------------------------------------------------------------

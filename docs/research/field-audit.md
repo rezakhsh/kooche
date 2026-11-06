@@ -626,7 +626,7 @@ WBS and the Anmeldung chip stay as they are: right in Germany, the only open cou
 
 ---
 
-## 20. Items 5–9: plan (approved by the owner on Nov 5, 2026; Parts A and B built the same day, see `docs/progress.md`)
+## 20. Items 5–9: plan (approved by the owner on Nov 5, 2026; Parts A, B and C built Nov 5–6, see `docs/progress.md`)
 
 **Corrections after the owner's question "are you sure about everything?" (Nov 5, 2026).** Every legal claim in this plan was checked again against the law texts and official pages:
 - **Energy (the big one).** The first version called the German energy data a "legal fix", with the fields required. That was wrong for private landlords. §87 applies only when a certificate already exists and the ad is commercial; free private ads are not covered (Haus & Grund, July 2026). Kleinanzeigen has the fields, all optional. Now: optional everywhere (section 1, item 4).
@@ -776,6 +776,13 @@ How it reaches the screens:
 - **Motorbike licence classes** (AM/A1/A2/A): hidden in the US, CA and AU.
 
 ### Part C. Sizes, exams, languages and service units (item 9)
+
+*Built Nov 5–6, 2026 and on staging. Differences from the text below:*
+- **Shoe sizes** in the UK, US and Canada are typed and stored in the local size, like sq ft. Australia keeps EU sizes, as the plan says.
+- **Kids' sizes by age** are a separate choice («سایز (سن)», 0–3 months to 14+), offered only in the UK, US, CA and AU; the height field is hidden there.
+- **Service price units per category** need a second building block: `options_in` gives a category its own options. Per m² is offered for cleaning and repairs, per page for translation, and the rest get per hour, per job or per day.
+- **Event languages:** migration 0048 widens the list to Persian, German, Dutch, French, Italian, Swedish, Turkish, English and other. Each country's form and filter show Persian, its own language and English.
+- **Rideshare** lost «توافقی», and «هر نفر» follows the price on cards and the listing page.
 
 - **Clothes.** The letter (XS…XL) stays and is stored as today. The number in brackets follows the country:
   - EU numbers in Europe;
