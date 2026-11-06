@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { cookieCountry } from '../app/[country]/remember-country';
 import { messages } from '../messages/fa';
-import { headerPlace, type HeaderPlaceData } from './header-place';
+import { headerPlace, needsServerHeader, serverCountry, type HeaderPlace, type HeaderPlaceData } from './header-place';
 import { Icon } from './icons';
 import { SearchBox } from './search-box';
 
 /**
  * The header's middle and end (./site-header.tsx): the place chip, the keyword box and the links,
  * drawn in the browser from the address (./header-place.ts), so an in-app link changes them at
- * once and without a second request. Only a changed `country` cookie asks the server for the
- * header again (./header-sync.tsx).
+ * once and without a second request. When the server would draw it for another remembered
+ * country, the header stays as it is until the server's comes (./header-sync.tsx asks for it), so
+ * it never shows a guess.
  */
 export function HeaderPlaceRow({
   data,
@@ -29,7 +31,16 @@ export function HeaderPlaceRow({
   post: ReactNode;
   phoneSignIn: ReactNode;
 }) {
-  const shown = headerPlace(usePathname(), data);
+  const path = usePathname();
+  const drawn = headerPlace(path, data);
+  const check = { ...data, countrySlug: data.country?.slug ?? null };
+  // The server's first render is for this address; in the browser the cookie decides
+  const ours = typeof document === 'undefined' || !needsServerHeader(check, serverCountry(path, check, cookieCountry(document.cookie)));
+  const last = useRef<HeaderPlace | null>(null);
+  const shown = ours || !last.current ? drawn : last.current;
+  useEffect(() => {
+    last.current = shown;
+  });
   return (
     <>
       {shown.chip && (

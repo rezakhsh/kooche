@@ -102,6 +102,7 @@ Each option below says what it is, what we would gain, and what it costs.
 - **What.** Next.js gzips our JS and CSS itself. Cloudflare passes gzip on as it is, so visitors never get the smaller Zstandard. Setting `compress: false` in `next.config.ts` lets Cloudflare compress instead.
 - **Gain.** About 12% smaller files: the CSS measured 16.4 KB with gzip against 14.1 KB with Zstandard. That is roughly 30 KB less on a first visit, about 0.15 s on a slow phone, plus less CPU work on the 4 GB server.
 - **Correction (Nov 6, after the build).** `compress: false` alone changed nothing for visitors: Coolify's Traefik also gzips every answer of the web app (its `gzip` middleware), so JS and CSS still arrive as gzip. The rest of this step is turning off Coolify's gzip for `classifieds-web` and checking that Cloudflare then sends Zstandard.
+- **Tried and undone (Nov 6).** With Coolify's gzip off, Cloudflare compressed JS and CSS at its fast on-the-fly level: Zstandard 291 KB, Brotli 283 KB, gzip 280 KB for the Berlin page's 13 files, against about 282 KB from Traefik. So no gain (Chrome, which takes Zstandard, got 3.5% more), and the setting went back on (`docs/setup.md`, "Compression"). The 12% above holds only for files compressed ahead at a high level.
 - **Side note.** Photos and the font also arrive gzip-wrapped, which gains nothing on WebP or WOFF2. Probably Traefik's compression on the imgproxy service. Low priority.
 
 ### 3.5 0-RTT. **Later, after a check.**

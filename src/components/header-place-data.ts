@@ -5,6 +5,8 @@ import { COUNTRY_COOKIE } from '../app/country-cookie-name';
 import { appDb } from '../db/drizzle';
 import { countries } from '../db/schema';
 import { visitorCountry } from '../lib/client-ip';
+import { ADMIN_GATE_HEADER } from '../modules/admin/gate';
+import { viewAsCountry } from '../modules/admin/view-as';
 import { countryByCode, isPlanned } from '../modules/launch/country-page';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
 import { countryCatalog } from '../modules/listings/country-rules';
@@ -53,6 +55,8 @@ export const headerPlaceData = cache(async (): Promise<HeaderPlaceData & { start
   return {
     country: place(country),
     cookie: jar.get(COUNTRY_COOKIE)?.value ?? null,
+    viewAs: !!viewAsCountry(requestHeaders),
+    adminRoot: requestHeaders.has(ADMIN_GATE_HEADER) ? ((requestHeaders.get('x-pathname') ?? '').split('/')[1] ?? null) : null,
     footer: (chosen ?? open[0])?.slug ?? null,
     open: open.flatMap((c) => (c.slug ? [c.slug] : [])),
     closed: withPages.flatMap((c) => (c.slug && !open.some((o) => o.slug === c.slug) ? [[c.slug, c.nameFa] as [string, string]] : [])),

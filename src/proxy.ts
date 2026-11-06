@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { COUNTRY_COOKIE } from './app/country-cookie-name';
+import { browseCountry } from './modules/search/browse-country';
 import { webEnv, type WebEnv } from './lib/env';
 import { isIranRequest } from './lib/region';
 import { OWN_COOKIE_DAYS, readReturn, sessionCookieName, STAFF_RETURN_COOKIE } from './modules/admin/acting-cookies';
@@ -10,20 +11,6 @@ import { readViewAs, VIEW_AS_COOKIE, VIEW_AS_HEADER } from './modules/admin/view
 // request's CSP header and puts it on its own scripts. The other security headers are static and
 // live in next.config.ts, except X-Robots-Tag, which depends on the environment at runtime.
 
-/** First path segments of our own pages; anything else with one to three segments is a browse page */
-const NOT_BROWSE = new Set([
-  ...['account', 'api', 'chat', 'e', 'events', 'favorites', 'health', 'login', 'my', 'new', 'u', 'v', 'sitemaps'],
-  // Legal and help pages (Oct 21, 2026)
-  ...['contact', 'help', 'impressum', 'privacy', 'safety', 'terms'],
-  // Turning off a saved-search alert from its email (Oct 22, 2026)
-  'alerts',
-  // Business pages, creating a business, the Pro page (Oct 22, 2026)
-  ...['b', 'business', 'pro'],
-  // Reporting content; the admin page's internal route (Oct 23, 2026)
-  ...['report', 'admin'],
-  // City waitlist: confirming and leaving (wave 0)
-  'waitlist',
-]);
 /**
  * Stripe's hosted Checkout and Customer Portal. A purchase form posts to our server action, which
  * redirects there; browsers apply form-action to that redirect too.
@@ -35,12 +22,7 @@ const TELEGRAM_LOGIN_TARGET = 'https://oauth.telegram.org';
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
 
-/** The country slug of a browse page (/germany, /germany/berlin/cars …), else null */
-export function browseCountry(pathname: string): string | null {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.length < 1 || segments.length > 3 || NOT_BROWSE.has(segments[0]!) || !/^[a-z][a-z-]{1,40}$/.test(segments[0]!)) return null;
-  return segments[0]!;
-}
+export { browseCountry };
 
 /**
  * Cache-Control for browse pages. A logged-out visitor's page is the same for everyone, so

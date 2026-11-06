@@ -1,4 +1,5 @@
 import { messages } from '../messages/fa';
+import { browseCountry } from '../modules/search/browse-country';
 import { browsePath, eventsPath } from '../modules/search/paths';
 
 // What the header's middle shows for an address: the place chip («برلین ▾») and the keyword box's
@@ -14,8 +15,12 @@ type Place = { slug: string; nameFa: string };
 export type HeaderPlaceData = {
   /** The header's country: the chosen one, else the signed-in user's, else the connection's (open countries only) */
   country: Place | null;
-  /** The `country` cookie the page was rendered with */
+  /** The remembered country the page was rendered with (as the proxy passed it on; see serverCountry) */
   cookie: string | null;
+  /** Staff viewing the site as a country: the proxy hides the remembered country (src/modules/admin/view-as.ts) */
+  viewAs: boolean;
+  /** On the admin page: its first segment, which the proxy leaves alone (the browser is at that address already) */
+  adminRoot: string | null;
   /** The country the footer was rendered for (chosen, else the first open one) */
   footer: string | null;
   /** Open countries' address names */
@@ -96,15 +101,36 @@ export function headerPlace(path: string, d: HeaderPlaceData): HeaderPlace {
   return { chip, search, country: country?.slug ?? null, onLogin: path === '/login' || path.startsWith('/login/') };
 }
 
-/**
- * Whether the server must render the header again after the `country` cookie changed (a country
- * page remembers its country, src/app/[country]/remember-country.tsx): the logo, the chip and the
- * footer follow the remembered country. Not when a first visit only remembered the country the
- * header and the footer already show.
- */
-export type HeaderCookieData = Pick<HeaderPlaceData, 'cookie' | 'footer'> & { country: string | null };
+/** A `country` cookie's value as the server reads it: a country with a page, else as if none was remembered */
+function known(d: Pick<HeaderPlaceData, 'open' | 'closed'>, slug: string | null): string | null {
+  return slug && (d.open.includes(slug) || d.closed.some(([s]) => s === slug)) ? slug : null;
+}
 
-export function needsServerHeader(d: HeaderCookieData, cookie: string | null): boolean {
-  if (cookie === d.cookie) return false;
-  return !(d.cookie === null && cookie !== null && cookie === d.country && cookie === d.footer);
+export type HeaderCookieData = Pick<HeaderPlaceData, 'cookie' | 'footer' | 'viewAs' | 'adminRoot' | 'open' | 'closed'> & { countrySlug: string | null };
+
+/**
+ * The remembered country the server would render an address with: src/proxy.ts renders a browse
+ * page as if the page's own country were chosen and hides it while staff view the site as a
+ * country; elsewhere it is the browser's `country` cookie.
+ */
+export function serverCountry(path: string, d: HeaderCookieData, cookie: string | null): string | null {
+  if (d.adminRoot && path.split('/')[1] === d.adminRoot) return known(d, cookie);
+  return known(d, browseCountry(path) ?? (d.viewAs ? null : cookie));
+}
+
+/** The rendered country as serverCountry() would name it (the server sends the proxy's value) */
+export function renderedCountry(d: HeaderCookieData): string | null {
+  return known(d, d.cookie);
+}
+
+/**
+ * Whether the header drawn for this page is not the server's for the address: the remembered
+ * country the server would use differs (another country's page, a country chosen or forgotten,
+ * staff viewing as a country). Then the header waits for the server's (./header-sync.tsx). Not when
+ * a first visit only remembers the country the header and the footer already show.
+ */
+export function needsServerHeader(d: HeaderCookieData, country: string | null): boolean {
+  const rendered = renderedCountry(d);
+  if (country === rendered) return false;
+  return !(rendered === null && country !== null && country === d.countrySlug && country === d.footer);
 }

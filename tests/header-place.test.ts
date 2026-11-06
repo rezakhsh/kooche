@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { headerPlace, needsServerHeader, type HeaderPlaceData } from '../src/components/header-place';
+import { headerPlace, needsServerHeader, serverCountry, type HeaderPlaceData } from '../src/components/header-place';
 
 // The header's chip and keyword box follow the address in the browser (src/components/header-place.ts;
 // owner's approval, Nov 6, 2026), with the same rules the server header had (Oct 17–31, 2026).
 const data: HeaderPlaceData = {
   country: { slug: 'germany', nameFa: 'آلمان' },
   cookie: 'germany',
+  viewAs: false,
+  adminRoot: null,
   footer: 'germany',
   open: ['germany'],
   closed: [['austria', 'اتریش'], ['canada', 'کانادا']],
@@ -58,13 +60,36 @@ describe('header place', () => {
 });
 
 describe('asking the server for the header again', () => {
-  const d = { cookie: 'germany', footer: 'germany', country: 'germany' };
-  it('only when the remembered country changed', () => {
-    expect(needsServerHeader(d, 'germany')).toBe(false);
-    expect(needsServerHeader(d, 'canada')).toBe(true);
+  const d = { ...data, countrySlug: 'germany' };
+  it('not between pages the header already knows', () => {
+    for (const path of ['/germany/berlin', '/help', '/v/a/abc123', '/my/listings', '/login']) expect(needsServerHeader(d, serverCountry(path, d, 'germany'))).toBe(false);
+  });
+
+  it('when the server would use another remembered country', () => {
+    // Another country's page: the proxy renders it as if that country were chosen
+    expect(serverCountry('/austria/wien', d, 'germany')).toBe('austria');
+    expect(needsServerHeader(d, 'austria')).toBe(true);
+    // The cookie was changed (another country remembered)
+    expect(needsServerHeader(d, serverCountry('/help', d, 'canada'))).toBe(true);
+    // A browse page knows its country whatever the cookie still says
+    expect(needsServerHeader(d, serverCountry('/germany', d, 'austria'))).toBe(false);
+  });
+
+  it('treats unknown values as nothing remembered, as the server does', () => {
+    expect(serverCountry('/cities', d, 'germany')).toBeNull();
+    expect(serverCountry('/help', d, 'nowhere')).toBeNull();
     // A first visit that remembered the country the header and footer already show
-    expect(needsServerHeader({ ...d, cookie: null }, 'germany')).toBe(false);
-    expect(needsServerHeader({ ...d, cookie: null, footer: 'canada' }, 'germany')).toBe(true);
-    expect(needsServerHeader({ ...d, cookie: 'austria' }, 'germany')).toBe(true);
+    const first = { ...d, cookie: null };
+    expect(needsServerHeader(first, serverCountry('/germany', first, null))).toBe(false);
+    expect(needsServerHeader({ ...first, footer: 'canada' }, 'germany')).toBe(true);
+  });
+
+  it('follows the proxy while staff view the site as a country, and leaves the admin page alone', () => {
+    const viewing = { ...d, viewAs: true };
+    expect(serverCountry('/help', viewing, 'germany')).toBeNull();
+    expect(needsServerHeader(viewing, serverCountry('/help', viewing, 'germany'))).toBe(true);
+    expect(serverCountry('/germany/berlin', viewing, 'germany')).toBe('germany');
+    const admin = { ...d, adminRoot: 'staff-x1' };
+    expect(serverCountry('/staff-x1/users', admin, 'germany')).toBe('germany');
   });
 });
