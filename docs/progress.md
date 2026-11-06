@@ -2258,6 +2258,55 @@ The owner approved the plan in `docs/research/smooth-loading.md` (Nov 5, "Yes, b
 
 **Later (owner, Nov 5):** caching signed-out listing pages with a purge on every change (`docs/research/smooth-loading.md`, 3.2): **before launch or when Telegram channel posting starts.** It needs view counting after load and a security check of the listing page.
 
+### Instant Back and the compression trial (Nov 6, 2026)
+
+The owner approved both follow-ups of smooth loading (Nov 6: "u can apply this two change if u recommend it"). Commits `ee92d92` and `de4828e`, staging only.
+
+**Instant Back, built:**
+- The header's place chip, keyword box and «ورود» are drawn from the address by one function, `src/components/header-place.ts`. The server uses it for the first render and the browser after each link. The country's cities and categories (Persian names) come once with the page (`header-place-data.ts`).
+- `HeaderSync` no longer calls `router.refresh()` after links that change the header. It asks the server only when the server would draw the address for another remembered country: another country's page, a changed `country` cookie, or staff viewing as a country between browse and other pages. Until the server's header arrives, the header stays as it was.
+- `browseCountry()` moved from `src/proxy.ts` to `src/modules/search/browse-country.ts`, so the proxy and the browser share the rule. `header-key.ts` is gone.
+- The first staging check (`ee92d92`) found two cases where the browser drew a different header than the server would; `de4828e` fixed both:
+  - view-as on `/help` showed «آلمان»;
+  - after a visit to `/austria`, the header kept Germany, because the first check ran before the page remembered the country.
+
+**Checked on staging (`de4828e`)** (scripts and pictures in `/root/peydoo-media/wave2/instant-back/`; test sessions and view-as cookies made inside the web container with the app's own signer, deleted afterwards):
+- **The header looks as approved.** Pages: Germany, Berlin, a category with and without city, both events pages, a listing, help, Austria (not open), cities, sign-in; signed in, also my listings, account and chat. Devices and modes: phone 390 and computer 1440, light and dark. Visitors: signed out, signed in (germany@), and staff viewing as Iran and as Austria (the view-as and Iran banners).
+  - **Full loads against the pictures taken before the change: 172 of 174 identical.** The two that differ are the phone's bottom bar, where only the listing behind it changed («۱۶ ساعت پیش» → «۱۷»).
+  - **The same pages reached by in-app links against full loads: 162 of 162 identical.**
+  - The computer's search suggestions (an open state) are unchanged.
+- **Server renders and Back** (phone; 5 runs each; signed out and in; tap, then Back):
+
+  | | Before (`ce4a8fe`) | After (`de4828e`) |
+  | --- | --- | --- |
+  | Page requests per tap (Berlin → listing, Germany → Berlin) | 2 (the page, then the header's refresh) | **1** |
+  | Page requests on Back | 2 | **0** (from memory) |
+  | Back on the slowed phone (slow 4G, CPU 4×) | 0.40–1.41 s | 0.18–0.61 s (no network; redrawing on a 4× slower CPU) |
+  | Back on a normal connection and phone | | **0.05–0.17 s** |
+- **Chat never shows an old copy.** germany@ left a conversation, italy@ wrote, then Back:
+  - the conversation showed the new message after 0.3 s;
+  - the inbox showed it after 1.4 s (`FreshOnReturn`).
+
+  The two test messages stay (test accounts).
+- **Known, unchanged:** the unread badge in the header and bottom bar is the server's from the last full render or refresh (the chat pages refresh it). Before, it also updated as a side effect of the header refreshes.
+
+**Compression: tried and undone.** Coolify's "Enable Gzip Compression" for `classifieds-web` was turned off (API, 10:01 UTC) and deployed with `ee92d92`, which removed Traefik's gzip.
+- Every text answer still reached visitors compressed, and cache statuses were unchanged.
+- But Cloudflare compresses at its fast on-the-fly level. The Berlin page's 13 JS and CSS files (1,007 KB raw):
+
+  | Encoding | Size |
+  | --- | --- |
+  | Before, Traefik gzip | ≈ 282 KB |
+  | Cloudflare Zstandard (what Chrome gets) | 291 KB (+3.5%) |
+  | Cloudflare Brotli | 283 KB |
+  | Cloudflare gzip | 280 KB |
+
+- The setting went back on (10:22) and was redeployed with `de4828e`. Coolify now writes the middleware as `gzip-sse`, which leaves `text/event-stream` alone.
+- One unchanged JS file that Cloudflare cached during the trial still arrives as Zstandard until it expires; harmless.
+- **Nothing to do for production.** The research's 12% needs files compressed ahead at a high level (`docs/setup.md`, "Compression").
+
+**For the next production release:** Instant Back ships with the code (no migration, no seed, no setting). Early Hints stays on the list above.
+
 ### Posting fields per country: Part C, sizes, exams, languages, services and rides (Nov 6, 2026)
 
 The owner said "Yes, build Part C" (plan: `docs/research/field-audit.md` §20). Built in `5835b4d` and `3eb8548`.
