@@ -136,7 +136,7 @@ function footer() {
         <a class="ms-auto hidden h-10 items-center gap-1.5 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-bold lg:flex">${I('send', 'size-4 text-brand-700')}کانال تلگرام پیدو</a></div>
       <div class="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-4">
         ${col('کمک', ['راهنما و پرسش‌ها', 'معاملهٔ امن', 'گزارش یک آگهی', 'تماس با ما'])}
-        ${col('حقوقی', ['<span><bdi>Impressum</bdi> (اطلاعات ناشر)</span>', '<span>شرایط استفاده <bdi>(AGB)</bdi></span>', '<span>حریم خصوصی و کوکی‌ها <bdi>(Datenschutz)</bdi></span>', '<span>تماس طبق <bdi>DSA</bdi> و قوانین محتوا</span>', '<span>لغو قرارداد <bdi>(Verträge hier kündigen)</bdi></span>'])}
+        ${col('حقوقی', ['<span><bdi>Impressum</bdi> (اطلاعات ناشر)</span>', '<span>شرایط استفاده <bdi>(AGB)</bdi></span>', '<span>حریم خصوصی و کوکی‌ها <bdi>(Datenschutz)</bdi></span>', '<span>تماس طبق <bdi>DSA</bdi> و قوانین محتوا</span>'])}
         ${col('پیدو', ['دربارهٔ پیدو', 'پیدو برای کسب‌وکارها (پرو)', 'پرو رایگان برای کسب‌وکارهای بنیان‌گذار', 'رویدادها', 'کانال تلگرام'])}
         <div><h2 class="mb-2 text-sm font-extrabold text-neutral-900">کشورها</h2><ul class="space-y-1">${[['آلمان', 'de']].map(([c, f]) => `<li><a class="flex min-h-9 items-center gap-2 text-sm text-neutral-700">${flag(f)}${c}</a></li>`).join('')}</ul>
           <p class="mt-2 text-xs leading-6 text-neutral-600">به‌زودی: کانادا، آمریکا، استرالیا، بریتانیا، هلند، اتریش و بیشتر. <a class="font-bold text-brand-800">خبرم کن</a><br><a class="font-bold text-brand-800">راهنمای ایرانیان در ترکیه</a></p></div>
