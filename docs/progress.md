@@ -2243,3 +2243,41 @@ The owner approved the plan in `docs/research/smooth-loading.md` (Nov 5, "Yes, b
 2. No migration, no seed.
 
 **Later (owner, Nov 5):** caching signed-out listing pages with a purge on every change (`docs/research/smooth-loading.md`, 3.2): **before launch or when Telegram channel posting starts.** It needs view counting after load and a security check of the listing page.
+
+### Posting fields per country: Part C, sizes, exams, languages, services and rides (Nov 6, 2026)
+
+The owner said "Yes, build Part C" (plan: `docs/research/field-audit.md` §20). Built in `5835b4d` and `3eb8548`.
+
+- **Sizes:**
+  - Clothes keep the letter; the number in brackets is EU, UK (also AU) or US (also CA); men's sizes there give the chest in inches.
+  - Shoes in UK sizes in the UK, US sizes in the US and Canada, typed and stored so.
+  - Kids' clothes by height in Europe and by age («سایز (سن)», new `kids_age`) in the UK, US, CA and AU.
+  - The kids' hint is now neutral (DE too).
+  - Car seats add «i-Size (بر اساس قد)».
+- **Languages:**
+  - Books, translation and language courses add Spanish, Italian, Dutch and Swedish, with the country's language after Persian.
+  - Exam preparation names the country's exams: Goethe/telc (DE, AT), IELTS (UK, US, CA, AU), DELF (FR), NT2 (NL), CELI (IT), SFI (SE).
+  - Tutoring: «آلمانی (درسی)» becomes the country's language (left out where it is English), and the school-leaving exam is local (Matura, A-levels, bac, maturità, eindexamen, high school, HSC/VCE).
+  - Event languages: the country's own, via migration `0048` and `eventLanguagesIn()`.
+- **Services:**
+  - The certified translator's local word (beglaubigt, beeidet, beëdigd, assermentée, giurata, certified).
+  - Entrümpelung and Endreinigung only in DE and AT ("end of tenancy" in the UK).
+  - Price units per category through a new `options_in` rule (catalog.ts, with a seed check): per m² for cleaning and repairs, per page for translation.
+- **Rideshare:**
+  - One price, «سهم هزینهٔ هر نفر»: fixed or free, never «قابل مذاکره» or «توافقی».
+  - «هر نفر» after the price on cards and the listing page.
+  - New «ساعت حرکت» and «نوع سفر».
+
+**Tests:** `tsc` clean; 1,308 tests pass (`5835b4d`), and the listing tests again after the ride fix. New tests: "sizes, exams, languages and services per country"; a seed-check test for `options_in`.
+
+**Staging:** `3eb8548` deployed; seed run (346 attributes, 1,490 options).
+- **First check (00:21 UTC):** found that rides still offered «توافقی» (on request), now fixed. It also failed to open the countries: smooth-loading's deploy had replaced the web container, so every account got Germany's forms. Nothing was left open.
+- **Second check (00:32–00:35 UTC):** AT, GB, FR, NL, US and AU on "prestart", closed again through whatever web container runs by then (`/root/peydoo-media/wave2/country-fields/run-check.sh`). Germany read as before; each other country showed its own words. No sideways scroll.
+- **Pictures:** `/root/peydoo-media/wave2/country-fields/staging-c/`.
+
+**Disk:** the test database filled the disk to 100% at 23:52 UTC, with a leftover 1.7 GB volume from smooth-loading and 1.8 GB from Part B's test database (stopped without `-v`). Both are removed. Test databases now stop with `docker rm -f -v`.
+
+**Release:** migration `0048` runs with the deploy. After `peydoo-promote`, run the seed on production (Parts A, B and C).
+
+**Field audit:** items 1–9 are done on staging. Still open from the audit's own "optional" list: France's CAF/APL question, the EU pet passport, appliance energy labels, inches for carpets, and steering side for car imports.
+
