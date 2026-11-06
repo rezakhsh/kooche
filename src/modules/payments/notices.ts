@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Queryable } from '../../db/drizzle';
 import { outboxEvents } from '../../db/schema';
 import { formatDate, formatDateTime } from '../../lib/format';
-import { withdrawalReceiptDe } from '../../messages/legal-de';
+import { orderConfirmationDe, withdrawalReceiptDe } from '../../messages/legal-de';
 import { messages } from '../../messages/fa';
 import { formatPrice } from '../listings/price';
 import { listingPath } from '../listings/slug';
@@ -14,6 +14,8 @@ import { isUnreachable, type TelegramClient } from '../notifications/telegram-ap
 import { isUnreachableMarked, markUnreachable } from '../notifications/telegram-reach';
 import { onceFor } from '../notifications/send-once';
 import type { PaymentGateway } from './gateway';
+import { currentVersion } from '../legal/versions';
+import { withdrawalEnd } from './withdrawals';
 
 // Payment notices (owner's rule, Oct 26, 2026: users are always told). Pro started, renewed,
 // ended, revoked, restored or refused (a billing address in a restricted place, ./restricted.ts),
@@ -67,8 +69,12 @@ type Recipient = { email: string; telegramUserId: number | null; timeZone: strin
  * retried after the email went (check B, Nov 1, 2026: a Valkey error after it sent it again).
  */
 type Deps = { mail: Mailer; telegram: TelegramClient | null; appUrl: string; gateway: PaymentGateway | null; once?: string };
-/** `note`: a left-to-right paragraph after the lines (the German receipt) */
-type Content = { subject: string; lines: string[]; note?: string; button: string; link: string; invoiceUrl: string | null };
+/**
+ * `note`: a left-to-right paragraph after the lines (the German receipt). `mailOnlyDe`: German
+ * paragraphs for the email only, small, after the buttons (the order confirmation with the
+ * withdrawal notice; too long for a Telegram message, whose limit is 4,096 characters).
+ */
+type Content = { subject: string; lines: string[]; note?: string; mailOnlyDe?: string[]; button: string; link: string; invoiceUrl: string | null };
 
 const invoiceLinks = z.object({ hosted_invoice_url: z.string().url().nullable().optional() });
 
@@ -88,13 +94,17 @@ async function deliver(redis: Redis, deps: Deps, to: Recipient, c: Content): Pro
   const invoice = c.invoiceUrl ? `<p><a href="${escapeHtml(c.invoiceUrl)}" style="color:#0b6e77;font-weight:bold">${escapeHtml(t.invoice)}</a></p>` : '';
   const note = c.note ? `<p dir="ltr" lang="de" style="direction:ltr;text-align:left;color:#525252;font-size:13px">${escapeHtml(c.note)}</p>` : '';
   const lines = c.note ? [...c.lines, ltrLine(c.note)] : c.lines;
+  const de = c.mailOnlyDe ?? [];
+  const deHtml = de.length
+    ? `<div dir="ltr" lang="de" style="direction:ltr;text-align:left;color:#525252;font-size:12px;line-height:1.5;border-top:1px solid #e5e5e5;margin-top:20px;padding-top:12px">${de.map((l) => `<p style="margin:0 0 8px">${escapeHtml(l)}</p>`).join('')}</div>`
+    : '';
   await onceFor(redis, deps.once, 'mail', () =>
     deps.mail({
       to: to.email,
       subject: c.subject,
-      text: [...lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link].join('\n\n'),
+      text: [...lines, ...(c.invoiceUrl ? [`${t.invoice}: ${c.invoiceUrl}`] : []), c.link, ...de.map(ltrLine)].join('\n\n'),
       html: emailHtml(
-        `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${note}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>`,
+        `${c.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')}${note}${invoice}<p><a href="${escapeHtml(c.link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(c.button)}</a></p>${deHtml}`,
       ),
     }),
   );
@@ -124,8 +134,9 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
   const t = messages.email.paymentNotice;
   const none = { email: false, telegram: false };
   if (notice.kind === 'order_paid' || notice.kind === 'order_revoked' || notice.kind === 'order_restored' || notice.kind === 'order_refused') {
-    const [r] = await db.execute<{ email: string; telegram_user_id: string | number | null; product: string; title: string; token: string; total: number; currency: string; tz: string }>(sql`
-      SELECT u.email, u.telegram_user_id, p.name_fa AS product, l.title, l.public_token AS token, o.total_minor AS total, o.currency,
+    const [r] = await db.execute<{ email: string; telegram_user_id: string | number | null; product: string; code: string; title: string; token: string; total: number; currency: string; tz: string; paid_at: Date | string | null; business: boolean }>(sql`
+      SELECT u.email, u.telegram_user_id, p.name_fa AS product, p.code, l.title, l.public_token AS token, o.total_minor AS total, o.currency, o.paid_at,
+        (o.organization_id IS NOT NULL OR l.organization_id IS NOT NULL) AS business,
         coalesce((SELECT c.timezone FROM locations c WHERE c.id = l.location_id), 'Europe/Berlin') AS tz
       FROM orders o
       JOIN users u ON u.id = o.buyer_user_id AND u.status = 'active'
@@ -143,9 +154,26 @@ export async function sendPaymentNotice(db: Queryable, redis: Redis, deps: Deps,
       return deliver(redis, deps, to, { subject: c.subject(r.product), lines: [c.intro(r.product, r.title), c.body], button: t.orderButton, link: `${deps.appUrl}/my/orders/${aggregateId}`, invoiceUrl: null });
     }
     const c = t.orderPaid;
+    // Legal pieces (Nov 6, 2026): the confirmation on a durable medium (§ 312f (2) BGB). A private
+    // buyer gets the last day to withdraw; the German text below has the withdrawal notice and form.
+    const paidAt = r.paid_at ? new Date(r.paid_at) : new Date();
+    const lastMinute = new Date(withdrawalEnd(paidAt).getTime() - 60_000);
     return deliver(redis, deps, to, {
       subject: c.subject(r.product),
-      lines: [c.intro(r.product, r.title, formatPrice(r.total, r.currency, 2)), c.body],
+      lines: [
+        c.intro(r.product, r.title, formatPrice(r.total, r.currency, 2)),
+        c.body,
+        r.business ? c.noWithdrawal : c.withdrawal(formatDate(lastMinute, 'Europe/Berlin')),
+      ],
+      mailOnlyDe: orderConfirmationDe({
+        productCode: r.code,
+        totalMinor: r.total,
+        currency: r.currency,
+        paidAt,
+        timeZone: 'Europe/Berlin',
+        business: r.business,
+        termsUpdated: currentVersion('terms').de.updated,
+      }),
       button: c.button,
       link: `${deps.appUrl}${listingPath(r.title, r.token)}`,
       invoiceUrl: await invoiceUrl(deps.gateway, notice.invoiceId),

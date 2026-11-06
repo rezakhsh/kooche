@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RESERVED_SLUGS } from '../src/db/seed-checks';
 import { faDigits, messages, pages } from '../src/messages/fa';
-import { legalDe } from '../src/messages/legal-de';
+import { legalDe, orderConfirmationDe } from '../src/messages/legal-de';
 import type { LegalDoc } from '../src/messages/legal-types';
 import { operator } from '../src/messages/operator';
 import { REASON_SECTIONS } from '../src/modules/moderation/reasons';
@@ -269,5 +269,25 @@ describe('protective rules and privacy additions (Nov 3, 2026)', () => {
   it('no legal text names the marketplace we compared ourselves with', () => {
     const all = [text(legalDe.terms), text(legalDe.privacy), text(pages.terms), text(pages.privacy), JSON.stringify(pages.impressum)].join('\n');
     expect(all.toLowerCase()).not.toContain(['klein', 'anzeigen'].join(''));
+  });
+});
+
+describe('the German order confirmation (legal pieces, Nov 6, 2026)', () => {
+  const base = { productCode: 'bump-1', totalMinor: 199, currency: 'EUR', paidAt: new Date('2026-11-06T13:32:00Z'), timeZone: 'Europe/Berlin', termsUpdated: 'Stand: 5. November 2026' };
+  it('a consumer: the contract with date and time, the immediate-start consent, the notice and the form from terms 14.4', () => {
+    const lines = orderConfirmationDe({ ...base, business: false });
+    expect(lines[0]).toBe('Bestellbestätigung: „Hochschieben einer Anzeige“, 1,99\u00a0€ (kein Ausweis der Umsatzsteuer, § 19 UStG), bezahlt am 6. November 2026 um 14:32.');
+    expect(lines.join('\n')).toContain('Kenntnis davon haben, dass Ihr Widerrufsrecht bei vollständiger Vertragserfüllung erlischt');
+    const terms14 = legalDe.terms.sections.find((x) => x.id === '14.4')!.body;
+    expect(lines).toContain('Widerrufsbelehrung');
+    expect(lines).toContain('Muster-Widerrufsformular');
+    expect(lines).toContain(terms14.find((b) => typeof b === 'string' && b.startsWith('Sie haben das Recht, binnen vierzehn Tagen')));
+    expect(lines.filter((l) => l.startsWith('– '))).toHaveLength(7);
+    expect(lines.at(-1)).toBe('Es gelten unsere Nutzungsbedingungen (Stand: 5. November 2026): peydoo.com/terms/de');
+  });
+  it('a business: no withdrawal right and no notice', () => {
+    const lines = orderConfirmationDe({ ...base, business: true });
+    expect(lines).toHaveLength(3);
+    expect(lines.join('\n')).not.toContain('Widerrufsbelehrung');
   });
 });

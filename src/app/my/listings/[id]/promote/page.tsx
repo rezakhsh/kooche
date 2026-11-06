@@ -26,7 +26,16 @@ import { usableRewards } from '../../../../../modules/launch/rewards';
 
 // Paid visibility for one of the user's own live listings or events (roadmap step 6). Works
 // without JavaScript: a radio list, the withdrawal tick and a submit button that goes on to
-// Stripe's hosted Checkout.
+// Stripe's hosted Checkout. The button names the ticked option's price (legal pieces, Nov 6, 2026:
+// the cost again at the button, as Kleinanzeigen does); CSS :has picks it, so no script.
+
+/** Shows a price on the button while its option is ticked (static class names for Tailwind) */
+const PRICE_WHEN_CHECKED: Record<string, string> = {
+  'bump-1': 'group-has-[[value=bump-1]:checked]:inline',
+  'bump-3': 'group-has-[[value=bump-3]:checked]:inline',
+  'featured-7d': 'group-has-[[value=featured-7d]:checked]:inline',
+  'featured-event': 'group-has-[[value=featured-event]:checked]:inline',
+};
 
 export const metadata = { title: messages.promote.title, robots: { index: false } };
 
@@ -151,7 +160,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         )}
 
         {live && payments && offers.length > 0 && (
-          <form id="pay" action={startPromotionAction} className="scroll-mt-20 space-y-4">
+          <form id="pay" action={startPromotionAction} className="group scroll-mt-20 space-y-4">
             <input type="hidden" name="listingId" value={listing.id} />
             <fieldset className="space-y-3">
               <legend className="mb-2 text-sm text-neutral-700">{t.intro}</legend>
@@ -188,7 +197,13 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
             </label>
             <Button type="submit" className="w-full sm:w-auto">
               <Icon name="lock" className="size-4" />
-              {t.pay}
+              {offers.map(({ product, price }) => (
+                <span key={product.code} className={`hidden ${PRICE_WHEN_CHECKED[product.code] ?? ''}`}>
+                  {t.payAmount(formatPrice(price.amountMinor, price.currency, 2))}
+                </span>
+              ))}
+              {/* Nothing ticked: the plain label (every product code has its class above) */}
+              <span className="group-has-[[name=product]:checked]:hidden">{t.pay}</span>
             </Button>
             <p className="text-xs text-neutral-500">{t.methods(own.listing.countryCode)}</p>
           </form>

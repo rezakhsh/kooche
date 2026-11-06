@@ -17,6 +17,7 @@ import { messages } from '../../messages/fa';
 import type { LoginCodeMailer } from './email';
 import { LIMITS } from './limits';
 import { isCountryTestEmail } from './test-accounts';
+import { recordTermsAcceptance } from '../legal/acceptance';
 
 // Better Auth on our own tables (docs/schema.md, section 6): sign-in by email code only, no
 // passwords. Google can be added later as a social provider: it links through auth_accounts to
@@ -133,6 +134,20 @@ export function createAuth({ db, redis, secret, baseURL, sendLoginCode, testAcco
                 displayNameNormalized: normalizePersian(displayName),
               },
             };
+          },
+          // The terms shown on the sign-in page are accepted with the account (terms 15.1); kept as
+          // evidence (src/modules/legal/acceptance.ts). A failure here never stops the sign-up.
+          after: async (user, ctx) => {
+            try {
+              await recordTermsAcceptance(db, {
+                userId: user.id,
+                way: 'signup',
+                ip: ctx?.headers ? clientIp(ctx.headers) : null,
+                userAgent: ctx?.headers?.get('user-agent') ?? null,
+              });
+            } catch (e) {
+              console.error('auth: terms acceptance not recorded:', e instanceof Error ? e.message : e);
+            }
           },
         },
       },

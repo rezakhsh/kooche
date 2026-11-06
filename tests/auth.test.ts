@@ -1,6 +1,7 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { sessions, users, verifications } from '../src/db/schema';
+import { auditLog, sessions, users, verifications } from '../src/db/schema';
+import { TERMS_ACCEPTED, termsInForce } from '../src/modules/legal/acceptance';
 import { hit, reset } from '../src/lib/rate-limit';
 import { authErrorCode } from '../src/modules/users/errors';
 import { listDevices, revokeDevice, revokeOtherDevices } from '../src/modules/users/devices';
@@ -37,6 +38,21 @@ describe('sign-in by email code', () => {
     const [session] = await db.select().from(sessions).where(eq(sessions.userId, user.id));
     expect(session!.ipAddress).toBe(v.headers.get('x-forwarded-for'));
     expect(session!.userAgent).toContain('iPhone');
+  });
+
+  it('records the terms version accepted with the account, once (legal pieces, Nov 6, 2026)', async () => {
+    const v = visitor();
+    const { user } = await signIn(v.email, v.headers);
+    await redis.flushdb();
+    await signIn(v.email, v.headers);
+    const rows = await db.select().from(auditLog).where(and(eq(auditLog.action, TERMS_ACCEPTED), eq(auditLog.targetId, user.id)));
+    expect(rows).toHaveLength(1);
+    const t = termsInForce();
+    expect(rows[0]!.data).toEqual({ version: t.terms, sha256: t.termsSha256, way: 'signup' });
+    expect(rows[0]!.data).toMatchObject({ sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(rows[0]!.actorUserId).toBe(user.id);
+    expect(rows[0]!.ipAddress).toBe(v.headers.get('x-forwarded-for'));
+    expect(rows[0]!.userAgent).toContain('iPhone');
   });
 
   it('records the visitor address behind Cloudflare, and ignores a forged one', async () => {

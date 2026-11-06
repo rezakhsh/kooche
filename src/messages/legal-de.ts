@@ -1139,3 +1139,33 @@ export function withdrawalReceiptDe(w: { productCode: string; totalMinor: number
   const amount = new Intl.NumberFormat('de-DE', { style: 'currency', currency: w.currency }).format(w.totalMinor / 100);
   return `Eingangsbestätigung: Ihren Widerruf des Vertrags „${PRODUCTS_DE[w.productCode] ?? w.productCode}“ (${amount}, geschlossen am ${at(w.paidAt)}) haben wir am ${at(w.receivedAt)} erhalten. Den Betrag für den bis dahin nicht erbrachten Teil der Leistung erstatten wir über das ursprüngliche Zahlungsmittel innerhalb von 14 Tagen.`;
 }
+
+/** The statutory withdrawal notice and model form, as in terms 14.4 (one source for both) */
+function withdrawalNoticeDe(): string[] {
+  const body = legalDe.terms.sections.find((s) => s.id === '14.4')?.body ?? [];
+  const lines = body.flatMap((b) => (typeof b === 'string' ? [b] : 'list' in b ? b.list.map((l) => `– ${l}`) : []));
+  const from = lines.indexOf('Widerrufsbelehrung');
+  const to = lines.indexOf('(*) Unzutreffendes streichen.');
+  if (from < 0 || to < from) throw new Error('legal-de: withdrawal notice not found in terms 14.4');
+  return lines.slice(from, to + 1);
+}
+
+/**
+ * The binding German order confirmation on a durable medium (§ 312f (2) BGB; legal pieces, Nov 6,
+ * 2026), below the Persian «پرداخت انجام شد» email: the contract, and for a consumer the request
+ * for an immediate start with the acknowledgment (§ 356 (5) BGB), the withdrawal notice and the
+ * model form. The terms by their address (owner: "very simple", no attachments).
+ */
+export function orderConfirmationDe(o: { productCode: string; totalMinor: number; currency: string; paidAt: Date; timeZone: string; business: boolean; termsUpdated: string }): string[] {
+  const at = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long', timeStyle: 'short', timeZone: o.timeZone }).format(o.paidAt);
+  const amount = new Intl.NumberFormat('de-DE', { style: 'currency', currency: o.currency }).format(o.totalMinor / 100);
+  const terms = `Es gelten unsere Nutzungsbedingungen (${o.termsUpdated}): peydoo.com/terms/de`;
+  const head = `Bestellbestätigung: „${PRODUCTS_DE[o.productCode] ?? o.productCode}“, ${amount} (kein Ausweis der Umsatzsteuer, § 19 UStG), bezahlt am ${at}.`;
+  if (o.business) return [head, 'Für Bestellungen von Unternehmern besteht kein Widerrufsrecht.', terms];
+  return [
+    head,
+    'Sie haben vor der Zahlung ausdrücklich verlangt, dass wir mit der Leistung vor Ablauf der Widerrufsfrist beginnen, und bestätigt, dass Sie Kenntnis davon haben, dass Ihr Widerrufsrecht bei vollständiger Vertragserfüllung erlischt.',
+    ...withdrawalNoticeDe(),
+    terms,
+  ];
+}

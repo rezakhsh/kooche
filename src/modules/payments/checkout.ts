@@ -4,6 +4,7 @@ import { auditLog, billingCustomers, eventDates, listings, orders, organizationM
 import { manageableBy } from '../organizations/limits';
 import { legalComplete } from '../organizations/organizations';
 import { activeSubscription } from './plans';
+import { termsInForce } from '../legal/acceptance';
 import { CHECKOUT_OPEN_MS, type InvoiceSummary, type PaymentGateway } from './gateway';
 
 // Starting a purchase (docs/schema.md, section 12), as classifieds_app. The app may insert a
@@ -113,7 +114,7 @@ async function activeUser(db: Queryable, userId: string) {
 /**
  * Bump or featured for one of the user's own live listings or events. Returns the Checkout URL.
  * `waiver` is the tick that the service starts at once and the 14-day withdrawal right ends with
- * it (§356(4) BGB); it is recorded in audit_log with the order.
+ * it (§356(4) BGB); it is recorded in audit_log with the order and the terms version in force.
  */
 export async function startListingCheckout(
   db: Db,
@@ -158,7 +159,7 @@ export async function startListingCheckout(
     targetId: order!.id,
     ipAddress: opts.ip ?? null,
     userAgent: opts.userAgent ?? null,
-    data: { product: opts.productCode },
+    data: { product: opts.productCode, ...termsInForce() },
   });
 
   const session = await gateway.createCheckout({
@@ -252,7 +253,7 @@ export async function confirmBusinessBuyer(db: Queryable, userId: string, organi
     targetId: organizationId,
     ipAddress: buyer.ip ?? null,
     userAgent: buyer.userAgent ?? null,
-    data: { plan },
+    data: { plan, ...termsInForce() },
   });
   return true;
 }

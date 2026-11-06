@@ -90,6 +90,52 @@ describe('order and bump notices', () => {
     expect(o.mails[0]!.text).toContain('https://invoice.stripe.com/i/order');
   });
 
+  // Legal pieces (Nov 6, 2026): the confirmation on a durable medium (§ 312f (2) BGB)
+  async function paidOrderMail(opts: { telegram?: boolean; forBusiness?: boolean } = {}) {
+    const gateway = new FakeGateway();
+    const { seller, listing } = await sellerWithListing();
+    if (opts.forBusiness) {
+      const { org } = await business(seller.id);
+      await db.update(schema.listings).set({ organizationId: org.id }).where(eq(schema.listings.id, listing.id));
+    }
+    if (opts.telegram) await db.update(schema.users).set({ telegramUserId: 7_500_000_000 + Math.floor(Math.random() * 1e6) }).where(eq(schema.users.id, seller.id));
+    const r = await startListingCheckout(appDb, gateway, { userId: seller.id, listingId: listing.id, productCode: 'bump-1', waiver: true, appUrl: APP });
+    if (!r.ok) throw new Error(r.reason);
+    const order = await orderRow(r.orderId!);
+    await applyWebhookEvent(workerDb, gateway, await storeEvent(event('checkout.session.completed', paidSession(order, gateway.checkouts[0]!.id))));
+    const [notice] = await notices(order.id);
+    const o = deps(gateway);
+    await sendPaymentNotice(workerDb, redis, o.d, order.id, notice!);
+    return { ...o, orderId: order.id };
+  }
+
+  it('a private buyer gets the last day to withdraw, and in German the notice and the model form (email only)', async () => {
+    const o = await paidOrderMail({ telegram: true });
+    const mail = o.mails[0]!;
+    expect(mail.text).toContain('«خریدهای من»');
+    expect(mail.text).toMatch(/تا .+ می‌توانید/);
+    for (const de of ['Bestellbestätigung: „Hochschieben einer Anzeige“', 'ausdrücklich verlangt', 'Widerrufsbelehrung', 'Muster-Widerrufsformular', '(*) Unzutreffendes streichen.', 'peydoo.com/terms/de']) {
+      expect(mail.html).toContain(de);
+      expect(mail.text).toContain(de);
+    }
+    expect(mail.html).toContain('dir="ltr" lang="de"');
+    // The purchase records the terms version in force with the immediate-start consent
+    const [waiver] = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.action, 'order.withdrawal_waived'), eq(schema.auditLog.targetId, o.orderId)));
+    expect(waiver!.data).toMatchObject({ product: 'bump-1', terms: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), termsSha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    // Telegram gets the Persian lines only: the German text is too long for a message
+    expect(o.tg).toHaveLength(1);
+    expect(o.tg[0]).toContain('«خریدهای من»');
+    expect(o.tg[0]).not.toContain('Widerrufsbelehrung');
+  });
+
+  it('a business’s listing: no withdrawal right, no withdrawal notice', async () => {
+    const o = await paidOrderMail({ forBusiness: true });
+    const mail = o.mails[0]!;
+    expect(mail.text).toContain('حق انصراف مصرف‌کننده ندارد');
+    expect(mail.html).toContain('Für Bestellungen von Unternehmern besteht kein Widerrufsrecht.');
+    expect(mail.html).not.toContain('Muster-Widerrufsformular');
+  });
+
   it('a bump tells the seller (email, and Telegram when linked)', async () => {
     const { seller, listing } = await sellerWithListing();
     await db.update(schema.users).set({ telegramUserId: 7_400_000_000 + Math.floor(Math.random() * 1e6) }).where(eq(schema.users.id, seller.id));

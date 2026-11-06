@@ -1111,6 +1111,8 @@ export const messages = {
     waiver:
       'موافقم که این خدمت همین حالا شروع شود و می‌دانم حق انصراف ۱۴ روزه‌ام با انجام کامل آن (مثلاً اجرای نردبان) از بین می‌رود و برای بخش انجام‌شده پولی برنمی‌گردد.',
     pay: 'ادامه و پرداخت',
+    /** The ticked option's price on the button (legal pieces, Nov 6, 2026) */
+    payAmount: (amount: string) => `پرداخت ${amount}`,
     // EPS is Austria's bank transfer: named only to people there (design check, Oct 31, 2026)
     methods: (country: string | null) => `پرداخت با کارت، Apple Pay، Google Pay${country === 'AT' ? '، PayPal یا EPS' : ' یا PayPal'} در صفحه امن Stripe.`,
     notLive: 'فقط آگهی‌های فعال را می‌شود ارتقا داد.',
@@ -2503,6 +2505,10 @@ export const messages = {
         subject: (product: string) => `پرداخت انجام شد: ${product}`,
         intro: (product: string, title: string, amount: string) => `پرداخت «${product}» برای آگهی «${title}» انجام شد (${amount}).`,
         body: 'فاکتور را از لینک زیر ببینید و دریافت کنید.',
+        // § 312f (2) BGB (legal pieces, Nov 6, 2026); the German notice and form follow in the email
+        withdrawal: (until: string) =>
+          `خواستید این خدمت همین حالا شروع شود و تأیید کردید که حق انصراف با انجام کامل آن از بین می‌رود. تا ${until} می‌توانید از «خریدهای من» با «انصراف از قرارداد» انصراف دهید. متن رسمی آلمانی انصراف و فرم نمونه پایین همین ایمیل است.`,
+        noWithdrawal: 'این خرید برای کسب‌وکار است و حق انصراف مصرف‌کننده ندارد. شرایط کامل در شرایط استفادهٔ پیدو، بند ۱۴.',
         button: 'دیدن آگهی',
       },
       bumped: {
