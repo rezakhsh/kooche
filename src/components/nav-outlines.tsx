@@ -42,8 +42,8 @@ function ListingOutline() {
             <span aria-hidden className="sk block aspect-[4/3] w-full sm:rounded-2xl lg:aspect-[16/10] lg:max-h-[440px]" />
             {/* The photo counter's place, as on the page */}
             <span aria-hidden className="absolute start-3 bottom-3 flex h-5 items-center gap-1.5 rounded-md bg-neutral-950/70 px-1.5">
-              <B className="h-1.5 w-4" />
               <B className="size-3 rounded-full" />
+              <B className="h-1.5 w-4" />
             </span>
             {/* Phones: back, share and ♡ over the photo, as on the page */}
             <div className="absolute inset-x-0 top-0 flex items-center gap-2 p-3 lg:hidden">

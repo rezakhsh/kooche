@@ -100,7 +100,14 @@ function Feedback({ children }: { children: ReactNode }) {
   return (
     <>
       {active && <div data-nav-line className="nav-line" role="progressbar" aria-label={messages.nav.loading} />}
-      {active?.kind ? <NavOutline kind={active.kind} /> : children}
+      {active?.kind && <NavOutline kind={active.kind} />}
+      {/* The page being left stays mounted, only hidden: unmounting a long list took 0.1–0.2 s on a
+          slow phone before the outline could show, and a cancelled tap keeps its state. globals.css
+          ignores the page marks inside [data-nav-old] (the header, bottom bar and background
+          follow the outline). The same element either way, so React leaves the page alone. */}
+      <div data-nav-old={active?.kind ? '' : undefined} className={active?.kind ? 'hidden' : 'contents'}>
+        {children}
+      </div>
     </>
   );
 }
@@ -108,7 +115,7 @@ function Feedback({ children }: { children: ReactNode }) {
 /** Wraps the page area in the root layout */
 export function NavFeedback({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={children}>
+    <Suspense fallback={<div className="contents">{children}</div>}>
       <Feedback>{children}</Feedback>
     </Suspense>
   );

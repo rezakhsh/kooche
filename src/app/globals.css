@@ -171,7 +171,7 @@
 
 /* Browsing pages (first page, browse, events, saved) on a soft background so white cards stand
    out; forms and task pages stay white. Pages opt in with data-soft-page on <main>. */
-body:has([data-soft-page]) {
+body:has([data-soft-page]:not([data-nav-old] *)) {
   background: var(--color-page);
 }
 
@@ -259,9 +259,12 @@ dialog.photo-viewer::backdrop {
   display: none;
 }
 
+/* Page marks inside [data-nav-old] (the page being left while a tapped page's outline shows,
+   src/components/nav-feedback.tsx) don't count: :not([data-nav-old] *) in the rules below. */
+
 /* A conversation fills the screen like a messaging app: no site header or footer (src/app/chat/[id], mockup final/chat) */
-body:has([data-chat-thread]) > header,
-body:has([data-chat-thread]) > footer {
+body:has([data-chat-thread]:not([data-nav-old] *)) > header,
+body:has([data-chat-thread]:not([data-nav-old] *)) > footer {
   display: none;
 }
 
@@ -275,11 +278,11 @@ body:has([data-chat-thread]) > footer {
 /* The listing page on phones: back, share and save sit over the photo, so the site header steps
    aside (src/app/v/[slug]/[token]/page.tsx, wave 1) */
 @media (width < 64rem) {
-  body:has([data-listing-page]) > header {
+  body:has([data-listing-page]:not([data-nav-old] *)) > header {
     display: none;
   }
   /* An event page ends with its own code and report line on phones (mockup final/event) */
-  body:has([data-event-page]) > footer {
+  body:has([data-event-page]:not([data-nav-old] *)) > footer {
     display: none;
   }
 }
@@ -289,13 +292,13 @@ body:has([data-chat-thread]) > footer {
 [data-browse-bar]:has(details[open]) {
   z-index: 50;
 }
-body:has([data-browse-bar] details[open]) [data-bottom-nav],
-body:has(details[data-sheet][open]) [data-bottom-nav] {
+body:has([data-browse-bar] details[open]:not([data-nav-old] *)) [data-bottom-nav],
+body:has(details[data-sheet][open]:not([data-nav-old] *)) [data-bottom-nav] {
   display: none;
 }
 
 /* A page with its own bar at the bottom keeps it alone (src/components/bottom-nav.tsx) */
-body:has([data-own-bar], [data-step-bar]) [data-bottom-nav] {
+body:has([data-own-bar]:not([data-nav-old] *), [data-step-bar]:not([data-nav-old] *)) [data-bottom-nav] {
   display: none;
 }
 
@@ -311,15 +314,15 @@ body:has([data-admin]) [data-bottom-nav] {
 /* The posting pages have their own bar (src/app/new/posting-bar.tsx): no site header, and of the
    footer only one line of legal links (wave 1, part 8: the Impressum one tap away), kept clear of
    the steps' fixed bar on phones */
-body:has([data-app-bar]) > header,
-body:has([data-app-bar]) > footer [data-footer-full] {
+body:has([data-app-bar]:not([data-nav-old] *)) > header,
+body:has([data-app-bar]:not([data-nav-old] *)) > footer [data-footer-full] {
   display: none;
 }
-body:has([data-app-bar]) > footer [data-footer-slim] {
+body:has([data-app-bar]:not([data-nav-old] *)) > footer [data-footer-slim] {
   display: flex;
 }
 @media (width < 64rem) {
-  body:has([data-app-bar]):has([data-step-bar], [data-noscript-actions]) > footer {
+  body:has([data-app-bar]:not([data-nav-old] *)):has([data-step-bar]:not([data-nav-old] *), [data-noscript-actions]:not([data-nav-old] *)) > footer {
     padding-bottom: 6rem;
   }
 }

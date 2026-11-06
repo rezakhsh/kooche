@@ -2234,7 +2234,7 @@ The owner approved the plan in `docs/research/smooth-loading.md` (Nov 5, "Yes, b
 - **No `staleTimes`:** Back is already instant from memory; 30 s of memory for other pages would keep chat's unread marks stale.
 - **Photos:** already in fixed boxes; nothing to change.
 - **Stale-while-revalidate on browse pages:** `Cloudflare-CDN-Cache-Control: public, max-age=60, stale-while-revalidate=600, stale-if-error=86400` next to every shared browse answer. Everything personal stays `private, no-store` as before.
-- **Cloudflare compresses** instead of the app (`compress: false`): Zstandard instead of gzip, about 12% smaller JS and CSS. Code only; no zone setting changed.
+- **Compression:** the app no longer compresses (`compress: false`), but JS and CSS still reach visitors as gzip. Coolify's Traefik gzips every answer of the web app (its `gzip` middleware), and Cloudflare passes a cached file's gzip on. Pages were already Zstandard. Getting Zstandard for JS and CSS (about 12% smaller) needs Coolify's gzip turned off for `classifieds-web`, a Coolify setting change, **left for the owner's OK** (`docs/setup.md`, "Domain and Cloudflare" › "Compression"). The research's reason ("Next.js gzips") was only half right: Traefik does too.
 
 **Tests:** `tsc` and `check:rtl` clean; **1,307 tests pass** (new `tests/smooth-loading.test.ts`: the outline for each address, every top-level route folder known, the Cloudflare header on shared browse pages only and never with a session, `view=`, `theme=`, Iran, POST, a keyword or a postal code).
 
