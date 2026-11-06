@@ -9,9 +9,6 @@ import { StreetMap } from '../../../../components/street-map';
 import { ListingFooter } from '../../../../components/report-link';
 import { FavoriteButton } from '../../../../components/favorite-button';
 import { Icon, type IconName } from '../../../../components/icons';
-import { clientIp } from '../../../../lib/client-ip';
-import { valkey } from '../../../../lib/valkey';
-import { countView } from '../../../../modules/listings/views';
 import { streetMapView } from '../../../../modules/maps/street-map';
 import { activePrice, LISTING_PRODUCTS, PAYMENT_CURRENCY } from '../../../../modules/payments/checkout';
 import { isFeatured } from '../../../../modules/payments/plans';
@@ -175,10 +172,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const chat = isOwner || l.status !== 'active' ? null : await chatEntry(appDb(), { userId: session?.user.id ?? null, listing: l, returnTo: path });
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
-  // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own
-  if (!isOwner && l.status === 'active') {
-    await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
-  }
+  // The seller's view counts from the visit counter's request after the page has loaded
+  // (src/app/api/v/route.ts): signed out, this page is Cloudflare's shared copy
   const { published } = await searchParams;
   // «از ۱٫۹۹ €» on the published card's promote row (mockup final/posted; design check, Oct 31, 2026)
   const promoteFrom = await (async () => {

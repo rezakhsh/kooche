@@ -6,9 +6,13 @@ import { hit } from '../../../lib/rate-limit';
 import { valkey } from '../../../lib/valkey';
 import { VIEW_AS_HEADER } from '../../../modules/admin/view-as';
 import { countVisit, liveRefCodes, refCodeCache } from '../../../modules/stats/visits';
+import { countPageView } from '../../../modules/listings/views';
+import { currentSession } from '../../../modules/users/server';
 
 // One page view from src/components/visit-beacon.tsx (src/modules/stats/visits.ts). Only from our
 // own pages; a staff member viewing as a country isn't a visitor. Always 204, so a page never waits.
+// On a listing's or event's page it is also the seller's view (src/modules/listings/views.ts): the
+// page is Cloudflare's shared copy for signed-out visitors and can't count itself.
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +55,16 @@ export async function POST(request: Request): Promise<Response> {
   } catch (e) {
     // Counting never breaks a page
     console.error('visits: not counted:', e instanceof Error ? e.message : e);
+  }
+  try {
+    await countPageView(redis, appDb(), {
+      path: parsed.data.p,
+      ip,
+      userAgent: request.headers.get('user-agent'),
+      viewer: async () => (await currentSession())?.user.id ?? null,
+    });
+  } catch (e) {
+    console.error('views: not counted:', e instanceof Error ? e.message : e);
   }
   return done;
 }

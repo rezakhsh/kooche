@@ -11,9 +11,7 @@ import { ListingFooter } from '../../../../components/report-link';
 import { StreetMap } from '../../../../components/street-map';
 import { Alert } from '../../../../components/ui';
 import { appDb } from '../../../../db/drizzle';
-import { clientIp } from '../../../../lib/client-ip';
 import { webEnv } from '../../../../lib/env';
-import { valkey } from '../../../../lib/valkey';
 import { messages } from '../../../../messages/fa';
 import { eventRowOf } from '../../../../modules/events/card';
 import { isFollowing, organizerFacts } from '../../../../modules/events/follows';
@@ -26,7 +24,6 @@ import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
 import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
 import { amountInputValue } from '../../../../modules/listings/price';
 import { activeCountries } from '../../../../modules/listings/queries';
-import { countView } from '../../../../modules/listings/views';
 import { streetMapView } from '../../../../modules/maps/street-map';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
@@ -116,10 +113,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const cityName = cityFa ?? cityLocal ?? '';
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
-  // A view for the seller's stats (src/modules/listings/views.ts); never the seller's own
-  if (!isOwner && l.status === 'active') {
-    await countView(valkey(), { listingId: l.id, ip: clientIp(requestHeaders), userAgent: requestHeaders.get('user-agent') }).catch(() => false);
-  }
+  // The seller's view counts from the visit counter's request after the page has loaded
+  // (src/app/api/v/route.ts): signed out, this page is Cloudflare's shared copy
   const sp = await searchParams;
 
   const organizationId = business ? l.organizationId : null;
