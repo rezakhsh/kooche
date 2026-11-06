@@ -2238,6 +2238,20 @@ The owner approved the plan in `docs/research/smooth-loading.md` (Nov 5, "Yes, b
 
 **Tests:** `tsc` and `check:rtl` clean; **1,307 tests pass** on the first build (new `tests/smooth-loading.test.ts`: the outline for each address, every top-level route folder known, the Cloudflare header on shared browse pages only and never with a session, `view=`, `theme=`, Iran, POST, a keyword or a postal code; later the 3-minute memory and chat's guard). The later changes (hidden old page, memory) ran with the CSS, listing-page, chat and cache tests.
 
+**Checked on staging (`f24f95c`, Nov 6):**
+- **Cloudflare:** a browse page HIT, then after the minute expired **UPDATING in 0.08 s** (the stored copy while it refreshed; before, EXPIRED waited for a render), then HIT again. Session cookie, `view=` and `theme=` DYNAMIC (`private, no-store`); `RSC: 1` and `?_rsc=` DYNAMIC; `?q=` BYPASS; listing page and home BYPASS. Browsers never see `Cloudflare-CDN-Cache-Control`. Iran can't be sent from here; the Cache Rule's `ip.src.country ne "IR"` and the proxy's `private, no-store` for Iran are unchanged (tested in `tests/iran.test.ts` and `tests/smooth-loading.test.ts`).
+- **The outlines in the app**, the tap's page answer held 2.5 s so they can be photographed: listing and city, phone and computer, light and dark, beside the approved pictures: `/root/peydoo-media/wave2/smooth-loading/after/side-*.png`. They match. The other outlines (chat, a conversation, my listings, account, posting): `…/build-check/{phone,computer}-{light,dark}-*.png`.
+- **Slowed phone** (slow 4G, CPU 4×; `scripts/measure.mjs` before, `scripts/after.mjs` after; tap a Berlin card):
+
+  | | Before (12 taps) | After (6 taps) |
+  | --- | --- | --- |
+  | First change on screen | 0.69–1.38 s (median 0.83 s), and that change was the whole page | **0.07–0.21 s (median 0.10 s)**, the outline |
+  | The listing's title | same as above | 0.64–1.06 s (median 0.67 s) |
+
+  With a normal phone CPU the outline is painted 0.04 s after the tap.
+- **Back is not instant yet** (0.64–0.98 s on the slowed phone): `HeaderSync` (`src/components/header-sync.tsx`, Oct 31) calls `router.refresh()` whenever the address changes what the header shows (the place chip, the search label), which wipes Next.js's memory and **fetches the new page a second time on every such tap** (seen: Berlin → listing and Germany → Berlin each rendered twice on the server). Back to a page whose header is the same (listing → listing, my listings → account) is instant. Fix proposed for approval: draw the header's place chip and search label in the browser from the address, so no refresh is needed; that also halves the server renders per tap.
+- **Video:** `/root/peydoo-media/wave2/smooth-loading/video/after-peydoo-phone-slow4g.webm` (signed out: the test account's sign-in needs Turnstile, which plain headless Chromium doesn't pass).
+
 **For the next production release (`peydoo-promote`):**
 1. **Turn on Early Hints** in Cloudflare after the release (zone-wide, so it waits for production): Speed › Settings › Early Hints, or `PATCH /zones/{zone}/settings/early_hints` with `{"value":"on"}` (the infra token can). Off again the same way.
 2. No migration, no seed.
