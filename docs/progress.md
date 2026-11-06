@@ -2372,3 +2372,33 @@ The six things the new terms promise but the code didn't do (from "Legal part 2 
 - **Note:** the push went out with the server load at 2.2 (the test run had just finished), above the 0.8 rule.
 - **Checked on staging** (`d1186be`; headless Chromium 1.63, one browser; the Germany test account with a session made for the check and deleted afterwards). The promote page's button reads «پرداخت ۱٫۹۹ €» at load and follows the ticked option («۴٫۴۹ €», «۶٫۹۹ €»), on phone (390 px) and computer (1280 px), light and dark, and without JavaScript; no sideways scroll, no console errors. The «پرداخت انجام شد» email was rendered from the real code (a throwaway test run) and photographed on phone and computer: the Persian line with the last day, then the German block left to right. Pictures in `/root/peydoo-media/wave2/legal-pieces/staging/`.
 - **Released to production** on the owner's word ("if everything is ok, release it to production"): `peydoo-promote d1186be` (production `0351342` → `d1186be`, no migration). Migrate, web and worker finished 13:37–13:40 UTC. `/health`, `/`, `/germany/berlin`, `/terms`, `/terms/de`, `/privacy`, `/login`, `/impressum` all 200; no errors in the new containers' logs.
+
+## Nov 6, 2026: signed-out listing and event pages kept by Cloudflare (staging)
+
+Owner's approval (Nov 6): "Listings + events", staging first; plan in `docs/research/smooth-loading.md`, 3.2. How it works: `docs/setup.md`, "Browsing and favorites" › "Listing and event pages" (and the nonce check below it).
+
+- **Built** (`7e43b67`, `1721776`, `03ac692`, docs `dc015e9`):
+  - `/v/{title}/{token}` and `/e/{title}/{token}` get the browse pages' headers for signed-out GET/HEAD without a query; a session, the theme or view cookie, Iran, view-as, POST or any query stay `private, no-store`. The shared copy's header shows the listing's own country (the proxy drops the `country` cookie and passes the page's token), so the HTML is the same for every visitor.
+  - Views count from the visit counter's request after the page has loaded (`countPageView()`), with the same half-hour and bot rules; never the seller; test accounts' listings only for staff and test accounts.
+  - Every listing change (edit and photos, publish, re-review, pause, resume, sold, expiry, renewal, bump, take-down, restore, delete, erasure) and `event.published|changed|cancelled` purge the page from the worker (queue `moderation`, retried 8 times), under its current and earlier titles, as `/v/` and `/e/`, and again 15 s later. A business's edit, badge or new logo and a seller's new name purge all their pages (`pages.changed`).
+  - The Cache Rule needed no change (it already covers every path on both hosts); only its description now names these pages.
+- **Tests:** `tsc` and `check:rtl` clean; full run 107 files, **1,336 tests, all pass**. New `tests/listing-cache.test.ts` (12): which requests get the shared copy and that the proxy drops the country cookie and any forged `x-shared-page`; the header in the browser doesn't ask again on the shared page; views (once per visitor, not the seller, bots, paused/sold/draft/deleted/review, test listings, event vs listing address); purge addresses (old titles, upper-case escapes, deleted listings, a business's and a seller's pages); every listing and event event reaches the purge; the worker purges, retries a refused call, purges again once, and in calls of 30.
+- **Note:** the push went out after the load had fallen to 0.75 (cleanup run, disk 87%).
+- **Measured on staging** (same listing and event, `curl` from the server; before = `0eba637`, after = `dc015e9`):
+
+| | Before | After |
+|---|---|---|
+| Listing, first open | 0.24–0.35 s (every open a render, BYPASS) | 0.14 s MISS, then 0.08–0.10 s HIT |
+| Event, first open | 0.14–0.17 s (BYPASS) | 0.17 s MISS, then 0.07–0.08 s HIT |
+| 50 at once on one listing | 50 server renders, median 3.17 s, slowest 3.46 s | 0 renders (all HIT), median 0.57 s |
+| 50 at once right after a purge | — | 1 render (49 HIT), median 0.80 s |
+| 50 at once on one event | 50 renders, median 2.78 s | 0 renders, median 0.62 s; after a purge 1 render |
+
+  (Burst times are mostly 50 TLS connections opened at once from one machine; the point is renders: 50 → 1.)
+- **Checked on staging** (headless Chromium 1.63, one browser, removed afterwards; pictures and the script in `/root/peydoo-media/wave2/listing-cache/`):
+  - Signed out, phone 390 and computer 1440, light and dark: listing and event look as before, header «آلمان», «ورود», no seller buttons, no theme in the page (dark follows the device from the same copy, a HIT). `curl`: MISS → HIT; session cookie and theme cookie DYNAMIC; `?published=1` BYPASS; `RSC: 1` DYNAMIC. Two fresh renders, with `country=austria` and without: the visible HTML is byte-identical apart from the nonce (the React data differs only in streaming order).
+  - Views: one browser visit to a listing → 1 in `views:pending` → `view_count` up after the worker's 5-minute flush; a bot user agent not counted; a repeat from the same address not counted.
+  - Seller (`germany@`; the email-and-code sign-in is behind Turnstile, which doesn't clear in a headless browser, so a 2-hour session made in the web container as in the Instant Back check, deleted afterwards): own listing and event `private, no-store` with «ویرایش» and the saved count, phone and computer, light and dark.
+  - Purge: test accounts' listings are a 404 for everyone signed out, so the signed-out side was a cached 404 (HIT) before each change and a MISS 4–5 s after it: pause, resume, title edit (old address) and back (the edited address), sold, event pause and resume. The owner's samples (the only public ones) weren't touched.
+  - Test data: the sample «آگهی نمونه: درمانی و مراقبتی (Pflege)» (`f76skk43f3`, germany@) is now **sold** (no way back for "sold"); title restored; the sample event is active again.
+- **Production needs:** nothing in Cloudflare (the rule's host condition already includes `peydoo.com`; production's worker already has `CLOUDFLARE_ZONE_ID` and its purge token), no settings, no migration, no seed. The deploy's own purge clears the old copies.

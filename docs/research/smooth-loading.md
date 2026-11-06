@@ -89,6 +89,7 @@ Each option below says what it is, what we would gain, and what it costs.
   - **Personal bits.** The ♡ state, the seller's own buttons and "۴ نفر نشان کرده‌اند", the published banner and test-account listings must not be in the shared copy. Signed-out visitors don't see these today, and signed-in visitors keep a fresh page as now (the Cache Rule skips the session cookie). Only `viewerSeesTest()` needs a look.
   - **The nonce.** The security code (nonce) is shared by everyone who gets one stored copy, as it already is on browse pages. That was accepted on Oct 19 because those pages have no place where the browser itself writes outside text into the page. The listing page needs the same check. The photo viewer reads `#photos` from the address but only opens a dialog with it; check that and keep it that way.
   - **Purge on change.** Clear the listing page's address and its old addresses when the title, and so the slug, changes. Browse pages keep their 60-second bound.
+- **Built Nov 6, 2026** (owner's approval "Listings + events"; listing and event pages). How it works is in `docs/setup.md`, "Browsing and favorites" → "Listing and event pages". Decisions made while building: only addresses without a query are shared (a query can't be purged by URL); the shared copy's header shows the listing's own country, as browse pages show theirs; a second purge 15 s after the first catches a render that read the listing just before the change; a seller's or business's new name, badge or logo purges all their pages. The Cache Rule needed no change (it already covers every path on both hosts). Measurements: `docs/progress.md`.
 
 ### 3.3 Early Hints. **Free, a few clicks.**
 
@@ -248,7 +249,7 @@ Loading screens use Next.js's `loading.tsx`, one per page type. Each outline is 
 
 1. **Loading screens and the top line**, in the style the owner picks, for the pages in section 6. This is the part the owner will feel on every tap. About 2–3 days.
 2. **Stale-while-revalidate on browse pages** (one header, section 3.1). Test UPDATING on staging. Half a day.
-3. **Signed-out listing pages cached and cleared on change** (section 3.2): view counting after load, purge on every change, security check. 1–2 days.
+3. **Signed-out listing pages cached and cleared on change** (section 3.2): view counting after load, purge on every change, security check. 1–2 days. **Built Nov 6, 2026, with event pages.**
 4. **Cloudflare compresses** (`compress: false`, section 3.4). An hour, plus a check that every file still arrives compressed.
 5. **Back button and 30-second memory** (`staleTimes`), and fixed photo sizes on the two business forms. Half a day.
 6. **Measure again** with the same script, and report before and after.
