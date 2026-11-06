@@ -1,6 +1,6 @@
 # Berlin contacts: who to talk to before Peydoo opens in Berlin
 
-Research of Nov 6, 2026, for the owner's personal outreach (decided Oct 30, 2026). Research only: nobody was contacted.
+Research of Nov 6, 2026 (two rounds the same day), for the owner's personal outreach (decided Oct 30, 2026). Research only: nobody was contacted.
 
 > **For personal contact only: a visit, a phone call, or a personal message.**
 > - No advertising emails or mass messages. Advertising by email needs prior consent, towards businesses too (UWG § 7 (2) no. 2). An email is fine only as a follow-up the person asked for.
@@ -11,24 +11,25 @@ Research of Nov 6, 2026, for the owner's personal outreach (decided Oct 30, 2026
 
 - `/root/peydoo-media/berlin-contacts/berlin-contacts.xlsx`: a "Read me" sheet, then one sheet per group: Businesses, Services, Events, Community, Media & partners. Each sheet has a frozen header and filters.
 - `berlin-contacts.csv`: all rows with a "Group" column. There is also one CSV per group (`berlin-contacts-<group>.csv`), saved as UTF-8 with BOM so Excel shows the Persian correctly.
+- Column "Round": 1 for the first round, 2 for the rows the second round added. The files as they were after round 1 are kept next to them as `*-round1` (`berlin-contacts-round1.xlsx`, `berlin-contacts-round1.csv` and one per group).
 - The spreadsheet is kept out of git. It is a working list the owner will edit.
 
-Columns: name, category, district, business address, website, public phone, public email, Instagram, Telegram, languages, source, second source, verified ("2 sources" or "single source"), date checked, note, how to approach, possible partner.
+Columns: name, category, district, business address, website, public phone, public email, Instagram, Telegram, languages, source, second source, verified ("2 sources" or "single source"), date checked, note, how to approach, possible partner, round.
 
 ## Counts
 
-**321 contacts** in total. 199 are checked against two independent sources and 122 rest on one.
+**431 contacts** in total after round 2: 321 from round 1 and 110 added in round 2. 266 are checked against two independent sources and 165 rest on one.
 
-| Group | Rows | What is in it |
-|---|---|---|
-| Businesses | 99 | 46 restaurants, 16 hairdressers and beauty, 9 carpet shops and other retail, 8 groceries, 6 travel agencies, 5 cafés, 3 car workshops, 2 bakeries and sweets, 2 estate agents, 1 caterer, 1 mover |
-| Services | 109 | 52 doctors (GPs, gynaecologists, eye, orthopaedics, urology, dermatology, ENT, paediatrics, psychotherapy), 20 dentists, 13 lawyers, 5 pharmacies, 5 translators and interpreters, 4 physiotherapists, 4 language and course providers, 3 music and dance schools, 2 driving schools, 1 wage-tax help association |
-| Events | 33 | 20 organisers and promoters (club nights, concerts, festivals, Nowruz, Chaharshanbe Suri, literature, theatre, comedy), 13 venues that host Persian events |
-| Community | 34 | Iranian and Afghan associations, counselling with Farsi or Dari, Persian Christian and Bahá'í communities, a parents' network, the FU Iranian studies institute |
-| Media & partners | 46 | 26 Telegram channels and groups, 8 directories and classifieds sites, 4 Instagram pages, 2 radio programmes, a magazine, 2 news sites, local TV, a podcast and a YouTube channel |
+| Group | Rows | Round 2 added | What is in it |
+|---|---|---|---|
+| Businesses | 147 | 48 | 47 restaurants, 34 beauty (20 hairdressers and beauty, 7 cosmetics and skin care, 4 lashes and brows, 2 nails, 1 make-up), 16 groceries (2 online only), 9 carpet shops and other retail, 6 bakeries and cake makers, 6 photographers and videographers, 6 travel agencies, 5 cafés, 4 car workshops, 3 caterers, 2 DJs for hire, 2 wedding decorators, 2 estate agents, 2 web and marketing agencies, 1 home cook, 1 event hall, 1 mover |
+| Services | 155 | 46 | 79 doctors (GPs, internists, orthopaedics, cardiology, neurology, plastic surgery, eye, psychotherapy and more), 38 dentists, 13 lawyers, 5 pharmacies, 5 translators, 4 physiotherapists, 4 language providers, 3 music and dance schools, 2 driving schools, 1 wage-tax help association, 1 business set-up office |
+| Events | 46 | 13 | 21 organisers, 16 venues, 6 musicians and bands, 3 galleries and art spaces |
+| Community | 37 | 3 | Iranian and Afghan associations, counselling in Farsi or Dari, Persian Christian and Bahá'í communities, a parents' network, the FU Iranian studies institute, the HU Afghanistan Research Hub, one (probably inactive) student group in Potsdam |
+| Media & partners | 46 | 0 | 26 Telegram channels and groups, 8 directories and classifieds sites, 4 Instagram pages, 2 radio programmes, a magazine, 2 news sites, local TV, a podcast and a YouTube channel |
 
-- **Potsdam:** 8 rows. Businesses cluster in Charlottenburg (45 rows), then Neukölln, Wilmersdorf, Kreuzberg and Schöneberg.
-- **Possible partners:** 29 rows have "Possible partner = yes".
+- **Potsdam:** 9 rows. Businesses cluster in Charlottenburg, then Neukölln, Wilmersdorf, Kreuzberg and Schöneberg.
+- **Possible partners:** 32 rows have "Possible partner = yes" (3 new: DJ TNT, Galerie Anahita Sadighi, ECP Media).
 - **Do not contact:** 8 rows are warnings only, not contacts (see Cautions).
 
 ## How it was done
@@ -44,6 +45,13 @@ Nine research agents searched the web in parallel, by category, in German, Engli
 - For community groups: Berlin district integration pages, Lobbyregister, and the Berlin Senate's answers on Iranian state-linked groups.
 
 **Blocked:** Tripadvisor, Yelp, Lieferando, Instagram (login wall), tgstat and telemetr (no Telegram growth or history), persianshome.com, rausgegangen and ra.co. So Instagram follower counts are mostly missing, and some counts come from search snippets.
+
+**Round 2 (same day).** Six research agents, one per gap: beauty, wedding and event services, home food, doctors and dentists, students with Afghan concerts and galleries, and tax advisers with movers and estate agents. Again web search and page fetches only. Nobody logged in to Instagram, and no browser was used.
+- **Where the Instagram-only businesses came from:** search engines found almost none of them. Nearly all came from the public Telegram ad channels (t.me/s/berlin_online, t.me/s/Berliner118, t.me/s/berlini and their single-post pages), which name the business, its Instagram handle and often an address. So 43 of the 110 new rows are "single source", and 25 notes say "open status unclear" (many ads are from 2019–2024).
+- **Doctors and dentists:** taken from kojast.de and checked against the practice's own site or a phone directory for the address and phone. Persian is confirmed on the practice's own site for only 5 of the 45; for about 40 the note says "Persian per kojast.de". Seven kojast profiles turned out to be out of date (the doctor had left the practice) and were dropped.
+- **Privacy:** rows for one-person businesses keep only the business name, the business handle and a number the business itself publishes. Owners' private names and private Telegram handles were taken out. Ads with only a first name and a mobile were skipped.
+- **Dedupe:** new rows were matched against round 1 by name, Instagram handle, website and address; none repeated. Two round-1 rows got a missing Instagram handle (Butterfly Beauty, Herat Darbar; the note says so).
+- **Search limit:** every agent hit the web-search limit (200 searches) partway through and finished with direct page fetches only. That is why the student, professional-services and wedding parts came out short.
 
 ## Top 20 to contact first
 
@@ -82,7 +90,19 @@ There are two aims: fill Berlin's 30 founding Pro places with active, visible bu
 19. **Global Music Academy**, Wildenbruchstr. 80, Neukölln. Iranian teachers of santur, setar, tombak, daf and kamancheh. Also a source of performers for Yalda and Nowruz events.
 20. **Mahsa Hair & Beauty**, Potsdam-Bornstedt. Serves in German, Persian and Dari, with online booking. The clearest Persian business in Potsdam, which is part of the Berlin area.
 
+The top 20 stay as they are after round 2: the new rows are mostly smaller and less checked.
+
 **Next in line:** Sarayam (upscale, Luisenplatz); Shiraz Street Food (Europaplatz, 4.9 stars from 346 reviews); Meet Me Halfway and PATOGH (cafés with a younger crowd); Butterfly Beauty (already advertises in Persian); Teppichdienst Abasi (carpets); Kanzlei Lingnau & Lingnau (immigration law, Persian on its site); Zahnzentrum Potsdam (5.0 stars from 121 reviews); YAAR e.V. and VAFO (the largest Afghan Dari-speaking groups); Bahar Choir (sells out Berlin concerts).
+
+**Best of round 2 (added to "next in line"):**
+- **Rocket + Basil**, Lützowstraße 22, Tiergarten. "Modern Persian dining" with catering, private chef and venue hire; a registered business with Instagram. A founding-Pro candidate and a Yalda dinner listing.
+- **DJ TNT** (@djtnt.berlin). A Persian wedding and party DJ with about 59K Instagram followers (from a search snippet) and a Telegram channel. A possible partner for Yalda and Nowruz parties.
+- **Blau Studio** (@blau.studio). The most active Persian wedding photo and video studio in the Telegram ads (about 20 ads in recent months). It already pays for this audience.
+- **Galerie Anahita Sadighi**, Schlüterstraße 16, Charlottenburg. A gallery run by a Tehran-born gallerist that shows Iranian art. A partner for exhibition listings.
+- **SHA Aesthetics**, Müllerstraße 93, Wedding, and **Vida Beauty**, Lietzenburger Straße 65. Beauty businesses with a real address, 2026 Persian ads and good reviews on Fresha and Treatwell.
+- **Self-pay doctors who can afford Pro:** Peyman Bamdad (plastic and aesthetic surgery, Clayallee 175), Dr. Dr. Leia Anvari (oral surgery and aesthetics, Tegel; Persian on her own site), Medmotion (private practice, Westend), Privatpraxis Kardiologie Dr. Kherad (Mitte), Gelenkzentrum Berlin (Tauentzienstraße), Dr. Parichehr Scharifi (couples therapy and MPU counselling; Farsi on her own site).
+- **ECP Media** ("easy click"). A Farsi-language marketing agency whose clients are Persian doctors, dentists and beauty clinics, so it could refer businesses. It also builds their web presence, so it is a possible rival too: talk first, don't promise anything.
+- **Timely:** the exhibition "Weil wir Frauen sind" (portraits of 20 Afghan women activists) is at the Heinrich-Böll-Stiftung, Schumannstraße 8, until Nov 15, 2026.
 
 **Visits that cover many contacts at once:**
 - Kantstraße and Windscheidstraße in Charlottenburg (supermarkets, Noosh, salons).
@@ -128,16 +148,21 @@ The code survives the home page's redirects (a returning visitor is sent on to t
   - The second network is @Berliner118 / berlinerhilfe.com.
   - @Iranian_DE ("اطلس ایرانیان آلمان") has shrunk to a 34-member group.
 - **kojast.de is a live, current Persian business directory**, updated Oct 2026, with 235 Berlin entries. It is both a competitor to Peydoo's business pages and a ready list of who to invite. berlinerhilfe.com is a small Divar-style rival.
-- **Gaps:**
-  - No Persian-speaking Steuerberater was found in Berlin; the only find is a wage-tax help association.
-  - No Iranian student association was found at any Berlin university.
-  - No Persian stand-up organiser and no Persian movers or estate agents with a real business presence were found. Those trades seem to live only in Telegram ads.
+- **Gaps** (still open after round 2):
+  - **No Persian-speaking Steuerberater in Berlin**, again. The only Farsi-speaking tax adviser found is in Düsseldorf. The Steuerberaterkammer Berlin can search by language; one phone call there would settle it.
+  - **No active Iranian student group at any Berlin university.** The only trace is "Iranian Students in Potsdam", who co-organised a campus rally in Nov 2022, with no contact found. The FU Iranistik office (already in the list) is still the practical way to reach students.
+  - **No Persian movers, estate agents or insurance brokers with a real business presence.** The movers (for example "Firma Umzug Sahdi", about 5 ads a month on @berlin_online) and insurance agents advertise only with a name and a mobile number on Telegram, so they were left out.
+  - **No Berlin-based Afghan concert promoter, wedding singer or band.** The Afghan wedding DJs found are in Hannover, Frankfurt, Bremen and Hamburg. The only Afghan concert found is an "Afghanische Kulturnacht" at the KulturMarktHalle (Nov 2025).
+  - No Persian stand-up organiser, ice-cream shop, food truck, or Potsdam food business.
 - **Big Iranian pop concerts** (Ebi, Moein, Googoosh, Shadmehr) play the Uber Eats Music Hall, but the venue never names the promoter. Most promoters are based outside Berlin (Pars Entertainment, Volek, Disco Tehran).
 - **The meet-up group @dorehamiberlin** links to khodamehri.com. It may be the owner's own group.
 
-## Not done yet (worth a second pass)
+## Not done yet (worth a third pass)
 
-- Instagram-only businesses (nails, lashes, make-up, photographers, wedding decor, DJs) need a logged-in look at Instagram, or the Telegram ad channels.
-- More kojast.de doctors and dentists: about 35 dentists and 15 GPs were not taken, and the rows taken were limited to the best documented.
-- Student groups: ask the FU Institut für Iranistik, or look at the TU and HU noticeboards.
-- Afghan Dari concerts and Persian art galleries.
+Done in round 2: Instagram-only businesses through the Telegram ad channels, more kojast.de doctors and dentists, student groups, Afghan concerts and galleries, tax advisers, movers and estate agents (see Counts and Gaps). Still open:
+
+- **Instagram itself.** Most Instagram-only businesses (nails, lashes, make-up, cake makers) were found only through Telegram ads. A logged-in look at Instagram, or a look through the Persian beauty and wedding hashtags, would find more and would give follower counts. Don't use the owner's own account for that without asking.
+- **Doctors that kojast lists but that could not be checked** before the search limit: ENT (Agha-Mir-Salim, Mayelzadeh, Sajjad Rezaei), eye (Roia Rahmani, Hafezi Moghadam, Shahnazary), urology (Kheyri, Davood Rafii), surgery (Mahnaz Shirazi, Moazami-Goudarz, Parviz Movahhed), psychotherapy (Aghabigi), dentists (Jalali, Mokabberi, Nakhoda, Banitorfi), and the dermatologists Dr. Farshi and Dr. Javidnia seen in a @berlin_online ad. Doctolib and jameda could not be read, so Persian could not be confirmed there.
+- **Leads not yet checked:** an AXA insurance agent who advertises in Persian (@axa.versicherung); the party organisers "Hauptstadtperser" and Fendievent; the weekly "Tarane" singalong at Hauptstraße 37; the ticket seller posttick.com; the musician and teacher Misagh Joolaee (website blocked).
+- **Rows to confirm on a visit:** MorgenMarket and Gol Afarin share Hauptstraße 18 (probably a rename); the unnamed grocery at Karl-Marx-Straße 194; Talar Safir (event hall, Freienwalder Straße); Alins (ads stop around 2020); Kulturverein Dehkhoda (nothing on its website since Oct 2023).
+- **Old leads on round-1 rows:** Khatoon's phone (030 28654953) and Bistoun's old name "Restaurant Siamak" (030 80924890) come from old Telegram ads; check before using.
