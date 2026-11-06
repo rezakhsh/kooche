@@ -171,7 +171,7 @@ describe('a waitlist reward on a listing that isn’t live', () => {
     const opened = new Date(Date.now() - 4 * DAY);
     await grantWaitlistRewards(tx, [city.id], opened);
     const u = await makeUser(tx, { email, emailVerified: true });
-    const l = await makeListing(tx, u.id);
+    const l = await makeListing(tx, u.id, { locationId: city.id, point: city.center }); // in the reward's city (Nov 6, 2026)
     expect(await useReward(tx, { userId: u.id, listingId: l.id })).toEqual({ ok: true });
     return { u, l, opened };
   }

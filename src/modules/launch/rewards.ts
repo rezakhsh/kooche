@@ -11,7 +11,8 @@ import { rewardPlaces } from './waitlist';
 // round 12): «۲۰۰ نفر اول هامبورگ: یک نردبان رایگان، از روز سوم تا شصتم بعد از باز شدن شهر، روی
 // یکی از آگهی‌هایتان». When the owner opens a city, the first confirmed signups of it and the
 // cities launching with it (rewardPlaces() of the city, one per email, in confirmation order) get
-// a reward (waitlist_rewards, migration 0036). It belongs to the account with that email, made
+// a reward (waitlist_rewards, migration 0036). One per person, for a listing in that city
+// (owner, Nov 6, 2026: before, three cities' waitlists gave three bumps usable anywhere). It belongs to the account with that email, made
 // before or after. From day 3, the person gets one email (9:00 on the city's clock) and a box on
 // «آگهی‌های من»; «استفاده از نردبان رایگان» on a listing's «ارتقا» page marks the reward used, and
 // the bump job (src/modules/payments/bumps.ts) moves the listing up within a minute, like a paid
@@ -40,6 +41,9 @@ export async function grantWaitlistRewards(tx: Queryable, anchorIds: string[], n
         SELECT DISTINCT ON (w.email) w.id, w.confirmed_at FROM city_waitlist w
         WHERE w.confirmed_at IS NOT NULL
           AND w.location_id IN (SELECT g.id FROM locations g WHERE g.id = ${anchor}::uuid OR g.launch_with_id = ${anchor}::uuid)
+          -- One reward per person, ever (owner, Nov 6, 2026): an email rewarded by another city's
+          -- opening (or earlier in this one, «همهٔ کشور») leaves the place to the next sign-up
+          AND NOT EXISTS (SELECT 1 FROM waitlist_rewards r2 JOIN city_waitlist w2 ON w2.id = r2.waitlist_id WHERE w2.email = w.email)
         ORDER BY w.email, w.confirmed_at
       ) x
       ORDER BY x.confirmed_at, x.id
@@ -53,8 +57,14 @@ export async function grantWaitlistRewards(tx: Queryable, anchorIds: string[], n
 
 export type RewardOffer = { id: string; cityFa: string; endsAt: Date };
 
-/** The account's rewards usable now: its verified email signed up and was among the first */
-export async function usableRewards(db: Queryable, userId: string, now: Date = new Date()): Promise<RewardOffer[]> {
+/**
+ * The account's rewards usable now: its verified email signed up and was among the first. None
+ * once the account has used one (one per person, owner Nov 6, 2026; covers rewards granted before
+ * that rule, and an email changed to another rewarded one). With `listingId`, only the rewards of
+ * that listing's city: a reward bumps a listing in the city that opened, or a city launching with
+ * it (Potsdam with Berlin).
+ */
+export async function usableRewards(db: Queryable, userId: string, now: Date = new Date(), listingId?: string): Promise<RewardOffer[]> {
   const rows = await db.execute<{ id: string; city_fa: string; ends_at: Date }>(sql`
     SELECT r.id, c.name_fa AS city_fa, r.ends_at
     FROM waitlist_rewards r
@@ -62,15 +72,17 @@ export async function usableRewards(db: Queryable, userId: string, now: Date = n
     JOIN users u ON u.id = ${userId}::uuid AND u.email_verified AND u.status = 'active' AND lower(u.email) = w.email
     JOIN locations c ON c.id = r.location_id
     WHERE r.used_at IS NULL AND r.available_from <= ${now.toISOString()}::timestamptz AND r.ends_at > ${now.toISOString()}::timestamptz
+      AND NOT EXISTS (SELECT 1 FROM waitlist_rewards used WHERE used.user_id = ${userId}::uuid AND used.used_at IS NOT NULL)
+      ${listingId ? sql`AND r.location_id = (SELECT coalesce(g.launch_with_id, g.id) FROM listings l JOIN locations g ON g.id = l.location_id WHERE l.id = ${listingId}::uuid)` : sql``}
     ORDER BY r.ends_at, r.id`);
   return rows.map((r) => ({ id: r.id, cityFa: r.city_fa, endsAt: new Date(r.ends_at) }));
 }
 
-export type RewardUse = { ok: true } | { ok: false; reason: 'none' | 'not_allowed' };
+export type RewardUse = { ok: true } | { ok: false; reason: 'none' | 'not_allowed' | 'other_city' };
 
 /**
- * Uses the reward that ends first on one of the person's own live listings (not an event: those
- * have their own «رویداد ویژه»). The bump job applies it.
+ * Uses the reward that ends first on one of the person's own live listings in the reward's city
+ * (not an event: those have their own «رویداد ویژه»). The bump job applies it.
  */
 export async function useReward(db: Queryable, opts: { userId: string; listingId: string; now?: Date }): Promise<RewardUse> {
   const now = opts.now ?? new Date();
@@ -79,8 +91,8 @@ export async function useReward(db: Queryable, opts: { userId: string; listingId
     WHERE l.id = ${opts.listingId}::uuid AND l.user_id = ${opts.userId}::uuid AND l.status = 'active'
       AND NOT EXISTS (SELECT 1 FROM event_details e WHERE e.listing_id = l.id)`);
   if (!listing) return { ok: false, reason: 'not_allowed' };
-  const [reward] = await usableRewards(db, opts.userId, now);
-  if (!reward) return { ok: false, reason: 'none' };
+  const [reward] = await usableRewards(db, opts.userId, now, listing.id);
+  if (!reward) return { ok: false, reason: (await usableRewards(db, opts.userId, now)).length ? 'other_city' : 'none' };
   const used = await db.execute(sql`
     UPDATE waitlist_rewards SET used_at = ${now.toISOString()}::timestamptz, user_id = ${opts.userId}::uuid, listing_id = ${listing.id}::uuid
     WHERE id = ${reward.id}::uuid AND used_at IS NULL
@@ -119,7 +131,7 @@ export async function sendRewardNotices(db: Queryable, mail: Mailer, appUrl: str
         text: t.text(r.city_fa, until, link),
         html: emailHtml(
           `<p style="margin:0 0 16px;font-size:16px">${escapeHtml(t.intro(r.city_fa))}</p>
-<p style="margin:0 0 16px">${escapeHtml(t.body(until))}</p>
+<p style="margin:0 0 16px">${escapeHtml(t.body(r.city_fa, until))}</p>
 <p style="margin:0 0 16px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#0b6e77;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(t.button)}</a></p>
 <p style="margin:0;font-size:13px;color:#737373">${escapeHtml(t.footer(r.city_fa))}</p>`,
         ),

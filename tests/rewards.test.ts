@@ -95,6 +95,64 @@ describe('giving the reward', () => {
   });
 });
 
+describe('one per person, in its own city (owner, Nov 6, 2026)', () => {
+  it('an email rewarded by one city’s opening leaves its place in the next city to the next sign-up', async () => {
+    await rollback(async (tx) => {
+      await emptyWaitlists(tx, 'hamburg', 'koeln', 'bonn');
+      const [hamburg, cologne] = [await location(tx, 'hamburg'), await location(tx, 'koeln')];
+      await tx.update(schema.locations).set({ population: 120_000 }).where(eq(schema.locations.id, cologne.id));
+      const both = await signup(tx, 'hamburg');
+      await signup(tx, 'koeln', { email: both });
+      await signup(tx, 'bonn', { email: both });
+      const others: string[] = [];
+      for (let i = 0; i < 50; i++) others.push(await signup(tx, 'koeln'));
+      await grantWaitlistRewards(tx, [hamburg.id]);
+      expect((await rewardsOf(tx, 'hamburg')).map((r) => r.email)).toEqual([both]);
+      // Cologne's 50 places all go to the others, the 50th included
+      expect(await grantWaitlistRewards(tx, [cologne.id])).toBe(50);
+      expect((await rewardsOf(tx, 'koeln')).map((r) => r.email)).toEqual(others);
+    });
+  });
+
+  it('opening the whole country gives one place per email, not one per city', async () => {
+    await rollback(async (tx) => {
+      await tx.execute(sql`DELETE FROM city_waitlist WHERE location_id IN (SELECT id FROM locations WHERE country_code = 'AT')`);
+      const ctx = await staff(tx);
+      const email = await signup(tx, 'wien');
+      await signup(tx, 'graz', { email });
+      expect(await openCountry(tx, ctx, 'AT')).toBeGreaterThan(0);
+      const [row] = await tx.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM waitlist_rewards r JOIN city_waitlist w ON w.id = r.waitlist_id WHERE w.email = ${email}`);
+      expect(row!.n).toBe(1);
+    });
+  });
+
+  it('bumps only a listing in that city (or one launching with it), and one per account', async () => {
+    await rollback(async (tx) => {
+      const [cologne, bonn, berlin] = [await location(tx, 'koeln'), await location(tx, 'bonn'), await location(tx, 'berlin')];
+      const email = await signup(tx, 'koeln');
+      const opened = new Date(Date.now() - 4 * DAY);
+      await grantWaitlistRewards(tx, [cologne.id], opened);
+      // A second reward from before the rule (Hamburg, same email), as if granted on Nov 5
+      const hamburg = await location(tx, 'hamburg');
+      const [w] = await tx.execute<{ id: string }>(sql`SELECT id FROM city_waitlist WHERE email = ${await signup(tx, 'hamburg', { email })} AND location_id = ${hamburg.id}`);
+      await tx.insert(schema.waitlistRewards).values({ waitlistId: w!.id, locationId: hamburg.id, availableFrom: opened, endsAt: new Date(opened.getTime() + 60 * DAY) });
+      const u = await makeUser(tx, { email, emailVerified: true });
+      const inBerlin = await makeListing(tx, u.id, { locationId: berlin.id, point: berlin.center });
+      const inBonn = await makeListing(tx, u.id, { locationId: bonn.id, point: bonn.center });
+      expect((await usableRewards(tx, u.id)).length).toBe(2);
+      // The promote page offers only the listing's own city's
+      expect(await usableRewards(tx, u.id, new Date(), inBerlin.id)).toEqual([]);
+      expect((await usableRewards(tx, u.id, new Date(), inBonn.id)).map((r) => r.cityFa)).toEqual(['کلن']);
+      await setRole(tx, 'classifieds_app');
+      expect(await useReward(tx, { userId: u.id, listingId: inBerlin.id })).toEqual({ ok: false, reason: 'other_city' });
+      // Bonn launches with Cologne
+      expect(await useReward(tx, { userId: u.id, listingId: inBonn.id })).toEqual({ ok: true });
+      // The Hamburg one from before the rule is gone with it
+      expect(await usableRewards(tx, u.id)).toEqual([]);
+    });
+  });
+});
+
 describe('using the reward', () => {
   it('from day 3 to day 60, by the account with that verified email, on its own live listing', async () => {
     await rollback(async (tx) => {
@@ -104,8 +162,8 @@ describe('using the reward', () => {
       await grantWaitlistRewards(tx, [hamburg.id], opened);
       const u = await makeUser(tx, { email, emailVerified: true });
       const other = await makeUser(tx, { emailVerified: true });
-      const own = await makeListing(tx, u.id);
-      const theirs = await makeListing(tx, other.id);
+      const own = await makeListing(tx, u.id, { locationId: hamburg.id, point: hamburg.center });
+      const theirs = await makeListing(tx, other.id, { locationId: hamburg.id, point: hamburg.center });
       const day = (d: number) => new Date(opened.getTime() + d * DAY);
       expect(await usableRewards(tx, u.id, day(2))).toEqual([]);
       expect((await usableRewards(tx, u.id, day(3.01))).map((r) => r.cityFa)).toEqual(['هامبورگ']);
@@ -139,8 +197,8 @@ describe('using the reward', () => {
       const ua = await makeUser(tx, { email: a, emailVerified: true });
       const ub = await makeUser(tx, { email: b, emailVerified: true });
       const old = new Date(Date.now() - 10 * DAY);
-      const la = await makeListing(tx, ua.id, { rankedAt: old });
-      const lb = await makeListing(tx, ub.id, { rankedAt: old });
+      const la = await makeListing(tx, ua.id, { rankedAt: old, locationId: hamburg.id, point: hamburg.center });
+      const lb = await makeListing(tx, ub.id, { rankedAt: old, locationId: hamburg.id, point: hamburg.center });
       expect(await useReward(tx, { userId: ua.id, listingId: la.id })).toEqual({ ok: true });
       expect(await useReward(tx, { userId: ub.id, listingId: lb.id })).toEqual({ ok: true });
       await tx.update(schema.listings).set({ status: 'sold' }).where(eq(schema.listings.id, lb.id));

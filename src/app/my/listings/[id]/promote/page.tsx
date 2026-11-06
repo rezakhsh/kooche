@@ -58,7 +58,8 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
   const offers = (await Promise.all(codes.map((c) => activePrice(db, c, PAYMENT_CURRENCY)))).filter((o) => !!o);
   const otherMoney = !!listing.currency && listing.currency !== PAYMENT_CURRENCY;
   const running = await listingPromotions(db, listing.id);
-  const rewards = await usableRewards(db, user.id);
+  // Only a reward of this listing's city (src/modules/launch/rewards.ts)
+  const rewards = await usableRewards(db, user.id, new Date(), listing.id);
   const plan = listing.organizationId ? await allowancesLeft(db, listing.organizationId) : null;
   const live = listing.status === 'active';
   // Paying isn't possible from Iran or Stripe's other restricted places (src/lib/region.ts): a
@@ -96,7 +97,7 @@ export default async function PromotePage({ params, searchParams }: { params: Pr
         )}
         {query.requested && <Alert tone="success">{t.plan.requested}</Alert>}
         {query.reward === 'used' && <Alert tone="success">{t.reward.used}</Alert>}
-        {(query.reward === 'none' || query.reward === 'not_allowed') && <Alert tone="error">{t.reward[query.reward]}</Alert>}
+        {(query.reward === 'none' || query.reward === 'not_allowed' || query.reward === 'other_city') && <Alert tone="error">{t.reward[query.reward]}</Alert>}
         {query.plan === 'none_left' && <Alert tone="error">{t.plan.none_left}</Alert>}
         {query.plan === 'already_waiting' && <Alert tone="info">{t.plan.already_waiting}</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
