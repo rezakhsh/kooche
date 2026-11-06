@@ -97,7 +97,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </div>
         <SiteFooter />
         <HeaderSync
-          data={{ cookie: header.cookie, footer: header.footer, countrySlug: header.country?.slug ?? null, viewAs: header.viewAs, adminRoot: header.adminRoot, open: header.open, closed: header.closed }}
+          data={{ cookie: header.cookie, footer: header.footer, countrySlug: header.country?.slug ?? null, viewAs: header.viewAs, adminRoot: header.adminRoot, open: header.open, closed: header.closed, shared: header.shared }}
         />
         <Toaster />
         <FormValidation />

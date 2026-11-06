@@ -11,7 +11,8 @@ import { countryByCode, isPlanned } from '../modules/launch/country-page';
 import { browsableCategory, cachedCatalog } from '../modules/listings/catalog';
 import { countryCatalog } from '../modules/listings/country-rules';
 import { homeArea } from '../modules/listings/neighbourhood';
-import { activeCountries } from '../modules/listings/queries';
+import { activeCountries, listingTopic } from '../modules/listings/queries';
+import { listingPageToken, SHARED_PAGE_HEADER } from '../modules/listings/shared-page';
 import { allCities } from '../modules/search/places';
 import { currentSession } from '../modules/users/server';
 import { sql } from 'drizzle-orm';
@@ -27,15 +28,21 @@ async function visitorsPlannedCountry(code: string) {
   return c && c.mode !== 'open' && (await isPlanned(db, c)) ? c : null;
 }
 
-export const headerPlaceData = cache(async (): Promise<HeaderPlaceData & { start: string; signedIn: boolean }> => {
+export const headerPlaceData = cache(async (): Promise<HeaderPlaceData & { start: string; signedIn: boolean; shared: string | null }> => {
   const db = appDb();
   const [session, chosen, open, jar, requestHeaders] = await Promise.all([currentSession(), chosenCountry(db), activeCountries(db), cookies(), headers()]);
+  // A listing or event page that Cloudflare keeps for every signed-out visitor (src/proxy.ts): the
+  // proxy dropped the remembered country, and the header is the page's own country's instead of
+  // the connection's, as a browse page shows its own (docs/setup.md, "Browsing and favorites")
+  const sharedToken = requestHeaders.get(SHARED_PAGE_HEADER);
+  const shared = sharedToken && listingPageToken(requestHeaders.get('x-pathname') ?? '')?.token === sharedToken ? sharedToken : null;
+  const pageCountry = shared ? ((await listingTopic(db, shared).catch(() => null))?.countryCode ?? null) : null;
   // Before a country is chosen, the visitor's own (Cloudflare's header) when it is open (wave 1, mockup final/home)
-  const here = visitorCountry(requestHeaders);
+  const here = shared ? pageCountry : visitorCountry(requestHeaders);
   // A signed-in user's saved place comes before the guess from their connection
   const home = session ? await homeArea(db, session.user.id).catch(() => null) : null;
   const country = chosen ?? open.find((c) => c.code === home?.countryCode) ?? open.find((c) => c.code === here) ?? null;
-  const visitorPlannedAsked = !chosen && !!here && !open.some((c) => c.code === here);
+  const visitorPlannedAsked = !shared && !chosen && !!here && !open.some((c) => c.code === here);
   const [withPages, cities, catalog, mine, planned] = await Promise.all([
     // countryBySlug()'s countries: every one but the hidden ones
     db.select({ slug: countries.slug, nameFa: countries.nameFa }).from(countries).where(sql`${countries.mode} <> 'hidden'`),
@@ -68,5 +75,6 @@ export const headerPlaceData = cache(async (): Promise<HeaderPlaceData & { start
     visitorPlannedAsked,
     start: mineClosed ? `/${mineClosed.slug}` : country ? `/${country.slug}` : '/',
     signedIn: !!session,
+    shared,
   };
 });

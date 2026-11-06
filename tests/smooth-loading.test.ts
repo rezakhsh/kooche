@@ -101,7 +101,7 @@ describe("Cloudflare's own copy of browse pages", () => {
       expect(h.get('cache-control'), `${path} ${JSON.stringify(opts)}`).toBe('private, no-store');
       expect(h.get('cloudflare-cdn-cache-control'), `${path} ${JSON.stringify(opts)}`).toBeNull();
     }
-    for (const path of ['/', '/help', '/login', '/v/x/w5zyhzxsqk', '/my/listings', '/chat']) {
+    for (const path of ['/', '/help', '/login', '/my/listings', '/chat']) {
       expect((await get(path)).get('cloudflare-cdn-cache-control'), path).toBeNull();
     }
   });

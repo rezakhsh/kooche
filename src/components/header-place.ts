@@ -1,4 +1,5 @@
 import { messages } from '../messages/fa';
+import { listingPageToken } from '../modules/listings/shared-page';
 import { browseCountry } from '../modules/search/browse-country';
 import { browsePath, eventsPath } from '../modules/search/paths';
 
@@ -106,7 +107,11 @@ function known(d: Pick<HeaderPlaceData, 'open' | 'closed'>, slug: string | null)
   return slug && (d.open.includes(slug) || d.closed.some(([s]) => s === slug)) ? slug : null;
 }
 
-export type HeaderCookieData = Pick<HeaderPlaceData, 'cookie' | 'footer' | 'viewAs' | 'adminRoot' | 'open' | 'closed'> & { countrySlug: string | null };
+export type HeaderCookieData = Pick<HeaderPlaceData, 'cookie' | 'footer' | 'viewAs' | 'adminRoot' | 'open' | 'closed'> & {
+  countrySlug: string | null;
+  /** The token of the listing or event page this was rendered as Cloudflare's shared copy for (src/proxy.ts), if so */
+  shared?: string | null;
+};
 
 /**
  * The remembered country the server would render an address with: src/proxy.ts renders a browse
@@ -115,6 +120,9 @@ export type HeaderCookieData = Pick<HeaderPlaceData, 'cookie' | 'footer' | 'view
  */
 export function serverCountry(path: string, d: HeaderCookieData, cookie: string | null): string | null {
   if (d.adminRoot && path.split('/')[1] === d.adminRoot) return known(d, cookie);
+  // The shared copy of a listing or event page is drawn without the remembered country (as on a
+  // first visit) for everyone: asking the server again would only bring the same copy
+  if (d.shared && listingPageToken(path)?.token === d.shared) return renderedCountry(d);
   return known(d, browseCountry(path) ?? (d.viewAs ? null : cookie));
 }
 

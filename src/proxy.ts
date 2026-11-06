@@ -6,6 +6,7 @@ import { isIranRequest } from './lib/region';
 import { OWN_COOKIE_DAYS, readReturn, sessionCookieName, STAFF_RETURN_COOKIE } from './modules/admin/acting-cookies';
 import { ADMIN_GATE_HEADER, adminGateValue, adminRoute, isInternalAdminPath, METHOD_HEADER, methodMark } from './modules/admin/gate';
 import { readViewAs, VIEW_AS_COOKIE, VIEW_AS_HEADER } from './modules/admin/view-as';
+import { listingPageToken, SHARED_PAGE_HEADER } from './modules/listings/shared-page';
 
 // Strict Content-Security-Policy with a fresh nonce per request. Next.js reads the nonce from the
 // request's CSP header and puts it on its own scripts. The other security headers are static and
@@ -52,7 +53,29 @@ export function browseCacheControl(
   return (method !== 'GET' && method !== 'HEAD') || personal || search.has('near') || search.has('postal') || search.has('q') ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
 }
 
-/** Cloudflare's own copy of a shared browse page (Cloudflare-CDN-Cache-Control; see browseCacheControl) */
+/**
+ * Cache-Control for a listing's or event's page (/v/{title}/{token}, /e/{title}/{token}), the
+ * pages people open from a Telegram post (Nov 6, 2026, owner's approval; docs/research/smooth-loading.md,
+ * 3.2). Signed out, it is the same for everyone: the ♡, the seller's own buttons, «N نفر نشان
+ * کرده‌اند», the phone and the chat button's target depend on the session, a test account's listing
+ * is 404 without one, and the header is drawn for the page's own country (SHARED_PAGE_HEADER). So
+ * Cloudflare keeps it like a browse page, and the worker clears it on every change
+ * (src/modules/listings/page-purge.ts). Private: a session, the theme or view cookie (as on browse
+ * pages; the Cache Rule skips the same), anything but GET and HEAD, and any query (`?published=1`
+ * after posting, `?followed=1`, tracking tags: those can't be purged by address).
+ */
+export function listingCacheControl(
+  pathname: string,
+  search: URLSearchParams,
+  cookie: (name: string) => string | undefined,
+  method = 'GET',
+): string | null {
+  if (!listingPageToken(pathname)) return null;
+  const personal = SESSION_COOKIES.some((c) => cookie(c) !== undefined) || cookie('view') !== undefined || cookie('theme') !== undefined;
+  return (method !== 'GET' && method !== 'HEAD') || personal || search.size > 0 ? 'private, no-store' : 'public, max-age=0, s-maxage=60';
+}
+
+/** Cloudflare's own copy of a shared browse, listing or event page (Cloudflare-CDN-Cache-Control; see browseCacheControl) */
 export const BROWSE_CDN_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=600, stale-if-error=86400';
 
 /** The Content-Security-Policy for one response */
@@ -123,6 +146,18 @@ export function proxy(request: NextRequest) {
   const country = admin ? null : browseCountry(request.nextUrl.pathname);
   if (country) request.cookies.set(COUNTRY_COOKIE, country);
 
+  // A page for Iran carries the Iran banner, and a viewed-as page the staff banner: never kept by Cloudflare for anyone else
+  const cacheControl = admin
+    ? null
+    : fromIran || viewing
+      ? 'private, no-store'
+      : (browseCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method) ??
+        listingCacheControl(request.nextUrl.pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method));
+  // A listing or event page kept for everyone: drawn without the visitor's remembered country
+  // (the header takes the page's own; src/components/header-place-data.ts)
+  const shared = cacheControl?.startsWith('public') ? listingPageToken(request.nextUrl.pathname) : null;
+  if (shared) request.cookies.delete(COUNTRY_COOKIE);
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   // The header names the page's city in its place chip (src/components/site-header.tsx)
@@ -131,7 +166,9 @@ export function proxy(request: NextRequest) {
   // Only this proxy marks a request as coming through the admin page's secret address, or as viewed as a country
   requestHeaders.delete(ADMIN_GATE_HEADER);
   requestHeaders.delete(VIEW_AS_HEADER);
+  requestHeaders.delete(SHARED_PAGE_HEADER);
   if (viewing) requestHeaders.set(VIEW_AS_HEADER, viewAs!);
+  if (shared) requestHeaders.set(SHARED_PAGE_HEADER, shared.token);
   requestHeaders.set(METHOD_HEADER, methodMark(request.method, env.AUTH_SECRET));
 
   // The admin page (src/modules/admin/gate.ts): /<ADMIN_PATH>/… becomes /admin/… with the mark.
@@ -156,10 +193,6 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   if (env.SEARCH_INDEXING === 'off') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  // A page for Iran carries the Iran banner, and a viewed-as page the staff banner: never kept by Cloudflare for anyone else
-  const cacheControl = fromIran || viewing
-    ? 'private, no-store'
-    : browseCacheControl(pathname, request.nextUrl.searchParams, (n) => request.cookies.get(n)?.value, request.method);
   if (cacheControl) response.headers.set('Cache-Control', cacheControl);
   if (cacheControl?.startsWith('public')) response.headers.set('Cloudflare-CDN-Cache-Control', BROWSE_CDN_CACHE_CONTROL);
   return putBack(response);
