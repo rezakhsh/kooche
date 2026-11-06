@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { Db, Queryable } from '../../db/drizzle';
 import { organizations, outboxEvents } from '../../db/schema';
+import { queuePagesPurge } from '../listings/page-purge';
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from '../media/limits';
 import { ObjectTooLargeError, type ObjectStorage, type PresignedPut } from '../media/storage';
 
@@ -89,6 +90,8 @@ export async function processLogo(db: Db, storage: ObjectStorage, organizationId
     const [org] = await tx.select({ logoKey: organizations.logoKey, status: organizations.status }).from(organizations).where(eq(organizations.id, organizationId)).for('update');
     if (!org || org.status === 'deleted') return undefined;
     await tx.update(organizations).set({ logoKey: key }).where(eq(organizations.id, organizationId));
+    // The logo is on its event pages (Cloudflare's copies)
+    await queuePagesPurge(tx, { organizationId });
     return org.logoKey;
   });
   await storage.delete(uploadKey);

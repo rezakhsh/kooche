@@ -9,6 +9,7 @@ import { hit, type Limit } from '../../lib/rate-limit';
 import { messages } from '../../messages/fa';
 import { upcomingEvents, type EventCardRow } from '../events/queries';
 import { coverKeys } from '../listings/queries';
+import { queuePagesPurge } from '../listings/page-purge';
 import { cardColumns, decodeCursor, encodeCursor, PAGE_SIZE, type BrowseItem } from '../search/browse';
 
 // The name others see (seller box, chat, the seller page), set on /account/name or when
@@ -68,6 +69,8 @@ export async function setDisplayName(db: Queryable, redis: Redis, userId: string
     .update(users)
     .set({ displayName: checked.name, displayNameNormalized: normalizePersian(checked.name) })
     .where(eq(users.id, userId));
+  // The name is on their listing and event pages (Cloudflare's copies)
+  await queuePagesPurge(db, { userId });
   return checked;
 }
 

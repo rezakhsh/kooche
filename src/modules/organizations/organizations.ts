@@ -17,6 +17,7 @@ import { canPostListing, loadActor, type Denied } from '../users/permissions';
 import { validHours } from './hours';
 import { ownLogoUpload, queueLogo, removeLogo } from './logo';
 import { queueBusinessNotice } from './notices';
+import { queuePagesPurge } from '../listings/page-purge';
 import { testOwned } from '../users/test-accounts';
 import { needsRepresentative } from './legal-forms';
 
@@ -281,6 +282,8 @@ export async function updateBusiness(
         .where(eq(organizations.id, org.id));
       if (parsed.data.logoUpload && ownLogoUpload(opts.userId, parsed.data.logoUpload)) await queueLogo(tx, org.id, parsed.data.logoUpload);
       else if (parsed.data.removeLogo) await removeLogo(tx, org);
+      // Its name, badge, logo and contact details are on its listing and event pages (Cloudflare's copies)
+      await queuePagesPurge(tx, { organizationId: org.id });
       return { ok: true };
     });
   } catch (e) {
@@ -391,5 +394,7 @@ export async function setVerification(
   else await db.insert(auditLog).values({ actorType: 'staff', actorUserId: opts.byUserId, action: 'organization.verification', targetType: 'organization', targetId: org.id, data: { status: opts.status } });
   // The owner is always told, both ways (./notices.ts)
   await queueBusinessNotice(db, org.id, opts.status);
+  // The badge is on its listing and event pages
+  await queuePagesPurge(db, { organizationId: org.id });
   return org.id;
 }

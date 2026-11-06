@@ -22,6 +22,7 @@ import { ancestry, cachedCatalog, effectiveAttributes, isEventCategory, isPostab
 import { registrationNumberRequired } from './country-fields';
 import { costShare, exchangeAllowed, shippable } from './safety-kind';
 import { LISTING_OUTBOX, recordChange } from './events';
+import { queuePagesPurge } from './page-purge';
 import { NEW_ACCOUNT_LISTINGS_PER_DAY } from './limits';
 import { MAX_AREA_DISTANCE_M, nearestPostalPlace, placeByValue, resolvePlace, type Place } from './places';
 import { MAX_PRICE_MINOR, parseAmount } from './price';
@@ -731,6 +732,7 @@ export async function saveListing(
         .update(users)
         .set({ displayName, displayNameNormalized: normalizePersian(displayName) })
         .where(eq(users.id, opts.userId));
+      await queuePagesPurge(tx, { userId: opts.userId });
     }
     // "Remember for my next listings": the postal code, place and district, never the position
     if (opts.input.rememberPlace && place) await tx.update(users).set(savedPlaceColumns(place, values.district)).where(eq(users.id, opts.userId));

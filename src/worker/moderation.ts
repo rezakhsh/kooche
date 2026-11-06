@@ -11,6 +11,8 @@ import { businessCaseMail, decisionNotices, phoneReleasedMail, reportReceipt, si
 import { cachedCatalog } from '../modules/listings/catalog';
 import { closeSwitched, findSuspicions } from '../modules/organizations/suspicions';
 import { LISTING_OUTBOX } from '../modules/listings/events';
+import { listingPageUrls, PAGES_CHANGED, pagesOwner, PURGE_BATCH, sellerPageUrls } from '../modules/listings/page-purge';
+import { EVENT_OUTBOX } from '../modules/events/events';
 import { sendOnce } from '../modules/notifications/send-once';
 import { queueEndedSanctionNotices } from '../modules/users/account-notices';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
@@ -24,6 +26,9 @@ import { reportJobFailure, logText } from './monitoring';
 //   bot can reach them) and the outcome to the reporters (email);
 // - `listing.rejected` / `listing.restored`: purge the plain browse pages it was on from
 //   Cloudflare (when configured) and rebuild the sitemaps a minute later;
+// - every change of a listing or event that is or was public, and `pages.changed` (a business's or
+//   seller's details): purge its page (or theirs) from Cloudflare, and once more 15 seconds later
+//   for a render that began before the change (src/modules/listings/page-purge.ts);
 // - every 15 minutes: listings of suspensions that ran out come back; restrictions that ran out
 //   with nothing to bring back are told (src/modules/users/account-notices.ts);
 // - every minute: the system status snapshot for the admin page;
@@ -39,6 +44,27 @@ const KEEP = { removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 1
 const RETRY = { attempts: 8, backoff: { type: 'exponential' as const, delay: 10_000 } };
 
 export const ALERT_GATHER_MS = 2 * 60_000;
+/** The second purge of a changed page: a render that read the old listing just before the change may have been stored after the first */
+export const PURGE_AGAIN_MS = 15_000;
+
+/** Listing and event changes that change (or remove) the public page; `listing.created` is a draft nobody sees */
+export const PAGE_PURGE_EVENTS = [
+  LISTING_OUTBOX.published,
+  LISTING_OUTBOX.updated,
+  LISTING_OUTBOX.submitted,
+  LISTING_OUTBOX.paused,
+  LISTING_OUTBOX.resumed,
+  LISTING_OUTBOX.sold,
+  LISTING_OUTBOX.expired,
+  LISTING_OUTBOX.renewed,
+  LISTING_OUTBOX.bumped,
+  LISTING_OUTBOX.rejected,
+  LISTING_OUTBOX.restored,
+  LISTING_OUTBOX.deleted,
+  EVENT_OUTBOX.published,
+  EVENT_OUTBOX.changed,
+  EVENT_OUTBOX.cancelled,
+] as const;
 export const ALERT_EVERY_MS = 10 * 60_000;
 const ALERT_LAST_KEY = 'admin-alert:last';
 
@@ -48,6 +74,8 @@ export type ModerationJobOptions = {
   send: { email: Queue; telegram: Queue };
   alert: { url: string; secret: string } | null;
   purge: { zoneId: string; token: string } | null;
+  /** The second purge of a changed page (tests shorten it) */
+  purgeAgainMs?: number;
   /** The sitemap queue (`seo`) */
   seo: Queue | null;
   /** For the status snapshot's document count */
@@ -134,6 +162,19 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
           await purgeUrls(opts.purge.zoneId, opts.purge.token, urls, opts.fetchFn);
           return `purged ${urls.length}`;
         }
+        case 'page_purge':
+        case 'seller_pages_purge': {
+          if (!opts.purge) return 'no purge';
+          const urls =
+            job.name === 'page_purge'
+              ? await listingPageUrls(db, data.aggregateId, opts.appUrl)
+              : await sellerPageUrls(db, pagesOwner(data.aggregateId, data.payload ?? {}), opts.appUrl);
+          for (let i = 0; i < urls.length; i += PURGE_BATCH) await purgeUrls(opts.purge.zoneId, opts.purge.token, urls.slice(i, i + PURGE_BATCH), opts.fetchFn);
+          if (urls.length && !(job.data as { again?: boolean }).again) {
+            await queue.add(job.name, { ...data, again: true }, { jobId: `${job.id}_again`, delay: opts.purgeAgainMs ?? PURGE_AGAIN_MS });
+          }
+          return `purged ${urls.length}`;
+        }
         case 'admin_alert': {
           if (!opts.alert) return 'off';
           const since = new Date(Number((await connection.get(ALERT_LAST_KEY)) ?? Date.now() - 3_600_000));
@@ -216,7 +257,7 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     reportJobFailure(job, e);
   });
 
-  const handlers: OutboxHandlers = {
+  const handlers: Record<string, OutboxHandlers[string]> = {
     'report.created': [{ name: 'report_received', queue }],
     'appeal.created': [{ name: 'appeal_received', queue }],
     'moderation.decided': [{ name: 'notify', queue }],
@@ -227,9 +268,11 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     'user.business_asked': [{ name: 'business_case', queue }],
     'user.business_restricted': [{ name: 'business_case', queue }],
     'user.business_cleared': [{ name: 'business_case', queue }],
-    [LISTING_OUTBOX.rejected]: [{ name: 'listing_changed', queue }],
-    [LISTING_OUTBOX.restored]: [{ name: 'listing_changed', queue }],
+    [PAGES_CHANGED]: [{ name: 'seller_pages_purge', queue }],
   };
+  for (const type of PAGE_PURGE_EVENTS) handlers[type] = [{ name: 'page_purge', queue }];
+  handlers[LISTING_OUTBOX.rejected] = [{ name: 'listing_changed', queue }, { name: 'page_purge', queue }];
+  handlers[LISTING_OUTBOX.restored] = [{ name: 'listing_changed', queue }, { name: 'page_purge', queue }];
 
   return {
     handlers,
