@@ -9,6 +9,11 @@ import { resolveBrowse } from '../_browse/resolve';
 
 type Props = { params: Promise<{ country: string; place: string }>; searchParams: Promise<RawParams> };
 
+// Back to this page within 5 minutes comes from the browser's memory at once (smooth loading,
+// docs/setup.md). Any server action (♡, save, publish) clears that memory. A literal: Next.js
+// reads it from the file. Chat, account and posting pages keep 0, so they always come fresh.
+export const unstable_dynamicStaleTime = 300;
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const b = await resolveBrowse(params, searchParams);
   const launch = await waitingCity(b);

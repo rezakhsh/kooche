@@ -106,3 +106,15 @@ describe("Cloudflare's own copy of browse pages", () => {
     }
   });
 });
+
+describe('instant Back', () => {
+  // Next.js reads unstable_dynamicStaleTime from the page file; the browser keeps the page 5 minutes
+  const kept = ['src/app/[country]/page.tsx', 'src/app/[country]/[place]/page.tsx', 'src/app/[country]/[place]/[category]/page.tsx', 'src/app/v/[slug]/[token]/page.tsx'];
+  const fresh = ['src/app/chat/page.tsx', 'src/app/chat/[id]/page.tsx', 'src/app/account/page.tsx', 'src/app/my/listings/page.tsx', 'src/app/new/page.tsx'];
+  it('keeps browse and listing pages, never chat, account, my listings or posting', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const f of kept) expect(readFileSync(f, 'utf8'), f).toMatch(/^export const unstable_dynamicStaleTime = 300;$/m);
+    for (const f of fresh) expect(readFileSync(f, 'utf8'), f).not.toContain('unstable_dynamicStaleTime');
+    expect(readFileSync('next.config.ts', 'utf8')).not.toContain('staleTimes');
+  });
+});
