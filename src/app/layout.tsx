@@ -8,6 +8,7 @@ import { AutoDirection } from '../components/auto-direction';
 import { DeviceTimeZone } from '../components/device-time-zone';
 import { FormValidation } from '../components/form-validation';
 import { HeaderSync } from '../components/header-sync';
+import { headerPlaceData } from '../components/header-place-data';
 import { NavFeedback } from '../components/nav-feedback';
 import { IranBanner } from '../components/iran';
 import { LegalChangeBanner } from '../components/legal-change-banner';
@@ -23,8 +24,6 @@ import { browserMonitoringConfig, monitoringConfig } from '../lib/monitoring/con
 import { messages } from '../messages/fa';
 import { ADMIN_GATE_HEADER } from '../modules/admin/gate';
 import { currentSession } from '../modules/users/server';
-import { appDb } from '../db/drizzle';
-import { headerRenderedFor } from './country-choice';
 import { currentTheme } from './theme';
 import './globals.css';
 
@@ -77,7 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const theme = await currentTheme();
   // The admin page counts no visits (the proxy marks its requests)
   const admin = (await headers()).has(ADMIN_GATE_HEADER);
-  const header = await headerRenderedFor(appDb());
+  const header = await headerPlaceData();
   // The device's time zone, for notices on the person's clock (src/components/device-time-zone.tsx;
   // the header reads the same cached session). Not on the admin page.
   const session = admin ? null : await currentSession();
@@ -97,7 +96,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <NavFeedback>{children}</NavFeedback>
         </div>
         <SiteFooter />
-        <HeaderSync renderedFor={header.renderedFor} countrySlugs={header.countrySlugs} />
+        <HeaderSync data={{ cookie: header.cookie, footer: header.footer, country: header.country?.slug ?? null }} />
         <Toaster />
         <FormValidation />
         <AutoDirection />
