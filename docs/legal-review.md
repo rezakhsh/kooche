@@ -336,3 +336,15 @@ Internal:
 - `docs/setup.md`: "Legal pages", "Payments and Pro", "People in Iran", "Visitor numbers", "Sign in as a user", "Private or business", "Countries, places and the map"
 
 Notes on the sources: several country points (US thresholds, Turkey, Malaysia, the GPSR and short-term rental scope, the DSA Art. 24 (2) duty) come from law-firm or secondary sources and are marked **[uncertain]** above. The Art. 246d EGBGB, § 356, § 356a, § 357a, § 312k, § 5 DDG, § 37 VSBG and UWG Annex texts were read directly on gesetze-im-internet.de on 2 November 2026.
+
+---
+
+## G. Owner's decisions on the legal pieces (Nov 6, 2026)
+
+The owner wants these at Kleinanzeigen's level and nothing that makes buying harder abroad ("very simple, or don't change it"). Built on staging: the accepted terms version is recorded (audit log, with a fingerprint of the text), the price is shown on the pay button, and the payment email carries the German order confirmation with the withdrawal notice and model form (`docs/setup.md`, "Legal pages", "Legal pieces"). **Not built, for the lawyer to weigh:**
+1. **Telegram (privacy 8):** no consent before notifications (the review marked art. 49 (1) (a) consent "must"). The owner's view: Telegram is only the person's own notification channel.
+2. **§ 312k:** no "Verträge hier kündigen" page. Pro is business-only and cancelled in the account (Stripe's portal); Kleinanzeigen has none either, although it sells consumer subscriptions.
+3. **§ 312j (3):** the button reads «پرداخت ۱٫۹۹ €» on Peydoo, and the binding click is Stripe's "Pay"/"Bezahlen" ("Subscribe"/"Abonnieren" for Pro). OLG Düsseldorf (20 UKl 4/23) held "Abonnieren" and "Weiter zur Zahlung" insufficient. Pro is B2B only, where § 312j does not apply.
+4. **§ 312f (2):** the terms reach the buyer as an address in the email (not as text or an attachment). The withdrawal notice and form are in the email in full.
+5. **Terms 12 (4):** the «موافقم» at the next sign-in is built only when the first worsening change comes.
+6. **Acceptance records** stay after an account is deleted (they hold no personal data apart from the account id; IP cleared after 90 days). Is that right, and for how long?
