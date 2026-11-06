@@ -2344,3 +2344,15 @@ The owner said "Yes, build Part C" (plan: `docs/research/field-audit.md` §20). 
 
 **Field audit:** items 1–9 are done on staging. Still open from the audit's own "optional" list: France's CAF/APL question, the EU pet passport, appliance energy labels, inches for carpets, and steering side for car imports.
 
+
+### Production release `0351342` (Nov 6, 2026)
+
+Owner: "lets decide this two and then release". Out on production: field audit items 1–9 (Parts A, B and C), smooth loading (top line, grey outlines, stale copy, photo warm-up) and instant Back. The compression change was tried on staging and undone (Cloudflare made JS and CSS bigger), so production's Coolify setting is unchanged.
+
+- **Checks before:** staging CPU 95% idle (load figure still falling after its own redeploy), production load 0.15, staging disk 82%, production 14%.
+- **Backup:** `classifieds-backup` on production, snapshot `b251c0d8` (11:04 UTC).
+- **Promote:** `peydoo-promote 0351342 --yes`; migration `0048_event_languages`; migrate, web and worker finished at 11:09 UTC.
+- **Seed:** run from a copy of the `production` branch at `0351342` (90 s, 346 attributes, 1,490 options); the copy and the node image are removed.
+- **Early Hints:** switched on (zone-wide, `PATCH /zones/{zone}/settings/early_hints`).
+- **After:** `/health`, `/`, `/germany/berlin`, `/germany/berlin/real-estate`, `/help`, `/cities`, `/privacy`, `/turkey`, `/austria` all 200; Berlin a Cloudflare HIT in 0.12 s; web and worker logs without errors; the worker polls the outbox and Telegram.
+- **Left as it was:** Turkey stays "guide" on production, which shows like the waitlist.
