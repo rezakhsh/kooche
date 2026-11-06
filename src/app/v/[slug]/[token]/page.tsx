@@ -82,11 +82,6 @@ const load = cache(async (token: string) => {
 /** Statuses anyone may see; the rest only the owner (with a notice) */
 const PUBLIC = PUBLIC_STATUSES;
 
-// Back to this page within 5 minutes comes from the browser's memory at once (smooth loading,
-// docs/setup.md). Any server action (♡, save, publish) clears that memory. A literal: Next.js
-// reads it from the file. Chat, account and posting pages keep 0, so they always come fresh.
-export const unstable_dynamicStaleTime = 300;
-
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { token } = await params;
   const data = await load(token);

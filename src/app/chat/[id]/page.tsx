@@ -22,6 +22,8 @@ import { canSendMessage, loadActor } from '../../../modules/users/permissions';
 import { requireSession } from '../../../modules/users/server';
 import { archiveAction, blockAction } from '../actions';
 import { ReportButton, Thread } from './thread';
+import { randomUUID } from 'node:crypto';
+import { FreshOnReturn } from '../../../components/fresh-on-return';
 
 export const metadata = { title: messages.chat.title, robots: { index: false } };
 
@@ -87,6 +89,7 @@ export default async function ConversationPage({ params, searchParams }: { param
 
   // Wave 1 (mockup final/chat): the conversation fills the screen (no site header), with back,
   // the listing (photo, title, the other person, price) and ⋯ for report, block, archive and the legal pages
+  const renderId = randomUUID();
   return (
     <main data-chat-thread className="mx-auto flex h-dvh w-full max-w-3xl flex-col bg-white lg:border-x lg:border-neutral-200">
       <header className="flex items-center gap-2 border-b border-neutral-200 px-2 py-2">
@@ -199,6 +202,8 @@ export default async function ConversationPage({ params, searchParams }: { param
           </span>
         )}
       </p>
+      {/* Back from the browser's page memory: fresh messages (the thread merges new props) */}
+      <FreshOnReturn renderId={renderId} />
       <Thread
         conversationId={view.id}
         meId={user.id}

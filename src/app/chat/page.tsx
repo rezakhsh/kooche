@@ -9,6 +9,8 @@ import { messages } from '../../messages/fa';
 import { inbox, type InboxFilter } from '../../modules/chat/queries';
 import { imageUrl } from '../../modules/media/server';
 import { requireSession } from '../../modules/users/server';
+import { randomUUID } from 'node:crypto';
+import { FreshOnReturn } from '../../components/fresh-on-return';
 import { InboxLive } from './inbox-live';
 
 export const metadata = { title: messages.chat.title, robots: { index: false } };
@@ -37,6 +39,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     <main className="mx-auto w-full max-w-3xl px-4 pt-5 pb-24">
       <h1 className="mb-4 text-2xl font-extrabold">{t.title}</h1>
       <InboxLive />
+      <FreshOnReturn renderId={randomUUID()} />
       {sp.done === 'archived' && (
         <div className="mb-3">
           <Alert tone="success">{t.archived}</Alert>

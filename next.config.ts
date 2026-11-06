@@ -19,6 +19,11 @@ const config: NextConfig = {
   // Cloudflare compresses for visitors (Zstandard on our plan). When the server gzips first,
   // Cloudflare passes gzip on as it is, about 12% bigger (docs/research/smooth-loading.md, 3.4).
   compress: false,
+  // Back (and a link to a page seen in the last 3 minutes) comes from the browser's memory at once
+  // (smooth loading, docs/setup.md). Next.js 16.4 otherwise refetches a page on Back. Any server
+  // action that revalidates clears the memory; the chat list and a conversation reload their data
+  // when they come back from it (src/components/fresh-on-return.tsx).
+  experimental: { staleTimes: { dynamic: 180 } },
   reactStrictMode: true,
   // `npm run typecheck` (tsc 7) checks types before every build. Next's own check needs the
   // TypeScript 5/6 JavaScript API, which TypeScript 7 doesn't ship.
