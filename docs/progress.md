@@ -2402,3 +2402,11 @@ Owner's approval (Nov 6): "Listings + events", staging first; plan in `docs/rese
   - Purge: test accounts' listings are a 404 for everyone signed out, so the signed-out side was a cached 404 (HIT) before each change and a MISS 4–5 s after it: pause, resume, title edit (old address) and back (the edited address), sold, event pause and resume. The owner's samples (the only public ones) weren't touched.
   - Test data: the sample «آگهی نمونه: درمانی و مراقبتی (Pflege)» (`f76skk43f3`, germany@) is now **sold** (no way back for "sold"); title restored; the sample event is active again.
 - **Production needs:** nothing in Cloudflare (the rule's host condition already includes `peydoo.com`; production's worker already has `CLOUDFLARE_ZONE_ID` and its purge token), no settings, no migration, no seed. The deploy's own purge clears the old copies.
+
+### Production release `dce2c2f`: listing and event pages kept by Cloudflare (Nov 6, 2026)
+
+Owner: "Listings + events", staging first, then production after the checks. Checked by the master session on staging (MISS→HIT 0.13–0.15 s signed out; `DYNAMIC`, `private, no-store` with a session cookie; `?query` bypasses; no personal bits in the shared HTML; seller still sees own buttons).
+
+- **Backup:** `classifieds-backup` on production, snapshot `64fc5764` (14:39 UTC).
+- **Promote:** `peydoo-promote dce2c2f --yes` (from `d1186be`), no migration, no seed, no setting; migrate, web and worker finished at 14:46 UTC.
+- **After:** `/health`, `/`, `/germany/berlin`, `/help`, `/cities`, `/privacy` all 200; a listing MISS then HIT in 0.14 s, `DYNAMIC` with a session cookie; web, worker and migrate logs without errors. Production has no public event yet, so the event page was checked on staging only.
