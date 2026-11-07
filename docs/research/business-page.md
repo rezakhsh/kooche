@@ -278,6 +278,40 @@ Then the reviews (section 7), if approved.
 
 The owner prefers **B «کارت پروفایل»** ("Instagram style, shows how many people follow and how many listings they have") and asked to see the three side by side before deciding; the comparison page has a side-by-side section for that. If B is chosen, its main weakness gets fixed: the address and today's hours go into the card itself, the «همه» tab starts with the menu or price list, and a business without highlights gets an automatic «عکس‌ها» highlight from its photos.
 
+### Owner's decision (Nov 7, 2026, after the side-by-side check): A «ویترین»
+
+"ویترین is better", with **followers visible**. A now has an Instagram-style row of numbers under the facts line: **followers · listings · events** (reviews in place of events when a business has none). Pictures: `shots/a-*.jpg` (renewed).
+
+### How a business adds its menu or prices («منو و قیمت‌ها»)
+
+A new card in the business panel opens `m.html`. The steps, each drawn at phone and computer width, light and dark (`shots/m-<state>-*.jpg`):
+
+| Step | State | What happens |
+| --- | --- | --- |
+| 1 | `panel` | A saffron «منو و قیمت‌ها» card, marked «تازه» (new), at the top of the business panel |
+| 2 | `empty` | First visit: «هنوز منویی ندارید» (you have no menu yet), with two ways in: **from a photo of the menu** or **by hand** |
+| 3 | `kind` | The list type, preset from the business type and changeable: restaurant menu · services with duration · price list · services without prices |
+| 4 | `photo` | Photograph the paper menu or price board (several pages possible). AI reads the rows and groups: «۶ ردیف در ۳ گروه» (6 rows in 3 groups) |
+| 5 | `review` | The draft. Rows whose price wasn't readable are yellow with «قیمت؟» (price?). Nothing is public until «انتشار در صفحه» (publish to page) |
+| 6 | (none) | The list: groups, rows with photo, name, one line and price. A **star** marks «پرطرفدار» (popular), and up to 5 starred rows lead on the page. Saved as you go |
+| 7 | `add` | Add one item: photo (optional), name, one line, price (with «از», "from"), group, popular |
+| 8 | `drag` | Reorder by dragging, also into another group |
+| 9 | `a.html?state=menu` | On the public page: «پرطرفدارهای منو» (popular items) and «همهٔ منو (۲۴)» (full menu, 24) |
+| 10 | `a.html?state=fullmenu` | The whole menu, with group chips |
+
+**Other businesses** (`t.html`, `shots/t-*.jpg`): the same list for everyone; the title, columns and template change with the business type.
+- **Salon:** «خدمات و قیمت‌ها» (services and prices), with duration and price.
+- **Translator:** a price list.
+- **Doctor:** «خدمات» (services) with insurance chips (Kasse, private, none); prices optional.
+- **Lawyer:** «زمینه‌ها و مشاوره» (practice areas and consultation), with areas as chips and a first-consultation price.
+- **Event organiser:** no such section; «رویدادهای پیش رو» (upcoming events) leads instead.
+
+An empty list hides the section on the page.
+
+**Effort** (part of A's ≈ 7 days): reading a menu from a photo adds about 1 day. It uses the AI already used for pre-screening; the owner reviews every row before publishing.
+
+**Video guide:** `/root/peydoo-media/wave2/business-page/video-menu-guide/` holds the numbered pictures (`phone-light/`, `phone-dark/`, `computer-light/`, `computer-dark/`), `steps.md` (Persian steps) and `VIDEO-GUIDE.md` (the brief for the video session). It is not in Git.
+
 ## 6. Comments/reviews: practice
 
 | Site | Who may review | Format | Business reply | Notes |
@@ -375,11 +409,13 @@ The business chat is extra if it is not built for the design first.
 
 ## 9. Mockup sources
 
-- **Pages:** `a.html`, `b.html` and `c.html` in `docs/design-options/business-page/`. They load the approved wave 1 parts from `../mockups/` (`icons.js`, `common.js`, `final/theme.js`, `final/ui.js`, `final/dark.css`), the app's own Vazirmatn font from `src/app/fonts/`, and Tailwind's play CDN.
+- **Pages:** `a.html`, `b.html` and `c.html` in `docs/design-options/business-page/`, plus `m.html` (the menu editor) and `t.html` (the menu for each business type). They load the approved wave 1 parts from `../mockups/` (`icons.js`, `common.js`, `final/theme.js`, `final/ui.js`, `final/dark.css`), the app's own Vazirmatn font from `src/app/fonts/`, and Tailwind's play CDN.
 - **Query options:** `?dark`, and `?state=` with:
   - A: `plain`, `contact`, `gallery`, `rec`;
   - B: `about`, `recs`, `story`;
-  - C: `hours`, `gallery`.
+  - C: `hours`, `gallery`;
+  - A also: `menu`, `fullmenu`;
+  - m: `panel`, `empty`, `kind`, `photo`, `review`, `add`, `drag`.
 - **Render:** `render.mjs` (in the same folder).
   1. Start the container: `docker run -d --name bp-pw -v fa-pw:/pw -e PLAYWRIGHT_BROWSERS_PATH=/pw/browsers -v /root/peydoo-media/wave2/business-page:/m -v /root/classifieds:/repo:ro mcr.microsoft.com/playwright:v1.56.1-noble sleep infinity`
   2. Render: `docker exec -e FULL=1 bp-pw node /repo/docs/design-options/business-page/render.mjs a 'a?state=contact' …`

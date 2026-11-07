@@ -22,6 +22,7 @@ for (const spec of process.argv.slice(2)) {
     await p.evaluate(() => document.fonts.ready);
     await p.waitForTimeout(400);
     if (['about', 'recs'].includes(state) && dev === 'phone') await p.evaluate(() => { const n = document.querySelector('nav.sticky'); scrollTo(0, n.getBoundingClientRect().top + scrollY - 57 - 120); });
+    if (state === 'menu') await p.evaluate(() => { const n = document.getElementById('menu'); scrollTo(0, n.getBoundingClientRect().top + scrollY - (innerWidth < 1024 ? 57 : 65) - 52); });
     await p.waitForTimeout(150);
     const name = `${page}${state ? '-' + state : ''}-${dev}-${theme}`;
     await p.screenshot({ path: `/m/mockup/${name}.jpg`, type: 'jpeg', quality: 80 });

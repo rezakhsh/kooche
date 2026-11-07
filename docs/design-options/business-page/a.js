@@ -1,7 +1,8 @@
 // Design A «ویترین»: a photo cover, one scrolling page with section links that stay on top, a contact
 // bar fixed at the bottom on phones and a sticky contact card beside the page on computers.
 // States: contact (contact sheet), gallery (photo viewer), rec (write a recommendation),
-// plain (a business without photos: a sworn translator; the cover falls back to a pattern).
+// plain (a business without photos: a sworn translator; the cover falls back to a pattern),
+// menu (scrolled to the menu), fullmenu (the whole menu open).
 const plain = STATE === 'plain';
 if (plain) {
   Object.assign(B, {
@@ -17,6 +18,8 @@ if (plain) {
   });
   B.listings.forEach((l) => (l.tileIcon = 'doc'));
 }
+// Instagram-style numbers (owner, Nov 7, 2026: followers visible): followers, listings, and events or reviews
+const STATS = [[B.followers, 'دنبال‌کننده'], [fa(B.listings.length), 'آگهی'], B.events.length ? [fa(B.events.length), 'رویداد'] : [fa(11), 'نظر']];
 const LOGO_PLAIN = `<span class="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl font-black text-brand-800 shadow-md ring-4 ring-white lg:size-28 lg:text-4xl">م</span>`;
 const PATTERN = `<svg class="absolute inset-0 size-full" aria-hidden="true"><defs><linearGradient id="g" x1="1" x2="0"><stop offset="0" stop-color="#095a62"/><stop offset="1" stop-color="#0b6e77"/></linearGradient><pattern id="p" width="44" height="44" patternUnits="userSpaceOnUse"><path d="M22 5l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="1.4"/><circle cx="22" cy="22" r="3" fill="#e9a21a" fill-opacity=".35"/></pattern></defs><rect width="100%" height="100%" fill="url(#g)"/><rect width="100%" height="100%" fill="url(#p)"/></svg>`;
 
@@ -37,10 +40,11 @@ const identity = `<div class="relative px-4 lg:px-0">
   <p class="mt-1 text-[15px] text-neutral-700">${B.tagline}</p>
   <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">${openDot()}<span class="text-neutral-600">${B.place}</span><span class="flex items-center gap-1 font-bold text-green-800">${I('thumbUp', 'size-4')}${B.recPct} پیشنهاد</span></p>
   <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-neutral-600"><span class="flex items-center gap-1">${I('langs', 'size-4')}${B.langs}</span><span class="flex items-center gap-1">${I('bolt', 'size-4')}${B.replyShort}</span></p>
+  <div class="mt-4 grid max-w-md grid-cols-3 rounded-2xl border border-neutral-200 bg-white py-2.5 text-center">${STATS.map(([n, l], i) => `<a class="${i ? 'border-s border-neutral-200' : ''}"><b class="block text-lg font-black leading-6">${n}</b><span class="text-xs text-neutral-600">${l}</span></a>`).join('')}</div>
   <div class="mt-4 grid grid-cols-4 gap-2 lg:hidden">${roundBtn('plus', 'دنبال کردن', 'bg-brand-50 text-brand-800 border border-brand-200')}${roundBtn('route', 'مسیر')}${roundBtn(plain ? 'globe' : 'instagram', plain ? 'وب‌سایت' : 'اینستاگرام')}${roundBtn('share', 'فرستادن')}</div>
 </div>`;
 
-const nav = `<nav class="no-scrollbar sticky top-[57px] z-20 mt-5 flex gap-1 overflow-x-auto border-b border-neutral-200 bg-white/95 px-3 backdrop-blur lg:top-[65px] lg:px-0">${sections.map(([id, l], i) => `<a class="shrink-0 px-2.5 py-3 text-sm ${i === 0 ? 'border-b-2 border-brand-700 font-bold text-brand-800' : 'text-neutral-600'}">${l}</a>`).join('')}</nav>`;
+const nav = `<nav class="no-scrollbar sticky top-[57px] z-20 mt-5 flex gap-1 overflow-x-auto border-b border-neutral-200 bg-white/95 px-3 backdrop-blur lg:top-[65px] lg:px-0">${sections.map(([id, l], i) => `<a class="shrink-0 px-2.5 py-3 text-sm ${(STATE === 'menu' ? id === 'menu' : i === 0) ? 'border-b-2 border-brand-700 font-bold text-brand-800' : 'text-neutral-600'}">${l}</a>`).join('')}</nav>`;
 
 const menuRows = (items) => `<ul class="divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white px-3">${items.map(([n, d, p, k, pop]) => `<li class="flex items-center gap-3 py-3">
   ${k ? `<img src="${img(k)}" alt="" class="size-16 shrink-0 rounded-xl object-cover">` : ''}
@@ -88,4 +92,4 @@ mount(`${header()}
 <main class="mx-auto w-full max-w-6xl pb-28 lg:px-6 lg:pb-12">${cover}
   <div class="lg:grid lg:grid-cols-[1fr_22rem] lg:gap-10"><div class="min-w-0">${identity}${nav}${main}</div>${aside}</div>
 </main>${footer()}${contactBar}
-${STATE === 'contact' ? contactSheet() : ''}${STATE === 'gallery' ? viewer(1) : ''}${STATE === 'rec' ? recSheet() : ''}`);
+${STATE === 'fullmenu' ? sheet(`منوی ${B.name}`, `<div class="no-scrollbar -mx-4 mb-2 flex gap-2 overflow-x-auto px-4">${B.menu.map((c, i) => chip(c.cat, { on: i === 0 })).join('')}</div>${B.menu.map((c) => `<h3 class="mt-3 text-sm font-extrabold text-neutral-600">${c.cat}</h3>${menuRows(c.items)}`).join('')}<p class="mt-3 text-xs text-neutral-600">قیمت‌ها با مالیات. برای سفارش یا رزرو پیام بدهید.</p>`) : ''}${STATE === 'contact' ? contactSheet() : ''}${STATE === 'gallery' ? viewer(1) : ''}${STATE === 'rec' ? recSheet() : ''}`);
