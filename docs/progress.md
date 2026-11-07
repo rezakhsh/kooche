@@ -2444,3 +2444,18 @@ The owner approved the SEO plan (`docs/research/seo.md`, section 5) with "every 
   - `tests/sitemap.test.ts`: site file and business pages.
   - `tests/check-b-people.test.ts`: 16 purge addresses.
 
+
+### Production release `971c7b7`: SEO build, still noindex (Nov 7, 2026)
+
+- **Backup:** `classifieds-backup` on production, snapshot `1c511bd1` (10:35 UTC).
+- **Promote:** `peydoo-promote 971c7b7 --yes` (from `dce2c2f`). It also carries the waitlist reward fix `d522289`, which staging had run since Nov 6. No migration, no seed, no setting. Migrate, web and worker finished at 10:40 UTC.
+- **Checked on staging first:**
+  - curl: one `<h1>` per page, no streamed copy; the new titles; noindex on «به‌زودی» country, waiting city and its founding page; `?foo=1` → 308.
+  - JSON-LD: a service listing has no Product, only BreadcrumbList; a laptop has Product + BreadcrumbList; the event has three image crops and a breadcrumb; the business has LocalBusiness + BreadcrumbList.
+  - The phone photo is 31 KB AVIF.
+  - Headless Chromium, phone 390 and computer 1440: home as a US visitor with the strip, home, Berlin, Berlin real estate, a listing. No errors, no sideways scroll. A tap on a card shows the top line, then the listing. Pictures and the script are in `/root/peydoo-media/seo-build/`. The view-as token was made in the web container and deleted after.
+- **After, on production:**
+  - Every page still sends `X-Robots-Tag: noindex, nofollow`.
+  - `robots.txt` is still the pre-launch Worker's; `/sitemap.xml` and `/indexnow.txt` answer 404.
+  - Pages have one `<h1>` and the new titles; `/health` is 200.
+  - Web and worker logs show no errors.
