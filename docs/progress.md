@@ -2474,6 +2474,12 @@ The owner tested business accounts on staging (phone, dark) and hit four errors 
   - Fixed (`9033625`): `put()` signs first, then sends the plain bytes with `Content-Length`. Test: `tests/storage-put.test.ts`. Checked against R2 from the web container.
   - Document photos over 10 MB are shrunk as above. The owner's unsent upload under `uploads/` goes with the one-day lifecycle rule.
   - The Sentry tokens on this server can't read issues (`sentry-api.env` is org:ci; `sentry-user.env` has no event:read), so the web log was the way in.
+- **Checked on staging** (`386bf67`). Headless Chromium, one browser; test account germany@ with a 2-hour session made in the web container. Business «کسب‌وکار نمونه 3», phone 390 and computer 1440, light and dark. Pictures in `after/`.
+  - Logo: a 4 MB photo and a 38 MB photo → «لوگو آماده است»; save → manage page.
+  - Document: the 38 MB photo → «آماده است»; «درخواست تأیید» → «درخواست تأیید فرستاده شد», status pending, the document stored. Before the fix, the same step gave the error page and a 500 with `storage: PUT failed with 411`.
+  - The stale page (server actions answered as after a deploy): the pickers show «پیدو همین حالا به‌روز شد…» with the reload link. A save from such a page reloads it instead of showing the error page.
+  - The web log has no errors.
+  - Fixed after the check (`aefdc33`): the reload link on its own line; it touched «برداشتن».
 - **Search «پارسیان»:** search covers listings only, and none of the business's listings has the word. Businesses in search is proposal B (owner's yes needed).
-- **Test data:** «کسب‌وکار نمونه 2» (germany@) was set to unverified for the check, then back to verified. Its test document is marked for the daily cleanup. It now has a test logo.
+- **Test data:** «کسب‌وکار نمونه 2» and «کسب‌وکار نمونه 3» (germany@) were set to unverified for the checks, then back to verified. Their test documents are marked for the daily cleanup. Both now have test logos.
 - **Checking sessions:** test sessions were made in the web container and deleted afterwards. Two "sign in as" sessions for the owner's own account, read only, were also opened and closed by the worker within a minute. They left two `staff.acting_ended` audit rows; no email went out, because nothing was writable. An ordinary session for the owner's account was refused by the session's safety check, so the owner's data was read only from the database.
