@@ -3,3 +3,7 @@
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+/** A business's verification document (src/modules/organizations/verification.ts) */
+export const DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
+export const MAX_DOC_BYTES = 10 * 1024 * 1024;

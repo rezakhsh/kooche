@@ -582,6 +582,11 @@ export const messages = {
     helpSub: 'یا با ما تماس بگیرید',
   },
   // When a page breaks completely (src/app/global-error.tsx)
+  // A page opened before a deploy (src/lib/stale-page.ts)
+  stalePage: {
+    text: 'پیدو همین حالا به‌روز شد. این صفحه را دوباره باز کنید و دوباره امتحان کنید.',
+    reload: 'باز کردن دوبارهٔ صفحه',
+  },
   globalError: {
     title: 'مشکلی پیش آمد',
     body: 'این صفحه درست باز نشد. خطا برای ما ثبت شد. دوباره امتحان کنید یا به صفحه اصلی بروید.',

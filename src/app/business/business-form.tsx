@@ -6,7 +6,9 @@ import { MapPinField } from '../../components/map-pin-field';
 import { PlaceField, type PlaceFieldValue } from '../../components/place-field';
 import { Alert } from '../../components/ui';
 import { fieldDir } from '../../lib/field-dir';
+import { isStalePage } from '../../lib/stale-page';
 import { messages } from '../../messages/fa';
+import { createShrinker } from '../../modules/media/shrink-client';
 import { suggestSlug } from '../../modules/organizations/slug';
 import { logoUploadAction } from './actions';
 import { needsRepresentative } from '../../modules/organizations/legal-forms';
@@ -77,15 +79,20 @@ function TextField({ name, label, v, f, optional = false, ltr = false, hint, ...
 function LogoPicker({ current, initialKey, onBusy }: { current: string | null; initialKey: string; onBusy: (busy: boolean) => void }) {
   const [preview, setPreview] = useState<string | null>(current);
   const [key, setKey] = useState(initialKey);
-  const [state, setState] = useState<'idle' | 'uploading' | 'ready' | 'failed'>(initialKey ? 'ready' : 'idle');
+  const [state, setState] = useState<'idle' | 'uploading' | 'ready' | 'failed' | 'stale'>(initialKey ? 'ready' : 'idle');
   const [removed, setRemoved] = useState(false);
-  async function pick(file: File | undefined) {
-    if (!file) return;
+  async function pick(original: File | undefined) {
+    if (!original) return;
     setState('uploading');
     onBusy(true);
-    const local = URL.createObjectURL(file);
+    const local = URL.createObjectURL(original);
     setPreview(local);
+    // A phone photo over 15 MB (50–200 MP cameras) or of another type the browser can read goes
+    // through the listing photos' shrinker first (src/modules/media/shrink.ts); the worker makes
+    // the 512 px logo from it anyway
+    const shrinker = createShrinker();
     try {
+      const file = await shrinker.shrink(original);
       const ticket = await logoUploadAction(file.type, file.size);
       if (!ticket.ok) throw new Error('refused');
       const res = await fetch(ticket.url, { method: 'PUT', body: file, headers: ticket.headers });
@@ -93,11 +100,12 @@ function LogoPicker({ current, initialKey, onBusy }: { current: string | null; i
       setKey(ticket.key);
       setRemoved(false);
       setState('ready');
-    } catch {
+    } catch (e) {
       setPreview(current);
       setKey('');
-      setState('failed');
+      setState(isStalePage(e) ? 'stale' : 'failed');
     } finally {
+      shrinker.close();
       onBusy(false);
     }
   }
@@ -119,7 +127,12 @@ function LogoPicker({ current, initialKey, onBusy }: { current: string | null; i
         <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label={preview && !removed ? w.logoChange : w.logo} onChange={(e) => void pick(e.target.files?.[0])} />
       </label>
       <div className="min-w-0 text-xs leading-6">
-        <p className={state === 'failed' ? 'text-red-700' : 'text-neutral-600'}>{state === 'failed' ? w.logoFailed : state === 'ready' ? w.logoReady : w.logoHint}</p>
+        <p className={state === 'failed' || state === 'stale' ? 'text-red-700' : 'text-neutral-600'}>{state === 'failed' ? w.logoFailed : state === 'stale' ? messages.stalePage.text : state === 'ready' ? w.logoReady : w.logoHint}</p>
+        {state === 'stale' && (
+          <button type="button" onClick={() => window.location.reload()} className="font-bold text-brand-800 underline">
+            {messages.stalePage.reload}
+          </button>
+        )}
         {preview && !removed && state !== 'uploading' && (
           <button
             type="button"

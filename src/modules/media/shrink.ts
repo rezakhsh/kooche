@@ -27,10 +27,17 @@ function accepted(type: string): boolean {
   return (ACCEPTED_TYPES as readonly string[]).includes(type);
 }
 
-/** Whether the server would take this file as it is */
-export function uploadable(file: { type: string; size: number }): boolean {
-  return accepted(file.type) && file.size > 0 && file.size <= MAX_UPLOAD_BYTES;
+/** Whether the server would take this file as it is (a verification document: up to 10 MB) */
+export function uploadable(file: { type: string; size: number }, maxBytes = MAX_UPLOAD_BYTES): boolean {
+  return accepted(file.type) && file.size > 0 && file.size <= maxBytes;
 }
+
+/**
+ * Where the shrunk file goes. A listing photo or a logo takes WebP or JPEG up to 15 MB; a
+ * verification document only JPEG (or the PDF or PNG as it is) up to 10 MB
+ * (src/modules/organizations/verification.ts), so a document photo is shrunk to JPEG only.
+ */
+export type ShrinkTarget = { jpegOnly?: boolean; maxBytes?: number };
 
 /**
  * 'keep' when the photo is already small, within 2560 px and of a type the server takes;
@@ -66,12 +73,15 @@ export type ImageOps<B> = {
 };
 
 /** The smaller photo, or null to send the original. Throws when decoding or drawing fails. */
-export async function shrinkWith<B>(file: Blob, ops: ImageOps<B>): Promise<Blob | null> {
+export async function shrinkWith<B>(file: Blob, ops: ImageOps<B>, to: ShrinkTarget = {}): Promise<Blob | null> {
+  // A PNG never becomes JPEG (transparency), so a PNG document goes as it is
+  const types = to.jpegOnly ? (file.type === 'image/png' ? [] : [JPEG]) : encodeTypes(file.type);
+  if (types.length === 0) return null;
   const { bitmap, width, height } = await ops.decode(file);
   try {
     const target = shrinkDecision({ width, height, size: file.size, type: file.type });
     if (target === 'keep') return null;
-    for (const type of encodeTypes(file.type)) {
+    for (const type of types) {
       const blob = await ops.draw(bitmap, target, type, SHRINK_QUALITY);
       if (blob.type === type && blob.size > 0) return blob;
       if (type === WEBP) webpFails = true;
@@ -89,16 +99,16 @@ export type ShrinkRunner = (file: File) => Promise<Blob | null>;
  * The file to upload: the smaller photo, or the original whenever shrinking fails, takes longer
  * than 20 seconds or doesn't help. Never throws.
  */
-export async function shrinkPhoto(file: File, run: ShrinkRunner, timeoutMs = SHRINK_TIMEOUT_MS): Promise<File> {
+export async function shrinkPhoto(file: File, run: ShrinkRunner, timeoutMs = SHRINK_TIMEOUT_MS, maxBytes = MAX_UPLOAD_BYTES): Promise<File> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const timeout = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), timeoutMs);
     });
     const blob = await Promise.race([run(file), timeout]);
-    if (!blob || (blob.type !== WEBP && blob.type !== JPEG) || !uploadable(blob)) return file;
+    if (!blob || (blob.type !== WEBP && blob.type !== JPEG) || !uploadable(blob, maxBytes)) return file;
     // Not smaller: the original is better, unless the server wouldn't take it (HEIC, over 15 MB)
-    if (blob.size >= file.size && uploadable(file)) return file;
+    if (blob.size >= file.size && uploadable(file, maxBytes)) return file;
     const ext = blob.type === WEBP ? 'webp' : 'jpg';
     return new File([blob], `${file.name.replace(/\.[^./]*$/, '') || 'photo'}.${ext}`, { type: blob.type });
   } catch {

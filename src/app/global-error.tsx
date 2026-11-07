@@ -2,15 +2,20 @@
 
 import { useEffect } from 'react';
 import { reportBrowserError } from '../lib/monitoring/browser';
+import { isStalePage, reloadStalePage } from '../lib/stale-page';
 import { messages } from '../messages/fa';
 import './globals.css';
 
 // Shown when the root layout itself breaks; replaces Next's built-in page (English, inline styles
 // the CSP blocks). A server error is reported on the server (its digest is skipped here), a
-// browser error through the monitoring tunnel.
+// browser error through the monitoring tunnel. A form sent from a page opened before a deploy
+// (its server action no longer exists, src/lib/stale-page.ts) loads the page again instead, once.
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const t = messages.globalError;
-  useEffect(() => reportBrowserError(error, 'react.global-error'), [error]);
+  useEffect(() => {
+    if (isStalePage(error) && reloadStalePage()) return;
+    reportBrowserError(error, 'react.global-error');
+  }, [error]);
   return (
     <html lang="fa" dir="rtl">
       <body className="bg-white font-sans text-neutral-900 antialiased">

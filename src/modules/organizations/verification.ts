@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 import type { Db, Queryable } from '../../db/drizzle';
 import { auditLog, organizations } from '../../db/schema';
+import { DOC_TYPES, MAX_DOC_BYTES } from '../media/limits';
 import type { ObjectStorage, PresignedPut } from '../media/storage';
 import { canPostListing, loadActor } from '../users/permissions';
 import { queueBusinessNotice } from './notices';
@@ -18,8 +19,7 @@ import { legalComplete, VERIFICATION_DOC_KEEP_DAYS } from './organizations';
 // private key under verification/ that nothing serves publicly (staff read it through the admin
 // page), and deleted 7 days after the decision. Peydoo keeps no ID copies.
 
-export const DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
-export const MAX_DOC_BYTES = 10 * 1024 * 1024;
+export { DOC_TYPES, MAX_DOC_BYTES };
 export const DOC_KEEP_DAYS = VERIFICATION_DOC_KEEP_DAYS;
 const UPLOAD_URL_SECONDS = 300;
 

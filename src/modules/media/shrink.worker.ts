@@ -1,4 +1,4 @@
-import { shrinkWith, type ImageOps } from './shrink';
+import { shrinkWith, type ImageOps, type ShrinkTarget } from './shrink';
 
 // The Web Worker that shrinks photos off the page (./shrink.ts), so a large photo doesn't freeze
 // the form. Started by ./shrink-client.ts; same origin, allowed by `worker-src 'self'` in the CSP.
@@ -24,11 +24,11 @@ const ops: ImageOps<ImageBitmap> = {
   close: (bitmap) => bitmap.close(),
 };
 
-self.onmessage = async (event: MessageEvent<{ id: number; file: File }>) => {
-  const { id, file } = event.data;
+self.onmessage = async (event: MessageEvent<{ id: number; file: File; to?: ShrinkTarget }>) => {
+  const { id, file, to } = event.data;
   let blob: Blob | null = null;
   try {
-    blob = await shrinkWith(file, ops);
+    blob = await shrinkWith(file, ops, to);
   } catch {
     // Can't decode or too little memory: the page sends the original
   }

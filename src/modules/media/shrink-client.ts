@@ -1,4 +1,5 @@
-import { shrinkPhoto, shrinkWith, type ImageOps } from './shrink';
+import { MAX_UPLOAD_BYTES } from './limits';
+import { shrinkPhoto, shrinkWith, type ImageOps, type ShrinkTarget } from './shrink';
 
 // Shrinking in the browser (./shrink.ts): in a Web Worker on an OffscreenCanvas where the browser
 // has both, else on the page with a <canvas> (Safari before 16.4). Without createImageBitmap,
@@ -35,8 +36,8 @@ const pageOps: ImageOps<ImageBitmap> = {
 
 export type Shrinker = { shrink(file: File): Promise<File>; close(): void };
 
-/** One shrinker per batch of photos; close() stops its worker */
-export function createShrinker(): Shrinker {
+/** One shrinker per batch of photos; close() stops its worker. `to`: a verification document's limits */
+export function createShrinker(to: ShrinkTarget = {}): Shrinker {
   if (typeof createImageBitmap !== 'function') return { shrink: async (file) => file, close() {} };
   const workerSupported = typeof Worker === 'function' && typeof OffscreenCanvas === 'function';
 
@@ -50,7 +51,7 @@ export function createShrinker(): Shrinker {
   function stopWorker() {
     worker?.terminate();
     worker = null;
-    for (const job of pending.values()) job.resolve(usePage ? shrinkWith(job.file, pageOps) : null);
+    for (const job of pending.values()) job.resolve(usePage ? shrinkWith(job.file, pageOps, to) : null);
     pending.clear();
   }
 
@@ -76,19 +77,19 @@ export function createShrinker(): Shrinker {
       worker ??= startWorker();
     } catch {
       usePage = true;
-      return shrinkWith(file, pageOps);
+      return shrinkWith(file, pageOps, to);
     }
     const id = nextId++;
     const w = worker;
     return new Promise((resolve) => {
       pending.set(id, { file, resolve });
-      w.postMessage({ id, file });
+      w.postMessage({ id, file, to });
     });
   }
 
   return {
     async shrink(file) {
-      const result = await shrinkPhoto(file, (f) => (usePage ? shrinkWith(f, pageOps) : inWorker(f)));
+      const result = await shrinkPhoto(file, (f) => (usePage ? shrinkWith(f, pageOps, to) : inWorker(f)), undefined, to.maxBytes ?? MAX_UPLOAD_BYTES);
       // Timed out with the worker still busy: start a fresh one for the next photo
       if (pending.size > 0 && result === file) stopWorker();
       return result;

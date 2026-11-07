@@ -150,6 +150,42 @@ describe('every failure sends the original', () => {
   });
 });
 
+// Logos and verification documents use the same shrinker (business fixes, Nov 7, 2026): the logo
+// as a listing photo, a document photo only as JPEG and within 10 MB
+describe('a verification document photo', () => {
+  const DOC = { jpegOnly: true, maxBytes: 10 * MB };
+
+  it('becomes a JPEG, never WebP', async () => {
+    const fake = fakeOps({ width: 8160, height: 6120 }, (type) => new Blob([new Uint8Array(1_200_000)], { type }));
+    const blob = await shrinkWith(photo(22 * MB), fake.ops, DOC);
+    expect(blob?.type).toBe('image/jpeg');
+    expect(fake.drawn).toEqual([{ size: { width: 2560, height: 1920 }, type: 'image/jpeg', quality: 0.85 }]);
+  });
+
+  it('a PNG document goes as it is, without even decoding it', async () => {
+    const fake = fakeOps({ width: 3000, height: 4000 }, (type) => new Blob([new Uint8Array(1000)], { type }));
+    expect(await shrinkWith(photo(12 * MB, 'image/png', 'scan.png'), fake.ops, DOC)).toBeNull();
+    expect(fake.drawn).toEqual([]);
+    expect(fake.closed()).toBe(0);
+  });
+
+  it('a copy over 10 MB is no use: the original goes and the server says why; a smaller copy replaces it', async () => {
+    const original = photo(11 * MB);
+    const out = await shrinkPhoto(original, async () => new Blob([new Uint8Array(11.5 * MB)], { type: 'image/jpeg' }), undefined, 10 * MB);
+    expect(out).toBe(original);
+    const smaller = await shrinkPhoto(original, async () => new Blob([new Uint8Array(2 * MB)], { type: 'image/jpeg' }), undefined, 10 * MB);
+    expect(smaller.type).toBe('image/jpeg');
+    expect(smaller.size).toBe(2 * MB);
+  });
+
+  it('a 12 MB JPEG (fine as a photo, too big as a document) is replaced by its 9 MB copy', async () => {
+    const original = photo(12 * MB);
+    const copy = await shrinkPhoto(original, async () => new Blob([new Uint8Array(9 * MB)], { type: 'image/jpeg' }), undefined, 10 * MB);
+    expect(copy).not.toBe(original);
+    expect(copy.size).toBe(9 * MB);
+  });
+});
+
 describe('the CSP lets the photo worker in', () => {
   it("allows workers from our own origin only, not blob: or data:", () => {
     const csp = contentSecurityPolicy('bm9uY2U=', { IMAGE_URL: undefined, S3_ENDPOINT: undefined });
