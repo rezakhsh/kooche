@@ -29,7 +29,7 @@ export type S3Config = {
 
 export class ObjectTooLargeError extends Error {}
 
-export function s3Storage(config: S3Config): ObjectStorage {
+export function s3Storage(config: S3Config, fetchFn: typeof fetch = (input, init) => fetch(input, init)): ObjectStorage {
   const client = new AwsClient({
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
@@ -65,11 +65,20 @@ export function s3Storage(config: S3Config): ObjectStorage {
       return body;
     },
     async put(key, body, contentType) {
-      const res = await client.fetch(url(key), {
+      // Signed first, then sent as plain bytes. aws4fetch's own fetch sends a Request object, and
+      // inside Next.js's server (which wraps fetch) such a Request's body went out without a
+      // length: R2 answered 411 and «درخواست تأیید» crashed for any document over a few KB
+      // (staging, Nov 7, 2026). The worker never had the problem.
+      const bytes = new Uint8Array(body);
+      const signed = await client.sign(url(key), {
         method: 'PUT',
-        body: new Uint8Array(body),
+        body: bytes,
         headers: { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable' },
       });
+      const headers = new Headers(signed.headers);
+      headers.set('Content-Length', String(bytes.byteLength));
+      const res = await fetchFn(signed.url, { method: 'PUT', headers, body: bytes, cache: 'no-store' });
+      await res.body?.cancel();
       if (!res.ok) throw new Error(`storage: PUT failed with ${res.status}`);
     },
     async delete(key) {
