@@ -2469,13 +2469,11 @@ The owner tested business accounts on staging (phone, dark) and hit four errors 
   - Fixed (`cbf860b`): the logo goes through the listing photos' shrinker. A verification photo becomes a JPEG within 10 MB (PDF and PNG go as they are).
   - A page older than the build now says «پیدو همین حالا به‌روز شد…» with a reload button (`src/lib/stale-page.ts`). The error page reloads such a page once by itself.
   - Tests: `tests/photo-shrink.test.ts`.
-- **Error page on `/b/taskpilot/manage`:** a server error at about 10:28 UTC, while this server built a staging deploy's image. The owner's document had uploaded (10:27:38) but «درخواست تأیید» never completed. Not reproducible afterwards:
-  - every value the page computes for taskpilot works;
-  - the same steps with a test business work;
-  - `submitVerification` with a test upload works.
-  
-  The Sentry tokens on this server can't read issues (`sentry-api.env` is org:ci, `sentry-user.env` has no event:read), so the exact error is still unknown. It is in Sentry and in the Telegram «🐞 staging» alert from 11:28 Berlin time.
-- **Verification upload:** for the owner, the upload itself worked (the submit was the error above); document photos over 10 MB are fixed as above. The owner's unsent upload under `uploads/` goes with the one-day lifecycle rule.
+- **Error page on `/b/taskpilot/manage`** (and the verification that "fails"): «درخواست تأیید» copies the upload into private storage from the web server, and R2 answered 411 Length Required. Inside Next.js's server the signed `Request` that aws4fetch builds lost its body length, so every document over a few KB failed; a 10 KB test file passed. The worker's writes (logos, photos) never had the problem.
+  - Reproduced on staging with a test business; the web log showed `storage: PUT failed with 411`.
+  - Fixed (`9033625`): `put()` signs first, then sends the plain bytes with `Content-Length`. Test: `tests/storage-put.test.ts`. Checked against R2 from the web container.
+  - Document photos over 10 MB are shrunk as above. The owner's unsent upload under `uploads/` goes with the one-day lifecycle rule.
+  - The Sentry tokens on this server can't read issues (`sentry-api.env` is org:ci; `sentry-user.env` has no event:read), so the web log was the way in.
 - **Search «پارسیان»:** search covers listings only, and none of the business's listings has the word. Businesses in search is proposal B (owner's yes needed).
 - **Test data:** «کسب‌وکار نمونه 2» (germany@) was set to unverified for the check, then back to verified. Its test document is marked for the daily cleanup. It now has a test logo.
 - **Checking sessions:** test sessions were made in the web container and deleted afterwards. Two "sign in as" sessions for the owner's own account, read only, were also opened and closed by the worker within a minute. They left two `staff.acting_ended` audit rows; no email went out, because nothing was writable. An ordinary session for the owner's account was refused by the session's safety check, so the owner's data was read only from the database.
