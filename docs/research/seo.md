@@ -220,7 +220,7 @@ Win the **Persian** searches in Berlin that nobody owns well: rooms and flats (�
   - The listing's main photo at 800 px on phones.
 - **6, gone listings:** 404 (not 410: Google treats them alike, and Next.js can't send 410 from a page) 30 days after a listing is sold or expired, or an event's last date ended; the seller still sees it.
 - **7, IndexNow:** built in the worker; it stays off until `SEARCH_INDEXING=on` and `INDEXNOW_KEY` are both set (docs/setup.md, "Go-live").
-- **10, permanent redirects:** not done. None of the stored Cloudflare tokens may edit redirect rules; the owner adds the rule (section 6).
+- **10, permanent redirects:** done Nov 7, 2026, after the owner gave the Cloudflare token Single Redirect › Edit: `www` and `http` → `https://peydoo.com` as 301 in one hop, the Let's Encrypt path left alone (docs/setup.md, "Cloudflare for production").
 - **8, seasonal pages, and 9, businesses by kind:** not started; 8 is needed by about Dec 1 for Yalda.
 
 
@@ -245,7 +245,6 @@ Go-live itself stays as written in `docs/setup.md` ("Go-live" step 2 and 5); add
 
 ## 6. What only the owner does
 
-- **Permanent redirects (step 10), in the Cloudflare dashboard** (2 minutes; no stored token may do it): peydoo.com › Rules › Redirect Rules › Create rule, "Custom filter expression", edit expression: `(http.host eq "www.peydoo.com" or (http.host eq "peydoo.com" and not ssl)) and not starts_with(http.request.uri.path, "/.well-known/acme-challenge/")`; then URL redirect, Dynamic, expression `concat("https://peydoo.com", http.request.uri.path)`, status 301, "Preserve query string" on; Deploy. Or give the Cloudflare token "Dynamic URL Redirects: Edit" on peydoo.com and Claude adds it.
 - **Decide:** approve the build plan (or parts of it); the home page change in step 1; and whether go-live can happen by about **Dec 1** so Google has time before Yalda.
 - **Google Search Console** at go-live: add `peydoo.com` as a **domain property** (verified with a DNS TXT record in Cloudflare; Claude can add the record with the owner's go), submit `https://peydoo.com/sitemap.xml`, and give Claude read access if you want weekly reports (a Search Console user with "Restricted" permission).
 - **Bing Webmaster Tools:** sign in, "Import from Google Search Console" (takes the site and sitemaps, no second verification).

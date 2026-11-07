@@ -2459,3 +2459,4 @@ The owner approved the SEO plan (`docs/research/seo.md`, section 5) with "every 
   - `robots.txt` is still the pre-launch Worker's; `/sitemap.xml` and `/indexnow.txt` answer 404.
   - Pages have one `<h1>` and the new titles; `/health` is 200.
   - Web and worker logs show no errors.
+- **Step 10, permanent redirects (later the same day):** the owner added Zone › Single Redirect › Edit to the Cloudflare token. A Single Redirect rule now sends `www.peydoo.com` and `http://peydoo.com` to `https://peydoo.com` as a 301, keeping the path and query, in one hop. The Let's Encrypt path is untouched (`docs/setup.md`, "Cloudflare for production"). Checked with curl.
