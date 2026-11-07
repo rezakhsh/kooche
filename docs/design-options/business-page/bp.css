@@ -1,0 +1,22 @@
+/* Business page proposals: the font (the app's own file) and a few dark tokens dark.css doesn't cover */
+@font-face { font-family: Vazirmatn; src: url(../../../src/app/fonts/Vazirmatn-subset.woff2) format('woff2'); font-weight: 100 900; font-display: block; }
+html { -webkit-font-smoothing: antialiased; }
+body { font-family: Vazirmatn, sans-serif; }
+.no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+html.dark .ring-white { --tw-ring-color: #0f1716; }
+html.dark .bg-neutral-50 { background-color: #1b2826; }
+html.dark .border-neutral-100 { border-color: #24302e; }
+html.dark .bg-saffron-50 { background-color: #2e2512; }
+html.dark .border-saffron-300 { border-color: #6b5320; }
+html.dark .bg-green-600 { background-color: #4cc477; }
+html.dark .text-green-800 { color: #7fd69b; }
+html.dark .dark-map { background-color: #1d2a28; }
+html.dark .dark-map svg g { stroke: #2f3f3c; }
+html.dark .dark-map svg path[fill] { fill: #1f3a2c; }
+html.dark .fill-white { fill: #0f1716; }
+html.dark .bg-white\/95 { background-color: rgb(22 33 31 / 0.95); }
+html.dark .from-white { --tw-gradient-from: #0f1716 var(--tw-gradient-from-position); --tw-gradient-to: rgb(15 23 22 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.dark .via-white { --tw-gradient-to: rgb(15 23 22 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), #0f1716 var(--tw-gradient-via-position), var(--tw-gradient-to); }
+html.dark .from-brand-50 { --tw-gradient-from: #123234 var(--tw-gradient-from-position); --tw-gradient-to: rgb(18 50 52 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.dark .bg-brand-100 { background-color: #164044; }
+html.dark .shadow-md { --tw-shadow-color: rgb(0 0 0 / 0.5); }
