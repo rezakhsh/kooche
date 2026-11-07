@@ -6,6 +6,7 @@ This is research and mockups only. No app code changed.
 
 - **Mockups:** `docs/design-options/business-page/` (`a.html`, `b.html`, `c.html`, shared `bp.js` and `bp.css`).
 - **Pictures:** `docs/design-options/business-page/shots/`.
+- **Comparison page for the owner:** https://claude.ai/artifact/LVBEtUST4pivxyEnLEtXxP (side by side, open states, reviews).
 - **Copies of every picture:** `/root/peydoo-media/wave2/business-page/` (`mockup/`, `staging/`, `today/`, `research/`).
 
 "Judgment" marks a conclusion of ours, not a documented fact.
@@ -21,11 +22,11 @@ This is research and mockups only. No app code changed.
   - It is the closest to what Yelp, Google Maps, Etsy and Doctolib do.
 - **Reviews: yes, as «پیشنهاد می‌کنم / نمی‌کنم» (recommend or not) plus a few words. No stars.**
   - Only people who had a real chat with the business on Peydoo can review.
+- Every business, doctors and lawyers included (owner's decision, Nov 7).
   - The business can reply once, in public.
   - Anyone can report a review.
   - A short note next to the reviews says how we make sure they are real. German law (UWG §5b(3)) asks for this note.
   - Reviews show only once a page has 3 of them.
-  - Doctors and lawyers are left out at launch.
   - This is how Facebook (since 2018) and Kleinanzeigen (ratings only after a chat) work. The chat log answers the German courts' "this person was never my customer" test from our own records.
   - Effort: about 6–8 working days, including the legal texts and tests.
 
@@ -273,6 +274,10 @@ Each picture comes at phone (390 px) and computer (1280 px) width, in light and 
 
 Then the reviews (section 7), if approved.
 
+### Owner's feedback (Nov 7, 2026)
+
+The owner prefers **B «کارت پروفایل»** ("Instagram style, shows how many people follow and how many listings they have") and asked to see the three side by side before deciding; the comparison page has a side-by-side section for that. If B is chosen, its main weakness gets fixed: the address and today's hours go into the card itself, the «همه» tab starts with the menu or price list, and a business without highlights gets an automatic «عکس‌ها» highlight from its photos.
+
 ## 6. Comments/reviews: practice
 
 | Site | Who may review | Format | Business reply | Notes |
@@ -319,7 +324,7 @@ Then the reviews (section 7), if approved.
   - **Opinions are protected:** "rude", "too expensive", "not recommended". False facts must be removed once disputed and not proven ("they never delivered", "unlicensed"), and so must pure insults (Schmähkritik).
   - Rule of thumb for moderation: **opinions need contact, facts need proof.**
 - **Privacy and names.** Show first name and initial. Pseudonymous use is protected (§19 TDDDG), and a reviewed doctor has no right to the reviewer's identity (BGH VI ZR 345/13). The privacy policy names legitimate interest. The business never sees chat contents through the review process.
-- **Doctors and health (HWG §11, confidentiality).** Hosting neutral user reviews is not the doctor's advertising. But a doctor's public reply can break medical confidentiality, and Doctolib keeps reviews out entirely. **We leave health and legal professions out at launch:** their pages show the verified licence instead.
+- **Doctors and health (HWG §11, confidentiality).** Hosting neutral user reviews is not the doctor's advertising. But a doctor's public reply can break medical confidentiality, and Doctolib keeps reviews out entirely. We suggested leaving health and legal professions out at launch; **the owner decided to include them** (section 8, rule 9, with the extra safeguards there).
 - **Neutrality (Jameda 2018).** Paid plans never change which reviews show or in what order, and a business page never shows rivals' ads.
 - **Turkey** (for later): reviews only from real buyers, negatives must be published ([Dünya](https://www.dunya.com/ekonomi/ticaret-bakanligi-acikladi-sahte-yorumlara-yaptirim-uygulanacak-haberi-842114)). The chat gate is the minimum and already fits.
 - **US** (for later): the FTC fake-review rule (from 21 Oct 2024) bans fake, bought and suppressed reviews ([Federal Register](https://www.govinfo.gov/content/pkg/FR-2024-08-22/html/2024-18519.htm)).
@@ -352,7 +357,7 @@ Then the reviews (section 7), if approved.
    - **"Not a customer":** we check our own chat log and answer «گفتگو در تاریخ … ثبت شده» (a chat was recorded on …), without names.
    - **A disputed fact:** the reviewer has 14 days to give proof, which we pass on with their identity hidden. Without proof, the review is removed.
    - Both sides are told why (DSA Art. 17). Everything goes into the audit log.
-9. **Not at launch:** doctors, therapists, lawyers and other licensed health or legal professions (their page shows the verified licence instead), and businesses in Turkey until KVKK (Turkey's data protection law) is done.
+9. **Every business, doctors and lawyers included** (owner's decision, Nov 7, 2026: "I want comments for every business including doctors and lawyers"; we had suggested leaving them out at launch). Two extra safeguards for health and legal professions: when they reply, a reminder says not to mention the person's illness or case (professional secrecy, §203 StGB), and the AI pre-screen holds reviews and replies that contain health or case details for the moderator. Businesses in Turkey wait until KVKK (Turkey's data protection law) is done.
 10. **Never:** businesses reviewing themselves or rivals, rewards for reviews, asking only happy customers, or paid plans changing the order of reviews.
 
 **What it needs underneath:** a **business chat** that isn't tied to a listing. The designs need this for the message button anyway. Today every chat belongs to a listing (wave 1, like Kleinanzeigen). Chats about any of the business's listings count too.
