@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -7,6 +8,7 @@ import { SearchBox } from '../components/search-box';
 import { SectionTitle } from '../components/section-title';
 import { Sheet } from '../components/sheet';
 import { appDb } from '../db/drizzle';
+import { webEnv } from '../lib/env';
 import { visitorCountry } from '../lib/client-ip';
 import { messages } from '../messages/fa';
 import { countryByCode, isPlanned, isStarter, soonCountries } from '../modules/launch/country-page';
@@ -35,6 +37,13 @@ import { cityFoundingPlaces } from '../modules/payments/founding';
 // Wave 2 part 8: a visitor from a planned country that isn't open sees its «پیدو به‌زودی» page
 // (mockup final/home-waitlist), and one from a country in its starter weeks its starter page;
 // a visitor who chose a planned country before goes back to its page.
+// SEO (docs/research/seo.md, step 1, approved Nov 7, 2026): the home page is the same for every
+// visitor. One from a planned country (and Googlebot, which crawls from the US) gets the open
+// country's page with a strip on top, «پیدو به‌زودی در آمریکا — در فهرست انتظار بنویسید», linking
+// to that country's «به‌زودی» page. Before, they got that page itself, so Google would have
+// indexed a waitlist page as Peydoo's home.
+
+export const metadata: Metadata = { alternates: { canonical: '/' } };
 
 const TRUST_ICONS: IconName[] = ['shield', 'chat', 'plus'];
 
@@ -56,8 +65,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     redirect(`${browsePath(countries[0].slug, city?.slug ?? null, null)}${withRef('', ref)}`);
   }
   const mine = here ? await countryByCode(db, here) : null;
-  if (mine && mine.mode !== 'open' && (await isPlanned(db, mine))) return <CountrySoon country={mine} detected />;
-  if (countries.length === 0) return <CountryChooser here={here} />;
+  const soon = mine && mine.mode !== 'open' && (await isPlanned(db, mine)) ? mine : null;
+  if (countries.length === 0) return soon ? <CountrySoon country={soon} detected /> : <CountryChooser here={here} />;
 
   const detected = countries.find((c) => c.code === here) ?? null;
   const country = detected ?? countries[0]!;
@@ -68,9 +77,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   // The founding offer of the first open city, with its places left
   const firstOpen = cities.find((c) => c.status === 'open') ?? null;
   const founding = firstOpen ? await cityFoundingPlaces(db, firstOpen.id) : null;
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <main data-soft-page>
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd()).replace(/</g, '\\u003c') }} />
+      {soon && <SoonStrip country={soon} />}
       <section className="bg-gradient-to-b from-brand-50 to-white px-4 pt-7 pb-6 sm:px-6 lg:pt-14 lg:pb-10">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-[1.75rem] font-black leading-[1.45] text-balance lg:text-5xl lg:leading-[1.3]">{t.title}</h1>
@@ -162,6 +174,32 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </Link>
       </div>
     </main>
+  );
+}
+
+/** Who Peydoo is and its site search, for Google's site name and search box (home page only) */
+function siteJsonLd() {
+  const url = webEnv().APP_URL;
+  return [
+    { '@context': 'https://schema.org', '@type': 'Organization', '@id': `${url}/#organization`, name: messages.site.name, url: `${url}/`, logo: `${url}/icon.png` },
+    { '@context': 'https://schema.org', '@type': 'WebSite', '@id': `${url}/#website`, name: messages.site.name, url: `${url}/`, inLanguage: 'fa', publisher: { '@id': `${url}/#organization` } },
+  ];
+}
+
+/** «پیدو به‌زودی در آمریکا — در فهرست انتظار بنویسید», for a visitor from a planned country */
+function SoonStrip({ country }: { country: { slug: string | null; code: string; nameFa: string; opensOn: string | null } }) {
+  const t = messages.countryPage;
+  return (
+    <Link href={`/${country.slug}`} className="block border-b border-saffron-100 bg-saffron-50 px-4 hover:bg-saffron-100 sm:px-6">
+      <span className="mx-auto flex min-h-11 max-w-3xl items-center gap-2.5 py-2 text-sm leading-6">
+        <Flag code={country.code} className="h-3.5 w-5 shrink-0" />
+        <span className="flex-1">
+          <b>{country.opensOn ? t.titleOn(country.nameFa, openingDay(country.opensOn, true)) : t.title(country.nameFa)}</b>
+          <span className="text-saffron-800"> — {messages.home.soonStrip}</span>
+        </span>
+        <Icon name="chevronEnd" className="size-4 shrink-0 text-saffron-800" />
+      </span>
+    </Link>
   );
 }
 

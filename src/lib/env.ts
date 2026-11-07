@@ -53,6 +53,16 @@ function isLocal(url: string): boolean {
 }
 const hex = z.string().regex(/^([0-9a-f]{2}){16,}$/, 'hex, at least 16 bytes');
 
+// Search engines (docs/setup.md, "Browsing and favorites", SEO): `off` sends X-Robots-Tag: noindex
+// on every page, so search engines skip staging and test data. Set to `on` in production only.
+// With it on and INDEXNOW_KEY set, the worker tells Bing and the others of IndexNow when a public
+// page is published, changed or gone (src/modules/search/indexnow.ts), and the web serves the key
+// at /indexnow.txt. The same key on web and worker; unset: no IndexNow.
+const indexingFields = {
+  SEARCH_INDEXING: z.enum(['on', 'off']).default('off'),
+  INDEXNOW_KEY: optional(z.string().regex(/^[a-zA-Z0-9-]{8,128}$/, '8 to 128 letters, digits and dashes')),
+};
+
 // Stripe (docs/setup.md, "Payments"): a secret or restricted key. Test-mode keys on staging; a
 // live key only with PAYMENTS_LIVE=on, which only production sets (at launch). Unset in
 // development: payments are switched off.
@@ -110,9 +120,7 @@ const webSchema = z.object({
   PHONE_CODE_SECRET: z.string().min(32),
   // `log` writes SMS codes to the log (development and staging). Real providers come later.
   SMS_PROVIDER: z.enum(['log']).default('log'),
-  // `off` sends X-Robots-Tag: noindex on every page, so search engines skip staging and test
-  // data. Set to `on` in production only.
-  SEARCH_INDEXING: z.enum(['on', 'off']).default('off'),
+  ...indexingFields,
   ...s3Fields,
   // imgproxy behind Cloudflare (https://img-staging.peydoo.com), with its signing key and salt
   IMAGE_URL: optional(z.url({ protocol: /^https?$/ })),
@@ -235,6 +243,8 @@ const workerSchema = z.object({
   IMAGE_URL: optional(z.url({ protocol: /^https?$/ })),
   IMGPROXY_KEY: optional(hex),
   IMGPROXY_SALT: optional(hex),
+  // IndexNow for changed pages (src/modules/search/indexnow.ts): only with SEARCH_INDEXING=on
+  ...indexingFields,
   ...monitoringFields,
   ...testInboxField,
 })

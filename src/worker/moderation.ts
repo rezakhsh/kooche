@@ -1,4 +1,4 @@
-import { Queue, Worker, type Job } from 'bullmq';
+import { Queue, UnrecoverableError, Worker, type Job } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Db } from '../db/drizzle';
 import { alertPayload, queueSummary, sendAlert, softwarePayload } from '../modules/admin/alert';
@@ -13,6 +13,16 @@ import { closeSwitched, findSuspicions } from '../modules/organizations/suspicio
 import { LISTING_OUTBOX } from '../modules/listings/events';
 import { listingPageUrls, PAGES_CHANGED, pagesOwner, PURGE_BATCH, sellerPageUrls } from '../modules/listings/page-purge';
 import { EVENT_OUTBOX } from '../modules/events/events';
+import {
+  addPendingIndexNow,
+  INDEXNOW_GATHER_MS,
+  INDEXNOW_PENDING_KEY,
+  IndexNowRefused,
+  listingIndexUrls,
+  ownerIndexUrls,
+  sendPendingIndexNow,
+  type IndexNowConfig,
+} from '../modules/search/indexnow';
 import { sendOnce } from '../modules/notifications/send-once';
 import { queueEndedSanctionNotices } from '../modules/users/account-notices';
 import type { PlainEmailJob, PlainTelegramJob } from './chat';
@@ -28,7 +38,9 @@ import { reportJobFailure, logText } from './monitoring';
 //   Cloudflare (when configured) and rebuild the sitemaps a minute later;
 // - every change of a listing or event that is or was public, and `pages.changed` (a business's or
 //   seller's details): purge its page (or theirs) from Cloudflare, and once more 15 seconds later
-//   for a render that began before the change (src/modules/listings/page-purge.ts);
+//   for a render that began before the change (src/modules/listings/page-purge.ts); with IndexNow
+//   on, the same pages are gathered for a minute and sent to IndexNow in one call (job `indexnow`,
+//   src/modules/search/indexnow.ts), apart from the purge, whose job never fails for it;
 // - every 15 minutes: listings of suspensions that ran out come back; restrictions that ran out
 //   with nothing to bring back are told (src/modules/users/account-notices.ts);
 // - every minute: the system status snapshot for the admin page;
@@ -42,6 +54,8 @@ import { reportJobFailure, logText } from './monitoring';
 // Failed jobs hold an address and a message text: kept 30 days at most (Check B, Oct 31, 2026)
 const KEEP = { removeOnComplete: 200, removeOnFail: { age: 30 * 86_400, count: 1_000 } };
 const RETRY = { attempts: 8, backoff: { type: 'exponential' as const, delay: 10_000 } };
+/** IndexNow busy or not reached: tried again a little (30 s, 1 and 2 minutes); what waits goes with the next call anyway */
+const INDEXNOW_RETRY = { attempts: 4, backoff: { type: 'exponential' as const, delay: 30_000 } };
 
 export const ALERT_GATHER_MS = 2 * 60_000;
 /** The second purge of a changed page: a render that read the old listing just before the change may have been stored after the first */
@@ -76,6 +90,10 @@ export type ModerationJobOptions = {
   purge: { zoneId: string; token: string } | null;
   /** The second purge of a changed page (tests shorten it) */
   purgeAgainMs?: number;
+  /** IndexNow for changed pages; null while SEARCH_INDEXING is off or INDEXNOW_KEY unset (indexNowConfig) */
+  indexNow?: IndexNowConfig | null;
+  /** How long changed pages are gathered before one IndexNow call (tests shorten it) */
+  indexNowGatherMs?: number;
   /** The sitemap queue (`seo`) */
   seo: Queue | null;
   /** For the status snapshot's document count */
@@ -116,6 +134,29 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
     } catch (e) {
       await connection.del(key);
       throw e;
+    }
+  };
+
+  /**
+   * Notes a changed page (or a business's or seller's pages) for IndexNow and makes sure a call
+   * follows after the gathering time: one job per time slot, which runs after the slot has ended,
+   * so it sends everything noted in it. Never throws: a failure here must not fail the purge.
+   */
+  const pendingKey = `${opts.prefix ?? ''}${INDEXNOW_PENDING_KEY}`;
+  const noteForIndexNow = async (jobName: string, data: OutboxJobData): Promise<void> => {
+    if (!opts.indexNow) return;
+    try {
+      const appUrl = opts.indexNow.appUrl;
+      const urls =
+        jobName === 'page_purge'
+          ? await listingIndexUrls(db, data.aggregateId, appUrl)
+          : await ownerIndexUrls(db, pagesOwner(data.aggregateId, data.payload ?? {}), appUrl);
+      if (urls.length === 0) return;
+      await addPendingIndexNow(connection, pendingKey, urls);
+      const gatherMs = opts.indexNowGatherMs ?? INDEXNOW_GATHER_MS;
+      await queue.add('indexnow', {}, { jobId: `indexnow_${Math.floor(Date.now() / gatherMs)}`, delay: gatherMs, ...INDEXNOW_RETRY });
+    } catch (e) {
+      console.error(`moderation: IndexNow not noted (${jobName}):`, logText(e));
     }
   };
 
@@ -164,6 +205,8 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
         }
         case 'page_purge':
         case 'seller_pages_purge': {
+          // Search engines learn of the change too (once, not on the second purge); never throws
+          if (!(job.data as { again?: boolean }).again) await noteForIndexNow(job.name, data);
           if (!opts.purge) return 'no purge';
           const urls =
             job.name === 'page_purge'
@@ -174,6 +217,16 @@ export async function startModerationJobs(db: Db, connection: Redis, opts: Moder
             await queue.add(job.name, { ...data, again: true }, { jobId: `${job.id}_again`, delay: opts.purgeAgainMs ?? PURGE_AGAIN_MS });
           }
           return `purged ${urls.length}`;
+        }
+        case 'indexnow': {
+          if (!opts.indexNow) return 'off';
+          try {
+            return `sent ${await sendPendingIndexNow(connection, pendingKey, opts.indexNow, opts.fetchFn)}`;
+          } catch (e) {
+            // A wrong key or address won't get better by trying again: reported once (./monitoring.ts)
+            if (e instanceof IndexNowRefused) throw new UnrecoverableError(e.message);
+            throw e;
+          }
         }
         case 'admin_alert': {
           if (!opts.alert) return 'off';

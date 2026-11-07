@@ -20,6 +20,8 @@ import { upcomingEvents } from '../../../modules/events/queries';
 import { cardOf } from '../../../modules/listings/card';
 import { streetMapView } from '../../../modules/maps/street-map';
 import { cachedCatalog } from '../../../modules/listings/catalog';
+import { activeCountries } from '../../../modules/listings/queries';
+import { breadcrumbJsonLd, jsonLdText, type Crumb } from '../../../modules/listings/seo';
 import { savedAmong } from '../../../modules/listings/favorites';
 import { imageUrl } from '../../../modules/media/server';
 import { hoursJsonLd, openState, validHours, WEEKDAYS } from '../../../modules/organizations/hours';
@@ -27,6 +29,8 @@ import { businessBySlug, closedBusinessName, legalComplete, roleIn } from '../..
 import { businessListingCards } from '../../../modules/organizations/queries';
 import { foundingBadge } from '../../../modules/payments/founding';
 import { featuredListingIds } from '../../../modules/payments/plans';
+import { browsePath } from '../../../modules/search/paths';
+import { allCities } from '../../../modules/search/places';
 import { currentSession, viewerSeesTest } from '../../../modules/users/server';
 import { followAction } from '../../events/follow-actions';
 
@@ -84,11 +88,13 @@ export default async function BusinessPage({ params, searchParams }: { params: P
   const now = new Date();
   const timeZone = found.timeZone ?? env.APP_TIME_ZONE;
   const session = await currentSession();
-  const [catalog, items, events, member] = await Promise.all([
+  const [catalog, items, events, member, countries, cities] = await Promise.all([
     cachedCatalog(db),
     businessListingCards(db, org.id),
     upcomingEvents(db, { organizationId: org.id, from: now, to: null, withTest: await viewerSeesTest() }, now, 20).then((r) => r.items),
     session ? roleIn(db, session.user.id, org.id) : Promise.resolve(null),
+    activeCountries(db),
+    allCities(db),
   ]);
   const [saved, featured, following] = await Promise.all([
     session ? savedAmong(db, session.user.id, [...items.map((l) => l.id), ...events.map((e) => e.id)]) : Promise.resolve(new Set<string>()),
@@ -133,6 +139,19 @@ export default async function BusinessPage({ params, searchParams }: { params: P
     openingHoursSpecification: hours ? hoursJsonLd(hours) : undefined,
     sameAs: [org.instagram && `https://www.instagram.com/${org.instagram}`, org.telegram && `https://t.me/${org.telegram}`].filter(Boolean),
   };
+  // The page shows no trail; search results get خانه › country › city › the business, from the
+  // browse pages the business's listings are found on (a country that isn't open has none)
+  const country = countries.find((c) => c.code === org.countryCode);
+  const city = country && org.locationId ? cities.find((c) => c.id === org.locationId) : undefined;
+  const trail: Crumb[] | null = country
+    ? [
+        { name: messages.listing.breadcrumbHome, path: '/' },
+        { name: country.nameFa, path: browsePath(country.slug, null, null) },
+        ...(city ? [{ name: city.nameFa, path: browsePath(country.slug, city.slug, null) }] : []),
+        { name: org.name },
+      ]
+    : null;
+  const ld = [jsonLd, ...(trail ? [breadcrumbJsonLd(env.APP_URL, trail)] : [])];
 
   const actions: { icon: IconName; label: string; href: string; external?: boolean }[] = [
     ...(org.phoneE164 ? [{ icon: 'phone' as const, label: p.call, href: `tel:${org.phoneE164}` }] : []),
@@ -151,13 +170,13 @@ export default async function BusinessPage({ params, searchParams }: { params: P
 
   return (
     <main data-soft-page className="mx-auto w-full max-w-4xl pb-10">
-      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: jsonLdText(ld) }} />
       <div className="h-28 bg-gradient-to-l from-brand-800 to-brand-600 lg:mt-6 lg:h-40 lg:rounded-3xl" aria-hidden />
       <div className="px-4 lg:px-6">
         <div className="-mt-10 flex items-end gap-3">
           <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white text-2xl font-black text-brand-800 shadow-md">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {logo ? <img src={logo} alt="" className="size-full object-cover" /> : org.name.trim().charAt(0)}
+            {logo ? <img src={logo} alt={org.name} className="size-full object-cover" /> : org.name.trim().charAt(0)}
           </span>
           {member ? (
             <Link href={`${path}/manage`} className="ms-auto flex h-10 items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-bold text-neutral-800 hover:bg-neutral-50">

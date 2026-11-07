@@ -18,7 +18,7 @@ import { currentSession } from '../../modules/users/server';
 import { chosenCountry } from '../country-choice';
 import { CityFilter } from './filter';
 
-export const metadata = { title: messages.cities.title };
+export const metadata = { title: messages.cities.title, description: messages.cities.description, alternates: { canonical: '/cities' } };
 
 // Choosing a city (round 12, mockup final/city-chooser), from the header's «برلین ▾» and the first
 // page's «کشور دیگر»: the country's key cities (open ones with their counts, waitlist ones with

@@ -8,7 +8,7 @@ export type OutlineKind = 'listing' | 'browse' | 'list' | 'chat' | 'thread' | 'a
 export const STATIC_ROUTES = new Set([
   'account', 'admin', 'alerts', 'api', 'b', 'business', 'chat', 'cities', 'contact', 'e', 'events', 'favorites',
   'fonts', 'health', 'help', 'impressum', 'login', 'map', 'my', 'new', 'privacy', 'pro', 'report', 'safety',
-  'sitemaps', 'sitemap.xml', 'terms', 'u', 'v', 'waitlist',
+  'sitemaps', 'sitemap.xml', 'indexnow.txt', 'terms', 'u', 'v', 'waitlist',
 ]);
 
 // Browse addresses whose page is not a list of listing cards: line only

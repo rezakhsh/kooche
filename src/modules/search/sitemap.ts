@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { Queryable } from '../../db/drizzle';
-import { countries, eventDates, listings, sitemapFiles } from '../../db/schema';
+import { countries, eventDates, listings, organizations, sitemapFiles } from '../../db/schema';
 import { eventPath } from '../events/slug';
 import { ancestry, isEventCategory, loadCatalog, type Catalog } from '../listings/catalog';
 import { listingPath } from '../listings/slug';
@@ -14,8 +14,15 @@ import { hideTest } from '../users/test-accounts';
 // and category pages that have listings, the events pages with upcoming events, and every
 // active listing and event page. Never a filtered, sorted or paged address.
 //
-// Files: `index` (the sitemap index), `<country>` (its browse and events pages) and
-// `<country>-listings-<n>` (listing and event pages, at most 50,000 each).
+// Files: `index` (the sitemap index), `site` (the home page and the pages about Peydoo),
+// `<country>` (its browse and events pages, and its business pages) and `<country>-listings-<n>`
+// (listing and event pages, at most 50,000 each).
+// SEO plan (docs/research/seo.md, Nov 7, 2026, owner: every page with content): a city or
+// category page is listed from its first listing; waiting cities and «به‌زودی» countries are not
+// (their pages say noindex until they open).
+
+/** The pages about Peydoo itself, for the `site` file (all indexable, none per country) */
+export const SITE_PAGES = ['/', '/help', '/safety', '/pro', '/business/compare', '/terms', '/terms/de', '/privacy', '/privacy/de', '/impressum'];
 
 export const SITEMAP_MAX_URLS = 50_000;
 
@@ -105,6 +112,13 @@ async function countryPages(db: Queryable, catalog: Catalog, appUrl: string, cou
   }
   if (countryEvents) urls.push({ loc: `${appUrl}${eventsPath(country.slug, null)}`, lastmod: countryEvents });
 
+  // Business pages: active ones of the country, never a test account's
+  const businesses = await db
+    .select({ slug: organizations.slug, updatedAt: organizations.updatedAt })
+    .from(organizations)
+    .where(and(eq(organizations.status, 'active'), eq(organizations.countryCode, country.code), hideTest(false, organizations.createdByUserId)));
+  for (const o of businesses) urls.push({ loc: `${appUrl}/b/${o.slug}`, lastmod: o.updatedAt });
+
   // A stable order makes the files easy to compare between runs
   return urls.sort((x, y) => (x.loc < y.loc ? -1 : x.loc > y.loc ? 1 : 0));
 }
@@ -136,7 +150,7 @@ export async function buildSitemaps(db: Queryable, appUrl: string, opts: { now?:
     .where(and(eq(countries.isActive, true), sql`${countries.slug} IS NOT NULL`))
     .orderBy(asc(countries.sortOrder), asc(countries.code));
 
-  const files: SitemapFile[] = [];
+  const files: SitemapFile[] = [{ name: 'site', body: urlset(SITE_PAGES.map((p) => ({ loc: p === '/' ? `${base}/` : `${base}${p}`, lastmod: null }))), urlCount: SITE_PAGES.length }];
   for (const c of open) {
     const country = { code: c.code, slug: c.slug! };
     const pages = (await countryPages(db, catalog, base, country, now)).slice(0, max);

@@ -29,7 +29,13 @@ export async function waitingCity(b: Browse): Promise<CityLaunch | null> {
 
 export function waitlistMetadata(b: Browse, launch: CityLaunch): Metadata {
   const title = messages.launch.title(launch.groupNames.join(' و '));
-  return { title, description: launch.goal ? messages.launch.goalLine(launch.groupNames.join(' و '), launch.goal) : undefined, alternates: { canonical: `/${b.country.slug}/${b.city!.slug}` } };
+  return {
+    title,
+    description: launch.goal ? messages.launch.goalLine(launch.groupNames.join(' و '), launch.goal) : undefined,
+    alternates: { canonical: `/${b.country.slug}/${b.city!.slug}` },
+    // A waiting city stays out of Google until it opens, like a «به‌زودی» country (./country-soon.tsx)
+    robots: { index: false, follow: true },
+  };
 }
 
 /** The page for a waiting city */

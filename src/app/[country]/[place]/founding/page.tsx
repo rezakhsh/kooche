@@ -7,6 +7,7 @@ import { appDb } from '../../../../db/drizzle';
 import { messages } from '../../../../messages/fa';
 import { cityFoundingPlaces } from '../../../../modules/payments/founding';
 import { browsePath } from '../../../../modules/search/paths';
+import { waitingCity } from '../../_browse/waitlist-page';
 import { resolveBrowse } from '../../_browse/resolve';
 import { proMonthlyText } from '../../../../modules/payments/prices';
 
@@ -27,8 +28,15 @@ async function load(params: Props['params']) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { city } = await load(params);
-  return { title: messages.founding.title(city.nameFa) };
+  const { b, city } = await load(params);
+  return {
+    title: messages.founding.title(city.nameFa),
+    description: `${messages.founding.heading(city.nameFa)}. ${messages.founding.intro}`,
+    alternates: { canonical: `${browsePath(b.country.slug, city.slug, null)}/founding` },
+    // While the city waits, the page is one of many alike (one per city): out of Google like the
+    // waitlist page itself (../../_browse/waitlist-page.tsx)
+    robots: (await waitingCity(b)) ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function FoundingPage({ params }: Props) {

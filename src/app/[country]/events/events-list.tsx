@@ -54,12 +54,16 @@ export async function eventsMetadata(params: Promise<EventsParams>, searchParams
   const { country, city } = found;
   const t = messages.events;
   // Filtered views are for visitors; search engines get the plain country and city lists
-  const filtered = isFiltered(readEventsQuery(await searchParams, new Date(), found.timeZone));
+  const now = new Date();
+  const filtered = isFiltered(readEventsQuery(await searchParams, now, found.timeZone));
+  // An events page without upcoming events stays out of Google (no content); the sitemap lists
+  // the same pages (src/modules/search/sitemap.ts). Test accounts' events never count.
+  const empty = !filtered && (await countEvents(appDb(), { countryCode: country.code, locationId: city?.id ?? null, from: now, to: null }, now, 1)) === 0;
   return {
     title: `${city ? t.cityTitle(city.nameFa, country.nameFa) : t.title(country.nameFa)} | ${messages.site.name}`,
     description: city ? t.cityDescription(city.nameFa, country.nameFa) : t.description(country.nameFa),
     alternates: { canonical: `${webEnv().APP_URL}${eventsPath(country.slug, city?.slug ?? null)}` },
-    robots: filtered ? { index: false, follow: true } : undefined,
+    robots: filtered || empty ? { index: false, follow: true } : undefined,
   };
 }
 

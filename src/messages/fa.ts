@@ -110,6 +110,8 @@ export const messages = {
     foundingText: (places: number, city: string) => `${places.toLocaleString('fa-IR')} کسب‌وکار اول ${city} ۶ ماه پرو رایگان می‌گیرند.`,
     placesLeft: (n: number) => `${n.toLocaleString('fa-IR')} جا مانده`,
     chooseCountry: 'کشورتان را انتخاب کنید',
+    // The strip on top for a visitor from a planned country (SEO plan step 1, Nov 7, 2026)
+    soonStrip: 'در فهرست انتظار بنویسید',
     yourCountry: 'کشور شما',
     currentCountry: 'کشور فعلی',
     soon: 'به‌زودی',
@@ -268,6 +270,66 @@ export const messages = {
     cityCategoryTitle: (category: string, city: string) => `${category} در ${city}`,
     cityDescription: (city: string, country: string) => `آگهی‌های تازه ایرانیان در ${city}، ${country}: خرید و فروش، خانه، کار و خدمات.`,
     cityCategoryDescription: (category: string, city: string) => `آگهی‌های ${category} ایرانیان در ${city}؛ خرید، فروش و اجاره با فیلتر قیمت و مشخصات.`,
+    // Search titles and descriptions of the top categories, in the words people type (SEO plan
+    // step 4, Nov 7, 2026; docs/research/seo.md, "Keywords for Berlin"): used for the <title> and
+    // description of a top category's country and city pages. The heading on the page keeps the
+    // short name (the approved mockups). `place` is a city or a country.
+    // The <title> of a plain city or country page («ایرانیان برلین» is a common search)
+    placeSeoTitle: (place: string) => `آگهی‌های ایرانیان ${place}: خانه، کار، خدمات و خرید و فروش`,
+    seo: {
+      'real-estate': {
+        title: (place: string) => `اجاره و خرید خانه، آپارتمان و اتاق در ${place}`,
+        description: (place: string) => `اجارهٔ آپارتمان، اتاق و WG، اجارهٔ کوتاه‌مدت و خرید خانه در ${place}، آگهی‌های ایرانیان به فارسی.`,
+      },
+      vehicles: {
+        title: (place: string) => `خرید و فروش ماشین، موتور و دوچرخه در ${place}`,
+        description: (place: string) => `ماشین، موتورسیکلت، دوچرخه و لوازم خودرو در ${place}؛ آگهی‌های ایرانیان به فارسی.`,
+      },
+      electronics: {
+        title: (place: string) => `خرید و فروش موبایل، لپ‌تاپ و کالای دیجیتال در ${place}`,
+        description: (place: string) => `گوشی، لپ‌تاپ، تبلت، کنسول و تلویزیون نو و دست دوم در ${place}؛ آگهی‌های ایرانیان به فارسی.`,
+      },
+      'home-garden': {
+        title: (place: string) => `لوازم خانه، مبلمان و فرش دست دوم در ${place}`,
+        description: (place: string) => `مبل، تخت، لوازم آشپزخانه، فرش ایرانی و لوازم برقی در ${place}؛ آگهی‌های ایرانیان به فارسی.`,
+      },
+      'fashion-beauty': {
+        title: (place: string) => `لباس، کفش و لوازم آرایشی در ${place}`,
+        description: (place: string) => `لباس زنانه و مردانه، کفش، کیف، زیورآلات و آرایشی نو و دست دوم در ${place}.`,
+      },
+      'kids-baby': {
+        title: (place: string) => `لوازم کودک و نوزاد دست دوم در ${place}`,
+        description: (place: string) => `کالسکه، صندلی ماشین، لباس و اسباب‌بازی کودک در ${place}؛ آگهی‌های ایرانیان به فارسی.`,
+      },
+      pets: {
+        title: (place: string) => `حیوانات خانگی و لوازم آن‌ها در ${place}`,
+        description: (place: string) => `سگ، گربه، پرنده و لوازم حیوانات، و نگهداری از حیوانات در ${place}.`,
+      },
+      'leisure-hobbies': {
+        title: (place: string) => `کتاب فارسی، ساز و لوازم ورزشی در ${place}`,
+        description: (place: string) => `کتاب و موسیقی، سنتور و تار و آلات موسیقی، ورزش و کمپینگ در ${place}؛ آگهی‌های ایرانیان.`,
+      },
+      services: {
+        title: (place: string) => `خدمات ایرانی در ${place}: مترجم، وکیل، آرایشگر و اسباب‌کشی`,
+        description: (place: string) => `مترجم، مشاور حقوقی و مهاجرت، کمک در فرم‌های اداری، پزشک، آرایشگر، نظافت و اسباب‌کشی فارسی‌زبان در ${place}.`,
+      },
+      'lessons-courses': {
+        title: (place: string) => `کلاس و معلم خصوصی فارسی‌زبان در ${place}`,
+        description: (place: string) => `کلاس زبان آلمانی، تدریس خصوصی، موسیقی، ورزش و رانندگی به فارسی در ${place}.`,
+      },
+      jobs: {
+        title: (place: string) => `کار در ${place}: آگهی‌های استخدام ایرانیان`,
+        description: (place: string) => `کار دانشجویی، مینی‌جاب، آوسبیلدونگ و کار تمام‌وقت در ${place}؛ آگهی‌های استخدام به فارسی.`,
+      },
+      community: {
+        title: (place: string) => `ایرانیان ${place}: همسفری، کمک همسایگی و گمشده‌ها`,
+        description: (place: string) => `همسفری، کمک داوطلبانه و اشیای گمشده بین ایرانیان ${place}.`,
+      },
+      'business-equipment': {
+        title: (place: string) => `تجهیزات رستوران، فروشگاه و دفتر در ${place}`,
+        description: (place: string) => `تجهیزات فروشگاه و رستوران، لوازم اداری، مصالح و ابزار صنعتی در ${place}.`,
+      },
+    } as Record<string, { title: (place: string) => string; description: (place: string) => string }>,
     countAtLeast: (n: number) => `بیش از ${n.toLocaleString('fa-IR')} آگهی`,
     emptyFiltered: 'آگهی‌ای با این فیلترها پیدا نشد.',
     clearFilters: 'پاک کردن فیلترها',
@@ -2041,6 +2103,8 @@ export const messages = {
   // Choosing a city (src/app/cities, mockup final/city-chooser)
   cities: {
     title: 'شهر شما',
+    // The page's description for search engines (SEO plan step 3, Nov 7, 2026)
+    description: 'شهرهای باز پیدو با آگهی‌ها و رویدادهای فارسی‌زبان، و شهرهایی که به‌زودی باز می‌شوند.',
     close: 'بستن',
     search: 'جستجوی شهر',
     openOf: (open: number, all: number) => `${open.toLocaleString('fa-IR')} از ${all.toLocaleString('fa-IR')} شهر باز`,

@@ -115,7 +115,8 @@ async function resolve(countrySlug: string, placeSlug: string, categorySlug: str
   const canonical = browseQuery(parsed, ctx.minorUnit);
   // The owner's ref code stays for the visit beacon (src/modules/stats/ref-param.ts)
   const kept = withRef(canonical, raw.ref);
-  if (kept !== currentQuery(raw)) redirect(`${path}${kept}`);
+  // Permanent: the same address always cleans up the same way (unknown or default parameters)
+  if (kept !== currentQuery(raw)) permanentRedirect(`${path}${kept}`);
 
   const resolved = await resolveFilters(db, {
     countryCode: country.code,

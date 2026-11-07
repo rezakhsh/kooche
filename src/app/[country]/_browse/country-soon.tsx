@@ -39,6 +39,10 @@ export function countrySoonMetadata(country: CountryInfo): Metadata {
     title: country.opensOn ? t.titleOn(country.nameFa, openingDay(country.opensOn)) : t.title(country.nameFa),
     description: t.intro,
     alternates: { canonical: `/${country.slug}` },
+    // Not in Google until the country opens: every «به‌زودی» page is the same page with another
+    // name, which Google may count as doorway pages (docs/research/seo.md, Nov 2026). Its links
+    // are still followed.
+    robots: { index: false, follow: true },
   };
 }
 

@@ -4,7 +4,7 @@ import * as schema from '../src/db/schema';
 import { browseCacheControl } from '../src/proxy';
 import { buildSitemaps, readSitemap, writeSitemaps } from '../src/modules/search/sitemap';
 import { workerDb } from './accounts';
-import { category, db, expectError, INSUFFICIENT_PRIVILEGE, location, makeListing, makeUser, rollback, setRole } from './db';
+import { category, db, expectError, INSUFFICIENT_PRIVILEGE, location, makeListing, makeOrganization, makeUser, rollback, setRole } from './db';
 
 // XML sitemaps (the plan's SEO section): only plain pages with listings, every active listing
 // and event page, nothing filtered, nothing from closed countries; served only with
@@ -37,6 +37,9 @@ describe('sitemaps', () => {
       await tx.insert(schema.eventDetails).values({ listingId: event.id, timeZone: 'Europe/Berlin' });
       const start = new Date(Date.now() + 7 * 86_400_000);
       await tx.insert(schema.eventDates).values({ listingId: event.id, countryCode: 'DE', locationId: kiel.id, startsAt: start, endsAt: new Date(start.getTime() + 3 * 3_600_000) });
+      const shop = await makeOrganization(tx, u.id);
+      const gone = await makeOrganization(tx, u.id);
+      await tx.update(schema.organizations).set({ status: 'suspended' }).where(sql`id = ${gone.id}`);
       await setRole(tx, 'classifieds_worker');
 
       const files = await buildSitemaps(tx, `${APP}/`);
@@ -47,6 +50,11 @@ describe('sitemaps', () => {
       expect(index).toContain(`${APP}/sitemaps/germany-listings-1.xml`);
       expect(index.some((l) => l.includes('turkey'))).toBe(false); // a closed country
       expect(files[0]!.urlCount).toBe(files.length - 1);
+      expect(index).toContain(`${APP}/sitemaps/site.xml`);
+
+      // The pages about Peydoo: the home page with its slash, help, safety, Pro and the legal pages
+      const site = locs(byName.get('site')!.body);
+      for (const path of ['/', '/help', '/safety', '/pro', '/business/compare', '/privacy', '/impressum']) expect(site, path).toContain(`${APP}${path}`);
 
       const pages = locs(byName.get('germany')!.body);
       for (const path of ['/germany', '/germany/cars', '/germany/vehicles', '/germany/rostock', '/germany/rostock/cars', '/germany/rostock/vehicles', '/germany/events', '/germany/kiel/events']) {
@@ -55,6 +63,9 @@ describe('sitemaps', () => {
       expect(pages).not.toContain(`${APP}/germany/rostock/boats`); // only a paused listing there
       expect(pages).not.toContain(`${APP}/germany/event-concerts`); // events have their own pages
       expect(pages.every((l) => !l.includes('?'))).toBe(true); // never a filtered or paged address
+      // Active business pages of the country, not a suspended one
+      expect(pages).toContain(`${APP}/b/${shop.slug}`);
+      expect(pages).not.toContain(`${APP}/b/${gone.slug}`);
       expect(byName.get('germany')!.body).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}T/);
 
       const items = files.filter((f) => f.name.startsWith('germany-listings-')).flatMap((f) => locs(f.body));

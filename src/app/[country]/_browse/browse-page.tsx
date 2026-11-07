@@ -112,6 +112,18 @@ const pageData = cache(async (b: Browse) => {
   return { result, leafCounts, cities, perCity, limited, events, featured, featuredIds, typical, weekEvent, weekCount, online, section };
 });
 
+/** A top category's search title and description (messages.browse.seo), for its plain pages */
+function seoOf(b: Browse) {
+  return b.category && !b.category.parentId ? messages.browse.seo[b.category.slug] : undefined;
+}
+
+/** The <title>: a top category in the words people search for, else the page's heading */
+function headTitleOf(b: Browse): string {
+  const seo = seoOf(b);
+  if (seo) return seo.title((b.city ?? b.country).nameFa);
+  return b.category ? titleOf(b) : messages.browse.placeSeoTitle((b.city ?? b.country).nameFa);
+}
+
 function titleOf(b: Browse): string {
   const t = messages;
   const { country, city, category } = b;
@@ -124,6 +136,8 @@ function titleOf(b: Browse): string {
 function descriptionOf(b: Browse): string {
   const t = messages;
   const { country, city, category } = b;
+  const seo = seoOf(b);
+  if (seo) return seo.description(city ? `${city.nameFa}، ${country.nameFa}` : country.nameFa);
   if (city && category) return t.browse.cityCategoryDescription(category.nameFa, city.nameFa);
   if (city) return t.browse.cityDescription(city.nameFa, country.nameFa);
   if (category) return t.country.categoryDescription(category.nameFa, country.nameFa);
@@ -141,7 +155,7 @@ export function indexable(b: Browse, total: number): boolean {
 export async function browseMetadata(b: Browse): Promise<Metadata> {
   const { result } = await pageData(b);
   return {
-    title: `${b.state.q ? `${messages.search.title(b.state.q)} ${messages.search.within(titleOf(b))}` : titleOf(b)} | ${messages.site.name}`,
+    title: `${b.state.q ? `${messages.search.title(b.state.q)} ${messages.search.within(titleOf(b))}` : headTitleOf(b)} | ${messages.site.name}`,
     description: descriptionOf(b),
     alternates: { canonical: `${webEnv().APP_URL}${b.path}` },
     robots: indexable(b, result.total) ? undefined : { index: false, follow: true },

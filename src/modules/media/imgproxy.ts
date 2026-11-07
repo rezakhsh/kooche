@@ -14,6 +14,19 @@ export const IMAGE_SIZES = {
   poster: 'rs:fill:480:600:1/g:ce',
   /** Listing page */
   full: 'rs:fit:1280:1280:0',
+  /**
+   * The listing page's main photo on phones: its 4:3 frame (object-cover, centred) at 800 px wide,
+   * enough for a phone's screen; `full` made the phone LCP 3.2 s (docs/research/seo.md, section 5)
+   */
+  phone: 'rs:fill:800:600:0/g:ce',
+  /**
+   * An event's cover for Google's event results, which ask for 16:9, 4:3 and 1:1 images. Enlarged
+   * when the poster is smaller, so the shape is always exact and at least 1200 px wide. Only the
+   * event page's JSON-LD names them, so imgproxy renders them when a search engine asks.
+   */
+  crop16x9: 'rs:fill:1200:675:1/g:ce',
+  crop4x3: 'rs:fill:1200:900:1/g:ce',
+  crop1x1: 'rs:fill:1200:1200:1/g:ce',
 } as const;
 export type ImageSize = keyof typeof IMAGE_SIZES;
 export type ImageFormat = 'avif' | 'webp';

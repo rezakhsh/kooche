@@ -5,6 +5,7 @@ import { favorites, listings, locations } from '../../db/schema';
 import { hit, type Limit } from '../../lib/rate-limit';
 import { listingNeighbourhood } from './neighbourhood';
 import { coverKeys } from './queries';
+import { goneForGood, listingGoneSince } from './seo';
 
 // Favorites (approved Oct 18, 2026): signed-in users only; browsing and favorites need no
 // verified phone (docs/setup.md, "Permissions"). Only active listings can be saved, and not your
@@ -85,9 +86,9 @@ function parseCursor(cursor: string | null): { at: string; id: string } | null {
  * The user's favorites, newest saved first, one page at a time. Listings that are no longer
  * active stay in the list: `available` is false, and `linkable` says whether their page still
  * opens for visitors (paused, sold and expired pages explain themselves; deleted and taken-down
- * ones are gone).
+ * ones are gone, and so are those sold or expired over GONE_AFTER_DAYS ago, ./seo.ts).
  */
-export async function myFavorites(db: Queryable, userId: string, cursor: string | null) {
+export async function myFavorites(db: Queryable, userId: string, cursor: string | null, now: Date = new Date()) {
   const after = parseCursor(cursor);
   const savedAt = sql<string>`to_char(${favorites.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
   const rows = await db
@@ -96,6 +97,7 @@ export async function myFavorites(db: Queryable, userId: string, cursor: string 
       publicToken: listings.publicToken,
       title: listings.title,
       status: listings.status,
+      statusChangedAt: listings.statusChangedAt,
       priceType: listings.priceType,
       priceMinor: listings.priceMinor,
       currency: listings.currency,
@@ -129,7 +131,7 @@ export async function myFavorites(db: Queryable, userId: string, cursor: string 
     items: page.map(({ savedAt: _s, ...r }) => ({
       ...r,
       available: r.status === 'active',
-      linkable: r.status === 'active' || r.status === 'paused' || r.status === 'sold' || r.status === 'expired',
+      linkable: (r.status === 'active' || r.status === 'paused' || r.status === 'sold' || r.status === 'expired') && !goneForGood(listingGoneSince(r), now),
       coverKey: covers.get(r.id) ?? null,
     })),
     next: rows.length > FAVORITES_PAGE_SIZE && last ? `${last.savedAt}_${last.id}` : null,

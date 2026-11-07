@@ -24,10 +24,12 @@ import { ancestry, cachedCatalog } from '../../../../modules/listings/catalog';
 import { favoriteCounts, savedAmong } from '../../../../modules/listings/favorites';
 import { amountInputValue } from '../../../../modules/listings/price';
 import { activeCountries } from '../../../../modules/listings/queries';
+import { breadcrumbJsonLd, eventGoneSince, goneForGood, jsonLdText, type Crumb } from '../../../../modules/listings/seo';
 import { streetMapView } from '../../../../modules/maps/street-map';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
-import { eventsPath } from '../../../../modules/search/paths';
+import { browsePath, eventsPath } from '../../../../modules/search/paths';
+import { allCities } from '../../../../modules/search/places';
 import { sellerPath } from '../../../../modules/users/profile';
 import { currentSession, viewerSeesTest } from '../../../../modules/users/server';
 import { followAction } from '../../../events/follow-actions';
@@ -67,7 +69,7 @@ const MODE: Record<string, string> = {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { token } = await params;
   const data = await load(token);
-  if (!data || !PUBLIC.has(data.listing.status)) return { title: messages.notFound.title, robots: { index: false } };
+  if (!data || !PUBLIC.has(data.listing.status) || goneForGood(eventGoneSince(data.dates), new Date())) return { title: messages.notFound.title, robots: { index: false } };
   const l = data.listing;
   const cover = data.images[0] ? imageUrl(data.images[0].key, 'full', 'webp') : null;
   return {
@@ -87,6 +89,11 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const session = await currentSession();
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
+  // Over GONE_AFTER_DAYS after its last date: 404, as a listing sold or expired that long (the
+  // not-found page offers what else is on). The organiser still sees it, e.g. to copy it for next
+  // year. Signed out, Cloudflare's copy (s-maxage 60, stale for up to 10 more minutes; src/proxy.ts)
+  // may show the old page that long after the day passes: nothing changes then, so nothing purges it.
+  if (!isOwner && goneForGood(eventGoneSince(data.dates), new Date())) notFound();
 
   const { listing: l, details: d, dates, images, seller, business, cityFa, cityLocal } = data;
   const env = webEnv();
@@ -94,8 +101,9 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const v = messages.events.view;
   const now = new Date();
   const db = appDb();
-  const [catalog, countries] = await Promise.all([cachedCatalog(db), activeCountries(db)]);
+  const [catalog, countries, cities] = await Promise.all([cachedCatalog(db), activeCountries(db), allCities(db)]);
   const country = countries.find((c) => c.code === l.countryCode);
+  const city = country && l.locationId ? (cities.find((c) => c.id === l.locationId) ?? null) : null;
   const type = l.categoryId ? ancestry(catalog, l.categoryId).at(-1) : undefined;
   const currency = l.currency ? catalog.currencies.get(l.currency) : undefined;
   const price = eventPriceText(l.priceType, l.priceMinor !== null && currency ? { minor: l.priceMinor, currency: currency.code, minorUnit: currency.minorUnit } : null);
@@ -171,6 +179,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     ...(d.doorSales !== null && !free ? [[v.facts.door, v.door[d.doorSales ? 'yes' : 'no']] as [string, string]] : []),
   ];
 
+  const [cover] = images;
   const jsonLd = next && {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -181,7 +190,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     ...(d.openEnd ? {} : { endDate: next.endsAt.toISOString() }),
     eventStatus: STATUS[d.scheduleStatus],
     eventAttendanceMode: MODE[d.attendance],
-    image: images.map((i) => imageUrl(i.key, 'full', 'webp')).filter(Boolean),
+    // The cover in the three shapes Google's event results ask for, 1200 px wide (IMAGE_SIZES)
+    image: cover ? (['crop16x9', 'crop4x3', 'crop1x1'] as const).map((size) => imageUrl(cover.key, size, 'webp')).filter(Boolean) : [],
     location: [
       ...(inPerson
         ? [
@@ -217,8 +227,20 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         }
       : {}),
   };
+  // The trail for search results: خانه › country › city › its events › the event (the city's
+  // events page, else the country's)
+  const trail: Crumb[] | null = country
+    ? [
+        { name: messages.listing.breadcrumbHome, path: '/' },
+        { name: country.nameFa, path: browsePath(country.slug, null, null) },
+        ...(city ? [{ name: city.nameFa, path: browsePath(country.slug, city.slug, null) }] : []),
+        { name: messages.events.section, path: eventsPath(country.slug, city?.slug ?? null) },
+        { name: l.title },
+      ]
+    : null;
+  // The Event only while it is on (an ended one is noindex anyway); the trail always
+  const ld = [...(jsonLd && !ended ? [jsonLd] : []), ...(trail ? [breadcrumbJsonLd(env.APP_URL, trail)] : [])];
 
-  const [cover] = images;
   const posterSrc = cover ? imageSources(cover.key, 'full') : null;
   const blurSrc = cover ? imageUrl(cover.key, 'poster', 'webp') : null;
 
@@ -311,7 +333,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     <section id="organizer" className="rounded-2xl border border-neutral-200 p-4">
       <div className="flex items-center gap-3">
         <Link href={organizerHref} className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-950 text-lg font-black text-snow">
-          {facts.logoKey ? <img src={imageUrl(facts.logoKey, 'thumb', 'webp') ?? ''} alt="" className="size-full object-cover" /> : organizer.slice(0, 1)}
+          {/* The logo is the link's only content: its alt, the organiser's name, names the link */}
+          {facts.logoKey ? <img src={imageUrl(facts.logoKey, 'thumb', 'webp') ?? ''} alt={organizer} className="size-full object-cover" /> : organizer.slice(0, 1)}
         </Link>
         <div className="min-w-0 flex-1">
           <Link href={organizerHref} className="flex items-center gap-1 font-bold hover:underline">
@@ -348,9 +371,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
 
   return (
     <main data-listing-page data-event-page className="mx-auto w-full max-w-6xl pb-28 lg:grid lg:grid-cols-[22rem_1fr] lg:gap-10 lg:px-6 lg:pt-8 lg:pb-10">
-      {jsonLd && !ended && (
-        <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      )}
+      {ld.length > 0 && <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: jsonLdText(ld) }} />}
       <div className="relative lg:sticky lg:top-20 lg:self-start">
         <div className="relative overflow-hidden bg-brand-950 lg:rounded-3xl">
           {blurSrc && <img src={blurSrc} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-2xl" />}

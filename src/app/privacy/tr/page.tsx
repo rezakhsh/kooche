@@ -6,7 +6,9 @@ import { aydinlatma } from '../../../messages/legal-tr';
 // linked from privacy policy 13.3. A draft for the Turkish adviser: the banner stays until checked.
 export const metadata: Metadata = {
   title: aydinlatma.title,
-  alternates: { canonical: '/privacy/tr', languages: { fa: '/privacy', de: '/privacy/de', tr: '/privacy/tr' } },
+  // Its own notice, not a translation of the privacy policy: no hreflang set (a one-sided set,
+  // which /privacy can't answer, is ignored by Google anyway; SEO audit, Nov 2026)
+  alternates: { canonical: '/privacy/tr' },
 };
 
 export default function PrivacyTrPage() {

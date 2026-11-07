@@ -2419,3 +2419,28 @@ The owner found that one person could collect a free bump from every city's wait
 - **Built:** `grantWaitlistRewards()` skips an email that already has a reward, so the place goes to the next sign-up (also within one «همهٔ کشور»); `usableRewards()` returns nothing once the account has used one, and with a listing only that listing's city's rewards (the city or one launching with it, Bonn with Cologne); `useReward()` answers `other_city` for a listing elsewhere. Texts say «در همین شهر» / «در ${city}» and «برای هر نفر یک بار» (waitlist page, country page, «آگهی‌های من», promote page, the day-3 email, admin). No migration.
 - **Business Pro checked, no change needed:** founding Pro is offered only by admin to a verified business, one founding place per owner across all their businesses, the owner needs a verified number of the business's country, and one free trial per business ever; normal Pro is paid through Stripe.
 - **Tests:** `tsc` and `check:rtl` clean; full run 107 files, 1,339 tests, all pass. `tests/rewards.test.ts` 3 new (a second city's opening skips an email already rewarded and gives its place to the next; «همهٔ کشور» gives one per email; a reward only on a listing in its city or launch group, `other_city` elsewhere, one per account even with a reward from before the rule); the tests whose listings used a reward now put them in the reward's city (`rewards`, `money-fixes`).
+
+## Nov 7, 2026: SEO build (plan steps 1–7), staging, then production with noindex
+
+The owner approved the SEO plan (`docs/research/seo.md`, section 5) with "every page with content", verified `peydoo.com` in Google Search Console, and asked to release to production while production stays `noindex` until they say go.
+
+- **Built:** steps 1–7 as listed in `docs/research/seo.md`, section 5, "Status". In short:
+  - The home page is the same for everyone, with a «به‌زودی» strip for planned countries.
+  - Each page is sent once in the HTML (the `NavFeedback` Suspense boundary is moved).
+  - Noindex on «به‌زودی», waiting-city and empty events pages.
+  - Search titles per top category.
+  - Sitemap `site` file and business pages.
+  - Product only for goods; breadcrumbs; event image crops; a phone-size main photo.
+  - 404 thirty days after sold/expired/ended.
+  - IndexNow in the worker, off until `SEARCH_INDEXING=on` and `INDEXNOW_KEY`.
+  - New imgproxy sizes: phone and three crops. A removed photo now purges 16 addresses.
+- **Not done:**
+  - Step 10, the permanent redirects: no stored Cloudflare token may edit redirect rules, and creating a narrow token was refused by the session's safety check. The owner adds the rule (`docs/research/seo.md`, section 6).
+  - Steps 8–9: later.
+- **Tests:** `tsc` and `check:rtl` clean. Full run: 109 files, all tests pass. The five search files ran again with a test Meilisearch.
+- **New tests:**
+  - `tests/listing-seo.test.ts`.
+  - `tests/indexnow.test.ts`.
+  - `tests/sitemap.test.ts`: site file and business pages.
+  - `tests/check-b-people.test.ts`: 16 purge addresses.
+

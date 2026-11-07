@@ -154,7 +154,7 @@ Win the **Persian** searches in Berlin that nobody owns well: rooms and flats (�
 | Persian only, or German/English pages too? | **Persian only** at launch; look again at day 90 with Search Console data | All content is Persian; translated copies would be thin. The German queries (restaurant, doctor) are kojast's ground; Persian queries have almost no competition |
 | `hreflang`? | Only on the legal pages (as now); no `fa-DE` variants | Google uses the page's visible language; one Persian version per address needs no `hreflang` ([Google](https://developers.google.com/search/docs/specialty/international/localized-versions)) |
 | Persian or Latin addresses? | **Keep both as built:** Latin for browse (`/germany/berlin/real-estate`), the Persian title in listing addresses | Google accepts percent-encoded Persian ([URL structure](https://developers.google.com/search/docs/crawling-indexing/url-structure)) and Divar does the same; browse paths stay short to share. No change, no redirects to maintain |
-| Which city × category pages go to Google? | Those with **3 or more** live listings, plus every events page with upcoming events | Practice is 1–5; 3 avoids one-ad pages without hiding real ones |
+| Which city × category pages go to Google? | **Every page with content** (owner, Nov 7, 2026): from the first live listing, plus every events page with upcoming events. Empty pages, filtered/sorted/paged copies and «به‌زودی» pages stay out | The owner wants every page with content in Google. Practice is 1–5; a one-ad page is still a real page, and Search Console will show if Google ignores many of them |
 | Waitlist countries and cities? | `noindex, follow` until they open; into the sitemap the day they open | They are the same page with another name; indexing them invites the doorway label |
 | Sold and expired listings? | Visible with «فروخته شد» / «منقضی شده» and similar listings, noindex, for **30 days**; then **410** with the same helpful body | Google treats 404/410 alike; 30 days lets buyers and the seller see what happened (Kleinanzeigen-style), then the address is cleanly gone |
 | Product markup? | Only on goods (buy and sell). Rooms, flats, services, lessons and wanted ads: no Product; jobs: no JobPosting for now | Markup must match the page. JobPosting can follow once employer ads have an apply route and strict end dates |
@@ -198,7 +198,31 @@ Win the **Persian** searches in Berlin that nobody owns well: rooms and flats (�
 - 30 days after go-live: every open-city page and live listing indexed; first impressions for Persian Berlin queries.
 - 90 days: Peydoo on page one for «یلدا برلین», «نوروز برلین» and at least one housing query («اجاره اتاق در برلین»); search brings a steady share of new visitors next to Telegram.
 
-## 5. Build plan (for approval)
+## 5. Build plan (approved Nov 7, 2026)
+
+**Status (Nov 7, 2026).** The owner approved the plan with "every page with content" (section 4, decisions), verified `peydoo.com` in Search Console, and asked for a release to production with production kept `noindex` until they say go. Built:
+- **1, home page:** the same for everyone; a visitor from a planned country gets the open country's home page with a strip on top, «پیدو به‌زودی در … — در فهرست انتظار بنویسید», linking to its «به‌زودی» page. Canonical `/`, Organization + WebSite JSON-LD.
+- **2, the page once in the HTML:** the Suspense boundary in `NavFeedback` now wraps only the part that reads the query (`SearchWatch`), not the page.
+- **3, housekeeping:**
+  - `noindex, follow` on «به‌زودی» countries, waiting cities and their founding pages, and events pages without upcoming events.
+  - City × category pages are indexed from the first listing (no threshold, the owner's choice).
+  - Parameter clean-up answers 308.
+  - Descriptions and canonicals for `/cities` and the founding pages.
+  - `/privacy/tr` has no `hreflang` set: it is its own notice, not a translation.
+  - Organiser and business logos have `alt` text.
+  - Sitemap: a `site` file (home, help, safety, Pro, compare, legal pages) and active business pages in each country's file.
+  - A wrong title part in a listing or event address isn't redirected: the token finds the page and the canonical names the right address.
+- **4, words people type:** `messages.browse.seo` gives each top category a search title and description («اجاره و خرید خانه، آپارتمان و اتاق در برلین», «کار در برلین: آگهی‌های استخدام ایرانیان»…). Plain city and country pages are titled «آگهی‌های ایرانیان برلین: …». The headings on the pages keep the approved short names.
+- **5, structured data:**
+  - Product only for goods offered (`src/modules/listings/seo.ts`).
+  - BreadcrumbList on listing, event and business pages.
+  - Event images as 1200-wide 16:9, 4:3 and 1:1 crops.
+  - The listing's main photo at 800 px on phones.
+- **6, gone listings:** 404 (not 410: Google treats them alike, and Next.js can't send 410 from a page) 30 days after a listing is sold or expired, or an event's last date ended; the seller still sees it.
+- **7, IndexNow:** built in the worker; it stays off until `SEARCH_INDEXING=on` and `INDEXNOW_KEY` are both set (docs/setup.md, "Go-live").
+- **10, permanent redirects:** not done. None of the stored Cloudflare tokens may edit redirect rules; the owner adds the rule (section 6).
+- **8, seasonal pages, and 9, businesses by kind:** not started; 8 is needed by about Dec 1 for Yalda.
+
 
 Each step is built on staging, checked with curl and the headless browser (phone and computer), and reaches production with the next release. Nothing here changes what visitors see, except step 1 (the home page) and the wording in step 4.
 
@@ -221,6 +245,7 @@ Go-live itself stays as written in `docs/setup.md` ("Go-live" step 2 and 5); add
 
 ## 6. What only the owner does
 
+- **Permanent redirects (step 10), in the Cloudflare dashboard** (2 minutes; no stored token may do it): peydoo.com › Rules › Redirect Rules › Create rule, "Custom filter expression", edit expression: `(http.host eq "www.peydoo.com" or (http.host eq "peydoo.com" and not ssl)) and not starts_with(http.request.uri.path, "/.well-known/acme-challenge/")`; then URL redirect, Dynamic, expression `concat("https://peydoo.com", http.request.uri.path)`, status 301, "Preserve query string" on; Deploy. Or give the Cloudflare token "Dynamic URL Redirects: Edit" on peydoo.com and Claude adds it.
 - **Decide:** approve the build plan (or parts of it); the home page change in step 1; and whether go-live can happen by about **Dec 1** so Google has time before Yalda.
 - **Google Search Console** at go-live: add `peydoo.com` as a **domain property** (verified with a DNS TXT record in Cloudflare; Claude can add the record with the owner's go), submit `https://peydoo.com/sitemap.xml`, and give Claude read access if you want weekly reports (a Search Console user with "Restricted" permission).
 - **Bing Webmaster Tools:** sign in, "Import from Google Search Console" (takes the site and sitemaps, no second verification).

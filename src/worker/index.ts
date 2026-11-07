@@ -13,6 +13,7 @@ import { notificationMailer } from '../modules/notifications/mailer';
 import { TelegramClient } from '../modules/notifications/telegram-api';
 import { StripeGateway } from '../modules/payments/gateway';
 import { Meili } from '../modules/search/meili';
+import { indexNowConfig } from '../modules/search/indexnow';
 import { type OutboxHandlers, BATCH_SIZE, mergeHandlers, processOutboxBatch } from './outbox';
 import { startAccountJobs } from './accounts';
 import { startChatJobs } from './chat';
@@ -130,6 +131,8 @@ async function main(): Promise<void> {
     send: chatJobs.queues,
     alert: env.N8N_ADMIN_ALERT_URL && env.N8N_WEBHOOK_SECRET ? { url: env.N8N_ADMIN_ALERT_URL, secret: env.N8N_WEBHOOK_SECRET } : null,
     purge: env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_PURGE_TOKEN ? { zoneId: env.CLOUDFLARE_ZONE_ID, token: env.CLOUDFLARE_PURGE_TOKEN } : null,
+    // Changed pages to search engines; off until SEARCH_INDEXING=on and INDEXNOW_KEY (go-live)
+    indexNow: indexNowConfig(env),
     seo: seoQueue,
     meili,
     software: {},

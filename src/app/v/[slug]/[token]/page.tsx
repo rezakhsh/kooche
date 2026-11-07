@@ -37,6 +37,7 @@ import { Flag } from '../../../../components/flag';
 import { ListingCard } from '../../../../components/listing-card';
 import { allCities } from '../../../../modules/search/places';
 import { listingPath } from '../../../../modules/listings/slug';
+import { breadcrumbJsonLd, goneForGood, isProductListing, jsonLdText, listingGoneSince, type Crumb } from '../../../../modules/listings/seo';
 import { imageSources, imageUrl } from '../../../../modules/media/server';
 import { chatEntry } from '../../../../modules/chat/entry';
 import { sellerPath } from '../../../../modules/users/profile';
@@ -82,7 +83,7 @@ const PUBLIC = PUBLIC_STATUSES;
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { token } = await params;
   const data = await load(token);
-  if (!data || !PUBLIC.has(data.listing.status)) return { title: messages.notFound.title, robots: { index: false } };
+  if (!data || !PUBLIC.has(data.listing.status) || goneForGood(listingGoneSince(data.listing), new Date())) return { title: messages.notFound.title, robots: { index: false } };
   const l = data.listing;
   const cover = data.images[0] ? imageUrl(data.images[0].key, 'full', 'webp') : null;
   return {
@@ -111,6 +112,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const session = await currentSession();
   const isOwner = session?.user.id === data.listing.userId;
   if (!PUBLIC.has(data.listing.status) && !isOwner) notFound();
+  // Sold or expired for over GONE_AFTER_DAYS: 404, and the not-found page offers the category's
+  // listings in its city instead. The seller still sees it (to renew it). Signed out, Cloudflare's
+  // copy (s-maxage 60, stale for up to 10 more minutes; src/proxy.ts) may show the old page that
+  // long after the day passes: nothing changes in the database then, so nothing purges it.
+  if (!isOwner && goneForGood(listingGoneSince(data.listing), new Date())) notFound();
 
   const { listing: l, images, seller, business, cityFa, cityLocal, neighbourhood } = data;
   const env = webEnv();
@@ -210,8 +216,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const factIcon = (key?: string): IconName => (key && FACT_ICONS[key]) || 'check';
   const canContact = !!chat && l.status === 'active';
 
-  // schema.org Product with an Offer. Price in major units as a decimal string, never a float.
-  const jsonLd = {
+  // schema.org Product with an Offer, only for goods offered (isProductListing). Price in major
+  // units as a decimal string, never a float.
+  const product = isProductListing(crumbs, l.kind) && {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: l.title,
@@ -245,10 +252,24 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       seller: business ? { '@type': 'Organization', name: business.name, url: `${env.APP_URL}/b/${business.slug}` } : { '@type': 'Person', name: seller.displayName },
     },
   };
+  // The trail as search results show it: خانه › country › city › categories › the listing (the
+  // visible one starts at the city, which already says the country)
+  const trail: Crumb[] | null = countrySlug
+    ? [
+        { name: t.breadcrumbHome, path: '/' },
+        { name: countryName, path: browsePath(countrySlug, null, null) },
+        ...(city ? [{ name: city.nameFa, path: browsePath(countrySlug, city.slug, null) }] : []),
+        ...crumbs.map((c) => ({ name: c.nameFa, path: browsePath(countrySlug, city?.slug ?? null, c.slug) })),
+        { name: l.title },
+      ]
+    : null;
+  const jsonLd = [...(product ? [product] : []), ...(trail ? [breadcrumbJsonLd(env.APP_URL, trail)] : [])];
 
-  const gallery: GalleryImage[] = images.map((img) => ({
+  const gallery: GalleryImage[] = images.map((img, i) => ({
     id: img.id,
     full: imageSources(img.key, 'full'),
+    // The cover (the page's LCP) also at phone size; the viewer keeps `full`
+    phone: i === 0 ? imageSources(img.key, 'phone') : null,
     thumb: imageUrl(img.key, 'thumb', 'webp'),
     placeholder: img.blur ? thumbHashToDataURL(Buffer.from(img.blur, 'base64')) : null,
     width: img.width,
@@ -450,7 +471,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   return (
     <main data-listing-page className={`mx-auto w-full max-w-6xl sm:px-6 lg:pt-6 ${canContact && !isOwner ? 'pb-28 lg:pb-6' : 'pb-6'}`}>
-      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      {jsonLd.length > 0 && <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: jsonLdText(jsonLd) }} />}
       <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:gap-8">
         <div className="min-w-0 space-y-5">
           {((published && !isOwner) || !PUBLIC.has(l.status) || l.status === 'paused' || l.status === 'sold' || l.status === 'expired') && (

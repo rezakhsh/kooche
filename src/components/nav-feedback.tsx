@@ -37,9 +37,22 @@ function warmPhoto(url: string | undefined, warmed: Set<string>) {
   img.src = url;
 }
 
-function Feedback({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+/**
+ * Reports the address's query to the wrapper. useSearchParams needs a Suspense boundary; it sits
+ * around this empty part only, so the page itself is sent once (SEO audit, Nov 2026: with the
+ * boundary around the page, the server sent every page twice, once as the boundary's fallback and
+ * once streamed in a hidden block, two <h1> and two JSON-LD blocks in the HTML Google reads).
+ */
+function SearchWatch({ onSearch }: { onSearch: (search: string) => void }) {
   const search = useSearchParams().toString();
+  useEffect(() => onSearch(search), [search, onSearch]);
+  return null;
+}
+
+/** Wraps the page area in the root layout */
+export function NavFeedback({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [search, setSearch] = useState('');
   const current = pathname + (search ? `?${search}` : '');
   const [pending, setPending] = useState<Pending | null>(null);
   const warmed = useRef(new Set<string>());
@@ -99,6 +112,9 @@ function Feedback({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <SearchWatch onSearch={setSearch} />
+      </Suspense>
       {active && <div data-nav-line className="nav-line" role="progressbar" aria-label={messages.nav.loading} />}
       {active?.kind && <NavOutline kind={active.kind} />}
       {/* The page being left stays mounted, only hidden: unmounting a long list took 0.1–0.2 s on a
@@ -109,14 +125,5 @@ function Feedback({ children }: { children: ReactNode }) {
         {children}
       </div>
     </>
-  );
-}
-
-/** Wraps the page area in the root layout */
-export function NavFeedback({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<div className="contents">{children}</div>}>
-      <Feedback>{children}</Feedback>
-    </Suspense>
   );
 }

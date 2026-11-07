@@ -16,6 +16,8 @@ export type GalleryImage = {
   id: string;
   /** imgproxy's large image, AVIF and WebP */
   full: { avif: string; webp: string } | null;
+  /** The cover's phone size (`phone`, 800 px wide), AVIF and WebP; null for the other photos */
+  phone?: { avif: string; webp: string } | null;
   thumb: string | null;
   /** ThumbHash as a data: image, shown while the photo loads */
   placeholder: string | null;
@@ -24,6 +26,13 @@ export type GalleryImage = {
 };
 
 const VIEWER_HASH = '#photos';
+
+/**
+ * Screens below Tailwind's `sm` (640 px), where the cover's frame is the screen's width: they take
+ * the 800 px `phone` size. A media condition rather than `sizes`, because a phone at 3x would
+ * otherwise pick the 1280 px image (390 px × 3), which made the phone LCP 3.2 s.
+ */
+const PHONE_MEDIA = '(max-width: 639px)';
 
 export function Gallery({ images, title }: { images: GalleryImage[]; title: string }) {
   const t = messages.listing;
@@ -203,6 +212,8 @@ function Picture({ image, alt, priority, viewer, className = '' }: { image: Gall
       {image.placeholder && <img src={image.placeholder} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover blur-lg" />}
       {image.full && (
         <picture>
+          {image.phone && <source media={PHONE_MEDIA} srcSet={image.phone.avif} type="image/avif" />}
+          {image.phone && <source media={PHONE_MEDIA} srcSet={image.phone.webp} type="image/webp" />}
           <source srcSet={image.full.avif} type="image/avif" />
           <img
             src={image.full.webp}

@@ -225,8 +225,9 @@ describe('photos of a taken-down or deleted listing', () => {
 
   it('every size and format of a photo is purged', () => {
     const urls = imageUrlsOf({ baseUrl: 'https://img.example', key: 'aa'.repeat(16), salt: 'bb'.repeat(16) }, 'listings/ab/x.webp');
-    expect(urls).toHaveLength(8);
-    expect(new Set(urls).size).toBe(8);
+    // 8 sizes (thumb, card, poster, full, phone and the event cover's three crops), AVIF and WebP
+    expect(urls).toHaveLength(16);
+    expect(new Set(urls).size).toBe(16);
   });
 });
 
