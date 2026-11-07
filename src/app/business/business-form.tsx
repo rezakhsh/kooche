@@ -129,7 +129,7 @@ function LogoPicker({ current, initialKey, onBusy }: { current: string | null; i
       <div className="min-w-0 text-xs leading-6">
         <p className={state === 'failed' || state === 'stale' ? 'text-red-700' : 'text-neutral-600'}>{state === 'failed' ? w.logoFailed : state === 'stale' ? messages.stalePage.text : state === 'ready' ? w.logoReady : w.logoHint}</p>
         {state === 'stale' && (
-          <button type="button" onClick={() => window.location.reload()} className="font-bold text-brand-800 underline">
+          <button type="button" onClick={() => window.location.reload()} className="block font-bold text-brand-800 underline">
             {messages.stalePage.reload}
           </button>
         )}
